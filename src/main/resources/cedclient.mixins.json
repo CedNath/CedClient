@@ -1,0 +1,36 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cedclient.mixin",
+  "compatibilityLevel": "JAVA_25",
+
+  "mixins": [
+    "ClientPacketListenerMixin",
+
+    "EntityMixin",
+    "LevelRendererMixin",
+    "MultiPlayerGameModeMixin",
+
+    "ContainerEventHandlerMixin",
+    "KeyboardHandlerMixin",
+    "AbstractContainerScreenMixin",
+    "AbstractContainerScreenAccessor",
+    "CameraAccessor",
+    "CameraMixin",
+    "KeyboardInputMixin",
+    "ClientInputAccessor",
+    "MinecraftTurnMixin"
+  ],
+
+  "client": [
+    "MinecraftMixin"
+  ],
+
+  "injectors": {
+    "defaultRequire": 1
+  },
+
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
