@@ -1,14 +1,24 @@
 package ced.cedclient.config
 
 import ced.cedclient.features.ModuleManager
-import ced.cedclient.features.settings.BooleanSetting
-import ced.cedclient.features.settings.ModeSetting
-import ced.cedclient.features.settings.NumberSetting
-import ced.cedclient.ui.clickgui.Panel
+import ced.cedclient.features.settings.Saving
+import ced.cedclient.ui.clickgui.PanelSetting
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import net.minecraft.client.Minecraft
 import java.io.File
 
+/**
+ * Phase 3 rewrite: walks Module.settings (a LinkedHashMap<String, Setting<*>>)
+ * instead of the old Module.getSettings() list, and persists each setting
+ * through its own Saving.read()/write() rather than a central `when` over
+ * concrete setting types (BooleanSetting/NumberSetting/ModeSetting), which no
+ * longer exist in that shape.
+ *
+ * Panel layout now persists via PanelSetting (x/y/extended), not by reading
+ * fields off the real Panel view object -- that object is still Phase 4.
+ */
 object ConfigManager {
 
     private val gson = GsonBuilder().setPrettyPrinting().create()
@@ -26,261 +36,167 @@ object ConfigManager {
 
     // Used only when a category has no saved position yet (first launch,
     // or a brand new category that's never been dragged before).
+    // Panel.WIDTH is 320f as of the bigger-text pass -- 15px left margin,
+    // 30px gutter between panels: 15, 15+320+30=365, 365+320+30=715.
     private val defaultPanelPositions: Map<String, Pair<Float, Float>> = mapOf(
-        "Render" to (285f to 15f),
+        "Render" to (365f to 15f),
         "Funqol" to (15f to 15f),
-        "Misc" to (555f to 15f)
+        "Misc" to (715f to 15f)
     )
 
-    /**
-     * Helper: try to interpret an arbitrary JSON value as a Number.
-     * Accepts Number or numeric String.
-     */
-    private fun asNumber(obj: Any?): Number? {
-        return when (obj) {
-            is Number -> obj
-            is String -> obj.toDoubleOrNull()
-            else -> null
+    private fun readRoot(): JsonObject? {
+        if (!configFile.exists()) return null
+        return try {
+            JsonParser.parseString(configFile.readText()).asJsonObject
+        } catch (t: Throwable) {
+            t.printStackTrace()
+            null
         }
     }
 
-    /**
-     * Helper: try to interpret an arbitrary JSON value as a Boolean.
-     * Accepts Boolean or String ("true"/"false").
-     */
-    private fun asBoolean(obj: Any?): Boolean? {
-        return when (obj) {
-            is Boolean -> obj
-            is String -> obj.equals("true", ignoreCase = true)
-            else -> null
+    private fun writeRoot(root: JsonObject) {
+        if (!configDir.exists()) configDir.mkdirs()
+        configFile.writeText(gson.toJson(root))
+    }
+
+    // -------------------------
+    // MODULES + SETTINGS
+    // -------------------------
+
+    private fun buildModulesJson(): JsonObject {
+        val modulesJson = JsonObject()
+
+        for (module in ModuleManager.modules) {
+            val moduleData = JsonObject()
+            moduleData.addProperty("enabled", module.enabled)
+            moduleData.addProperty("expanded", module.expanded)
+
+            val settingsJson = JsonObject()
+            for (setting in module.settings.values) {
+                if (setting is Saving) {
+                    settingsJson.add(setting.name, setting.write(gson))
+                }
+            }
+            moduleData.add("settings", settingsJson)
+
+            modulesJson.add(module.name, moduleData)
+        }
+
+        return modulesJson
+    }
+
+    private fun applyModulesJson(modulesJson: JsonObject) {
+        for ((name, element) in modulesJson.entrySet()) {
+            val module = ModuleManager.getModule(name) ?: continue
+            val moduleData = element.asJsonObject
+
+            module.setEnabled(moduleData.get("enabled")?.asBoolean ?: false)
+            module.expanded = moduleData.get("expanded")?.asBoolean ?: false
+
+            val settingsJson = moduleData.get("settings")?.asJsonObject ?: continue
+            for (setting in module.settings.values) {
+                if (setting !is Saving) continue
+                val raw = settingsJson.get(setting.name) ?: continue
+                try {
+                    setting.read(raw, gson)
+                } catch (t: Throwable) {
+                    // one bad/renamed setting shouldn't take the rest of the config down with it
+                    t.printStackTrace()
+                }
+            }
         }
     }
 
     fun loadModulesOnly() {
-        if (!configFile.exists()) return
+        val modulesJson = readRoot()?.get("modules")?.asJsonObject ?: return
 
         suppressAutoSave = true
         try {
-            val json = try {
-                gson.fromJson(configFile.readText(), Map::class.java)
-            } catch (t: Throwable) {
-                t.printStackTrace()
-                return
-            }
-
-            val modules = json["modules"] as? Map<*, *> ?: return
-
-            for ((name, moduleObj) in modules) {
-                val module = ModuleManager.getModule(name.toString()) ?: continue
-                val moduleData = moduleObj as? Map<*, *> ?: continue
-
-                // Enabled
-                val enabledVal = asBoolean(moduleData["enabled"]) ?: false
-                module.setEnabled(enabledVal)
-
-                // Expanded
-                module.expanded = asBoolean(moduleData["expanded"]) ?: false
-
-                val settingsMap = moduleData["settings"] as? Map<*, *> ?: continue
-
-                for (setting in module.getSettings()) {
-                    if (!settingsMap.containsKey(setting.name)) continue
-
-                    val raw = settingsMap[setting.name]
-                    when (setting) {
-                        is BooleanSetting -> {
-                            val v = asBoolean(raw)
-                            if (v != null) setting.value = v
-                        }
-                        is NumberSetting -> {
-                            val n = asNumber(raw)
-                            if (n != null) setting.value = n.toDouble()
-                        }
-                        is ModeSetting -> {
-                            if (raw != null) setting.value = raw.toString()
-                        }
-                    }
-                }
-            }
+            applyModulesJson(modulesJson)
         } finally {
             suppressAutoSave = false
         }
     }
 
-    fun save(panels: List<Panel>) {
-        if (!configDir.exists()) configDir.mkdirs()
-
-        val data = mutableMapOf<String, Any>()
-
-        // -------------------------
-        // SAVE MODULES + SETTINGS
-        // -------------------------
-        data["modules"] = buildModulesMap()
-
-        // -------------------------
-        // SAVE PANEL POSITIONS
-        // -------------------------
-        data["panels"] = panels.associate {
-            it.category.name to mapOf(
-                "x" to it.x,
-                "y" to it.y
-            )
-        }
-
-        // Inventory buttons are handled by InventoryButtonManager's own file
-
-        configFile.writeText(gson.toJson(data))
-    }
-
     // Saves ONLY the "modules" section, preserving whatever "panels" data is
     // already on disk. This lets us persist enabled/disabled + settings from
-    // anywhere (e.g. a keybind) without needing a List<Panel>, which only
-    // exists while the ClickGUI screen is open.
+    // anywhere (e.g. a keybind) without needing a List<PanelSetting>, which
+    // only exists while the ClickGUI screen is open.
     fun saveModulesOnly() {
         if (suppressAutoSave) return
-        if (!configDir.exists()) configDir.mkdirs()
 
-        val existing: MutableMap<String, Any> = if (configFile.exists()) {
-            @Suppress("UNCHECKED_CAST")
-            (gson.fromJson(configFile.readText(), Map::class.java) as? Map<String, Any>)
-                ?.toMutableMap() ?: mutableMapOf()
-        } else {
-            mutableMapOf()
-        }
-
-        existing["modules"] = buildModulesMap()
-
-        configFile.writeText(gson.toJson(existing))
+        val root = readRoot() ?: JsonObject()
+        root.add("modules", buildModulesJson())
+        writeRoot(root)
     }
 
-    private fun buildModulesMap(): Map<String, Any> {
-        return ModuleManager.modules.associate { module ->
-            val moduleData = mutableMapOf<String, Any>()
+    // -------------------------
+    // PANEL LAYOUT
+    // -------------------------
 
-            moduleData["enabled"] = module.enabled
-            moduleData["expanded"] = module.expanded
-
-            val settingsMap = mutableMapOf<String, Any>()
-            for (setting in module.getSettings()) {
-                when (setting) {
-                    is BooleanSetting -> settingsMap[setting.name] = setting.value
-                    is NumberSetting -> settingsMap[setting.name] = setting.value
-                    is ModeSetting -> settingsMap[setting.name] = setting.value
-                }
-            }
-
-            moduleData["settings"] = settingsMap
-            module.name to moduleData
-        }
+    private fun applyDefaultPosition(panel: PanelSetting) {
+        val default = defaultPanelPositions[panel.category.name] ?: return
+        panel.x = default.first
+        panel.y = default.second
     }
-    fun resetPanelsToDefaults(panels: List<Panel>) {
-        for (panel in panels) {
-            val default = defaultPanelPositions[panel.category.name]
-            if (default != null) {
-                panel.x = default.first
-                panel.y = default.second
-            }
-        }
+
+    fun resetPanelsToDefaults(panels: List<PanelSetting>) {
+        for (panel in panels) applyDefaultPosition(panel)
         save(panels) // persist immediately so it survives restart
     }
-    fun load(panels: List<Panel>) {
+
+    fun save(panels: List<PanelSetting>) {
+        val root = JsonObject()
+        root.add("modules", buildModulesJson())
+
+        val panelsJson = JsonObject()
+        for (panel in panels) {
+            val entry = JsonObject()
+            entry.addProperty("x", panel.x)
+            entry.addProperty("y", panel.y)
+            entry.addProperty("extended", panel.extended)
+            panelsJson.add(panel.category.name, entry)
+        }
+        root.add("panels", panelsJson)
+
+        writeRoot(root)
+    }
+
+    fun load(panels: List<PanelSetting>) {
         try {
+            val root = readRoot()
+
             // -------------------------
-            // LOAD PANEL POSITIONS (with defaults) — runs even if config.json
+            // LOAD PANEL POSITIONS (with defaults) -- runs even if config.json
             // doesn't exist yet, so first launch still gets the right layout
             // -------------------------
-            val panelData = if (configFile.exists()) {
-                val json = try {
-                    gson.fromJson(configFile.readText(), Map::class.java)
-                } catch (t: Throwable) {
-                    t.printStackTrace()
-                    emptyMap<Any, Any>()
-                }
-                json["panels"] as? Map<*, *> ?: emptyMap<Any, Any>()
-            } else {
-                emptyMap<Any, Any>()
-            }
-
+            val panelsJson = root?.get("panels")?.asJsonObject
             for (panel in panels) {
-                val entry = panelData[panel.category.name] as? Map<*, *>
-                if (entry != null) {
-                    val xNum = asNumber(entry["x"])
-                    val yNum = asNumber(entry["y"])
-                    if (xNum != null && yNum != null) {
-                        panel.x = xNum.toFloat()
-                        panel.y = yNum.toFloat()
-                    } else {
-                        // fallback to defaults if present
-                        val default = defaultPanelPositions[panel.category.name]
-                        if (default != null) {
-                            panel.x = default.first
-                            panel.y = default.second
-                        }
-                    }
+                val entry = panelsJson?.get(panel.category.name)?.asJsonObject
+                val x = entry?.get("x")?.asFloat
+                val y = entry?.get("y")?.asFloat
+                if (x != null && y != null) {
+                    panel.x = x
+                    panel.y = y
+                    panel.extended = entry.get("extended")?.asBoolean ?: true
                 } else {
-                    val default = defaultPanelPositions[panel.category.name]
-                    if (default != null) {
-                        panel.x = default.first
-                        panel.y = default.second
-                    }
-                    // if there's neither a saved entry nor a default, panel keeps
-                    // whatever position ClickGUI's init block computed for it
+                    applyDefaultPosition(panel)
                 }
             }
 
-            if (!configFile.exists()) return
+            if (root == null) return
+
+            // -------------------------
+            // LOAD MODULES + SETTINGS
+            // -------------------------
+            val modulesJson = root.get("modules")?.asJsonObject ?: return
 
             suppressAutoSave = true
             try {
-                val json = try {
-                    gson.fromJson(configFile.readText(), Map::class.java)
-                } catch (t: Throwable) {
-                    t.printStackTrace()
-                    return
-                }
-
-                // -------------------------
-                // LOAD MODULES + SETTINGS
-                // -------------------------
-                val modules = json["modules"] as? Map<*, *> ?: emptyMap<Any, Any>()
-
-                for ((name, moduleObj) in modules) {
-                    val module = ModuleManager.getModule(name.toString()) ?: continue
-                    val moduleData = moduleObj as? Map<*, *> ?: continue
-
-                    // Enabled
-                    module.setEnabled(asBoolean(moduleData["enabled"]) ?: false)
-
-                    // Expanded
-                    module.expanded = asBoolean(moduleData["expanded"]) ?: false
-
-                    // Settings
-                    val settingsMap = moduleData["settings"] as? Map<*, *> ?: emptyMap<Any, Any>()
-
-                    for (setting in module.getSettings()) {
-                        if (!settingsMap.containsKey(setting.name)) continue
-
-                        val raw = settingsMap[setting.name]
-                        when (setting) {
-                            is BooleanSetting -> {
-                                val v = asBoolean(raw)
-                                if (v != null) setting.value = v
-                            }
-                            is NumberSetting -> {
-                                val n = asNumber(raw)
-                                if (n != null) setting.value = n.toDouble()
-                            }
-                            is ModeSetting -> {
-                                if (raw != null) setting.value = raw.toString()
-                            }
-                        }
-                    }
-                }
+                applyModulesJson(modulesJson)
             } finally {
                 suppressAutoSave = false
             }
-
-            // Inventory buttons are handled by InventoryButtonManager's own loader
         } catch (t: Throwable) {
             // Catch any unexpected parsing/runtime errors and log them instead of crashing
             t.printStackTrace()

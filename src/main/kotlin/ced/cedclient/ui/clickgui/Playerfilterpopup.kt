@@ -1,23 +1,34 @@
 package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.impl.render.EntityESP
-import ced.cedclient.features.impl.render.MobCategoryType
+import net.minecraft.client.Minecraft
 
 /**
- * Player picker — lists everyone EntityESP currently sees nearby (updates live
- * as people come in/out of range), grouped as a single "Players" list. Checking
- * a box calls the same EntityESP.onlyName(name) allow-list the mob picker uses,
- * so mob selections and player selections render together.
+ * Opened by EntityESP's "Select Players" ActionSetting. Lists every player
+ * currently loaded nearby, read straight from the level's player list --
+ * deliberately NOT EntityESP.scannedEntities, since that list has EntityESP's
+ * own onlyNames filter already applied to it (see EntityESP.scan()). Sourcing
+ * from scannedEntities meant that as soon as you put one player in the Only
+ * list, every other player stopped being scanned and vanished from this
+ * popup. Reading the level's player list directly keeps everyone visible
+ * here regardless of which ones are currently toggled on.
  */
-class PlayerFilterPopup : EntityCheckListPopup("Select players") {
-
-    override fun groupsProvider(): List<Pair<String, List<String>>> {
-        val names = EntityESP.scannedEntities
-            .filter { it.category == MobCategoryType.PLAYER }
-            .map { it.name }
-            .distinct()
-            .sorted()
-
-        return listOf("Players in range" to names)
+class PlayerFilterPopup : FilterPopup(
+    title = "Select Players",
+    blockedNames = { EntityESP.blockedNames },
+    onlyNames = { EntityESP.onlyNames },
+    addBlocked = EntityESP::blockName,
+    removeBlocked = EntityESP::unblockName,
+    addOnly = EntityESP::onlyName,
+    removeOnly = EntityESP::unOnlyName
+) {
+    override fun candidateNames(): List<String> {
+        val mc = Minecraft.getInstance()
+        val self = mc.player
+        return mc.level?.players()
+            ?.filter { it != self }
+            ?.map { it.name.string }
+            ?.distinct()
+            ?: emptyList()
     }
 }

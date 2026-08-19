@@ -54,7 +54,7 @@ object EntityESP : Module(
     private val showHudPanel = BooleanSetting("Show HUD Panel", true)
 
     private val openMobFilterMenu = ActionSetting("Select Mobs") {
-        val mc = net.minecraft.client.Minecraft.getInstance()
+        val mc = Minecraft.getInstance()
         (mc.screen as? ClickGUI)?.openPopup(MobFilterPopup())
     }
 
@@ -126,7 +126,7 @@ object EntityESP : Module(
     init {
         loadFilters()
 
-        listOf(maxDistance, scanIntervalTicks, debugLog, openMobFilterMenu, openPlayerFilterMenu, openCustomFilterMenu)
+        listOf(maxDistance, scanIntervalTicks, debugLog)
             .forEach { it.advanced = true }
 
         addSettings(

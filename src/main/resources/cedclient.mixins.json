@@ -12,7 +12,6 @@
     "MultiPlayerGameModeMixin",
 
     "ContainerEventHandlerMixin",
-    "KeyboardHandlerMixin",
     "AbstractContainerScreenMixin",
     "AbstractContainerScreenAccessor",
     "CameraAccessor",

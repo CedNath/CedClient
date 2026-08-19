@@ -26,11 +26,11 @@ object FishingHelper : Module(
     private val autoRecast = BooleanSetting("Auto Recast", true)
 
     private val randomizeTiming = BooleanSetting("Randomize Timing", true)
-    private val randomizeRangeMs = NumberSetting("Randomize Range ms", 100.0, 0.0, 5000.0, 10.0)
+    private val randomizeRangeMs = NumberSetting("Randomize Range ms", 100.0, 0.0, 500.0, 10.0)
 
-    private val reelDelayMs = NumberSetting("Reel Delay ms", 150.0, 0.0, 20000.0, 50.0)
-    private val recastDelayMs = NumberSetting("Recast Delay ms", 250.0, 0.0, 20000.0, 50.0)
-    private val cooldownMs = NumberSetting("Cooldown ms", 600.0, 0.0, 20000.0, 50.0)
+    private val reelDelayMs = NumberSetting("Reel Delay ms", 150.0, 0.0, 400.0, 10.0)
+    private val recastDelayMs = NumberSetting("Recast Delay ms", 250.0, 0.0, 20000.0, 10.0)
+    private val cooldownMs = NumberSetting("Cooldown ms", 600.0, 0.0, 2000.0, 10.0)
     private val detectRadiusBlocks = NumberSetting("Detect Radius (blocks)", 2.0, 0.5, 8.0, 0.5)
 
     // tick throttling (to avoid FPS drops)

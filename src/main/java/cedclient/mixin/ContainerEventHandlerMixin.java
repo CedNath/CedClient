@@ -1,7 +1,7 @@
 package cedclient.mixin;
 
 
-import ced.cedclient.features.impl.funqol.InventoryButtons;
+import ced.cedclient.features.impl.misc.InventoryButtons;
 import ced.cedclient.ui.inventory.InventoryButtonManager;
 import ced.cedclient.ui.inventory.InvButton;
 import ced.cedclient.ui.inventory.editor.InventoryButtonEditorOverlay;
@@ -14,6 +14,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Runs a button's command when the player clicks it on the live
+ * InventoryScreen. Editing (dragging, adding, deleting buttons) no longer
+ * happens here -- that's InvButtonEditorScreen's own Screen input handling
+ * now, so this mixin only has to deal with normal, non-editing clicks.
+ */
 @Mixin(ContainerEventHandler.class)
 public interface ContainerEventHandlerMixin {
 
@@ -26,28 +32,10 @@ public interface ContainerEventHandlerMixin {
         if (!((Object)this instanceof Screen self)) return;
         if (!(self instanceof InventoryScreen)) return;
 
-        double mouseX = event.x();
-        double mouseY = event.y();
-
-        // --------------------------------------------------------
-        // INVINCIBILITY HUD DRAG START
-        // --------------------------------------------------------
-
-
-        // --------------------------------------------------------
-        // INVENTORY BUTTON LOGIC
-        // --------------------------------------------------------
         if (!InventoryButtons.INSTANCE.isEnabled()) return;
 
-        int button = event.button();
-
-        if (InventoryButtons.INSTANCE.isEditorMode()) {
-            boolean handled = InventoryButtonEditorOverlay.INSTANCE.mouseClicked(
-                    (int) mouseX, (int) mouseY, button
-            );
-            if (handled) cir.setReturnValue(true);
-            return;
-        }
+        double mouseX = event.x();
+        double mouseY = event.y();
 
         int left = InventoryButtonEditorOverlay.INSTANCE.getLastLeft();
         int top = InventoryButtonEditorOverlay.INSTANCE.getLastTop();
@@ -63,62 +51,6 @@ public interface ContainerEventHandlerMixin {
                 cir.setReturnValue(true);
                 return;
             }
-        }
-    }
-
-    // ============================================================
-    // MOUSE RELEASED
-    // ============================================================
-    @Inject(method = "mouseReleased", at = @At("HEAD"))
-    private void ced$mouseReleased(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
-
-        if (!((Object)this instanceof Screen self)) return;
-        if (!(self instanceof InventoryScreen)) return;
-
-
-
-        if (!InventoryButtons.INSTANCE.isEnabled()) return;
-
-        double mouseX = event.x();
-        double mouseY = event.y();
-        int button = event.button();
-
-        if (InventoryButtons.INSTANCE.isEditorMode()) {
-            InventoryButtonEditorOverlay.INSTANCE.mouseReleased(
-                    (int) mouseX, (int) mouseY, button
-            );
-        }
-    }
-
-    // ============================================================
-    // MOUSE DRAGGED
-    // ============================================================
-    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
-    private void ced$mouseDrag(MouseButtonEvent event, double dx, double dy, CallbackInfoReturnable<Boolean> cir) {
-
-        if (!((Object)this instanceof Screen self)) return;
-        if (!(self instanceof InventoryScreen)) return;
-
-        double mouseX = event.x();
-        double mouseY = event.y();
-
-        // --------------------------------------------------------
-        // INVINCIBILITY HUD DRAGGING
-        // --------------------------------------------------------
-
-
-        // --------------------------------------------------------
-        // INVENTORY BUTTON EDITOR DRAGGING
-        // --------------------------------------------------------
-        if (!InventoryButtons.INSTANCE.isEnabled()) return;
-
-        int button = event.button();
-
-        if (InventoryButtons.INSTANCE.isEditorMode()) {
-            boolean handled = InventoryButtonEditorOverlay.INSTANCE.mouseDragged(
-                    (int) mouseX, (int) mouseY, button, dx, dy
-            );
-            if (handled) cir.setReturnValue(true);
         }
     }
 }

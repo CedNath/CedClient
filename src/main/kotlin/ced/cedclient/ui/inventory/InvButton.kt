@@ -3,7 +3,7 @@ package ced.cedclient.ui.inventory
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.Identifier
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
-import ced.cedclient.features.impl.funqol.InventoryButtons
+import ced.cedclient.features.impl.misc.InventoryButtons
 
 data class InvButton(
     var name: String,

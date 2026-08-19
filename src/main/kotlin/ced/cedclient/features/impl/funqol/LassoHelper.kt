@@ -28,10 +28,10 @@ object LassoHelper : Module(
 
     // --- UI settings ---
     private val randomizeTiming = BooleanSetting("Randomize Timing", true)
-    private val randomizeRangeMs = NumberSetting("Randomize Range ms", 100.0, 0.0, 5000.0, 10.0)
+    private val randomizeRangeMs = NumberSetting("Randomize Range ms", 100.0, 0.0, 500.0, 10.0)
 
-    private val reelDelayMs = NumberSetting("Reel Delay ms", 150.0, 0.0, 20000.0, 50.0)
-    private val cooldownMs = NumberSetting("Cooldown ms", 600.0, 0.0, 20000.0, 50.0)
+    private val reelDelayMs = NumberSetting("Reel Delay ms", 150.0, 0.0, 500.0, 50.0)
+    private val cooldownMs = NumberSetting("Cooldown ms", 600.0, 0.0, 2000.0, 50.0)
 
     // how far from the player to look for OUR leashed cobweb stand (leash max range is ~10 blocks)
     private val leashSearchRadiusBlocks = NumberSetting("Leash Search Radius (blocks)", 16.0, 4.0, 32.0, 1.0)

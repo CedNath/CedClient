@@ -3,7 +3,7 @@ package ced.cedclient.features.impl.misc
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
-import ced.cedclient.ui.clickgui.PanelConfig
+import ced.cedclient.ui.clickgui.ClickGUI
 import net.minecraft.client.Minecraft
 
 object ResetPanels : Module("Reset Panels", Category.Misc) {
@@ -17,10 +17,9 @@ object ResetPanels : Module("Reset Panels", Category.Misc) {
         lastRunMillis = now
 
         try {
-            val client = net.minecraft.client.Minecraft.getInstance()
-            val screen = client.screen
-            if (screen is ced.cedclient.ui.clickgui.ClickGUI) {
-                screen.getPanels()?.let { ConfigManager.resetPanelsToDefaults(it) }
+            val screen = Minecraft.getInstance().screen
+            if (screen is ClickGUI) {
+                ConfigManager.resetPanelsToDefaults(screen.getPanels())
             } else {
                 println("ResetPanels: ClickGUI not open, cannot reset live panel objects")
             }
@@ -29,5 +28,3 @@ object ResetPanels : Module("Reset Panels", Category.Misc) {
         }
     }
 }
-
-

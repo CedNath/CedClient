@@ -6,20 +6,20 @@ import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.render.HudEditScreen
+import ced.cedclient.features.impl.misc.AdvancedMode
+
 import ced.cedclient.features.impl.misc.ResetPanels
 
-import ced.cedclient.features.impl.funqol.InventoryButtons
+import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
-import ced.cedclient.features.impl.render.AxolotlStandPoint
-import ced.cedclient.features.impl.render.AxolotlStandPointRenderer
+
 
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
 import ced.cedclient.ui.clickgui.ClickGUI
-import ced.cedclient.ui.clickgui.Panel
 import ced.cedclient.ui.inventory.InventoryButtonManager
 import ced.cedclient.ui.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Debug
@@ -63,15 +63,17 @@ class CedClient : ClientModInitializer {
 
         // Register modules and renderers
         EntityESPRenderer.register()
-        AxolotlStandPointRenderer.register()
+
         EntityESPHud.load()
         MouseLookDebugger.register()
 
 
         ModuleManager.register(PangolinCatcher)
         ModuleManager.register(LassoHelper)
-        ModuleManager.register(AxolotlStandPoint)
+
         ModuleManager.register(ResetPanels)
+        ModuleManager.register(AdvancedMode)
+
         ModuleManager.register(Freecam)
         ModuleManager.register(CoralotHelper)
         ModuleManager.register(EntityESP)

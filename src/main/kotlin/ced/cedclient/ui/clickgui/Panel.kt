@@ -1,448 +1,161 @@
 package ced.cedclient.ui.clickgui
 
-import ced.cedclient.features.Category
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.ui.nvg.NVGRenderer
-import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
-import kotlin.math.max
-import kotlin.math.min
+import ced.cedclient.utils.Colors
+import ced.cedclient.utils.ui.isAreaHovered
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.client.input.MouseButtonEvent
+import kotlin.math.floor
 
-class Panel(
-    val category: Category,
-    var x: Float,
-    var y: Float
-) {
+/**
+ * Renders one category's panel: header, drag/collapse handling, and its
+ * stack of ModuleButtons. Ported from Odin's clickgui/Panel.kt.
+ *
+ * Odin's Panel takes a Category and looks its PanelSetting up from a
+ * ClickGUIModule config map. CedClient doesn't have that config-module layer
+ * (Phase 6 territory at best), so this Panel is handed its PanelSetting
+ * directly by ClickGUI, which owns the list built/loaded via ConfigManager.
+ */
+class Panel(val panelSetting: PanelSetting) {
 
-    companion object {
-        const val WIDTH = 260f
-        const val GAP = 30f
-    }
+    private val category = panelSetting.category
 
-    private var dragging = false
-    private var dragOffsetX = 0f
-    private var dragOffsetY = 0f
+    val moduleButtons = ModuleManager.modulesByCategory[category]
+        ?.sortedByDescending { NVGRenderer.textWidth(it.name, 16f, NVGRenderer.defaultFont) }
+        ?.map { ModuleButton(it, this@Panel) } ?: listOf()
+    private val lastModuleButton by lazy { moduleButtons.lastOrNull() }
 
-    // Vertical scroll offset in pixels.
+    private val textWidth = NVGRenderer.textWidth(category.name, 25f, NVGRenderer.defaultFont)
+    private var previousHeight = 0f
     private var scrollOffset = 0f
+    var dragging = false
+        private set
+    private var deltaX = 0f
+    private var deltaY = 0f
 
-    val width = WIDTH
-    val headerHeight = 32f
-    val buttonSpacing = 10f
-
-    // Captured by updateHover() each frame, reused by drawNVG()/drawText()
-    // so all three passes agree on the same layout for this frame — same
-    // idea as ModuleButton's lastX/lastY.
-    private var lastVisibleTop = 0f
-    private var lastVisibleBottom = 0f
-
-    /**
-     * Maximum amount of body space available before scrolling is required.
-     */
-    private val maxBodyHeight: Float
-        get() =
-            Minecraft.getInstance().window.height.toFloat() -
-                    y -
-                    headerHeight -
-                    20f
-
-    val moduleButtons = ModuleManager.modules
-        .filter { it.category == category }
-        .map { ModuleButton(it, this) }
-
-    fun setPosition(
-        newX: Float,
-        newY: Float
-    ) {
-        x = newX
-        y = newY
-    }
-
-    fun toPosEntry(): Pair<String, PanelPos> {
-        return category.name to PanelPos(
-            x.toDouble(),
-            y.toDouble()
-        )
-    }
-
-    /**
-     * Total height required by all modules.
-     */
-    private fun contentHeight(): Float {
-        if (moduleButtons.isEmpty()) {
-            return 0f
+    fun draw(mouseX: Float, mouseY: Float) {
+        if (dragging) {
+            panelSetting.x = floor(deltaX + mouseX)
+            panelSetting.y = floor(deltaY + mouseY)
         }
 
-        return moduleButtons
-            .sumOf { it.height.toDouble() }
-            .toFloat() +
-                (moduleButtons.size - 1) * buttonSpacing
-    }
-
-    /**
-     * Maximum possible scroll amount.
-     */
-    private fun maxScroll(): Float {
-        return max(
-            0f,
-            contentHeight() -
-                    max(0f, maxBodyHeight)
-        )
-    }
-
-    // ============================================================
-    // PASS 0 — HOVER + TOOLTIP REQUEST (synchronous, NOT inside NVG)
-    // ============================================================
-    //
-    // Mirrors ModuleButton's Pass 0 (see the long comment on
-    // ModuleButton.updateHover() for the full explanation). This was
-    // the missing piece: nothing was calling ModuleButton.updateHover()
-    // at all, so TooltipManager.request() never ran, which is why
-    // TooltipManager.drawText() always saw text == null.
-    //
-    // Must be called by ClickGUI.extractRenderState() BEFORE
-    // NVGSpecialRenderer.draw() is invoked for this frame — same
-    // ordering requirement as ModuleButton.updateHover().
-    //
-    // Also owns recomputing visibleTop/visibleBottom and clamping
-    // scrollOffset for the frame; drawNVG()/drawText() just reuse
-    // lastVisibleTop/Bottom instead of recomputing (and instead of
-    // drawNVG() being the only place that ever computed them, which
-    // meant hover math — when it existed — and the text pass could
-    // run against stale bounds).
-
-    fun updateHover(
-        mouseX: Int,
-        mouseY: Int
-    ) {
-
-        scrollOffset =
-            scrollOffset.coerceIn(
-                0f,
-                maxScroll()
-            )
-
-        val bodyHeight =
-            min(
-                contentHeight(),
-                max(0f, maxBodyHeight)
-            )
-
-        val visibleTop =
-            y + headerHeight
-
-        val visibleBottom =
-            visibleTop + bodyHeight
-
-        lastVisibleTop = visibleTop
-        lastVisibleBottom = visibleBottom
-
-        var offset =
-            buttonSpacing - scrollOffset
-
-        for (button in moduleButtons) {
-
-            val drawY =
-                visibleTop + offset
-
-            button.updateHover(
-                mouseX,
-                mouseY,
-                x,
-                drawY,
-                visibleTop,
-                visibleBottom
-            )
-
-            offset +=
-                button.height +
-                        buttonSpacing
-        }
-    }
-
-    // ============================================================
-    // PASS 1 — NANOVG SHAPES ONLY
-    // ============================================================
-    //
-    // Called from inside NVGSpecialRenderer's renderContent lambda,
-    // AFTER updateHover() has already run for this frame. No hit-testing
-    // and no TooltipManager.request() calls belong here — see the long
-    // comment on ModuleButton.drawNVG() for why. Reuses lastVisibleTop/
-    // Bottom from updateHover() rather than mouseX/mouseY, since layout
-    // no longer depends on the mouse position at this point.
-
-    fun drawNVG(
-        g: GuiGraphicsExtractor
-    ) {
-
-        val visibleTop = lastVisibleTop
-        val visibleBottom = lastVisibleBottom
-
-        // ========================================================
-        // PANEL HEADER
-        // ========================================================
-
-        NVGRenderer.rect(
-            x,
-            y,
-            width,
-            headerHeight,
-            0xFF202020.toInt()
+        NVGRenderer.dropShadow(
+            panelSetting.x,
+            panelSetting.y,
+            WIDTH,
+            (previousHeight + if (ClickGUI.roundedPanelBottom) 10f else 0f).coerceAtLeast(HEIGHT),
+            10f,
+            3f,
+            5f
         )
 
-        // ========================================================
-        // PANEL BODY
-        // ========================================================
-
-        NVGRenderer.rect(
-            x,
-            visibleTop,
-            width,
-            visibleBottom - visibleTop,
-            0xFF151515.toInt()
-        )
-
-        // ========================================================
-        // MODULE BUTTONS (shapes)
-        // ========================================================
-
-        for (button in moduleButtons) {
-            button.drawNVG(
-                g,
-                visibleTop,
-                visibleBottom
-            )
-        }
-    }
-
-    // ============================================================
-    // PASS 2 — MINECRAFT TEXT ONLY
-    // ============================================================
-    //
-    // Called from ClickGUI.extractRenderState() AFTER
-    // NVGSpecialRenderer.draw() has returned — normal call order, real
-    // framebuffer bound. Uses lastVisibleTop/Bottom captured by
-    // updateHover() this same frame.
-
-    fun drawText(
-        g: GuiGraphicsExtractor
-    ) {
-
-        val visibleTop = lastVisibleTop
-        val visibleBottom = lastVisibleBottom
-
-        // Header text
+        NVGRenderer.drawHalfRoundedRect(panelSetting.x, panelSetting.y, WIDTH, HEIGHT, Colors.gray26.rgba, 5f, true)
         NVGRenderer.text(
-            g,
             category.name,
-            x + 8f,
-            y + 6f,
-            16f,
-            0xFFFFFFFF.toInt(),
+            panelSetting.x + WIDTH / 2f - textWidth / 2,
+            panelSetting.y + HEIGHT / 2f - 12.5f,
+            25f,
+            Colors.WHITE.rgba,
             NVGRenderer.defaultFont
         )
 
-        // ========================================================
-        // MODULE BUTTONS (text)
-        // ========================================================
+        if (scrollOffset != 0f) NVGRenderer.pushScissor(
+            panelSetting.x,
+            panelSetting.y + HEIGHT,
+            WIDTH,
+            previousHeight - HEIGHT + 10f
+        )
 
-        for (button in moduleButtons) {
-            button.drawText(
-                g,
-                visibleTop,
-                visibleBottom
+        var startY = scrollOffset + HEIGHT
+        if (panelSetting.extended) {
+            for (button in moduleButtons) {
+                if (!button.module.name.contains(SearchBar.currentSearch, true)) continue
+                startY += button.draw(panelSetting.x, startY + panelSetting.y, button == lastModuleButton)
+            }
+        }
+        previousHeight = startY
+
+        if (ClickGUI.roundedPanelBottom) {
+            NVGRenderer.drawHalfRoundedRect(
+                panelSetting.x,
+                panelSetting.y + startY,
+                WIDTH,
+                10f,
+                if (lastModuleButton?.module?.enabled == true) ClickGUI.clickGUIColor.rgba else Colors.gray26.rgba,
+                5f,
+                false
             )
         }
-
-        // ========================================================
-        // SCROLL HINTS
-        // ========================================================
-
-        if (maxScroll() > 0f) {
-
-            // Scrolled down -> show up arrow
-            if (scrollOffset > 0.5f) {
-
-                NVGRenderer.text(
-                    g,
-                    "^",
-                    x + width / 2f - 3f,
-                    visibleTop + 1f,
-                    11f,
-                    0xAAFFFFFF.toInt(),
-                    NVGRenderer.defaultFont
-                )
-            }
-
-            // More content below -> show down arrow
-            if (
-                scrollOffset <
-                maxScroll() - 0.5f
-            ) {
-
-                NVGRenderer.text(
-                    g,
-                    "v",
-                    x + width / 2f - 3f,
-                    visibleBottom - 13f,
-                    11f,
-                    0xAAFFFFFF.toInt(),
-                    NVGRenderer.defaultFont
-                )
-            }
-        }
+        if (scrollOffset != 0f) NVGRenderer.popScissor()
     }
 
-    // ============================================================
-    // MOUSE CLICK
-    // ============================================================
+    fun handleScroll(amount: Int): Boolean {
+        if (!isMouseOverExtended) return false
+        scrollOffset = (scrollOffset + amount).coerceIn((-previousHeight + scrollOffset + 72f).coerceAtMost(0f), 0f)
+        return true
+    }
 
-    fun mouseClicked(
-        mouseX: Double,
-        mouseY: Double,
-        button: Int
-    ): Boolean {
-
-        // --------------------------------------------------------
-        // 1. MODULES / SETTINGS FIRST
-        // --------------------------------------------------------
-
-        for (btn in moduleButtons) {
-
-            if (
-                btn.mouseClicked(
-                    mouseX,
-                    mouseY,
-                    button
-                )
-            ) {
+    fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+        if (isAreaHovered(panelSetting.x, panelSetting.y, WIDTH, HEIGHT, true)) {
+            if (click.button() == 0) {
+                deltaX = (panelSetting.x - mouseX)
+                deltaY = (panelSetting.y - mouseY)
+                dragging = true
+                return true
+            } else if (click.button() == 1) {
+                panelSetting.extended = !panelSetting.extended
                 return true
             }
+        } else if (isMouseOverExtended) {
+            return moduleButtons.reversed().any {
+                if (!it.module.name.contains(SearchBar.currentSearch, true)) return@any false
+                it.mouseClicked(mouseX, mouseY, click)
+            }
         }
-
-        // --------------------------------------------------------
-        // 2. PANEL HEADER DRAGGING
-        // --------------------------------------------------------
-
-        if (
-            mouseX >= x &&
-            mouseX <= x + width &&
-            mouseY >= y &&
-            mouseY <= y + headerHeight &&
-            button == 0
-        ) {
-
-            dragging = true
-
-            dragOffsetX =
-                (mouseX - x).toFloat()
-
-            dragOffsetY =
-                (mouseY - y).toFloat()
-
-            return true
-        }
-
         return false
     }
 
-    // ============================================================
-    // MOUSE DRAG
-    // ============================================================
-
-    fun mouseDragged(
-        mouseX: Double,
-        mouseY: Double,
-        button: Int,
-        dragX: Double,
-        dragY: Double
-    ) {
-
-        // Give every ModuleButton a chance to handle slider dragging.
-        for (btn in moduleButtons) {
-            btn.mouseDragged(
-                mouseX,
-                mouseY
-            )
-        }
-
-        // Move panel if the header is being dragged.
-        if (dragging) {
-
-            x =
-                (mouseX - dragOffsetX)
-                    .toFloat()
-
-            y =
-                (mouseY - dragOffsetY)
-                    .toFloat()
-        }
-    }
-
-    // ============================================================
-    // MOUSE RELEASE
-    // ============================================================
-
-    fun mouseReleased(
-        mouseX: Double,
-        mouseY: Double,
-        button: Int
-    ) {
-
+    fun mouseReleased(click: MouseButtonEvent) {
         dragging = false
 
-        for (btn in moduleButtons) {
+        if (panelSetting.extended)
+            moduleButtons.reversed().forEach {
+                if (!it.module.name.contains(SearchBar.currentSearch, true)) return@forEach
+                it.mouseReleased(click)
+            }
+    }
 
-            btn.mouseReleased(
-                mouseX,
-                mouseY,
-                button
-            )
+    fun keyTyped(input: CharacterEvent): Boolean {
+        if (!panelSetting.extended) return false
+
+        return moduleButtons.reversed().any {
+            if (!it.module.name.contains(SearchBar.currentSearch, true)) return@any false
+            it.keyTyped(input)
         }
     }
 
-    // ============================================================
-    // SCROLL
-    // ============================================================
+    fun keyPressed(input: KeyEvent): Boolean {
+        if (!panelSetting.extended) return false
 
-    /**
-     * Called by ClickGUI when the mouse wheel moves.
-     *
-     * Returns true if this panel consumed the scroll.
-     */
-    fun mouseScrolled(
-        mouseX: Double,
-        mouseY: Double,
-        scrollY: Double
-    ): Boolean {
-
-        // Mouse must be horizontally inside the panel.
-        if (
-            mouseX < x ||
-            mouseX > x + width
-        ) {
-            return false
+        return moduleButtons.reversed().any {
+            if (!it.module.name.contains(SearchBar.currentSearch, true)) return@any false
+            it.keyPressed(input)
         }
+    }
 
-        // Mouse must be below the header.
-        if (mouseY < y + headerHeight) {
-            return false
-        }
+    private inline val isMouseOverExtended
+        get() = panelSetting.extended && isAreaHovered(
+            panelSetting.x,
+            panelSetting.y,
+            WIDTH,
+            previousHeight.coerceAtLeast(HEIGHT),
+            true
+        )
 
-        // Nothing to scroll.
-        if (maxScroll() <= 0f) {
-            return false
-        }
-
-        scrollOffset =
-            (
-                    scrollOffset -
-                            scrollY.toFloat() * 15f
-                    ).coerceIn(
-                    0f,
-                    maxScroll()
-                )
-
-        return true
+    companion object {
+        const val WIDTH = 320f
+        const val HEIGHT = 46f
     }
 }

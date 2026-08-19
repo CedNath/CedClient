@@ -1,6 +1,6 @@
 package cedclient.mixin;
 
-import ced.cedclient.features.impl.funqol.InventoryButtons;
+import ced.cedclient.features.impl.misc.InventoryButtons;
 import ced.cedclient.ui.inventory.editor.InventoryButtonEditorOverlay;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -9,6 +9,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Tracks the live InventoryScreen's position and draws the saved buttons on
+ * top of it. The editor itself (adding/dragging/deleting buttons) is a
+ * separate Screen now (InvButtonEditorScreen), so this mixin no longer needs
+ * an editor-mode branch or an extra render stratum for popups.
+ */
 @Mixin(InventoryScreen.class)
 public abstract class AbstractContainerScreenMixin {
 
@@ -34,12 +40,7 @@ public abstract class AbstractContainerScreenMixin {
             float partialTick,
             CallbackInfo ci
     ) {
-        //System.out.println("STEP 2: InventoryScreen extractRenderState TAIL FIRED");
         if (!InventoryButtons.INSTANCE.isEnabled()) return;
-
-        if (InventoryButtons.INSTANCE.isEditorMode()) {
-            graphics.nextStratum();
-        }
 
         InventoryButtonEditorOverlay.INSTANCE.render(
                 graphics,

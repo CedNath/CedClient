@@ -1,25 +1,24 @@
 package ced.cedclient.ui.clickgui
 
-class HoverHandler(private val delay: Long) {
-    private var lastHoverTime = 0L
-    var isHovered = false
-        private set
+import ced.cedclient.ui.animations.LinearAnimation
+import ced.cedclient.utils.ui.isAreaHovered
 
-    fun handle(x: Int, y: Int, width: Int, height: Int, mouseX: Int, mouseY: Int) {
-        val hovered = mouseX in x..(x + width) && mouseY in y..(y + height)
-        if (hovered) {
-            if (!isHovered) lastHoverTime = System.currentTimeMillis()
-            isHovered = true
-        } else {
-            isHovered = false
-            lastHoverTime = 0L
+class HoverHandler(delay: Long) {
+
+    val anim = LinearAnimation<Float>(delay)
+    var isHovered = false
+
+    fun percent(): Float {
+        if (!anim.isAnimating()) return if (isHovered) 100f else 0f
+        return if (isHovered) anim.getPercent() else 100f - anim.getPercent()
+    }
+
+    fun handle(x: Float, y: Float, w: Float, h: Float, scaled: Boolean = false) {
+        val currentlyHovered = isAreaHovered(x, y, w, h, scaled)
+
+        if (currentlyHovered != isHovered) {
+            anim.start()
+            isHovered = currentlyHovered
         }
     }
-
-    fun percent(): Int {
-        if (!isHovered) return 0
-        val elapsed = System.currentTimeMillis() - lastHoverTime
-        return (elapsed * 100 / delay).coerceAtMost(100).toInt()
-    }
 }
-

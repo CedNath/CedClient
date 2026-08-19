@@ -2,542 +2,275 @@ package ced.cedclient.ui.clickgui
 
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
-import ced.cedclient.features.ModuleManager
-import ced.cedclient.ui.inventory.editor.Popup
+import ced.cedclient.ui.animations.EaseOutAnimation
+import ced.cedclient.ui.nvg.NVGRenderer
 import ced.cedclient.ui.nvg.NVGSpecialRenderer
-import net.minecraft.client.Minecraft
+import ced.cedclient.utils.Color
+import ced.cedclient.utils.Color.Companion.withAlpha
+import ced.cedclient.utils.Colors
+import ced.cedclient.utils.ui.clickGuiScale
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
+import org.lwjgl.glfw.GLFW
+import kotlin.math.sign
+import ced.cedclient.utils.ui.mouseX as cedMouseX
+import ced.cedclient.utils.ui.mouseY as cedMouseY
 
-class ClickGUI : Screen(Component.literal("CedClient ClickGUI")) {
+/**
+ * The ClickGUI screen. Ported from Odin's clickgui/ClickGUI.kt, which is an
+ * `object` — this has to be a `class` instead, since CedClient.kt and
+ * CedClientCommand.kt already do `client.setScreen(ClickGUI())`, i.e. treat
+ * it as instantiable. The description-tooltip state (`setDescription`) that
+ * RenderableSetting calls statically lives in the companion object, so that
+ * call site keeps working unchanged no matter how many times a ClickGUI gets
+ * opened and closed.
+ *
+ * getPanels() exists because ResetPanels.kt (Phase-Misc) needs it to mutate
+ * the live, currently-open panel layout.
+ *
+ * openPopup()/closePopup() (Phase 6) give EntityESP.kt's three "Select ___"
+ * ActionSettings — `(mc.screen as? ClickGUI)?.openPopup(MobFilterPopup())`
+ * etc. — a modal to open into. Only one popup can be open at a time; opening
+ * a second just replaces the first. While a popup is open it gets first and
+ * exclusive claim on input (see the override methods below) — panels don't
+ * receive clicks/scroll/keys until it closes, whether that's via its own
+ * close button, clicking outside it, or Escape.
+ */
+class ClickGUI : Screen(Component.literal("Click GUI")) {
 
-    private val panels = mutableListOf<Panel>()
+    private val panelSettings: List<PanelSetting> =
+        Category.entries.map { PanelSetting(it) }.also { ConfigManager.load(it) }
 
-    private var currentPopup: Popup? = null
+    private val panels: List<Panel> = panelSettings.map { Panel(it) }
 
-    private val mc: Minecraft
-        get() = Minecraft.getInstance()
+    private var openAnim = EaseOutAnimation(500)
 
-    // Tracks whether a panel was moved since the last save.
-    private var dirty = false
+    private var activePopup: Popup? = null
 
-    fun openPopup(p: Popup) {
-        currentPopup = p
+    /** Live panel layout state, exposed for ResetPanels to mutate while this screen is open. */
+    fun getPanels(): List<PanelSetting> = panelSettings
+
+    /** Opens [popup] as a modal on top of this ClickGUI, replacing whichever popup (if any) is already open. */
+    fun openPopup(popup: Popup) {
+        activePopup = popup
     }
 
     fun closePopup() {
-        currentPopup = null
+        activePopup = null
     }
 
-    // Expose panels for modules that need to apply changes immediately.
-    fun getPanels(): List<Panel> = panels
+    override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, deltaTicks: Float) {
+        // NVGSpecialRenderer.draw's last parameter is afterRender (nullable, defaulted), not
+        // renderContent -- a trailing lambda here binds to afterRender and leaves renderContent
+        // unfilled, so this has to be a named argument instead of trailing-lambda syntax.
+        NVGSpecialRenderer.draw(context, 0, 0, context.guiWidth(), context.guiHeight(), renderContent = {
+            val scaledMouseX = cedMouseX / clickGuiScale
+            val scaledMouseY = cedMouseY / clickGuiScale
 
-    init {
-        val scale = mc.window.guiScale.toFloat()
-        val windowWidth = mc.window.width.toFloat()
+            NVGRenderer.scale(clickGuiScale, clickGuiScale)
 
-        // Only create panels for categories that actually contain modules.
-        val activeCategories = Category.values().filter { category ->
-            ModuleManager.modules.any { it.category == category }
-        }
+            // canvasWidth/canvasHeight (NOT context.guiWidth()/guiHeight()) is the actual
+            // coordinate space everything in this block draws into -- see NVGRenderer's
+            // doc comment on canvasWidth for why those two aren't the same thing.
+            val canvasWidth = NVGRenderer.canvasWidth / clickGuiScale
+            val canvasHeight = NVGRenderer.canvasHeight / clickGuiScale
 
-        /*
-         * Panel positions are stored/rendered in framebuffer coordinates.
-         *
-         * Keep WIDTH + GAP together so panels cannot overlap because of
-         * different hardcoded layout values.
-         */
-        val panelWidth = (Panel.WIDTH + Panel.GAP) * scale
-        val totalWidth = activeCategories.size * panelWidth
-        val startX = (windowWidth - totalWidth) / 2f
-
-        var x = startX
-
-        for (category in activeCategories) {
-            panels += Panel(
-                category = category,
-                x = x,
-                y = 80f * scale
+            // Bottom-center, a fixed 50px gap above the screen edge.
+            SearchBar.draw(
+                canvasWidth / 2f - 175f,
+                canvasHeight - 90f,
+                scaledMouseX,
+                scaledMouseY
             )
 
-            x += panelWidth
-        }
+            if (openAnim.isAnimating()) {
+                val scale = openAnim.get(0f, 1f)
 
-        // Load panel positions.
-        try {
-            PanelConfig.ensureDefaults()
-            PanelConfig.applyTo(panels)
-        } catch (t: Throwable) {
-            t.printStackTrace()
-            println(
-                "Warning: PanelConfig.applyTo failed; " +
-                        "using default panel positions."
-            )
-        }
-
-        // Load module/settings config.
-        try {
-            ConfigManager.load(panels)
-        } catch (t: Throwable) {
-            t.printStackTrace()
-            println(
-                "Warning: ConfigManager.load failed while opening " +
-                        "ClickGUI; continuing with defaults."
-            )
-        }
-    }
-
-    override fun extractRenderState(
-        context: GuiGraphicsExtractor,
-        mouseX: Int,
-        mouseY: Int,
-        delta: Float
-    ) {
-        super.extractRenderState(
-            context,
-            mouseX,
-            mouseY,
-            delta
-        )
-
-        val scale = mc.window.guiScale.toFloat()
-
-        /*
-         * Minecraft gives us GUI-scaled mouse coordinates.
-         *
-         * Our Panel coordinates are framebuffer coordinates, so convert
-         * the mouse coordinates before passing them to panels.
-         */
-        val fbMouseX = (mouseX * scale).toInt()
-        val fbMouseY = (mouseY * scale).toInt()
-
-        val fbWidth = mc.window.width
-        val fbHeight = mc.window.height
-
-        /*
-         * ============================================================
-         * PASS 1 — NANOVG
-         * ============================================================
-         *
-         * Only NVG rendering happens inside this callback.
-         *
-         * No Minecraft text rendering is performed here. This is a
-         * hard rule: renderContent runs later, inside
-         * NVGSpecialRenderer.renderToTexture(), while GL_FRAMEBUFFER
-         * is bound to the offscreen NVG texture rather than the real
-         * one — any g.text() call queued from in here lands in the
-         * wrong slot relative to Pass 2 below, which is what caused
-         * tooltips-behind-panels and panel text disappearing.
-         */
-        TooltipManager.clear()
-
-        /*
-         * ============================================================
-         * PASS 0 — HOVER + TOOLTIP REQUEST
-         * ============================================================
-         *
-         * Must run BEFORE NVGSpecialRenderer.draw() below — hover
-         * testing and any TooltipManager.request() calls it triggers
-         * are plain synchronous Kotlin state, not NVG drawing, and
-         * need to land before TooltipManager.drawText() reads them
-         * back in Pass 2. This is also where each panel pins its
-         * visible bounds and scroll position for the frame, which
-         * drawNVG()/drawText() below both depend on.
-         */
-        for (panel in panels) {
-            try {
-                panel.updateHover(
-                    fbMouseX,
-                    fbMouseY
-                )
-            } catch (t: Throwable) {
-                t.printStackTrace()
-            }
-        }
-
-        NVGSpecialRenderer.draw(
-            context,
-            0,
-            0,
-            fbWidth,
-            fbHeight,
-            renderContent = {
-
-                // Full-screen dark overlay.
-                ced.cedclient.ui.nvg.NVGRenderer.rect(
-                    0f,
-                    0f,
-                    fbWidth.toFloat(),
-                    fbHeight.toFloat(),
-                    0xAA000000.toInt()
-                )
-
-                // Draw panel backgrounds, buttons, sliders, etc. (shapes only).
-                for (panel in panels) {
-                    try {
-                        panel.drawNVG(
-                            context
-                        )
-                    } catch (t: Throwable) {
-                        t.printStackTrace()
-                    }
-                }
-
-                /*
-                 * Tooltip background is NVG because it needs to sit above
-                 * the NVG panel backgrounds.
-                 */
-                try {
-                    TooltipManager.drawBackground()
-                } catch (t: Throwable) {
-                    t.printStackTrace()
-                }
-            })
-
-        /*
-         * ============================================================
-         * PASS 2 — MINECRAFT TEXT
-         * ============================================================
-         *
-         * Panel text is extracted after the NVG pass, in normal call
-         * order, with the real framebuffer bound.
-         */
-
-        for (panel in panels) {
-            try {
-                panel.drawText(
-                    context
-                )
-            } catch (t: Throwable) {
-                t.printStackTrace()
-            }
-        }
-
-        /*
-         * Tooltip text comes after panel text so it appears above it.
-         */
-        try {
-            TooltipManager.drawText(context)
-        } catch (t: Throwable) {
-            t.printStackTrace()
-        }
-
-        /*
-         * Popup is deliberately last so it appears above everything.
-         */
-        currentPopup?.let { popup ->
-            try {
-                popup.render(
-                    context,
-                    mouseX,
-                    mouseY,
-                    delta
-                )
-            } catch (t: Throwable) {
-                t.printStackTrace()
-            }
-        }
-    }
-
-    // ================================================================
-    // MOUSE INPUT
-    // ================================================================
-
-    override fun mouseClicked(
-        event: MouseButtonEvent,
-        focused: Boolean
-    ): Boolean {
-
-        /*
-         * Popup gets first priority.
-         */
-        currentPopup?.let { popup ->
-
-            val mouseX = event.x().toInt()
-            val mouseY = event.y().toInt()
-
-            if (
-                popup.mouseClicked(
-                    mouseX,
-                    mouseY,
-                    event.button()
-                )
-            ) {
-                return true
+                val centerX = canvasWidth
+                val centerY = canvasHeight
+                NVGRenderer.translate(centerX, centerY)
+                NVGRenderer.scale(scale, scale)
+                NVGRenderer.translate(-centerX, -centerY)
             }
 
-            if (popup.isInside(mouseX, mouseY)) {
-                return true
+            val draggedPanel = panels.firstOrNull { it.dragging }
+            for (panel in panels) {
+                if (panel != draggedPanel) panel.draw(scaledMouseX, scaledMouseY)
             }
 
-            // Clicked outside popup → close it.
-            currentPopup = null
+            draggedPanel?.draw(scaledMouseX, scaledMouseY)
 
-            return true
-        }
+            desc.render()
 
-        val scale = mc.window.guiScale.toDouble()
+            activePopup?.let { popup ->
+                popup.x = (canvasWidth - popup.width) / 2f
+                popup.y = (canvasHeight - popup.height) / 2f
 
-        val fbX = event.x() * scale
-        val fbY = event.y() * scale
-        val button = event.button()
-
-        /*
-         * Panels are checked in order.
-         *
-         * Panel itself handles:
-         * - module clicks
-         * - settings
-         * - sliders
-         * - panel dragging
-         */
-        for (panel in panels) {
-            try {
-                if (
-                    panel.mouseClicked(
-                        fbX,
-                        fbY,
-                        button
-                    )
-                ) {
-                    dirty = true
-                    return true
-                }
-            } catch (t: Throwable) {
-                t.printStackTrace()
+                NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(0.55f).rgba)
+                popup.draw(scaledMouseX, scaledMouseY)
             }
-        }
-
-        return super.mouseClicked(
-            event,
-            focused
-        )
-    }
-
-    override fun mouseReleased(
-        event: MouseButtonEvent
-    ): Boolean {
-
-        currentPopup?.let { popup ->
-
-            if (
-                popup.mouseReleased(
-                    event.x().toInt(),
-                    event.y().toInt(),
-                    event.button()
-                )
-            ) {
-                return true
-            }
-        }
-
-        val scale = mc.window.guiScale.toDouble()
-
-        val fbX = event.x() * scale
-        val fbY = event.y() * scale
-        val button = event.button()
-
-        for (panel in panels) {
-            try {
-                panel.mouseReleased(
-                    fbX,
-                    fbY,
-                    button
-                )
-            } catch (t: Throwable) {
-                t.printStackTrace()
-            }
-        }
-
-        /*
-         * Save panel positions after a drag.
-         */
-        if (dirty) {
-            try {
-                PanelConfig.saveAll(panels)
-            } catch (t: Throwable) {
-                t.printStackTrace()
-            }
-
-            dirty = false
-        }
-
-        return super.mouseReleased(event)
-    }
-
-    override fun mouseDragged(
-        event: MouseButtonEvent,
-        dragX: Double,
-        dragY: Double
-    ): Boolean {
-
-        currentPopup?.let { popup ->
-
-            if (
-                popup.mouseDragged(
-                    event.x().toInt(),
-                    event.y().toInt(),
-                    event.button(),
-                    dragX,
-                    dragY
-                )
-            ) {
-                return true
-            }
-        }
-
-        val scale = mc.window.guiScale.toDouble()
-
-        val fbX = event.x() * scale
-        val fbY = event.y() * scale
-
-        val fbDragX = dragX * scale
-        val fbDragY = dragY * scale
-
-        val button = event.button()
-
-        for (panel in panels) {
-            try {
-                panel.mouseDragged(
-                    fbX,
-                    fbY,
-                    button,
-                    fbDragX,
-                    fbDragY
-                )
-            } catch (t: Throwable) {
-                t.printStackTrace()
-            }
-        }
-
-        /*
-         * A drag may move a panel even though mouseClicked() was handled
-         * before this method.
-         */
-        dirty = true
-
-        return super.mouseDragged(
-            event,
-            dragX,
-            dragY
-        )
+        })
+        super.extractRenderState(context, mouseX, mouseY, deltaTicks)
     }
 
     override fun mouseScrolled(
-        x: Double,
-        y: Double,
-        scrollX: Double,
-        scrollY: Double
+        mouseX: Double,
+        mouseY: Double,
+        horizontalAmount: Double,
+        verticalAmount: Double
     ): Boolean {
+        // Same deal as mouseClicked above: the mouseX/mouseY Minecraft hands this
+        // callback are in its own GUI-scaled coordinate space, not the raw
+        // cedMouseX/cedMouseY (mouseHandler.xpos/ypos) space everything else in
+        // this class -- popup positioning, hover checks, mouseClicked -- is built
+        // on. Using the passed-in doubles here meant the popup's hover check
+        // almost never matched, so wheel-scrolling over a popup silently did
+        // nothing. Panels never had this bug: Panel.handleScroll() doesn't take
+        // mouse coordinates at all, it reads cedMouseX/cedMouseY internally via
+        // isAreaHovered.
+        val actualAmount = (verticalAmount.sign * 16).toInt()
+        val scaledMouseX = cedMouseX / clickGuiScale
+        val scaledMouseY = cedMouseY / clickGuiScale
 
-        /*
-         * Popup gets priority.
-         */
-        currentPopup?.let { popup ->
-
-            if (
-                popup.mouseScrolled(
-                    x.toInt(),
-                    y.toInt(),
-                    scrollX,
-                    scrollY
-                )
-            ) {
-                return true
-            }
+        activePopup?.let { popup ->
+            popup.mouseScrolled(scaledMouseX, scaledMouseY, actualAmount)
+            return true
         }
 
-        val scale = mc.window.guiScale.toDouble()
-
-        val fbX = x * scale
-        val fbY = y * scale
-
-        /*
-         * Give the wheel event to the panel under the cursor.
-         */
-        for (panel in panels) {
-            try {
-                if (
-                    panel.mouseScrolled(
-                        fbX,
-                        fbY,
-                        scrollY
-                    )
-                ) {
-                    return true
-                }
-            } catch (t: Throwable) {
-                t.printStackTrace()
-            }
+        for (i in panels.size - 1 downTo 0) {
+            if (panels[i].handleScroll(actualAmount)) return true
         }
-
-        return super.mouseScrolled(
-            x,
-            y,
-            scrollX,
-            scrollY
-        )
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
-    // ================================================================
-    // KEYBOARD INPUT
-    // ================================================================
+    override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
+        // Screen doesn't expose bare mouseX/mouseY fields in this API -- cedMouseX/cedMouseY
+        // (ced.cedclient.utils.ui.mouseX/mouseY) is the live-mouse-position source the rest of
+        // this class already uses (see extractRenderState).
+        val scaledMouseX = cedMouseX / clickGuiScale
+        val scaledMouseY = cedMouseY / clickGuiScale
 
-    override fun keyPressed(
-        event: KeyEvent
-    ): Boolean {
-
-        currentPopup?.let { popup ->
-
-            if (popup.keyPressed(event)) {
-                return true
+        activePopup?.let { popup ->
+            when {
+                popup.isCloseButtonHovered(scaledMouseX, scaledMouseY) -> closePopup()
+                popup.isInside(scaledMouseX, scaledMouseY) -> popup.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)
+                else -> closePopup() // click landed outside the modal — dismiss it
             }
+            return true
         }
 
-        return super.keyPressed(event)
+        SearchBar.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)
+        for (i in panels.size - 1 downTo 0) {
+            if (panels[i].mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)) return true
+        }
+        return super.mouseClicked(mouseButtonEvent, bl)
     }
 
-    override fun charTyped(
-        event: CharacterEvent
-    ): Boolean {
-
-        currentPopup?.let { popup ->
-
-            if (popup.charTyped(event)) {
-                return true
-            }
+    override fun mouseReleased(mouseButtonEvent: MouseButtonEvent): Boolean {
+        activePopup?.let { popup ->
+            popup.mouseReleased(mouseButtonEvent)
+            return true
         }
 
-        return super.charTyped(event)
+        SearchBar.mouseReleased()
+        for (i in panels.size - 1 downTo 0) {
+            panels[i].mouseReleased(mouseButtonEvent)
+        }
+        return super.mouseReleased(mouseButtonEvent)
     }
 
-    // ================================================================
-    // CLOSE
-    // ================================================================
+    override fun charTyped(characterEvent: CharacterEvent): Boolean {
+        activePopup?.let { popup ->
+            return popup.keyTyped(characterEvent)
+        }
+
+        SearchBar.keyTyped(characterEvent)
+        for (i in panels.size - 1 downTo 0) {
+            if (panels[i].keyTyped(characterEvent)) return true
+        }
+        return super.charTyped(characterEvent)
+    }
+
+    override fun keyPressed(keyEvent: KeyEvent): Boolean {
+        activePopup?.let { popup ->
+            if (keyEvent.key == GLFW.GLFW_KEY_ESCAPE) {
+                closePopup()
+                return true
+            }
+            return popup.keyPressed(keyEvent)
+        }
+
+        SearchBar.keyPressed(keyEvent)
+        for (i in panels.size - 1 downTo 0) {
+            if (panels[i].keyPressed(keyEvent)) return true
+        }
+        return super.keyPressed(keyEvent)
+    }
+
+    override fun init() {
+        openAnim.start()
+        super.init()
+    }
 
     override fun onClose() {
-
-        /*
-         * Always save positions when the GUI closes.
-         */
-        try {
-            PanelConfig.saveAll(panels)
-        } catch (t: Throwable) {
-            t.printStackTrace()
+        for (panel in panels.filter { it.panelSetting.extended }.reversed()) {
+            for (moduleButton in panel.moduleButtons.filter { it.extended }) {
+                for (setting in moduleButton.representableSettings) {
+                    setting.listening = false
+                }
+            }
         }
 
-        try {
-            ConfigManager.save(panels)
-        } catch (t: Throwable) {
-            t.printStackTrace()
-        }
-
+        ConfigManager.save(panelSettings)
         super.onClose()
     }
 
     override fun isPauseScreen(): Boolean = false
+
+    companion object {
+
+        const val roundedPanelBottom = true
+        val clickGUIColor: Color = Color(110, 50, 200)
+
+        private var desc = Description("", 0f, 0f, HoverHandler(150))
+
+        /** Sets the description without creating a new data class which isn't optimal */
+        fun setDescription(text: String, x: Float, y: Float, hoverHandler: HoverHandler) {
+            desc.text = text
+            desc.x = x
+            desc.y = y
+            desc.hoverHandler = hoverHandler
+        }
+
+        data class Description(var text: String, var x: Float, var y: Float, var hoverHandler: HoverHandler) {
+
+            fun render() {
+                if (text.isEmpty() || hoverHandler.percent() < 100) return
+                val area = NVGRenderer.wrappedTextBounds(text, 300f, 16f, NVGRenderer.defaultFont)
+                NVGRenderer.rect(x, y, area[2] - area[0] + 16f, area[3] - area[1] + 16f, Colors.gray38.rgba, 5f)
+                NVGRenderer.hollowRect(
+                    x,
+                    y,
+                    area[2] - area[0] + 16f,
+                    area[3] - area[1] + 16f,
+                    1.5f,
+                    clickGUIColor.rgba,
+                    5f
+                )
+                NVGRenderer.drawWrappedString(
+                    text,
+                    x + 8f,
+                    y + 8f,
+                    300f,
+                    16f,
+                    Colors.WHITE.rgba,
+                    NVGRenderer.defaultFont
+                )
+            }
+        }
+    }
 }

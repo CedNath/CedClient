@@ -1,5 +1,6 @@
 package ced.cedclient.ui.inventory
 
+import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.utils.Debug
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -154,7 +155,7 @@ object InventoryButtonManager {
         val mc = Minecraft.getInstance()
 
         // ⭐ Hard gate: module must be ON
-        if (!ced.cedclient.features.impl.funqol.InventoryButtons.enabled) return
+        if (!InventoryButtons.enabled) return
 
         // ⭐ Hard gate: only in player inventory
         if (mc.screen !is net.minecraft.client.gui.screens.inventory.InventoryScreen) return
