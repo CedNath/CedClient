@@ -1,5 +1,6 @@
 package cedclient.mixin;
 
+import ced.cedclient.features.impl.misc.ChatFilter;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -37,7 +38,24 @@ public class ClientPacketListenerMixin {
     }
 
     // ============================================================
-    // CHAT MESSAGE HANDLER (invincibility timer detection)
+    // CHAT MESSAGE HANDLER (chat filter)
     // ============================================================
 
+    // NOTE: verify this against the real decompiled ClientPacketListener for
+    // your MC version before building -- FernFlower it in IntelliJ
+    // (Navigate > Declaration on ClientPacketListener) and confirm both the
+    // method name "handleSystemChat" and that ClientboundSystemChatPacket
+    // still exposes content() the same way. This handles server-sent system
+    // messages (the kind most spam/join-leave lines are); player chat
+    // (handlePlayerChat, real player messages) is deliberately NOT hooked
+    // here so ChatFilter never risks hiding an actual player's message.
+    @Inject(method = "handleSystemChat", at = @At("HEAD"), cancellable = true)
+    private void cedclient$onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        Component content = packet.content();
+        if (content == null) return;
+
+        if (ChatFilter.INSTANCE.shouldHide(content.getString())) {
+            ci.cancel();
+        }
+    }
 }
