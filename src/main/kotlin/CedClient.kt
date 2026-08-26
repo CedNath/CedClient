@@ -3,6 +3,7 @@ package ced.cedclient
 import ced.cedclient.commands.CedClientCommand
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
+
 import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.render.HudEditScreen
@@ -73,6 +74,7 @@ class CedClient : ClientModInitializer {
 
         ModuleManager.register(ResetPanels)
         ModuleManager.register(AdvancedMode)
+
 
         ModuleManager.register(Freecam)
         ModuleManager.register(CoralotHelper)
