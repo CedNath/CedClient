@@ -8,25 +8,22 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer
 import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState
-import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.MultiBufferSource
 import org.joml.Matrix3x2f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL13
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33C
 
-// 26.2: PictureInPictureRenderer no longer takes a MultiBufferSource.BufferSource
-// in its constructor (MultiBufferSource was removed entirely in favor of the
-// SubmitNode/FeatureRenderer pipeline). This renderer never used the vertex
-// consumer anyway — it draws via raw GL + NanoVG into an FBO — so there's
-// nothing to migrate there, just the removed constructor param.
-class NVGSpecialRenderer : PictureInPictureRenderer<NVGSpecialRenderer.NVGRenderState>() {
+class NVGSpecialRenderer(
+    vertexConsumers: MultiBufferSource.BufferSource
+) : PictureInPictureRenderer<NVGSpecialRenderer.NVGRenderState>(vertexConsumers) {
 
     // Cache one FBO per (colorTex, depthTex) glId pair, since DirectStateAccess
     // (Mojang's internal FBO cache) is no longer reachable from public API.
     private val fboCache = HashMap<Pair<Int, Int>, Int>()
 
-    override fun renderToTexture(state: NVGRenderState, poseStack: PoseStack, submitNodeCollector: SubmitNodeCollector) {
+    override fun renderToTexture(state: NVGRenderState, poseStack: PoseStack) {
         val colorTexView = RenderSystem.outputColorTextureOverride ?: return
         val depthTexView = RenderSystem.outputDepthTextureOverride ?: return
 
@@ -119,10 +116,7 @@ class NVGSpecialRenderer : PictureInPictureRenderer<NVGSpecialRenderer.NVGRender
 
 
         GlStateManager._disableDepthTest()
-        // 26.2: _enableBlend now takes an int index for which color target buffer
-        // the blend state applies to (RenderPipelines can define up to 8 now).
-        // This renderer only ever writes to a single target, so index 0.
-        GlStateManager._enableBlend(0)
+        GlStateManager._enableBlend()
         GlStateManager._blendFuncSeparate(770, 771, 1, 0)
     }
 
