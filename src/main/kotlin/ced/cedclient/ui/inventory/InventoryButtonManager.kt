@@ -158,7 +158,7 @@ object InventoryButtonManager {
         if (!InventoryButtons.enabled) return
 
         // ⭐ Hard gate: only in player inventory
-        if (mc.screen !is net.minecraft.client.gui.screens.inventory.InventoryScreen) return
+        if (mc.gui.screen() !is net.minecraft.client.gui.screens.inventory.InventoryScreen) return
 
         val player = mc.player ?: return
 

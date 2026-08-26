@@ -23,11 +23,7 @@ public class MinecraftMixin {
         EventBus.INSTANCE.post(TickEvent.End.INSTANCE);
     }
 
-    @Inject(method = "setScreen", at = @At("HEAD"))
-    private void cedclient$resetMouseState(Screen screen, CallbackInfo ci) {
-        CedMouseState.INSTANCE.reset();
-    }
-
+    // setScreenAndShow stayed on Minecraft in 26.2 — only setScreen moved to Gui.
     @Inject(method = "setScreenAndShow", at = @At("HEAD"))
     private void cedclient$resetMouseState2(Screen screen, CallbackInfo ci) {
         CedMouseState.INSTANCE.reset();

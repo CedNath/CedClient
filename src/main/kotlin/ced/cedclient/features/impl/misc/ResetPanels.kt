@@ -17,7 +17,7 @@ object ResetPanels : Module("Reset Panels", Category.Misc) {
         lastRunMillis = now
 
         try {
-            val screen = Minecraft.getInstance().screen
+            val screen = Minecraft.getInstance().gui.screen()
             if (screen is ClickGUI) {
                 ConfigManager.resetPanelsToDefaults(screen.getPanels())
             } else {

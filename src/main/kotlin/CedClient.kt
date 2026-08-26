@@ -51,8 +51,8 @@ class CedClient : ClientModInitializer {
         }
 
         // Register NVG renderer
-        PictureInPictureRendererRegistry.register { context ->
-            NVGSpecialRenderer(context.bufferSource())
+        PictureInPictureRendererRegistry.register {
+            NVGSpecialRenderer()
         }
 
         // Register EntityESP HUD overlay
@@ -119,7 +119,7 @@ class CedClient : ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (editHudKey.consumeClick()) {
-                client.setScreen(HudEditScreen())
+                client.gui.setScreen(HudEditScreen())
             }
         }
 
@@ -132,7 +132,7 @@ class CedClient : ClientModInitializer {
         )
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (openGuiKey.consumeClick()){
-                client.setScreen(ClickGUI())
+                client.gui.setScreen(ClickGUI())
             }
 
         }

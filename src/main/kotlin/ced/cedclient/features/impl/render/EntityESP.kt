@@ -55,17 +55,17 @@ object EntityESP : Module(
 
     private val openMobFilterMenu = ActionSetting("Select Mobs") {
         val mc = Minecraft.getInstance()
-        (mc.screen as? ClickGUI)?.openPopup(MobFilterPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(MobFilterPopup())
     }
 
     private val openPlayerFilterMenu = ActionSetting("Select Players") {
         val mc = net.minecraft.client.Minecraft.getInstance()
-        (mc.screen as? ClickGUI)?.openPopup(PlayerFilterPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(PlayerFilterPopup())
     }
 
     private val openCustomFilterMenu = ActionSetting("Select Custom") {
         val mc = net.minecraft.client.Minecraft.getInstance()
-        (mc.screen as? ClickGUI)?.openPopup(ESPFilterPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(ESPFilterPopup())
     }
     @Volatile
     var scannedEntities: List<ScannedEntity> = emptyList()

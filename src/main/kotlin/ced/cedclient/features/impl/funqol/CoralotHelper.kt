@@ -29,7 +29,7 @@ object CoralotHelper : Module(
     "CoralotHelper(!!!)",
 
     Category.Funqol,
-   description = "Auto-catches Axolotls with a net once the warning icon clears"
+    description = "Auto-catches Axolotls with a net once the warning icon clears"
 ) {
     private val mc = Minecraft.getInstance()
 
@@ -324,8 +324,8 @@ object CoralotHelper : Module(
         }
 
         if (showTitle.value) {
-            mc.gui.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
-            mc.gui.setTimes(5, 40, 10)
+            mc.gui.hud.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
+            mc.gui.hud.setTimes(5, 40, 10)
         }
 
         reset()

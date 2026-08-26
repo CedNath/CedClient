@@ -22,7 +22,8 @@
   ],
 
   "client": [
-    "MinecraftMixin"
+    "MinecraftMixin",
+    "GuiMixin"
   ],
 
   "injectors": {
