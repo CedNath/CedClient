@@ -14,6 +14,7 @@ import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
+import ced.cedclient.features.impl.misc.ChatFilter
 
 
 import ced.cedclient.features.impl.render.EntityESP
@@ -75,7 +76,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ResetPanels)
         ModuleManager.register(AdvancedMode)
 
-
+        ModuleManager.register(ChatFilter)
         ModuleManager.register(Freecam)
         ModuleManager.register(CoralotHelper)
         ModuleManager.register(EntityESP)
