@@ -21,6 +21,7 @@ import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
+import ced.cedclient.features.impl.render.TimeHud
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InventoryButtonManager
 import ced.cedclient.ui.nvg.NVGSpecialRenderer
@@ -75,7 +76,7 @@ class CedClient : ClientModInitializer {
 
         ModuleManager.register(ResetPanels)
         ModuleManager.register(AdvancedMode)
-
+        ModuleManager.register(TimeHud)
         ModuleManager.register(ChatFilter)
         ModuleManager.register(Freecam)
         ModuleManager.register(CoralotHelper)
@@ -123,7 +124,11 @@ class CedClient : ClientModInitializer {
                 client.gui.setScreen(HudEditScreen())
             }
         }
-
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "time_hud")
+        ) { graphics, tickCounter ->
+            TimeHud.render(graphics, tickCounter)
+        }
         openGuiKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping(
                 "CedClient Gui",
