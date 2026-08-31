@@ -13,29 +13,40 @@ import java.io.File
 import java.util.UUID
 
 /**
- * One filterable chat line. `pattern` is a regex, matched against the full
- * plain-text chat line with Regex.matches() (anchored, not "contains") --
- * same semantics as NoammAddons' uselessMessages.json + chathider list, so
- * the imported default patterns below (which rely on ^/$ anchoring and
- * .+ wildcards to be precise) behave identically here.
+ * One filterable chat line.
+ *
+ * Default (built-in) entries are always full regex, matched with
+ * Regex.matches() against the whole line -- same semantics as
+ * NoammAddons' uselessMessages.json, since those patterns rely on that
+ * precision (^/$ anchors, .+ wildcards).
+ *
+ * Custom (user-added) entries default to `isRegex = false`: plain,
+ * case-insensitive "does this line contain this text" matching, so adding
+ * your own filter doesn't require knowing regex. Toggling "Regex" on in
+ * the popup when adding one switches that entry to the same
+ * Regex.matches() behavior as the defaults, for anyone who wants it.
  */
 data class ChatFilterEntry(
     val id: String,
     val pattern: String,
     var enabled: Boolean,
-    val custom: Boolean = false
+    val custom: Boolean = false,
+    val isRegex: Boolean = custom.not() // defaults never customize this; custom entries default to plain text
 ) {
-    // Invalid regex (only possible for a hand-typed custom entry) just never
-    // matches, rather than crashing the chat pipeline -- mirrors Noamm's
-    // `catch { Regex(str) }` guard on /chathider add.
-    val regex: Regex? by lazy { runCatching { Regex(pattern) }.getOrNull() }
+    // Invalid regex (only reachable via a hand-typed custom entry in regex
+    // mode) just never matches, rather than crashing the chat pipeline --
+    // mirrors Noamm's `catch { Regex(str) }` guard on /chathider add.
+    val regex: Regex? by lazy { if (isRegex) runCatching { Regex(pattern) }.getOrNull() else null }
+
+    fun matches(line: String): Boolean =
+        if (isRegex) regex?.matches(line) == true else line.contains(pattern, ignoreCase = true)
 }
 
 /**
  * Hides configured chat lines. Unlike NoammAddons' single on/off switch for
  * its whole bundled list, every default line here is individually
- * toggleable from ChatFilterPopup, and custom regex filters can be
- * added/removed the same way.
+ * toggleable from ChatFilterPopup, and custom filters (plain text by
+ * default, regex optional) can be added/removed the same way.
  *
  * The module's own enabled/disabled (the ClickGUI panel toggle) is the
  * master switch -- when off, shouldHide() always returns false regardless
@@ -208,7 +219,9 @@ object ChatFilter : Module(
     )
 
     private val defaultEntries: List<ChatFilterEntry> =
-        defaultPatterns.mapIndexed { index, pattern -> ChatFilterEntry("default_$index", pattern, enabled = true) }
+        defaultPatterns.mapIndexed { index, pattern ->
+            ChatFilterEntry("default_$index", pattern, enabled = true, custom = false, isRegex = true)
+        }
 
     private val entries: MutableList<ChatFilterEntry> = mutableListOf()
 
@@ -220,13 +233,19 @@ object ChatFilter : Module(
         save()
     }
 
-    /** pattern is a regex, same as NoammAddons' /chathider add. Rejected silently if it doesn't compile. */
-    fun addCustom(pattern: String) {
+    /**
+     * Adds a custom filter. Plain text by default (isRegex = false): matched
+     * as a case-insensitive substring, so "outbid" hides any line containing
+     * that word, no regex needed. Pass isRegex = true (the popup's "Regex"
+     * toggle) for full Regex.matches() behavior instead, same as the
+     * built-in defaults -- rejected silently if it doesn't compile.
+     */
+    fun addCustom(pattern: String, isRegex: Boolean = false) {
         val trimmed = pattern.trim()
         if (trimmed.isEmpty()) return
-        if (entries.any { it.pattern == trimmed }) return
-        val entry = ChatFilterEntry(UUID.randomUUID().toString(), trimmed, enabled = true, custom = true)
-        if (entry.regex == null) return // invalid regex syntax
+        if (entries.any { it.pattern == trimmed && it.isRegex == isRegex }) return
+        val entry = ChatFilterEntry(UUID.randomUUID().toString(), trimmed, enabled = true, custom = true, isRegex = isRegex)
+        if (isRegex && entry.regex == null) return // invalid regex syntax
         entries.add(entry)
         save()
     }
@@ -246,7 +265,7 @@ object ChatFilter : Module(
             return hide
         }
 
-        val hidden = entries.any { it.enabled && it.regex?.matches(rawText) == true }
+        val hidden = entries.any { it.enabled && it.matches(rawText) }
         if (!hidden) lastMessageBlank = false
         return hidden
     }

@@ -13,10 +13,10 @@ import org.lwjgl.glfw.GLFW
 /**
  * Opened by ChatFilter's "Configure Filters" ActionSetting. Lists every
  * filter line (defaults + custom) with an on/off toggle box, plus a text
- * field to add new custom substring filters. Structurally close to
- * FilterPopup (same scrollbar/drag/scissor approach), but not built on it --
- * FilterPopup's Blocked/Only two-set model doesn't map onto "one list, each
- * row individually enabled/disabled", so this owns its own drawContent/
+ * field to add new custom regex filters. Structurally close to FilterPopup
+ * (same scrollbar/drag/scissor approach), but not built on it -- FilterPopup's
+ * Blocked/Only two-set model doesn't map onto "one list, each row
+ * individually enabled/disabled", so this owns its own drawContent/
  * mouseClicked instead of trying to force that shape.
  */
 class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
@@ -35,12 +35,12 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
 
     private val inputY get() = y + 34f
     private val inputX get() = x + 12f
-    private val addButtonWidth = 50f
+    private val addButtonWidth = 56f
     private val inputWidth = width - 24f - addButtonWidth - 8f
     private val addButtonX get() = inputX + inputWidth + 8f
 
-    private val listY get() = y + 64f
-    private val listHeight get() = height - 74f
+    private val listY get() = y + 68f
+    private val listHeight get() = height - 78f
 
     private val scrollbarWidth = 5f
     private val scrollbarX get() = x + width - scrollbarWidth - 4f
@@ -73,7 +73,7 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
         NVGRenderer.text(
             "Add",
             addButtonX + addButtonWidth / 2f - addWidth / 2f,
-            inputY + 4f,
+            inputY + 5f,
             16f,
             Colors.WHITE.rgba,
             NVGRenderer.defaultFont
@@ -140,7 +140,7 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
         val hovered = isAreaHovered(x + 12f, rowY, rowWidth, ROW_HEIGHT - 2f, mouseX, mouseY)
         if (hovered) NVGRenderer.rect(x + 12f, rowY, rowWidth, ROW_HEIGHT - 2f, Colors.gray38.rgba, 3f)
 
-        val boxSize = 12f
+        val boxSize = 13f
         val boxColor = if (entry.enabled) ClickGUI.clickGUIColor else Colors.gray38
         NVGRenderer.rect(x + 16f, rowY + (ROW_HEIGHT - 2f) / 2f - boxSize / 2f, boxSize, boxSize, boxColor.rgba, 3f)
 
@@ -232,10 +232,10 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     companion object {
-        private const val WIDTH = 280f
-        private const val HEIGHT = 320f
-        private const val INPUT_HEIGHT = 22f
-        private const val ROW_HEIGHT = 24f
+        private const val WIDTH = 340f
+        private const val HEIGHT = 420f
+        private const val INPUT_HEIGHT = 24f
+        private const val ROW_HEIGHT = 26f
         private const val MIN_THUMB_HEIGHT = 20f
     }
 }

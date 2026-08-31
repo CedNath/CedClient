@@ -8,7 +8,7 @@ import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.render.HudEditScreen
 import ced.cedclient.features.impl.misc.AdvancedMode
-
+import ced.cedclient.features.impl.render.TimeHud
 import ced.cedclient.features.impl.misc.ResetPanels
 
 import ced.cedclient.features.impl.misc.InventoryButtons
@@ -75,7 +75,7 @@ class CedClient : ClientModInitializer {
 
         ModuleManager.register(ResetPanels)
         ModuleManager.register(AdvancedMode)
-
+        ModuleManager.register(TimeHud)
         ModuleManager.register(ChatFilter)
         ModuleManager.register(Freecam)
         ModuleManager.register(CoralotHelper)
@@ -117,7 +117,11 @@ class CedClient : ClientModInitializer {
                 CEDCLIENT_CATEGORY
             )
         )
-
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "time_hud")
+        ) { graphics, tickCounter ->
+            TimeHud.render(graphics, tickCounter)
+        }
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (editHudKey.consumeClick()) {
                 client.setScreen(HudEditScreen())

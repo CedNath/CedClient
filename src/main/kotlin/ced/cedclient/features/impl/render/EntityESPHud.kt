@@ -8,7 +8,9 @@ import java.io.File
 
 private data class HudPosition(val x: Int, val y: Int, val scale: Float = 1.0f)
 
-object EntityESPHud {
+object EntityESPHud : HudElement {
+
+    override val label: String = "Entity ESP"
 
     private val hostileColor = 0xFFFF5555.toInt()
     private val passiveColor = 0xFF55FF55.toInt()
@@ -18,15 +20,15 @@ object EntityESPHud {
     private const val MIN_SCALE = 0.5f
     private const val MAX_SCALE = 3.0f
 
-    var panelX: Int = 6
-    var panelY: Int = 6
-    var panelScale: Float = 1.0f
+    override var panelX: Int = 6
+    override var panelY: Int = 6
+    override var panelScale: Float = 1.0f
 
     // logical (unscaled) size — updated every render() call, used for hit-testing
     // note: on-screen rendered size is this * panelScale
-    var lastWidth: Int = 190
+    override var lastWidth: Int = 190
         private set
-    var lastHeight: Int = 60
+    override var lastHeight: Int = 60
         private set
 
     private val gson = Gson()
@@ -61,7 +63,7 @@ object EntityESPHud {
         }
     }
 
-    fun save() {
+    override fun save() {
         try {
             saveFile.parentFile?.mkdirs()
             saveFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale)))
@@ -70,7 +72,7 @@ object EntityESPHud {
         }
     }
 
-    fun adjustScale(delta: Float) {
+    override fun adjustScale(delta: Float) {
         panelScale = (panelScale + delta).coerceIn(MIN_SCALE, MAX_SCALE)
     }
 
@@ -80,8 +82,8 @@ object EntityESPHud {
         renderInternal(g)
     }
 
-    /** Also used by HudEditScreen to draw a live preview while dragging/scaling. */
-    fun renderInternal(g: GuiGraphicsExtractor) {
+    /** Also used by MasterHudEditScreen to draw a live preview while dragging/scaling. */
+    override fun renderInternal(g: GuiGraphicsExtractor) {
         ensureLoaded()
 
         val font = net.minecraft.client.Minecraft.getInstance().font

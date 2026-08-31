@@ -2,6 +2,7 @@ package ced.cedclient.commands
 
 import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.render.EntityESP
+import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -17,14 +18,22 @@ object CedClientCommand {
     @Volatile
     private var pendingOpenGui = false
 
+    @Volatile
+    private var pendingOpenHudEdit = false
+
     fun register() {
-        // One persistent listener, registered once — checks the flag every tick
-        // and opens the GUI on the tick after the command actually ran, avoiding
-        // the chat screen's own close logic from wiping it out immediately.
+        // One persistent listener, registered once — checks the flags every
+        // tick and opens the relevant screen on the tick after the command
+        // actually ran, avoiding the chat screen's own close logic from
+        // wiping it out immediately.
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (pendingOpenGui) {
                 pendingOpenGui = false
                 client.setScreen(ClickGUI())
+            }
+            if (pendingOpenHudEdit) {
+                pendingOpenHudEdit = false
+                client.setScreen(MasterHudEditScreen())
             }
         }
 
@@ -44,6 +53,14 @@ object CedClientCommand {
 
         return ClientCommands.literal(rootName)
             .executes(openGuiExecutes)   // bare /cedclient or /cc opens GUI
+
+            .then(
+                ClientCommands.literal("hud")
+                    .executes {
+                        pendingOpenHudEdit = true
+                        1
+                    }
+            )
 
             .then(
                 ClientCommands.literal("debug")
