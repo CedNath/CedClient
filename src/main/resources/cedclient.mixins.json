@@ -10,6 +10,10 @@
     "EntityMixin",
     "LevelRendererMixin",
     "MultiPlayerGameModeMixin",
+    "PlayerRendererMixin",
+    "PlayerRenderStateMixin",
+    "ChatComponentMixin",
+    "PlayerInfoMixin",
 
     "ContainerEventHandlerMixin",
     "AbstractContainerScreenMixin",

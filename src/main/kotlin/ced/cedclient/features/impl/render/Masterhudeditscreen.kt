@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 
+
 /**
  * Opened by /cc hud or /cedclient hud (deliberately no keybind). Shows every
  * registered HudElement at once, each independently draggable/scalable --
