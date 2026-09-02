@@ -1,7 +1,7 @@
 package ced.cedclient.commands
 
 import ced.cedclient.features.impl.funqol.CoralotHelper
-import ced.cedclient.features.impl.render.EntityESP
+import ced.cedclient.features.impl.render.CustomNametag
 import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
@@ -75,132 +75,27 @@ object CedClientCommand {
                     }
             )
 
-            .then(
-                ClientCommands.literal("esp")
-                    .then(
-                        ClientCommands.literal("block")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.blockName(name)
-                                        ctx.source.sendFeedback(Component.literal("Blocked: $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("unblock")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.unblockName(name)
-                                        ctx.source.sendFeedback(Component.literal("Unblocked: $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("only")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.onlyName(name)
-                                        ctx.source.sendFeedback(Component.literal("Only showing (added): $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("unonly")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.unOnlyName(name)
-                                        ctx.source.sendFeedback(Component.literal("Removed from only-list: $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("clearonly")
-                            .executes { ctx ->
-                                EntityESP.clearOnly()
-                                ctx.source.sendFeedback(Component.literal("Cleared only-list (showing all again)"))
-                                1
-                            }
-                    )
-                    .then(
-                        ClientCommands.literal("clearblocked")
-                            .executes { ctx ->
-                                EntityESP.clearBlocked()
-                                ctx.source.sendFeedback(Component.literal("Cleared blocked list"))
-                                1
-                            }
-                    )
-                    .then(
-                        ClientCommands.literal("list")
-                            .executes { ctx ->
-                                val blocked = if (EntityESP.blockedNames.isEmpty()) "(none)" else EntityESP.blockedNames.joinToString(", ")
-                                val only = if (EntityESP.onlyNames.isEmpty()) "(none)" else EntityESP.onlyNames.joinToString(", ")
 
-                                ctx.source.sendFeedback(Component.literal("Blocked: $blocked"))
-                                ctx.source.sendFeedback(Component.literal("Only: $only"))
-                                1
-                            }
-                    )
-            )
 
             .then(
-                ClientCommands.literal("coralot")
+                ClientCommands.literal("nametag")
                     .then(
-                        ClientCommands.literal("netname")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        CoralotHelper.netItemName = StringArgumentType.getString(ctx, "name")
-                                        ctx.source.sendFeedback(Component.literal("Net item name set"))
-                                        1
-                                    }
-                            )
+                        ClientCommands.literal("clear")
+                            .executes { ctx ->
+                                CustomNametag.tagText.value = ""
+                                ctx.source.sendFeedback(Component.literal("Nametag cleared"))
+                                1
+                            }
                     )
                     .then(
-                        ClientCommands.literal("keywords")
-                            .then(
-                                ClientCommands.argument("words", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val words = StringArgumentType.getString(ctx, "words")
-                                            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                        CoralotHelper.catchKeywords = words
-                                        ctx.source.sendFeedback(Component.literal("Catch keywords set: $words"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("sound")
-                            .then(
-                                ClientCommands.argument("id", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        CoralotHelper.soundId = StringArgumentType.getString(ctx, "id")
-                                        ctx.source.sendFeedback(Component.literal("Sound set"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("title")
-                            .then(
-                                ClientCommands.argument("text", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        CoralotHelper.titleText = StringArgumentType.getString(ctx, "text")
-                                        ctx.source.sendFeedback(Component.literal("Title set"))
-                                        1
-                                    }
-                            )
+                        ClientCommands.argument("text", StringArgumentType.greedyString())
+                            .executes { ctx ->
+                                val text = StringArgumentType.getString(ctx, "text")
+                                CustomNametag.tagText.value = text
+                                CustomNametag.setEnabled(true)
+                                ctx.source.sendFeedback(Component.literal("Nametag set to: $text"))
+                                1
+                            }
                     )
             )
     }

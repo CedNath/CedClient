@@ -18,14 +18,11 @@ import ced.cedclient.features.impl.misc.ChatFilter
 
 
 import ced.cedclient.features.impl.funqol.PlayerScale
-import ced.cedclient.features.impl.render.CustomNametag
-import ced.cedclient.features.impl.render.HardcodedCosmetics
 import ced.cedclient.utils.dungeons.DungeonState
 
 
-import ced.cedclient.features.impl.render.EntityESP
-import ced.cedclient.features.impl.render.EntityESPHud
-import ced.cedclient.features.impl.render.EntityESPRenderer
+import ced.cedclient.features.impl.render.CustomNametag
+import ced.cedclient.features.impl.render.CustomNametagRenderer
 import ced.cedclient.features.impl.render.Freecam
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InventoryButtonManager
@@ -69,37 +66,27 @@ class CedClient : ClientModInitializer {
             NVGSpecialRenderer(context.bufferSource())
         }
 
-        // Register EntityESP HUD overlay
-        HudElementRegistry.addLast(
-            Identifier.fromNamespaceAndPath("cedclient", "entity_esp_hud")
-        ) { graphics, tickCounter ->
-            EntityESPHud.render(graphics, tickCounter)
-        }
+        // (ESP disabled in this build -- not registered)
 
         // Register modules and renderers
-        EntityESPRenderer.register()
+        CustomNametagRenderer.register()
 
-        EntityESPHud.load()
         MouseLookDebugger.register()
 
 
-        ModuleManager.register(PangolinCatcher)
-        ModuleManager.register(LassoHelper)
 
 
-        ModuleManager.register(CustomNametag)
-        ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(ResetPanels)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(TimeHud)
         ModuleManager.register(ChatFilter)
-        ModuleManager.register(Freecam)
-        ModuleManager.register(CoralotHelper)
-        ModuleManager.register(EntityESP)
-        ModuleManager.register(FishingHelper)
+
+
+
         ModuleManager.register(InventoryButtons)
 
         ModuleManager.register(PlayerScale)
+        ModuleManager.register(CustomNametag)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         // Force ModuleManager initialization safely
@@ -130,7 +117,7 @@ class CedClient : ClientModInitializer {
 
         val editHudKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping(
-                "Edit ESP HUD",
+                "Edit HUD",
                 GLFW.GLFW_KEY_H,
                 CEDCLIENT_CATEGORY
             )
