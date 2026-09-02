@@ -51,6 +51,17 @@ data class ChatFilterEntry(
  * The module's own enabled/disabled (the ClickGUI panel toggle) is the
  * master switch -- when off, shouldHide() always returns false regardless
  * of individual entry state.
+ *
+ * IMPORTANT: on Hypixel (and most heavily-modded servers), real player
+ * messages -- guild chat, party chat, public/local chat -- are sent as the
+ * SAME packet type as spam/notification lines (system chat), because these
+ * servers don't use vanilla's signed player-chat system for their own
+ * custom-formatted chat. So the mixin only hooking handleSystemChat does
+ * NOT by itself protect real player messages the way it would on vanilla.
+ * playerChatGuard below is the actual protection: any line that LOOKS like
+ * a real chat message (has a channel prefix and/or a sender name followed
+ * by a colon) is exempted from every filter, default or custom, before any
+ * pattern is even checked.
  */
 object ChatFilter : Module(
     "ChatFilter",
@@ -67,6 +78,21 @@ object ChatFilter : Module(
     // an empty line where the hidden message used to be.
     private val collapseBlankLines = BooleanSetting("Collapse Blank Lines", true)
     private var lastMessageBlank = false
+
+    // Matches Hypixel's real-chat line shapes, e.g.:
+    //   Guild > PlayerName: hey guys
+    //   Guild > [MVP+] PlayerName [Staff]: hey guys
+    //   Party > PlayerName: ready?
+    //   PlayerName: hello                              (public/local chat)
+    //   [MVP++] PlayerName: hello                       (public chat w/ rank)
+    // Deliberately loose (rank tag is optional, name is 1-16 word chars per
+    // Minecraft's own username rules) -- false positives here just mean an
+    // occasional non-chat line slips through unfiltered, which is a far
+    // safer failure mode than a real player's message getting eaten.
+    private val playerChatGuard = Regex(
+        """^(?:(?:Guild|Party|Co-op|Officer) > )?(?:\[[^\]]+] )*\w{1,16}(?: \[[^\]]+])*\s*:.*""",
+        RegexOption.DOT_MATCHES_ALL
+    )
 
     // Imported verbatim from NoammAddons' uselessMessages.json (26.1.2).
     // All default-enabled; toggle individual ones off in the popup.
@@ -264,10 +290,13 @@ object ChatFilter : Module(
             lastMessageBlank = true
             return hide
         }
+        lastMessageBlank = false
 
-        val hidden = entries.any { it.enabled && it.matches(rawText) }
-        if (!hidden) lastMessageBlank = false
-        return hidden
+        // Real player messages never get filtered, no matter what patterns
+        // are enabled -- checked before any filter runs.
+        if (playerChatGuard.matches(rawText)) return false
+
+        return entries.any { it.enabled && it.matches(rawText) }
     }
 
     // -------------------------

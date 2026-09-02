@@ -8,7 +8,7 @@ import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.render.HudEditScreen
 import ced.cedclient.features.impl.misc.AdvancedMode
-
+import ced.cedclient.features.impl.render.TimeHud
 import ced.cedclient.features.impl.misc.ResetPanels
 
 import ced.cedclient.features.impl.misc.InventoryButtons
@@ -17,11 +17,16 @@ import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.misc.ChatFilter
 
 
+import ced.cedclient.features.impl.funqol.PlayerScale
+import ced.cedclient.features.impl.render.CustomNametag
+import ced.cedclient.features.impl.render.HardcodedCosmetics
+import ced.cedclient.utils.dungeons.DungeonState
+
+
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
-import ced.cedclient.features.impl.render.TimeHud
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InventoryButtonManager
 import ced.cedclient.ui.nvg.NVGSpecialRenderer
@@ -46,6 +51,13 @@ class CedClient : ClientModInitializer {
     override fun onInitializeClient() {
 
         println("CedClient initialized (client)")
+
+        // Dungeon split-timer engines -- always-on utilities, not gated by
+        // any module's enabled state (DungeonState needs to track floor/
+        // in-dungeon regardless of whether the HUD is currently shown, same
+        // reasoning as InventoryButtonManager below).
+        DungeonState.init()
+
 
         // Load inventory buttons on the first tick (safe filesystem)
         ClientTickEvents.END_CLIENT_TICK.register {
@@ -74,6 +86,9 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(PangolinCatcher)
         ModuleManager.register(LassoHelper)
 
+
+        ModuleManager.register(CustomNametag)
+        ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(ResetPanels)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(TimeHud)
@@ -83,6 +98,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(EntityESP)
         ModuleManager.register(FishingHelper)
         ModuleManager.register(InventoryButtons)
+
+        ModuleManager.register(PlayerScale)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         // Force ModuleManager initialization safely
@@ -129,6 +146,13 @@ class CedClient : ClientModInitializer {
         ) { graphics, tickCounter ->
             TimeHud.render(graphics, tickCounter)
         }
+
+        ClientTickEvents.END_CLIENT_TICK.register { client ->
+            if (editHudKey.consumeClick()) {
+                client.gui.setScreen(HudEditScreen())
+            }
+        }
+
         openGuiKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping(
                 "CedClient Gui",
