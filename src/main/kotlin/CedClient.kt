@@ -19,6 +19,7 @@ import ced.cedclient.features.impl.misc.ChatFilter
 
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.render.CustomNametag
+import ced.cedclient.features.impl.render.HardcodedCosmetics
 import ced.cedclient.utils.dungeons.DungeonState
 
 
@@ -87,6 +88,7 @@ class CedClient : ClientModInitializer {
 
 
         ModuleManager.register(CustomNametag)
+        ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(ResetPanels)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(TimeHud)
