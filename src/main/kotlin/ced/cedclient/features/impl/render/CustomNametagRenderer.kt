@@ -9,22 +9,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 
-/**
- * Draws CustomNametag's floating tags in world space -- ported straight
- * from EntityESPRenderer.submitLabel's pattern (poseStack translated to the
- * entity, then submitNodeCollector.submitNameTag draws billboarded text
- * above it), just with different source data per player:
- *
- *  - the real CedNath (matched by GameProfile name, same check
- *    PlayerRendererMixin uses for its hardcoded scale target) always gets
- *    CustomNametag.HARDCODED_TAG, regardless of the module toggle.
- *  - the local player gets CustomNametag.tagText.value, only while the
- *    module is enabled and the field isn't blank.
- *
- * Both can be true for the same render pass without conflict, since they
- * key off different entities (unless CedNath IS the local player, in which
- * case the hardcoded tag wins -- see the `when` order below).
- */
 object CustomNametagRenderer {
 
     fun register() {
@@ -46,7 +30,8 @@ object CustomNametagRenderer {
                 val player = entity as? Player ?: continue
 
                 val label: Component = when {
-                    player.gameProfile.name.equals(CustomNametag.HARDCODED_USERNAME, ignoreCase = true) ->
+                    HardcodedCosmetics.isEnabled &&
+                            player.gameProfile.name.equals(CustomNametag.HARDCODED_USERNAME, ignoreCase = true) ->
                         Component.literal(CustomNametag.HARDCODED_TAG)
 
                     player === localPlayer && moduleEnabled && ownTag.isNotBlank() ->
