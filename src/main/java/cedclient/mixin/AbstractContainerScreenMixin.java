@@ -1,6 +1,7 @@
 package cedclient.mixin;
 
 import ced.cedclient.features.impl.misc.InventoryButtons;
+import ced.cedclient.features.impl.render.ItemCooldowns;
 import ced.cedclient.ui.inventory.editor.InventoryButtonEditorOverlay;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -40,13 +41,20 @@ public abstract class AbstractContainerScreenMixin {
             float partialTick,
             CallbackInfo ci
     ) {
-        if (!InventoryButtons.INSTANCE.isEnabled()) return;
+        if (InventoryButtons.INSTANCE.isEnabled()) {
+            InventoryButtonEditorOverlay.INSTANCE.render(
+                    graphics,
+                    mouseX,
+                    mouseY,
+                    partialTick
+            );
+        }
 
-        InventoryButtonEditorOverlay.INSTANCE.render(
+        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) (Object) this;
+        ItemCooldowns.INSTANCE.renderInInventory(
                 graphics,
-                mouseX,
-                mouseY,
-                partialTick
+                accessor.ced$getLeftPos(),
+                accessor.ced$getTopPos()
         );
     }
 }

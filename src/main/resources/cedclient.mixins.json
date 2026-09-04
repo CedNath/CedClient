@@ -13,7 +13,9 @@
     "PlayerRendererMixin",
     "PlayerRenderStateMixin",
     "ChatComponentMixin",
-    "PlayerInfoMixin",
+    "PlayerTabOverlayMixin",
+    "ItemStackHoverNameMixin",
+    "ItemLoreMixin",
 
     "ContainerEventHandlerMixin",
     "AbstractContainerScreenMixin",

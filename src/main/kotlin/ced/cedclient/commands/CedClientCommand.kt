@@ -1,10 +1,12 @@
 package ced.cedclient.commands
 
 import ced.cedclient.features.impl.funqol.CoralotHelper
+import ced.cedclient.features.impl.render.CustomNametag
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
+import ced.cedclient.utils.NametagFormatting
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
@@ -149,6 +151,33 @@ object CedClientCommand {
 
                                 ctx.source.sendFeedback(Component.literal("Blocked: $blocked"))
                                 ctx.source.sendFeedback(Component.literal("Only: $only"))
+                                1
+                            }
+                    )
+            )
+
+            .then(
+                // Chat-based alternative to the (small) Tag Text box in the
+                // GUI -- mainly so &#hex/<gradient:...>/<rainbow> strings
+                // aren't painful to type. Bare "/cedclient nametag" clears it
+                // and turns the module off; "/cedclient nametag <text>" sets
+                // the text and turns the module on.
+                ClientCommands.literal("nametag")
+                    .executes { ctx ->
+                        CustomNametag.tagText.value = ""
+                        CustomNametag.setEnabled(false)
+                        ctx.source.sendFeedback(Component.literal("Custom nametag cleared"))
+                        1
+                    }
+                    .then(
+                        ClientCommands.argument("text", StringArgumentType.greedyString())
+                            .executes { ctx ->
+                                val text = StringArgumentType.getString(ctx, "text")
+                                CustomNametag.tagText.value = text
+                                CustomNametag.setEnabled(true)
+                                ctx.source.sendFeedback(
+                                    Component.literal("Custom nametag set to: ").append(NametagFormatting.parse(text))
+                                )
                                 1
                             }
                     )
