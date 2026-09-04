@@ -1,7 +1,12 @@
 package cedclient.mixin;
 
-import cedclient.accessor.CedClientPlayerRenderStateAccessor;
 import ced.cedclient.features.impl.funqol.PlayerScale;
+import ced.cedclient.features.impl.render.HardcodedCosmetics;
+import ced.cedclient.utils.NametagFormatting;
+import ced.cedclient.utils.NametagOverride;
+import ced.cedclient.sync.CosmeticOverride;
+import ced.cedclient.sync.CosmeticsSync;
+import cedclient.accessor.CedClientPlayerRenderStateAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
@@ -13,14 +18,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Confirmed from decompiled source (26.1.2 / NoRiskClient's custom
-// "Avatar" rendering fork -- NOT vanilla's PlayerRenderer/PlayerRenderState,
-// which don't exist in this build). AvatarRenderer<AvatarlikeEntity extends
-// Avatar & ClientAvatarEntity> erases to Avatar for the generic parameter,
-// so that's the bytecode-level type Mixin needs to match -- hence the full
-// method descriptors below instead of bare method names (extractRenderState
-// has several overloads/bridge methods on this class; the descriptor picks
-// out the real one, not a bridge).
 @Mixin(AvatarRenderer.class)
 public abstract class PlayerRendererMixin {
 
@@ -28,39 +25,108 @@ public abstract class PlayerRendererMixin {
             method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
             at = @At("TAIL")
     )
-    private void cedclient$tagTargetPlayer(Avatar entity, AvatarRenderState state, float partialTick, CallbackInfo ci) {
-        CedClientPlayerRenderStateAccessor accessor = (CedClientPlayerRenderStateAccessor) state;
+    private void cedclient$tagTargetPlayer(
+            Avatar entity,
+            AvatarRenderState state,
+            float partialTick,
+            CallbackInfo ci
+    ) {
+        CedClientPlayerRenderStateAccessor accessor =
+                (CedClientPlayerRenderStateAccessor) state;
 
-        boolean isHardcodedTarget = entity instanceof Player player
-                && PlayerScale.HARDCODED_USERNAME.equalsIgnoreCase(player.getGameProfile().name());
+        CosmeticOverride override = null;
 
+        if (HardcodedCosmetics.INSTANCE.isEnabled()
+                && entity instanceof Player player) {
+            override = CosmeticsSync.INSTANCE.getOverride(
+                    player.getGameProfile().name()
+            );
+        }
 
-        boolean isSelf = !isHardcodedTarget
-                && Minecraft.getInstance().player != null
-                && entity == Minecraft.getInstance().player;
+        boolean isHardcodedTarget = override != null;
+
+        if (isHardcodedTarget) {
+            accessor.cedclient$setSyncedScale(
+                    override.getScaleX(),
+                    override.getScaleY(),
+                    override.getScaleZ()
+            );
+        }
+
+        boolean isSelf =
+                !isHardcodedTarget
+                        && Minecraft.getInstance().player != null
+                        && entity == Minecraft.getInstance().player;
 
         accessor.cedclient$setHardcodedTarget(isHardcodedTarget);
         accessor.cedclient$setSelf(isSelf);
+
+        /*
+         * Overwrite the render state's own nametag Component when an
+         * override is active, instead of suppressing vanilla's nametag and
+         * submitting a parallel one. Vanilla's submitNameDisplay() then
+         * renders our text through its own pipeline, so we get its
+         * attachment-point math, distance culling, sneak-hide, and team
+         * prefix/suffix handling for free instead of reimplementing them.
+         *
+         * We grab vanilla's own computed nametag text BEFORE overwriting
+         * it, and pass it into NametagOverride as a fallback lookup key --
+         * on servers that fake the entity's GameProfile name (Hypixel
+         * SkyBlock does this; see NametagOverride's doc comment), a direct
+         * name-based CosmeticsSync lookup misses, but the real IGN is
+         * still present as literal text in vanilla's rendered component.
+         */
+        if (entity instanceof Player player) {
+            String originalNameTagText = state.nameTag != null ? state.nameTag.getString() : null;
+            String overrideText = NametagOverride.INSTANCE.activeTagFor(player, originalNameTagText);
+            if (overrideText != null) {
+                // NOTE: verify this field name against your AvatarRenderState /
+                // EntityRenderState mappings -- it's the Component vanilla's
+                // submitNameDisplay() reads to draw the floating tag.
+                state.nameTag = NametagFormatting.INSTANCE.parse(overrideText);
+            }
+        }
     }
 
     @Inject(
             method = "scale(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V",
             at = @At("TAIL")
     )
-    private void cedclient$applyPlayerScale(AvatarRenderState state, PoseStack poseStack, CallbackInfo ci) {
-        CedClientPlayerRenderStateAccessor accessor = (CedClientPlayerRenderStateAccessor) state;
+    private void cedclient$applyPlayerScale(
+            AvatarRenderState state,
+            PoseStack poseStack,
+            CallbackInfo ci
+    ) {
+        CedClientPlayerRenderStateAccessor accessor =
+                (CedClientPlayerRenderStateAccessor) state;
 
+        /*
+         * Synced cosmetic scale takes priority.
+         */
         if (accessor.cedclient$isHardcodedTarget()) {
-            poseStack.scale(PlayerScale.HARDCODED_SCALE_X, PlayerScale.HARDCODED_SCALE_Y, PlayerScale.HARDCODED_SCALE_Z);
+            poseStack.scale(
+                    accessor.cedclient$getSyncedScaleX(),
+                    accessor.cedclient$getSyncedScaleY(),
+                    accessor.cedclient$getSyncedScaleZ()
+            );
             return;
         }
 
-        if (!PlayerScale.INSTANCE.isEnabled() || !accessor.cedclient$isSelf()) return;
+        /*
+         * Only scale the local player's model with PlayerScale.
+         */
+        if (!PlayerScale.INSTANCE.isEnabled()
+                || !accessor.cedclient$isSelf()) {
+            return;
+        }
 
         float scaleX = PlayerScale.INSTANCE.getScaleFactorX();
         float scaleY = PlayerScale.INSTANCE.getScaleFactorY();
         float scaleZ = PlayerScale.INSTANCE.getScaleFactorZ();
-        if (scaleX != 1.0f || scaleY != 1.0f || scaleZ != 1.0f) {
+
+        if (scaleX != 1.0F
+                || scaleY != 1.0F
+                || scaleZ != 1.0F) {
             poseStack.scale(scaleX, scaleY, scaleZ);
         }
     }

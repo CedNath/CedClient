@@ -5,17 +5,24 @@ import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
-// AvatarRenderState, not vanilla's PlayerRenderState -- see
-// PlayerRendererMixin.java for why (this build renamed the whole
-// player-rendering stack to "Avatar").
 @Mixin(AvatarRenderState.class)
-public class PlayerRenderStateMixin implements CedClientPlayerRenderStateAccessor {
+public class PlayerRenderStateMixin
+        implements CedClientPlayerRenderStateAccessor {
 
     @Unique
     private boolean cedclient$isSelf = false;
 
     @Unique
     private boolean cedclient$isHardcodedTarget = false;
+
+    @Unique
+    private float cedclient$syncedScaleX = 1.0F;
+
+    @Unique
+    private float cedclient$syncedScaleY = 1.0F;
+
+    @Unique
+    private float cedclient$syncedScaleZ = 1.0F;
 
     @Override
     public boolean cedclient$isSelf() {
@@ -35,5 +42,31 @@ public class PlayerRenderStateMixin implements CedClientPlayerRenderStateAccesso
     @Override
     public void cedclient$setHardcodedTarget(boolean value) {
         cedclient$isHardcodedTarget = value;
+    }
+
+    @Override
+    public float cedclient$getSyncedScaleX() {
+        return cedclient$syncedScaleX;
+    }
+
+    @Override
+    public float cedclient$getSyncedScaleY() {
+        return cedclient$syncedScaleY;
+    }
+
+    @Override
+    public float cedclient$getSyncedScaleZ() {
+        return cedclient$syncedScaleZ;
+    }
+
+    @Override
+    public void cedclient$setSyncedScale(
+            float x,
+            float y,
+            float z
+    ) {
+        cedclient$syncedScaleX = x;
+        cedclient$syncedScaleY = y;
+        cedclient$syncedScaleZ = z;
     }
 }
