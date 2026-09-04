@@ -18,8 +18,10 @@ import ced.cedclient.features.impl.misc.ChatFilter
 
 
 import ced.cedclient.features.impl.funqol.PlayerScale
+import ced.cedclient.features.impl.render.ChatChannelHud
 import ced.cedclient.features.impl.render.CustomNametag
 import ced.cedclient.features.impl.render.HardcodedCosmetics
+import ced.cedclient.sync.CosmeticsSync
 import ced.cedclient.utils.dungeons.DungeonState
 
 
@@ -27,6 +29,7 @@ import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
+import ced.cedclient.features.impl.render.ItemCooldowns
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InventoryButtonManager
 import ced.cedclient.ui.nvg.NVGSpecialRenderer
@@ -57,6 +60,7 @@ class CedClient : ClientModInitializer {
         // in-dungeon regardless of whether the HUD is currently shown, same
         // reasoning as InventoryButtonManager below).
         DungeonState.init()
+        CosmeticsSync.init()
 
 
         // Load inventory buttons on the first tick (safe filesystem)
@@ -86,7 +90,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(PangolinCatcher)
         ModuleManager.register(LassoHelper)
 
-
+        ModuleManager.register(ChatChannelHud)
         ModuleManager.register(CustomNametag)
         ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(ResetPanels)
@@ -98,7 +102,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(EntityESP)
         ModuleManager.register(FishingHelper)
         ModuleManager.register(InventoryButtons)
-
+        ModuleManager.register(ItemCooldowns)
         ModuleManager.register(PlayerScale)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
@@ -135,18 +139,21 @@ class CedClient : ClientModInitializer {
                 CEDCLIENT_CATEGORY
             )
         )
-
-        ClientTickEvents.END_CLIENT_TICK.register { client ->
-            if (editHudKey.consumeClick()) {
-                client.gui.setScreen(HudEditScreen())
-            }
-        }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "time_hud")
         ) { graphics, tickCounter ->
             TimeHud.render(graphics, tickCounter)
         }
-
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "chat_channel_hud")
+        ) { graphics, tickCounter ->
+            ChatChannelHud.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "item_cooldowns")
+        ) { graphics, tickCounter ->
+            ItemCooldowns.render(graphics, tickCounter)
+        }
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (editHudKey.consumeClick()) {
                 client.gui.setScreen(HudEditScreen())

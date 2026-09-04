@@ -4,6 +4,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
+import ced.cedclient.features.impl.render.ChatChannelHud
 
 /**
  * Opened by /cc hud or /cedclient hud (deliberately no keybind). Shows every
@@ -14,8 +15,7 @@ import net.minecraft.network.chat.Component
  */
 class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
-    private val elements: List<HudElement> = listOf(EntityESPHud, TimeHud)
-
+    private val elements: List<HudElement> = listOf(EntityESPHud, TimeHud, ChatChannelHud)
     private var dragging: HudElement? = null
     private var dragOffsetX = 0
     private var dragOffsetY = 0

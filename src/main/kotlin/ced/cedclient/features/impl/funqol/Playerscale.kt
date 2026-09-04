@@ -14,21 +14,17 @@ import ced.cedclient.features.settings.NumberSetting
  * never changes what anyone else sees unless they're also running the mod):
  *   - Self: whoever has this module enabled sees their OWN player model
  *     scaled per-axis by the Scale X/Y/Z sliders below.
- *   - Hardcoded target: CedNath specifically always renders at
- *     HARDCODED_SCALE_X/Y/Z, ignoring both the sliders and the module
- *     toggle entirely. Edit those constants directly to change them --
- *     they're intentionally not Settings.
+ *   - Synced target: while HardcodedCosmetics is enabled, any IGN with a
+ *     scale pushed via CosmeticsSync renders at that scale instead,
+ *     ignoring this module's own sliders/toggle entirely. Turning
+ *     HardcodedCosmetics off disables this override too (see
+ *     PlayerRendererMixin), same as it does for the synced nametag.
  */
 object PlayerScale : Module(
     "Player Scale",
     Category.Funqol,
-    "Scales your own player model per-axis. CedNath always renders at a fixed size, independent of these sliders and this toggle."
+    "Scales your own player model per-axis. Names with a synced scale pushed via CosmeticsSync always render at that fixed size, independent of these sliders and this toggle."
 ) {
-    const val HARDCODED_USERNAME = "CedNath"
-    const val HARDCODED_SCALE_X = 2.50f // edit directly -- not exposed as a Setting
-    const val HARDCODED_SCALE_Y = 0.20f
-    const val HARDCODED_SCALE_Z = 2.50f
-
     private val scaleX = NumberSetting("Scale X", 1.0, 0.1, 5.0, 0.05)
     private val scaleY = NumberSetting("Scale Y", 1.0, 0.1, 5.0, 0.05)
     private val scaleZ = NumberSetting("Scale Z", 1.0, 0.1, 5.0, 0.05)
