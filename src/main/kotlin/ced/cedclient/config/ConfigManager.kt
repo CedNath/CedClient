@@ -37,11 +37,13 @@ object ConfigManager {
     // Used only when a category has no saved position yet (first launch,
     // or a brand new category that's never been dragged before).
     // Panel.WIDTH is 320f as of the bigger-text pass -- 15px left margin,
-    // 30px gutter between panels: 15, 15+320+30=365, 365+320+30=715.
+    // 30px gutter between panels: 15, 15+320+30=365, 365+320+30=715,
+    // 715+320+30=1065.
     private val defaultPanelPositions: Map<String, Pair<Float, Float>> = mapOf(
         "Render" to (365f to 15f),
         "Funqol" to (15f to 15f),
-        "Misc" to (715f to 15f)
+        "Misc" to (715f to 15f),
+        "CedClient" to (1065f to 15f)
     )
 
     private fun readRoot(): JsonObject? {

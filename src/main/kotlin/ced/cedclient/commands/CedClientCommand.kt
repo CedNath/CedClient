@@ -4,6 +4,7 @@ import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.render.CustomNametag
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.MasterHudEditScreen
+import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
 import ced.cedclient.utils.NametagFormatting
@@ -227,6 +228,79 @@ object CedClientCommand {
                                     .executes { ctx ->
                                         CoralotHelper.titleText = StringArgumentType.getString(ctx, "text")
                                         ctx.source.sendFeedback(Component.literal("Title set"))
+                                        1
+                                    }
+                            )
+                    )
+            )
+
+            .then(
+                // Management for WarpShortcuts (the "/dh" -> "/warp dh"
+                // module). The shortcuts themselves take effect the moment
+                // they're typed -- no reconnect needed -- since they're
+                // rewritten via ClientSendMessageEvents.MODIFY_COMMAND
+                // rather than registered as Brigadier client commands.
+                ClientCommands.literal("warp")
+                    .then(
+                        ClientCommands.literal("list")
+                            .executes { ctx ->
+                                val enabled = WarpShortcuts.currentEntries()
+                                    .filter { it.enabled }
+                                    .joinToString(", ") { it.alias }
+                                ctx.source.sendFeedback(Component.literal("Enabled warp shortcuts: $enabled"))
+                                1
+                            }
+                    )
+                    .then(
+                        ClientCommands.literal("add")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .then(
+                                        ClientCommands.argument("target", StringArgumentType.greedyString())
+                                            .executes { ctx ->
+                                                val alias = StringArgumentType.getString(ctx, "alias")
+                                                val target = StringArgumentType.getString(ctx, "target")
+                                                WarpShortcuts.addCustom(alias, target)
+                                                ctx.source.sendFeedback(
+                                                    Component.literal("Added shortcut: /$alias -> /$target")
+                                                )
+                                                1
+                                            }
+                                    )
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("remove")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .executes { ctx ->
+                                        val alias = StringArgumentType.getString(ctx, "alias")
+                                        WarpShortcuts.removeCustom(alias)
+                                        ctx.source.sendFeedback(Component.literal("Removed shortcut: /$alias"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("enable")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .executes { ctx ->
+                                        val alias = StringArgumentType.getString(ctx, "alias")
+                                        WarpShortcuts.setEnabled(alias, true)
+                                        ctx.source.sendFeedback(Component.literal("Enabled: /$alias"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("disable")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .executes { ctx ->
+                                        val alias = StringArgumentType.getString(ctx, "alias")
+                                        WarpShortcuts.setEnabled(alias, false)
+                                        ctx.source.sendFeedback(Component.literal("Disabled: /$alias"))
                                         1
                                     }
                             )
