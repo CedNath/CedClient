@@ -57,7 +57,7 @@ object CosmeticsSync {
     private const val REPO = "cedclient-cosmetics"
     private const val BRANCH = "main"
     private const val FILE_PATH = "cosmetics.json"
-    private const val TOKEN = "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"
+    private const val TOKEN = "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"
 
 
     private const val POLL_INTERVAL_SECONDS = 45L
