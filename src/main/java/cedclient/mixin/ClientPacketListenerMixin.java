@@ -53,6 +53,12 @@ public class ClientPacketListenerMixin {
         }
 
         if (ChatFilter.INSTANCE.shouldHide(content.getString())) {
+            // Cancelling handleSystemChat entirely also skips vanilla's own
+            // chat-log call inside ChatComponent.addMessage() (that's where
+            // the "[CHAT] ..." log lines come from), since addMessage()
+            // never runs. Log it ourselves first so filtered lines still
+            // show up in the log file -- they just won't render in-game.
+            System.out.println("[ChatFilter] hidden: " + content.getString());
             ci.cancel();
         }
     }
