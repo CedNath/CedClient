@@ -15,6 +15,6 @@ import ced.cedclient.features.Module
  */
 object AdvancedMode : Module(
     "Advanced Mode",
-    Category.Misc,
+    Category.CedClient,
     description = "Reveals advanced tuning settings (delays, tolerances, jitter, debug logs) across every module."
 )

@@ -4,6 +4,7 @@ import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.render.CustomNametag
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.MasterHudEditScreen
+import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
 import ced.cedclient.utils.NametagFormatting
@@ -77,6 +78,84 @@ object CedClientCommand {
                     }
             )
 
+            .then(
+                ClientCommands.literal("esp")
+                    .then(
+                        ClientCommands.literal("block")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        EntityESP.blockName(name)
+                                        ctx.source.sendFeedback(Component.literal("Blocked: $name"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("unblock")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        EntityESP.unblockName(name)
+                                        ctx.source.sendFeedback(Component.literal("Unblocked: $name"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("only")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        EntityESP.onlyName(name)
+                                        ctx.source.sendFeedback(Component.literal("Only showing (added): $name"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("unonly")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        EntityESP.unOnlyName(name)
+                                        ctx.source.sendFeedback(Component.literal("Removed from only-list: $name"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("clearonly")
+                            .executes { ctx ->
+                                EntityESP.clearOnly()
+                                ctx.source.sendFeedback(Component.literal("Cleared only-list (showing all again)"))
+                                1
+                            }
+                    )
+                    .then(
+                        ClientCommands.literal("clearblocked")
+                            .executes { ctx ->
+                                EntityESP.clearBlocked()
+                                ctx.source.sendFeedback(Component.literal("Cleared blocked list"))
+                                1
+                            }
+                    )
+                    .then(
+                        ClientCommands.literal("list")
+                            .executes { ctx ->
+                                val blocked = if (EntityESP.blockedNames.isEmpty()) "(none)" else EntityESP.blockedNames.joinToString(", ")
+                                val only = if (EntityESP.onlyNames.isEmpty()) "(none)" else EntityESP.onlyNames.joinToString(", ")
+
+                                ctx.source.sendFeedback(Component.literal("Blocked: $blocked"))
+                                ctx.source.sendFeedback(Component.literal("Only: $only"))
+                                1
+                            }
+                    )
+            )
 
             .then(
                 // Chat-based alternative to the (small) Tag Text box in the
@@ -105,8 +184,127 @@ object CedClientCommand {
                     )
             )
 
+            .then(
+                ClientCommands.literal("coralot")
+                    .then(
+                        ClientCommands.literal("netname")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        CoralotHelper.netItemName = StringArgumentType.getString(ctx, "name")
+                                        ctx.source.sendFeedback(Component.literal("Net item name set"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("keywords")
+                            .then(
+                                ClientCommands.argument("words", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val words = StringArgumentType.getString(ctx, "words")
+                                            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                        CoralotHelper.catchKeywords = words
+                                        ctx.source.sendFeedback(Component.literal("Catch keywords set: $words"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("sound")
+                            .then(
+                                ClientCommands.argument("id", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        CoralotHelper.soundId = StringArgumentType.getString(ctx, "id")
+                                        ctx.source.sendFeedback(Component.literal("Sound set"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("title")
+                            .then(
+                                ClientCommands.argument("text", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        CoralotHelper.titleText = StringArgumentType.getString(ctx, "text")
+                                        ctx.source.sendFeedback(Component.literal("Title set"))
+                                        1
+                                    }
+                            )
+                    )
+            )
 
-
-
+            .then(
+                // Management for WarpShortcuts (the "/dh" -> "/warp dh"
+                // module). The shortcuts themselves take effect the moment
+                // they're typed -- no reconnect needed -- since they're
+                // rewritten via ClientSendMessageEvents.MODIFY_COMMAND
+                // rather than registered as Brigadier client commands.
+                ClientCommands.literal("warp")
+                    .then(
+                        ClientCommands.literal("list")
+                            .executes { ctx ->
+                                val enabled = WarpShortcuts.currentEntries()
+                                    .filter { it.enabled }
+                                    .joinToString(", ") { it.alias }
+                                ctx.source.sendFeedback(Component.literal("Enabled warp shortcuts: $enabled"))
+                                1
+                            }
+                    )
+                    .then(
+                        ClientCommands.literal("add")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .then(
+                                        ClientCommands.argument("target", StringArgumentType.greedyString())
+                                            .executes { ctx ->
+                                                val alias = StringArgumentType.getString(ctx, "alias")
+                                                val target = StringArgumentType.getString(ctx, "target")
+                                                WarpShortcuts.addCustom(alias, target)
+                                                ctx.source.sendFeedback(
+                                                    Component.literal("Added shortcut: /$alias -> /$target")
+                                                )
+                                                1
+                                            }
+                                    )
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("remove")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .executes { ctx ->
+                                        val alias = StringArgumentType.getString(ctx, "alias")
+                                        WarpShortcuts.removeCustom(alias)
+                                        ctx.source.sendFeedback(Component.literal("Removed shortcut: /$alias"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("enable")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .executes { ctx ->
+                                        val alias = StringArgumentType.getString(ctx, "alias")
+                                        WarpShortcuts.setEnabled(alias, true)
+                                        ctx.source.sendFeedback(Component.literal("Enabled: /$alias"))
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("disable")
+                            .then(
+                                ClientCommands.argument("alias", StringArgumentType.word())
+                                    .executes { ctx ->
+                                        val alias = StringArgumentType.getString(ctx, "alias")
+                                        WarpShortcuts.setEnabled(alias, false)
+                                        ctx.source.sendFeedback(Component.literal("Disabled: /$alias"))
+                                        1
+                                    }
+                            )
+                    )
+            )
     }
 }
