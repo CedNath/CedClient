@@ -62,6 +62,38 @@ public abstract class PlayerRendererMixin {
         accessor.cedclient$setSelf(isSelf);
 
         /*
+         * Nametag position comes from state.attachments (EntityAttachments),
+         * which vanilla computes from the entity's real, UNSCALED height --
+         * PlayerScale/the synced cosmetic scale only ever touch the render
+         * geometry via poseStack.scale() in cedclient$applyPlayerScale below,
+         * never the entity's actual dimensions. Without this, a bigger model
+         * leaves the nametag anchored down around its original (now much
+         * lower relative) head height -- looks like it's floating at the
+         * legs -- and a smaller model leaves it floating too high above the
+         * now-shrunk head.
+         *
+         * EntityAttachments.scale(float) is the same vanilla method used to
+         * reposition baby-mob nametags correctly, so this reuses real
+         * vanilla behavior rather than reimplementing the math. Only the
+         * Y-relevant scale matters here since attachments are a height
+         * offset; per-axis X/Z scale doesn't affect nametag height.
+         *
+         * NOTE: verify `attachments` is still the field name on
+         * AvatarRenderState / EntityRenderState for this mapping -- same
+         * caveat as nameTag below.
+         */
+        float scaleY = 1.0F;
+        if (isHardcodedTarget) {
+            scaleY = override.getScaleY();
+        } else if (isSelf && PlayerScale.INSTANCE.isEnabled()) {
+            scaleY = PlayerScale.INSTANCE.getScaleFactorY();
+        }
+        if (scaleY != 1.0F && state.nameTagAttachment != null) {
+            net.minecraft.world.phys.Vec3 v = state.nameTagAttachment;
+            state.nameTagAttachment = new net.minecraft.world.phys.Vec3(v.x, v.y * scaleY, v.z);
+        }
+
+        /*
          * Overwrite the render state's own nametag Component when an
          * override is active, instead of suppressing vanilla's nametag and
          * submitting a parallel one. Vanilla's submitNameDisplay() then
