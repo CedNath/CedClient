@@ -37,12 +37,13 @@ data class CosmeticOverride(
  * This version instead polls the GitHub Contents API for the file every
  * POLL_INTERVAL. Read access uses a fine-grained personal access token
  * scoped to "Contents: Read-only" on ONLY this one repo -- see SETUP.md.
- * That token is still extractable from the compiled jar (same trust model
- * as the old topic string), but scoped this way it can only ever be used
- * to *read* this one file early. It grants no write access anywhere and no
- * access to any other repo, which is the actual security upgrade: WRITING
- * now requires real GitHub auth (an account with push access to the repo),
- * not knowledge of a shared string.
+ *
+ * The token is never hardcoded here. GitHub auto-revokes any PAT it finds
+ * in a public push -- even if push protection is manually overridden to let
+ * the push through -- so a hardcoded token here would just die again the
+ * next time this file is committed. Instead each person running the mod
+ * supplies their own token locally (env var or a local file), so the
+ * published jar/source never contains a live secret at all.
  *
  * State survives restarts and being offline: every applied update is
  * written to cosmetics_cache.json in the config folder and reloaded on
@@ -51,14 +52,18 @@ data class CosmeticOverride(
 object CosmeticsSync {
 
     // --- Fill these in for your repo, then rebuild the mod. ---
-    // A fine-grained PAT with ONLY "Contents: Read-only" access to REPO
-    // below, and no other repositories selected. See SETUP.md.
     private const val OWNER = "CedNath"
     private const val REPO = "cedclient-cosmetics"
     private const val BRANCH = "main"
     private const val FILE_PATH = "cosmetics.json"
-    private const val TOKEN = "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"
 
+    // Token is supplied locally, never hardcoded -- see SETUP.md.
+    // A fine-grained PAT with ONLY "Contents: Read-only" access to REPO
+    // above, and no other repositories selected.
+    //   - IntelliJ / dev: set env var CED_SYNC_TOKEN on your run config
+    //   - Built jar: put the token (only the token, no quotes) in
+    //     <gamedir>/cedclient/sync_token.txt
+    private val TOKEN: String? by lazy { loadToken() }
 
     private const val POLL_INTERVAL_SECONDS = 45L
 
@@ -66,8 +71,14 @@ object CosmeticsSync {
 
     private val overridesMap = ConcurrentHashMap<String, CosmeticOverride>()
 
+    private val configDir: File
+        get() = File(Minecraft.getInstance().gameDirectory, "cedclient")
+
     private val cacheFile: File
-        get() = File(File(Minecraft.getInstance().gameDirectory, "cedclient"), "cosmetics_cache.json")
+        get() = File(configDir, "cosmetics_cache.json")
+
+    private val tokenFile: File
+        get() = File(configDir, "sync_token.txt")
 
     private val client: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
@@ -79,6 +90,11 @@ object CosmeticsSync {
     // Avoids re-downloading/re-applying when nothing changed.
     @Volatile
     private var lastEtag: String? = null
+
+    // So the "no token configured" message only logs once instead of every
+    // poll interval forever.
+    @Volatile
+    private var warnedNoToken = false
 
     /** Call once during mod init. Loads the local cache immediately, then
      *  starts a background thread that polls on an interval. */
@@ -99,6 +115,18 @@ object CosmeticsSync {
     fun allTags(): Map<String, String> =
         overridesMap.mapNotNull { (ign, override) -> override.tag?.let { ign to it } }.toMap()
 
+    private fun loadToken(): String? {
+        System.getenv("CED_SYNC_TOKEN")?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+
+        val file = tokenFile
+        if (file.exists()) {
+            val fromFile = file.readText().trim()
+            if (fromFile.isNotEmpty()) return fromFile
+        }
+
+        return null
+    }
+
     private fun pollLoop() {
         while (true) {
             try {
@@ -116,10 +144,23 @@ object CosmeticsSync {
     }
 
     private fun pollOnce() {
+        val token = TOKEN
+        if (token == null) {
+            if (!warnedNoToken) {
+                println(
+                    "CedClient cosmetics sync: no token configured -- set the " +
+                            "CED_SYNC_TOKEN env var or create cedclient/sync_token.txt " +
+                            "(see SETUP.md). Sync is disabled until then."
+                )
+                warnedNoToken = true
+            }
+            return
+        }
+
         val url = "https://api.github.com/repos/$OWNER/$REPO/contents/$FILE_PATH?ref=$BRANCH"
         val builder = HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .header("Authorization", "Bearer $TOKEN")
+            .header("Authorization", "Bearer $token")
             .header("Accept", "application/vnd.github.raw") // ask for the raw file body, not base64 JSON
             .header("X-GitHub-Api-Version", "2022-11-28")
             .timeout(Duration.ofSeconds(15))
@@ -138,7 +179,11 @@ object CosmeticsSync {
                 // Not modified since last poll -- nothing to do.
             }
             401, 403 -> {
-                println("CedClient cosmetics sync: auth rejected (HTTP ${response.statusCode()}) -- check TOKEN/repo access in CosmeticsSync.kt")
+                println(
+                    "CedClient cosmetics sync: auth rejected (HTTP ${response.statusCode()}) -- " +
+                            "check your token (env var CED_SYNC_TOKEN or cedclient/sync_token.txt) " +
+                            "and its repo access"
+                )
             }
             404 -> {
                 println("CedClient cosmetics sync: repo/file/branch not found -- check OWNER/REPO/BRANCH/FILE_PATH in CosmeticsSync.kt")
