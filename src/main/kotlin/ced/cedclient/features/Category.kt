@@ -4,5 +4,6 @@ enum class  Category {
 
     Render,
     Funqol,
-    Misc
+    Misc,
+    CedClient
 }

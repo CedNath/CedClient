@@ -12,6 +12,7 @@ import ced.cedclient.features.impl.render.TimeHud
 import ced.cedclient.features.impl.misc.ResetPanels
 
 import ced.cedclient.features.impl.misc.InventoryButtons
+import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.misc.ChatFilter
@@ -104,6 +105,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(InventoryButtons)
         ModuleManager.register(ItemCooldowns)
         ModuleManager.register(PlayerScale)
+        ModuleManager.register(WarpShortcuts)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         // Force ModuleManager initialization safely

@@ -11,6 +11,7 @@ object ModuleManager {
      */
     val modulesByCategory: Map<Category, List<Module>>
         get() = modules.groupBy { it.category }
+            .mapValues { (_, mods) -> mods.sortedBy { it.name.lowercase() } }
 
     fun register(module: Module) {
         modules += module

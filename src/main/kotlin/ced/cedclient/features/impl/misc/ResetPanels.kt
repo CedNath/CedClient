@@ -6,7 +6,7 @@ import ced.cedclient.features.Module
 import ced.cedclient.ui.clickgui.ClickGUI
 import net.minecraft.client.Minecraft
 
-object ResetPanels : Module("Reset Panels", Category.Misc) {
+object ResetPanels : Module("Reset Panels", Category.CedClient) {
 
     private var lastRunMillis: Long = 0L
     private val debounceMs: Long = 1000L

@@ -6,7 +6,7 @@ import ced.cedclient.features.Module
 
 object HardcodedCosmetics : Module(
     "Cosmetics",
-    Category.Render,
+    Category.CedClient,
     "Shows Custom built-in cosmetic tag on your client.",
     defaultEnabled = true
 )
