@@ -248,7 +248,9 @@ object ItemCooldowns : Module(
         Regex("""You cannot use abilities in this room!"""),
         Regex("""You cannot do that in this room!"""),
         Regex("""You do not have enough mana to do this!"""),
-        Regex("""You need at least .+ mana to activate this!""")
+        Regex("""You need at least .+ mana to activate this!"""),
+        Regex("""You can only use this item inside dungeons!""")
+
     )
 
     // How long after a click a failure message still counts as "caused by
@@ -341,7 +343,8 @@ object ItemCooldowns : Module(
 
     init {
         on<ChatMessageEvent> { event -> handleChatMessage(event.unformattedText) }
-
+        logUnmatched.advanced = true
+        logAllSounds.advanced = true
         // TODO: verify PlaySoundEvent / ItemClickEvent exist with these field
         // names -- see the CAVEAT at the top of the file.
         on<PlaySoundEvent> { event -> handleSound(event.soundName, event.pitch, event.volume) }
