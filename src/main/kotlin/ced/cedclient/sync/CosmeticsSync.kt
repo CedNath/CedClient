@@ -27,22 +27,25 @@ data class CosmeticOverride(
 
 /**
  * Pulls a { ign -> CosmeticOverride } map from a cosmetics.json file living
- * in a private GitHub repo, and keeps it applied live.
+ * in a public GitHub repo, and keeps it applied live.
  *
  * Replaces the old ntfy.sh long-lived stream. That design's weak point was
  * write access: the ntfy topic was just a shared string baked into the jar,
  * so anyone who extracted it could push arbitrary overrides to every client
  * running the mod, forever, with no way to revoke just their access.
  *
- * This version instead polls the GitHub Contents API for the file every
- * POLL_INTERVAL. Read access uses a fine-grained personal access token
- * scoped to "Contents: Read-only" on ONLY this one repo -- see SETUP.md.
- * That token is still extractable from the compiled jar (same trust model
- * as the old topic string), but scoped this way it can only ever be used
- * to *read* this one file early. It grants no write access anywhere and no
- * access to any other repo, which is the actual security upgrade: WRITING
- * now requires real GitHub auth (an account with push access to the repo),
- * not knowledge of a shared string.
+ * This version polls raw.githubusercontent.com for the file every
+ * POLL_INTERVAL. The cosmetics-data repo (REPO below) is PUBLIC and this
+ * is an unauthenticated read of a public raw file -- no token involved.
+ *
+ * That's a deliberate choice, not an oversight: the file is just cosmetic
+ * overrides (nametags/scale), nothing sensitive, so there's no reason to
+ * gate reads behind auth. Going back to a private repo + token would
+ * reintroduce the problem this replaced -- GitHub auto-revokes any PAT it
+ * finds in a public push (even one manually allowed through push
+ * protection), so a hardcoded token here would just die again the next
+ * time this file is committed. WRITE access to the repo is still fully
+ * gated behind normal GitHub push permissions -- this only affects reads.
  *
  * State survives restarts and being offline: every applied update is
  * written to cosmetics_cache.json in the config folder and reloaded on
@@ -51,14 +54,11 @@ data class CosmeticOverride(
 object CosmeticsSync {
 
     // --- Fill these in for your repo, then rebuild the mod. ---
-    // A fine-grained PAT with ONLY "Contents: Read-only" access to REPO
-    // below, and no other repositories selected. See SETUP.md.
+    // REPO must be a PUBLIC repository -- reads here are unauthenticated.
     private const val OWNER = "CedNath"
     private const val REPO = "cedclient-cosmetics"
     private const val BRANCH = "main"
     private const val FILE_PATH = "cosmetics.json"
-    private const val TOKEN = "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"
-
 
     private const val POLL_INTERVAL_SECONDS = 45L
 
@@ -66,8 +66,11 @@ object CosmeticsSync {
 
     private val overridesMap = ConcurrentHashMap<String, CosmeticOverride>()
 
+    private val configDir: File
+        get() = File(Minecraft.getInstance().gameDirectory, "cedclient")
+
     private val cacheFile: File
-        get() = File(File(Minecraft.getInstance().gameDirectory, "cedclient"), "cosmetics_cache.json")
+        get() = File(configDir, "cosmetics_cache.json")
 
     private val client: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
@@ -116,12 +119,10 @@ object CosmeticsSync {
     }
 
     private fun pollOnce() {
-        val url = "https://api.github.com/repos/$OWNER/$REPO/contents/$FILE_PATH?ref=$BRANCH"
+        // Public repo, unauthenticated raw read -- no auth header needed.
+        val url = "https://raw.githubusercontent.com/$OWNER/$REPO/$BRANCH/$FILE_PATH"
         val builder = HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .header("Authorization", "Bearer $TOKEN")
-            .header("Accept", "application/vnd.github.raw") // ask for the raw file body, not base64 JSON
-            .header("X-GitHub-Api-Version", "2022-11-28")
             .timeout(Duration.ofSeconds(15))
             .GET()
 
@@ -137,11 +138,11 @@ object CosmeticsSync {
             304 -> {
                 // Not modified since last poll -- nothing to do.
             }
-            401, 403 -> {
-                println("CedClient cosmetics sync: auth rejected (HTTP ${response.statusCode()}) -- check TOKEN/repo access in CosmeticsSync.kt")
-            }
             404 -> {
-                println("CedClient cosmetics sync: repo/file/branch not found -- check OWNER/REPO/BRANCH/FILE_PATH in CosmeticsSync.kt")
+                println("CedClient cosmetics sync: file not found -- check OWNER/REPO/BRANCH/FILE_PATH in CosmeticsSync.kt, and that the repo is public")
+            }
+            403, 429 -> {
+                println("CedClient cosmetics sync: rate limited (HTTP ${response.statusCode()}), will retry next poll")
             }
             else -> {
                 println("CedClient cosmetics sync: unexpected HTTP ${response.statusCode()}")
