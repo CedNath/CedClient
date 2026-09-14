@@ -1,0 +1,152 @@
+package ced.cedclient.mixin.chat;
+
+import ced.cedclient.events.ChatMessageEvent;
+import ced.cedclient.events.EntityMetadataEvent;
+import ced.cedclient.events.PlaySoundEvent;
+import ced.cedclient.features.impl.loot.LootTracker;
+import ced.cedclient.features.impl.misc.ChatFilter;
+import com.llamalad7.mixinextras.sugar.Local;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.world.entity.Entity;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+
+@Mixin(ClientPacketListener.class)
+public class ClientPacketListenerMixin {
+
+    @Shadow
+    private ClientLevel level;
+
+    // ============================================================
+    // KUUDRA/DUNGEON REWARD SPAM SUPPRESSION (feeds LootTracker instead)
+    // ============================================================
+    // Folded directly into the existing chat handler below rather than a
+    // second mixin on the same method -- two separate @Inject(HEAD,
+    // cancellable=true) mixins racing to cancel handleSystemChat is fragile
+    // (their relative order isn't something we control), and it would also
+    // make Kuudra reward lines silently skip ChatMessageEvent below.
+    private static final Pattern REWARD_HEADER = Pattern.compile("^PAID CHEST REWARDS$");
+    private static final Pattern RARE_REWARD =
+            Pattern.compile("^RARE REWARD! (.+) found a (.+) in their (.+) Chest!$");
+    private static final Pattern CHEST_TRACKER = Pattern.compile(".*Chest tracker: (\\d+)/(\\d+).*");
+
+    // true while we're inside a "PAID CHEST REWARDS" ... blank-line block
+    private boolean cedclient$inRewardBlock = false;
+
+    /**
+     * @return true if this line was reward spam and has been fully handled
+     *         (caller should cancel the packet and stop processing it).
+     */
+    private boolean cedclient$handleRewardSpam(String clean) {
+        if (CHEST_TRACKER.matcher(clean).matches()) {
+            return true;
+        }
+
+        Matcher rare = RARE_REWARD.matcher(clean);
+        if (rare.matches()) {
+            LootTracker.INSTANCE.recordRareReward(rare.group(1), rare.group(2), rare.group(3));
+            return true;
+        }
+
+        if (REWARD_HEADER.matcher(clean).matches()) {
+            cedclient$inRewardBlock = true;
+            LootTracker.INSTANCE.recordChestOpened();
+            return true;
+        }
+
+        if (cedclient$inRewardBlock) {
+            if (clean.isEmpty()) {
+                cedclient$inRewardBlock = false; // blank line closes the block
+            } else {
+                LootTracker.INSTANCE.recordDrop(clean);
+            }
+            return true;
+        }
+
+        // Standalone blank line (spacer before a block starts). NOTE: this
+        // suppresses every blank system-chat line, since Hypixel only seems
+        // to use them as spacers around these blocks and there's no way to
+        // tell in advance that a blank line is about to start one.
+        return clean.isEmpty();
+    }
+
+    // ============================================================
+    // ENTITY METADATA HANDLER (existing CedClient logic)
+    // ============================================================
+    @Inject(method = "handleSetEntityData", at = @At("TAIL"))
+    private void cedclient$onHandleSetEntityData(ClientboundSetEntityDataPacket packet,
+                                                 CallbackInfo ci,
+                                                 @Local Entity entity) {
+
+        if (entity == null) return;
+
+        if (new EntityMetadataEvent(entity, packet).postAndCatch() && this.level != null) {
+            this.level.removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
+        }
+    }
+
+    // ============================================================
+    // CHAT MESSAGE HANDLER (raw chat tap + chat filter)
+    // ============================================================
+    @Inject(method = "handleSystemChat", at = @At("HEAD"), cancellable = true)
+    private void cedclient$onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        Component content = packet.content();
+        if (content == null) return;
+
+        if (!packet.overlay()) {
+            new ChatMessageEvent(content.getString()).post();
+        }
+
+        String stripped = content.getString().replaceAll("§.", "").trim();
+        if (cedclient$handleRewardSpam(stripped)) {
+            ci.cancel();
+            return;
+        }
+
+        if (ChatFilter.INSTANCE.shouldHide(content.getString())) {
+            // Cancelling handleSystemChat entirely also skips vanilla's own
+            // chat-log call inside ChatComponent.addMessage() (that's where
+            // the "[CHAT] ..." log lines come from), since addMessage()
+            // never runs. Log it ourselves first so filtered lines still
+            // show up in the log file -- they just won't render in-game.
+            System.out.println("[ChatFilter] hidden: " + content.getString());
+            ci.cancel();
+        }
+    }
+
+    // ============================================================
+    // SOUND HANDLER (posts PlaySoundEvent for every ClientboundSoundPacket)
+    // ============================================================
+    // NOTE: "handleSoundEvent" and the accessor names below (getSound() /
+    // getPitch() / getVolume()) are the Mojmap names as of ~1.21 -- this
+    // packet has changed shape across versions before (it went from a plain
+    // class to closer-to-record-style accessors), so if this fails to
+    // compile, Navigate > Declaration on ClientboundSoundPacket in IntelliJ
+    // and fix the method names to match. getSound() returns a
+    // Holder<SoundEvent>; .value().location() gets the actual resource
+    // location, which is what shows up in the "Log All Sounds" output that
+    // ItemCooldowns prints.
+    //
+    // Mojmap has renamed getLocation() -> location() (and similar
+    // getFoo() -> foo()) across several recent versions as part of moving
+    // toward record-style accessors -- if location() also doesn't resolve,
+    // try .value().getLocation(), or open SoundEvent's declaration directly
+    // and use whatever it actually exposes.
+    @Inject(method = "handleSoundEvent", at = @At("HEAD"))
+    private void cedclient$onHandleSoundEvent(ClientboundSoundPacket packet, CallbackInfo ci) {
+        String soundName = packet.getSound().value().location().toString();
+        new PlaySoundEvent(soundName, packet.getPitch(), packet.getVolume()).post();
+    }
+}
