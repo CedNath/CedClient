@@ -74,8 +74,17 @@ abstract class FilterPopup(
     private val scrollbarWidth = 5f
     private val scrollbarX get() = x + width - scrollbarWidth - 4f
 
-    private fun entries(): List<String> =
-        (candidateNames() + blockedNames() + onlyNames()).distinct().sorted()
+    private fun entries(): List<String> {
+        val all = (candidateNames() + blockedNames() + onlyNames()).distinct()
+        val filter = newEntry.trim()
+        val filtered = if (filter.isEmpty()) all else all.filter { it.contains(filter, ignoreCase = true) }
+
+        // Enabled-in-the-current-tab entries float to the top (alphabetical
+        // within each group) so it's easy to see/disable what's active
+        // without scrolling through the full alphabet to find it.
+        val active = activeSet()
+        return filtered.sortedWith(compareByDescending<String> { it in active }.thenBy { it })
+    }
 
     private fun activeSet(): Set<String> = if (mode == FilterMode.BLOCKED) blockedNames() else onlyNames()
 

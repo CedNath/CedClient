@@ -97,25 +97,25 @@ object LootTracker : Module(
 
     fun buildSummaryLines(): List<String> {
         if (!isEnabled) {
-            return listOf("Loot Tracker is disabled -- enable it in the GUI to start tracking.")
+            return listOf("[CC] Loot Tracker is disabled -- enable it in the GUI to start tracking.")
         }
         if (entries.isEmpty() && rareRewards.isEmpty() && dungeonRewards.isEmpty()) {
-            return listOf("No loot tracked yet.")
+            return listOf("[CC] No loot tracked yet.")
         }
 
         val lines = mutableListOf<String>()
-        lines += "Loot summary ($chestsOpened chests opened):"
+        lines += "[CC] Loot summary ($chestsOpened chests opened):"
         entries.entries
             .sortedByDescending { it.value.count }
             .forEach { (name, entry) -> lines += "  ${entry.count}x $name" }
 
         if (rareRewards.isNotEmpty()) {
-            lines += "Rare rewards:"
+            lines += "[CC] Rare rewards:"
             rareRewards.forEach { lines += "  $it" }
         }
 
         if (dungeonRewards.isNotEmpty()) {
-            lines += "Dungeon rewards:"
+            lines += "[CC] Dungeon rewards:"
             dungeonRewards.forEach { lines += "  $it" }
         }
 

@@ -5,6 +5,7 @@ import ced.cedclient.events.EntityMetadataEvent;
 import ced.cedclient.events.PlaySoundEvent;
 import ced.cedclient.features.impl.loot.LootTracker;
 import ced.cedclient.features.impl.misc.ChatFilter;
+import ced.cedclient.state.IslandState;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -42,6 +43,28 @@ public class ClientPacketListenerMixin {
             Pattern.compile("^RARE REWARD! (.+) found a (.+) in their (.+) Chest!$");
     private static final Pattern CHEST_TRACKER = Pattern.compile(".*Chest tracker: (\\d+)/(\\d+).*");
 
+    // ============================================================
+    // /locraw RESPONSE SUPPRESSION (IslandState's own request/response)
+    // ============================================================
+    // IslandState sends `/locraw` itself (see IslandState.requestLocraw())
+    // purely to read the JSON back internally -- the response was never
+    // meant to be user-visible. Unlike ChatFilter's patterns, this is not
+    // gated behind any module/enabled flag: it's not a "hide spam"
+    // preference, it's cleanup of our own internal command's echo, so it
+    // always applies regardless of ChatFilter's on/off state. Deliberately
+    // loose (just checks the "server" field prefix every real locraw reply
+    // has -- same sanity check IslandState.handleChat() uses) rather than
+    // trying to fully validate JSON shape here.
+    //
+    // IMPORTANT: matching the shape alone isn't enough to tell "our
+    // internal request" apart from the user typing /locraw themselves --
+    // both produce an identical-looking response. IslandState tracks a
+    // short time window around when IT sent the command
+    // (consumeExpectedLocrawResponse()) and only THAT response gets
+    // cancelled here; a manually-typed /locraw falls outside the window
+    // and is left alone.
+    private static final Pattern LOCRAW_RESPONSE = Pattern.compile("^\\{\"server\":.*}$");
+
     // true while we're inside a "PAID CHEST REWARDS" ... blank-line block
     private boolean cedclient$inRewardBlock = false;
 
@@ -50,6 +73,10 @@ public class ClientPacketListenerMixin {
      *         (caller should cancel the packet and stop processing it).
      */
     private boolean cedclient$handleRewardSpam(String clean) {
+        if (!LootTracker.INSTANCE.isEnabled()) {
+            return false;
+        }
+
         if (CHEST_TRACKER.matcher(clean).matches()) {
             return true;
         }
@@ -109,6 +136,17 @@ public class ClientPacketListenerMixin {
             new ChatMessageEvent(content.getString()).post();
         }
 
+        // Posted above first so IslandState.handleChat() still gets to parse
+        // it. Only cancelled (hidden) if IslandState confirms this is the
+        // response to ITS OWN request -- consumeExpectedLocrawResponse()
+        // returns false for a manually-typed /locraw, so that case falls
+        // through and reaches chat/log normally like any other command.
+        if (LOCRAW_RESPONSE.matcher(content.getString().trim()).matches()
+                && IslandState.INSTANCE.consumeExpectedLocrawResponse()) {
+            ci.cancel();
+            return;
+        }
+
         String stripped = content.getString().replaceAll("§.", "").trim();
         if (cedclient$handleRewardSpam(stripped)) {
             ci.cancel();
@@ -121,7 +159,7 @@ public class ClientPacketListenerMixin {
             // the "[CHAT] ..." log lines come from), since addMessage()
             // never runs. Log it ourselves first so filtered lines still
             // show up in the log file -- they just won't render in-game.
-            System.out.println("[ChatFilter] hidden: " + content.getString());
+            System.out.println(content.getString());
             ci.cancel();
         }
     }

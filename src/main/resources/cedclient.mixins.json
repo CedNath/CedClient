@@ -17,6 +17,7 @@
 
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
+    "network.PingHeartbeatMixin",
 
     "item.ItemStackHoverNameMixin",
     "item.ItemLoreMixin",
@@ -25,10 +26,12 @@
     "screen.AbstractContainerScreenMixin",
 
     "input.KeyboardInputMixin",
+    "input.MouseScrollMixin",
 
     "accessor.AbstractContainerScreenAccessor",
     "accessor.CameraAccessor",
     "accessor.ClientInputAccessor",
+    "accessor.PlayerTabOverlayAccessor",
 
     "client.MinecraftTurnMixin"
   ],

@@ -21,7 +21,7 @@ public class MinecraftTurnMixin {
     @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
     private void ced$turnPlayer(double mousea, CallbackInfo ci) {
         // If freecam not active, let vanilla handle rotation
-        if (!Freecam.INSTANCE.isEnabled()) {
+        if (!Freecam.INSTANCE.isActive()) {
             return;
         }
 

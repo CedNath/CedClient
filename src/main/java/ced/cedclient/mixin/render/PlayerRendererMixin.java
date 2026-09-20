@@ -2,8 +2,7 @@ package ced.cedclient.mixin.render;
 
 import ced.cedclient.features.impl.funqol.PlayerScale;
 import ced.cedclient.features.impl.render.HardcodedCosmetics;
-import ced.cedclient.features.impl.render.nametag.NametagFormatting;
-import ced.cedclient.features.impl.render.nametag.NametagOverride;
+import ced.cedclient.features.impl.render.nametag.CustomNametagText;
 import ced.cedclient.state.CosmeticOverride;
 import ced.cedclient.state.CosmeticsSync;
 import ced.cedclient.accessor.CedClientPlayerRenderStateAccessor;
@@ -20,6 +19,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AvatarRenderer.class)
 public abstract class PlayerRendererMixin {
+
+    // How much extra height (in blocks) to lift the nametag per whole unit
+    // of scaleY above 1.0 -- e.g. 0.15 means a 2x-scaled player's tag gets
+    // an extra 0.15 blocks on top of the linear v.y * scaleY term. Start
+    // small and bump it up if big players' tags still sit too low.
+    private static final double EXTRA_LIFT_PER_SCALE = 0.15;
 
     @Inject(
             method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
@@ -90,32 +95,47 @@ public abstract class PlayerRendererMixin {
         }
         if (scaleY != 1.0F && state.nameTagAttachment != null) {
             net.minecraft.world.phys.Vec3 v = state.nameTagAttachment;
-            state.nameTagAttachment = new net.minecraft.world.phys.Vec3(v.x, v.y * scaleY, v.z);
+            // Plain v.y * scaleY tracks the real head-top height correctly
+            // for scaleY < 1 (shrunk players place the tag exactly right),
+            // but for scaleY > 1 it still lands slightly low -- the model
+            // apparently isn't scaling purely around the feet the way pure
+            // linear scaling assumes, so a bigger player needs a bit more
+            // lift than the linear term alone gives it. Small additive
+            // correction, only for scaleY > 1 (zero at 1.0, growing with the
+            // excess scale) -- doesn't touch the already-correct shrink case.
+            // Tune EXTRA_LIFT_PER_SCALE below if it's still off in-game.
+            double extraLift = scaleY > 1.0F ? (scaleY - 1.0F) * EXTRA_LIFT_PER_SCALE : 0.0;
+            state.nameTagAttachment = new net.minecraft.world.phys.Vec3(v.x, v.y * scaleY + extraLift, v.z);
         }
 
         /*
-         * Overwrite the render state's own nametag Component when an
-         * override is active, instead of suppressing vanilla's nametag and
-         * submitting a parallel one. Vanilla's submitNameDisplay() then
-         * renders our text through its own pipeline, so we get its
-         * attachment-point math, distance culling, sneak-hide, and team
-         * prefix/suffix handling for free instead of reimplementing them.
+         * Splice the resolved tag text into the render state's own nametag
+         * Component when an override is active, instead of suppressing
+         * vanilla's nametag and submitting a parallel one. Vanilla's
+         * submitNameDisplay() then renders the result through its own
+         * pipeline, so we get its attachment-point math, distance culling,
+         * sneak-hide, and team prefix/suffix handling for free instead of
+         * reimplementing them.
          *
-         * We grab vanilla's own computed nametag text BEFORE overwriting
-         * it, and pass it into NametagOverride as a fallback lookup key --
-         * on servers that fake the entity's GameProfile name (Hypixel
-         * SkyBlock does this; see NametagOverride's doc comment), a direct
-         * name-based CosmeticsSync lookup misses, but the real IGN is
-         * still present as literal text in vanilla's rendered component.
+         * CustomNametagText.transformNameTag splices over just the name
+         * portion of vanilla's already-computed nameTag (state.nameTag
+         * below), preserving whatever prefix/suffix the server attached --
+         * e.g. Hypixel's network-level prefix ("[383]") and status-icon
+         * suffix ("[<3 6]") -- rather than discarding them, which is what
+         * a full-text swap here used to do. It only falls back to a full
+         * swap itself when the matched name can't be found as literal text
+         * in state.nameTag (e.g. Hypixel SkyBlock fakes the entity's
+         * GameProfile name; see CustomNametagText's doc comment).
          */
-        if (entity instanceof Player player) {
-            String originalNameTagText = state.nameTag != null ? state.nameTag.getString() : null;
-            String overrideText = NametagOverride.INSTANCE.activeTagFor(player, originalNameTagText);
-            if (overrideText != null) {
-                // NOTE: verify this field name against your AvatarRenderState /
-                // EntityRenderState mappings -- it's the Component vanilla's
-                // submitNameDisplay() reads to draw the floating tag.
-                state.nameTag = NametagFormatting.INSTANCE.parse(overrideText);
+        if (entity instanceof Player player && state.nameTag != null) {
+            // NOTE: verify `nameTag` is still the field name on
+            // AvatarRenderState / EntityRenderState for this mapping --
+            // it's the Component vanilla's submitNameDisplay() reads to
+            // draw the floating tag.
+            net.minecraft.network.chat.Component transformed =
+                    CustomNametagText.INSTANCE.transformNameTag(player, state.nameTag);
+            if (transformed != null) {
+                state.nameTag = transformed;
             }
         }
     }

@@ -25,7 +25,7 @@ public abstract class KeyboardInputMixin {
     private void ced$cancelMovement(CallbackInfo ci) {
         ClientInputAccessor accessor = (ClientInputAccessor) this;
 
-        if (Freecam.INSTANCE.isEnabled()) {
+        if (Freecam.INSTANCE.isActive()) {
             accessor.ced$setKeyPresses(new Input(false, false, false, false, false, false, false));
             accessor.ced$setMoveVector(Vec2.ZERO);
             return;

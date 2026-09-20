@@ -109,9 +109,28 @@ class NVGSpecialRenderer(
         GL33C.glBindSampler(0, 0)
 
         // NanoVG draws in framebuffer space
+        //
+        // try/finally around this block specifically: NVGRenderer.beginFrame()
+        // throws IllegalStateException if a previous frame's endFrame() never
+        // ran, and endFrame() itself only runs AFTER renderContent() returns.
+        // Before this fix, if any single renderContent() threw (crashed) --
+        // easy to do from a context this pipeline wasn't originally written
+        // for, like a HUD element's render pass instead of a Screen's
+        // extractRenderState -- `drawing` stayed stuck true FOREVER, and
+        // every beginFrame() anywhere in the mod after that (including
+        // ClickGUI's own top-level one) immediately threw too. That matches
+        // exactly what TimeHud's doc comment describes: one broken NVG panel
+        // permanently took down all NVG-drawn UI, ClickGUI included, until
+        // the game was restarted. finally{} guarantees endFrame() always
+        // runs and `drawing` always gets reset, so a single panel's render
+        // bug now stays contained to that panel instead of corrupting global
+        // NVG state for the rest of the session.
         NVGRenderer.beginFrame(fbWidth.toFloat(), fbHeight.toFloat())
-        state.renderContent()
-        NVGRenderer.endFrame()
+        try {
+            state.renderContent()
+        } finally {
+            NVGRenderer.endFrame()
+        }
         state.afterRender?.invoke()
 
 

@@ -4,6 +4,11 @@ import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.arguments.StringArgumentType
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents
 import net.minecraft.client.Minecraft
 import java.io.File
@@ -41,6 +46,12 @@ data class WarpShortcut(
  * Module enabled/disabled is the master switch -- rewrite() is a no-op
  * while off.
  *
+ * TAB-COMPLETE: registerCommands() below ALSO registers one real Brigadier
+ * literal per known alias, purely so typing "/d" and hitting Tab cycles
+ * through "dh", "dhub", etc. like any other command. This runs alongside
+ * rewrite()/registerHook() above, not instead of it -- see registerCommands()'s
+ * own doc comment for why both are needed and what each one covers.
+ *
  * ONE THING TO VERIFY ON YOUR END: ClientSendMessageEvents.ModifyCommand's
  * single abstract method is named `modifySendCommandMessage(String)` by
  * strong naming symmetry with the confirmed `modifySendChatMessage` (chat)
@@ -73,7 +84,7 @@ object WarpShortcuts : Module(
         "smoldering", "smoldering_tomb", "spider", "spiders", "stonks",
         "taylor", "the_rift", "top", "tower", "trap", "trapper", "trees",
         "tunnel", "tunnels", "village", "void", "winter", "wiz", "wizard",
-        "wizard_tower", "workshop"
+        "wizard_tower", "workshop", "torrhus", "safari"
     )
 
     private val defaultEntries: List<WarpShortcut> =
@@ -134,6 +145,81 @@ object WarpShortcuts : Module(
     }
 
     // -------------------------
+    // Tab-complete -- real Brigadier registration, alongside (not instead
+    // of) the MODIFY_COMMAND rewrite above.
+    // -------------------------
+
+    /**
+     * Registers one literal per known alias -- from the FULL entries list,
+     * both enabled and disabled -- so Minecraft's own chat suggestions box
+     * shows "/dh", "/dhub", etc. as you type, the same as any real command.
+     *
+     * This deliberately does NOT replace rewrite()/MODIFY_COMMAND above,
+     * for two reasons:
+     *
+     * 1. ClientCommandRegistrationCallback only fires once per connection
+     *    (see the class doc comment) -- a shortcut added mid-session via
+     *    `/cc warp add` has no Brigadier node yet and so won't tab-complete
+     *    until the next reconnect. It still WORKS immediately either way
+     *    though: Fabric's client-command dispatcher only intercepts a
+     *    command it actually has a node for, so an unregistered alias
+     *    falls straight through to the normal server-send path, where
+     *    rewrite() picks it up exactly like before.
+     * 2. Fabric tries its client-command dispatcher before a command is
+     *    ever handed to MODIFY_COMMAND -- so for any alias that DOES have
+     *    a node here, runAlias() below is what actually executes. It reads
+     *    the CURRENT entry (not whatever the alias's target/enabled state
+     *    was back when the node was registered), so `/cc warp add`
+     *    overwriting a default, or `/cc warp disable`, still takes effect
+     *    immediately -- only the tab-complete suggestion LIST itself is
+     *    frozen until reconnect, not the behavior of aliases already in it.
+     *
+     * A disabled alias still gets a node (so it doesn't just vanish from
+     * suggestions the moment it's toggled off mid-session, which would be
+     * confusing), but runAlias() sends it straight through unrewritten when
+     * disabled -- same as rewrite() already does for a disabled entry.
+     *
+     * VERIFY ON YOUR END: FabricClientCommandSource.getPlayer() (`.player`
+     * from Kotlin) is assumed below -- it's been a stable part of that
+     * interface for a long time, but I don't have a decompiled copy of it
+     * for this exact build to confirm against, same caveat as the
+     * MODIFY_COMMAND method-name note above. If this doesn't compile, check
+     * your fabric-client-command-api-v2 sources for the actual getter name.
+     */
+    private fun registerCommands(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
+        for (alias in entries.map { it.alias }.distinct()) {
+            dispatcher.register(buildAliasCommand(alias))
+        }
+    }
+
+    private fun buildAliasCommand(alias: String) =
+        ClientCommands.literal(alias)
+            .executes { ctx -> runAlias(ctx.source, alias, null); 1 }
+            .then(
+                // Catches "/dh <anything>" too, so trailing text doesn't
+                // show up as an unrecognized-argument error while typing --
+                // the args are dropped either way, matching rewrite()'s
+                // existing behavior (warp shortcuts have never supported
+                // extra arguments).
+                ClientCommands.argument("args", StringArgumentType.greedyString())
+                    .executes { ctx -> runAlias(ctx.source, alias, StringArgumentType.getString(ctx, "args")); 1 }
+            )
+
+    /**
+     * Looks up [alias]'s CURRENT target/enabled state and sends the right
+     * command to the server -- see registerCommands()'s doc comment for why
+     * this re-checks entries at execution time rather than baking in
+     * whatever was true when the Brigadier node was built. [args], if any,
+     * are always dropped.
+     */
+    private fun runAlias(source: FabricClientCommandSource, alias: String, args: String?) {
+        val player = source.player ?: return
+        val shortcut = entries.firstOrNull { it.alias == alias }
+        val outgoing = if (shortcut != null && shortcut.enabled) shortcut.target else alias
+        player.connection.sendCommand(outgoing)
+    }
+
+    // -------------------------
     // Persistence -- own file, same disabled-defaults + custom-list pattern
     // ChatFilter uses for chat_filters.json.
     // -------------------------
@@ -178,5 +264,6 @@ object WarpShortcuts : Module(
     init {
         load()
         registerHook()
+        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> registerCommands(dispatcher) }
     }
 }

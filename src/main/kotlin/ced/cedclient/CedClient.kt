@@ -12,24 +12,31 @@ import ced.cedclient.features.impl.loot.LootSummaryCommand
 import ced.cedclient.features.impl.loot.LootTracker
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.ChatFilter
+import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.WarpShortcuts
+import ced.cedclient.features.impl.render.BlockESP
+import ced.cedclient.features.impl.render.BlockESPRenderer
 import ced.cedclient.features.impl.render.ChatChannelHud
+import ced.cedclient.features.impl.render.CompactTab
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
 import ced.cedclient.features.impl.render.HardcodedCosmetics
-import ced.cedclient.features.impl.render.HudEditScreen
 import ced.cedclient.features.impl.render.ItemCooldowns
 import ced.cedclient.features.impl.render.TimeHud
+import ced.cedclient.features.impl.render.Zoom
 import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.state.CosmeticsSync
 import ced.cedclient.state.DungeonState
+import ced.cedclient.state.IslandState
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InventoryButtonManager
+import ced.cedclient.utils.PingTracker
+import ced.cedclient.utils.TabListCache
 import ced.cedclient.utils.debug.MouseLookDebugger
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -43,11 +50,11 @@ import org.lwjgl.glfw.GLFW
 class CedClient : ClientModInitializer {
 
     private lateinit var openGuiKey: KeyMapping
-    private lateinit var editHudKey: KeyMapping
     private lateinit var freecamToggleKey: KeyMapping
+    private lateinit var zoomKey: KeyMapping
 
     private val cedclientCategory: KeyMapping.Category by lazy {
-        KeyMapping.Category.register(Identifier.withDefaultNamespace("cedclient"))
+        KeyMapping.Category.register(Identifier.fromNamespaceAndPath("cedclient", "cedclient"))
     }
 
     override fun onInitializeClient() {
@@ -61,6 +68,8 @@ class CedClient : ClientModInitializer {
 
         CedClientCommand.register()
         LootSummaryCommand.register()
+        TabListCache.register()
+
     }
 
     /**
@@ -73,6 +82,7 @@ class CedClient : ClientModInitializer {
         DungeonState.init()
         CosmeticsSync.init()
         LootTracker.init()
+        IslandState.init()
 
         ClientTickEvents.END_CLIENT_TICK.register {
             InventoryButtonManager.ensureLoaded()
@@ -89,6 +99,7 @@ class CedClient : ClientModInitializer {
     private fun registerModules() {
         EntityESPRenderer.register()
         EntityESPHud.load()
+        BlockESPRenderer.register()
 
         ModuleManager.register(PangolinCatcher)
         ModuleManager.register(LassoHelper)
@@ -96,18 +107,22 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CustomNametag)
         ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(ResetPanels)
+        ModuleManager.register(DailyReset)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(TimeHud)
         ModuleManager.register(ChatFilter)
         ModuleManager.register(Freecam)
         ModuleManager.register(CoralotHelper)
         ModuleManager.register(EntityESP)
+        ModuleManager.register(BlockESP)
         ModuleManager.register(FishingHelper)
         ModuleManager.register(InventoryButtons)
         ModuleManager.register(ItemCooldowns)
         ModuleManager.register(PlayerScale)
         ModuleManager.register(WarpShortcuts)
-
+        ModuleManager.register(LootTracker)
+        ModuleManager.register(Zoom)
+        ModuleManager.register(CompactTab)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {
@@ -138,29 +153,38 @@ class CedClient : ClientModInitializer {
         ) { graphics, tickCounter ->
             ItemCooldowns.render(graphics, tickCounter)
         }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "daily_reset")
+        ) { graphics, tickCounter ->
+            DailyReset.render(graphics, tickCounter)
+        }
     }
 
     private fun registerKeybinds() {
-        editHudKey = KeyMappingHelper.registerKeyMapping(
-            KeyMapping("Edit ESP HUD", GLFW.GLFW_KEY_H, cedclientCategory)
-        )
         openGuiKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping("CedClient Gui", GLFW.GLFW_KEY_P, cedclientCategory)
         )
         freecamToggleKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping("key.cedclient.freecam_toggle", GLFW.GLFW_KEY_B, cedclientCategory)
         )
+        zoomKey = KeyMappingHelper.registerKeyMapping(
+            KeyMapping("key.cedclient.zoom", GLFW.GLFW_KEY_C, cedclientCategory)
+        )
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            if (editHudKey.consumeClick()) {
-                client.setScreen(HudEditScreen())
-            }
             if (openGuiKey.consumeClick()) {
                 client.setScreen(ClickGUI())
             }
             if (freecamToggleKey.consumeClick()) {
-                Freecam.toggle()
+                Freecam.toggleFreecam()
             }
+
+            // Zoom is a hold key, not a toggle -- use isDown (the raw
+            // "currently pressed" state) every tick rather than
+            // consumeClick() (which only fires once per press and would
+            // make Zoom.setHeld() see a single true tick instead of a
+            // sustained hold).
+            Zoom.setHeld(zoomKey.isDown)
         }
     }
 

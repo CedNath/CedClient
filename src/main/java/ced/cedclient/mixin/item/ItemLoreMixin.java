@@ -29,14 +29,14 @@ public abstract class ItemLoreMixin {
     @ModifyReturnValue(method = "lines", at = @At("RETURN"))
     private List<Component> cedclient$applyToLines(List<Component> original) {
         return original.stream()
-                .map(CustomNametagText.INSTANCE::transformChat)
+                .map(CustomNametagText.INSTANCE::transformItemText)
                 .collect(Collectors.toList());
     }
 
     @ModifyReturnValue(method = "styledLines", at = @At("RETURN"))
     private List<Component> cedclient$applyToStyledLines(List<Component> original) {
         return original.stream()
-                .map(CustomNametagText.INSTANCE::transformChat)
+                .map(CustomNametagText.INSTANCE::transformItemText)
                 .collect(Collectors.toList());
     }
 }

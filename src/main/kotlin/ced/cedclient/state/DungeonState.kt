@@ -6,6 +6,7 @@ import ced.cedclient.utils.Debug
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.scores.DisplaySlot
 import kotlin.math.floor
 
@@ -94,6 +95,49 @@ object DungeonState {
     // level at all.
     private val cooldownReductionRegex = Regex("""\[Mage] Cooldown Reduction.*?(?<percent>\d+)%\s*$""")
 
+    // Confirmed shape via NoammAddons' DungeonListener.runEndRegex: the
+    // post-run summary chat block (shown on both clear and fail) opens with
+    // this floor label as its own line, centered with leading spaces --
+    // e.g. "                    Catacombs - Floor VII" or "... - Entrance".
+    // Not independently confirmed against a live log on our side yet, so
+    // treat this the same way parseFloorLabel() below treats an
+    // unrecognized floor label -- it's logged rather than assumed correct.
+    private val runEndRegex = Regex("""^\s*(Master Mode)? ?(?:The)? Catacombs - (Floor (.{1,3})|Entrance)$""")
+
+    // NOT yet confirmed on a live server. Hypixel's WITHER/BLOOD door
+    // messages both follow "<player> opened a/the ___ door!" (see
+    // NoammAddons' witherDoorOpenedRegex), and boss doors are known to use
+    // the same family of message, but the exact wording for "BOSS"
+    // specifically hasn't been checked against a real run. If this never
+    // matches, enable Debug and send the raw chat line logged below so the
+    // real wording can be filled in.
+    private val bossDoorOpenedRegex = Regex("""^(?:\[.+?] )?(?<name>\w+) opened (?:a|the) BOSS door!$""")
+
+    // Boss room bounding boxes, indexed 0..6 for floors F1..F7 (dungeon
+    // instances are always generated at the same coordinate offset, so
+    // these are constant regardless of which specific dungeon you're in).
+    // Coordinates copied 1:1 from NoammAddons' LocationUtils.kt
+    // (bossRoomBounds) -- not independently re-measured here, so verify
+    // in-game with Debug enabled if inBoss ever looks wrong for a floor.
+    private val bossRoomBounds = arrayOf(
+        AABB(-14.0, 55.0, 49.0, -72.0, 146.0, -40.0),  // F1
+        AABB(-40.0, 99.0, -40.0, 24.0, 54.0, 59.0),    // F2
+        AABB(-40.0, 118.0, -40.0, 42.0, 64.0, 37.0),   // F3
+        AABB(-40.0, 112.0, -40.0, 50.0, 53.0, 47.0),   // F4
+        AABB(-40.0, 112.0, -8.0, 50.0, 53.0, 118.0),   // F5
+        AABB(-40.0, 51.0, -8.0, 22.0, 110.0, 134.0),   // F6
+        AABB(-8.0, 0.0, -8.0, 134.0, 254.0, 147.0),    // F7
+    )
+
+    // F7 phase-3 (of 5) splits into 4 quadrants around the arena. Same
+    // source/caveat as bossRoomBounds above.
+    private val f7P3Sections = arrayOf(
+        AABB(90.0, 158.0, 123.0, 111.0, 105.0, 32.0),
+        AABB(16.0, 158.0, 122.0, 111.0, 105.0, 143.0),
+        AABB(19.0, 158.0, 48.0, -3.0, 106.0, 142.0),
+        AABB(91.0, 158.0, 50.0, -3.0, 106.0, 30.0),
+    )
+
     var inDungeon: Boolean = false
         private set
 
@@ -116,6 +160,35 @@ object DungeonState {
     var mageCooldownReductionPercent: Int? = null
         private set
 
+    // True once the post-run summary block has been seen this dungeon (see
+    // runEndRegex above) -- covers both a clear and a fail, this doesn't
+    // distinguish between the two. Resets to false on level change / next
+    // Mort's-map-message, same as everything else below.
+    var runEnded: Boolean = false
+        private set
+
+    var bossDoorOpened: Boolean = false
+        private set
+
+    var bossDoorOpenerName: String? = null
+        private set
+
+    // Whether the player's current position is inside this floor's boss
+    // room bounding box (see bossRoomBounds above). Only meaningful while
+    // inDungeon and floor is a normal/master floor 1-7 -- always false on
+    // the dungeon hub or an unrecognized floor label.
+    var inBoss: Boolean = false
+        private set
+
+    // F7-only. 1-5, null on every other floor or before the player's
+    // position has entered F7's boss room this run.
+    var f7Phase: Int? = null
+        private set
+
+    // F7 phase-3 only. 1-4 (see f7P3Sections above), null otherwise.
+    var f7P3Section: Int? = null
+        private set
+
     private var lastLevel: ClientLevel? = null
 
     fun init() {
@@ -124,7 +197,29 @@ object DungeonState {
 
             if (event.unformattedText.trim() == DUNGEON_START_MESSAGE) {
                 inDungeon = true
+                // Fresh run -- clear any stage state left over from a
+                // previous dungeon in case something above missed the
+                // level-change reset (defensive; level should already have
+                // swapped by this point in practice).
+                runEnded = false
+                bossDoorOpened = false
+                bossDoorOpenerName = null
+                inBoss = false
+                f7Phase = null
+                f7P3Section = null
                 if (Debug.enabled) Debug.log("[DungeonState] inDungeon -> true (matched Mort's line)", interval = 1)
+            }
+
+            if (inDungeon && !runEnded && runEndRegex.matches(event.unformattedText.trim())) {
+                runEnded = true
+                if (Debug.enabled) Debug.log("[DungeonState] runEnded -> true (from chat: '${event.unformattedText.trim()}')", interval = 1)
+            }
+
+            val bossDoorMatch = bossDoorOpenedRegex.find(event.unformattedText)
+            if (bossDoorMatch != null) {
+                bossDoorOpened = true
+                bossDoorOpenerName = bossDoorMatch.groups["name"]?.value
+                if (Debug.enabled) Debug.log("[DungeonState] bossDoorOpened -> true (opener: $bossDoorOpenerName)", interval = 1)
             }
 
             val floorMatch = floorAnnounceRegex.find(event.unformattedText)
@@ -215,6 +310,12 @@ object DungeonState {
                 playerClassLevel = 0
                 isUniqueClass = false
                 mageCooldownReductionPercent = null
+                runEnded = false
+                bossDoorOpened = false
+                bossDoorOpenerName = null
+                inBoss = false
+                f7Phase = null
+                f7P3Section = null
                 if (Debug.enabled) Debug.log("[DungeonState] inDungeon -> false (level changed)", interval = 1)
             }
         }
@@ -243,6 +344,73 @@ object DungeonState {
                 floor = newFloor
                 if (Debug.enabled) Debug.log("[DungeonState] floor -> $floor (scoreboard fallback)", interval = 1)
             }
+        }
+
+        updateBossState()
+    }
+
+    /**
+     * "F7" -> 7, "M7" -> 7. Null if floor hasn't been detected yet, or (in
+     * theory) its digits don't parse -- shouldn't happen given
+     * parseFloorLabel() only ever produces "F<n>"/"M<n>", but this stays
+     * defensive rather than assuming.
+     */
+    private fun floorNumber(): Int? = floor?.drop(1)?.toIntOrNull()
+
+    /**
+     * Updates inBoss, and on F7 specifically f7Phase/f7P3Section, from the
+     * player's live position against bossRoomBounds/f7P3Sections above.
+     * No-ops (and clears everything) outside a recognized floor 1-7 -- e.g.
+     * the dungeon hub, or before the chat/scoreboard floor detection above
+     * has resolved a floor yet this run.
+     */
+    private fun updateBossState() {
+        val player = mc.player
+        val floorNum = floorNumber()
+
+        if (player == null || floorNum == null || floorNum !in 1..7) {
+            if (inBoss || f7Phase != null || f7P3Section != null) {
+                inBoss = false
+                f7Phase = null
+                f7P3Section = null
+            }
+            return
+        }
+
+        val nowInBoss = bossRoomBounds[floorNum - 1].contains(player.x, player.y, player.z)
+        if (nowInBoss != inBoss) {
+            inBoss = nowInBoss
+            if (Debug.enabled) Debug.log("[DungeonState] inBoss -> $inBoss (F$floorNum)", interval = 1)
+        }
+
+        if (!inBoss || floorNum != 7) {
+            if (f7Phase != null || f7P3Section != null) {
+                f7Phase = null
+                f7P3Section = null
+            }
+            return
+        }
+
+        val newPhase = when {
+            player.y > 210 -> 1
+            player.y > 155 -> 2
+            player.y > 100 -> 3
+            player.y > 45 -> 4
+            else -> 5
+        }
+        if (newPhase != f7Phase) {
+            f7Phase = newPhase
+            if (Debug.enabled) Debug.log("[DungeonState] f7Phase -> $f7Phase", interval = 1)
+        }
+
+        val newSection = if (f7Phase == 3) {
+            f7P3Sections.indices.firstOrNull { f7P3Sections[it].contains(player.x, player.y, player.z) }?.plus(1)
+        } else {
+            null
+        }
+        if (newSection != f7P3Section) {
+            f7P3Section = newSection
+            if (Debug.enabled) Debug.log("[DungeonState] f7P3Section -> $f7P3Section", interval = 1)
         }
     }
 
