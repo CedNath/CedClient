@@ -295,7 +295,7 @@ object CustomNametagText {
      * open screen, so the swap stays cosmetic-only where it's safe.
      */
     fun transformItemText(original: Component): Component {
-        val screen = Minecraft.getInstance().screen
+        val screen = Minecraft.getInstance().gui.screen()
         if (screen is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>) {
             val title = screen.title.string.lowercase()
             if (FUNCTIONAL_MENU_TITLES.any { title.contains(it) }) return original

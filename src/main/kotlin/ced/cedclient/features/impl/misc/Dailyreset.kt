@@ -357,7 +357,7 @@ object DailyReset : Module(
         false,
         "Prints every chat line to console while on -- use it to find the exact wording for a new " +
                 "daily's completionPatterns, then turn it back off."
-    )
+    ).also { it.advanced = true }
 
     // Lets people turn the "Daily completed!" chat announcement off without
     // losing auto-tracking itself -- separate from logChatForTriggers, which
@@ -472,7 +472,9 @@ object DailyReset : Module(
         // local-only notices (e.g. "Please select a Realm"), so it never
         // touches the server and is never mistaken for a real chat/command
         // line by anything else listening on ChatMessageEvent.
-        val chat = Minecraft.getInstance().gui?.chat ?: return
+        // 26.2: Gui#getChat moved to Hud#getChat -- chat access now goes
+        // through gui.hud rather than directly off Gui.
+        val chat = Minecraft.getInstance().gui?.hud?.chat ?: return
         val message = Component.literal("[CedClient] ")
             .withStyle(Style.EMPTY.withColor(PREFIX_COLOR).withBold(true))
             .append(

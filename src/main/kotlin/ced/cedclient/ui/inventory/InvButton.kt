@@ -31,7 +31,7 @@ data class InvButton(
         val mc = Minecraft.getInstance()
 
         if (!InventoryButtons.enabled) return
-        if (mc.screen !is InventoryScreen) return
+        if (mc.gui.screen() !is InventoryScreen) return
 
         if (command.isNotBlank()) {
             val player = mc.player ?: return

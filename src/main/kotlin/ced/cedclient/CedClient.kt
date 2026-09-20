@@ -89,8 +89,8 @@ class CedClient : ClientModInitializer {
         }
         InventoryButtonManager.ensureLoaded()
 
-        PictureInPictureRendererRegistry.register { context ->
-            NVGSpecialRenderer(context.bufferSource())
+        PictureInPictureRendererRegistry.register {
+            NVGSpecialRenderer()
         }
 
         MouseLookDebugger.register()
@@ -173,7 +173,7 @@ class CedClient : ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (openGuiKey.consumeClick()) {
-                client.setScreen(ClickGUI())
+                client.gui.setScreen(ClickGUI())
             }
             if (freecamToggleKey.consumeClick()) {
                 Freecam.toggleFreecam()

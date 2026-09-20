@@ -70,7 +70,7 @@ object ChatFilter : Module(
 ) {
     private val openFilterMenu = ActionSetting("Configure Filters") {
         val mc = Minecraft.getInstance()
-        (mc.screen as? ClickGUI)?.openPopup(ChatFilterPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(ChatFilterPopup())
     }
 
     // Collapses consecutive blank chat lines into one, same as Noamm's

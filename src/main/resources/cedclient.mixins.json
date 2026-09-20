@@ -37,7 +37,8 @@
   ],
 
   "client": [
-    "client.MinecraftMixin"
+    "client.MinecraftMixin",
+    "screen.GuiMixin"
   ],
 
   "injectors": {

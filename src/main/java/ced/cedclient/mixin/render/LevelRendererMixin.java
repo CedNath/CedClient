@@ -6,7 +6,6 @@ import net.minecraft.client.Camera;
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import net.minecraft.client.DeltaTracker;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import net.minecraft.client.renderer.chunk.ChunkSectionsToRender;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -19,9 +18,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
 
-    @Inject(method = "renderLevel", at = @At("TAIL"))
+    // 26.2: renderLevel was renamed to render, and no longer takes in the
+    // ChunkSectionsToRender parameter (chunk-to-render tracking moved elsewhere
+    // as part of the LevelRenderer/LevelExtractor split).
+    @Inject(method = "render", at = @At("TAIL"))
     private void cedclient$onRenderLevel(
-            GraphicsResourceAllocator resourceAllocator, DeltaTracker deltaTracker, boolean renderOutline, CameraRenderState cameraState, Matrix4fc modelViewMatrix, GpuBufferSlice terrainFog, Vector4f fogColor, boolean shouldRenderSky, ChunkSectionsToRender chunkSectionsToRender, CallbackInfo ci
+            GraphicsResourceAllocator resourceAllocator, DeltaTracker deltaTracker, boolean renderOutline, CameraRenderState cameraState, Matrix4fc modelViewMatrix, GpuBufferSlice terrainFog, Vector4f fogColor, boolean shouldRenderSky, CallbackInfo ci
     ) {
         float tickDelta = deltaTracker.getGameTimeDeltaPartialTick(false);
         new RenderEvent(tickDelta).post();
