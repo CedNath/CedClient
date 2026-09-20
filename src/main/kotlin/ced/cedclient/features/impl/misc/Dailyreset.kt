@@ -357,7 +357,7 @@ object DailyReset : Module(
         false,
         "Prints every chat line to console while on -- use it to find the exact wording for a new " +
                 "daily's completionPatterns, then turn it back off."
-    ).also { it.advanced = true }
+    )
 
     // Lets people turn the "Daily completed!" chat announcement off without
     // losing auto-tracking itself -- separate from logChatForTriggers, which
