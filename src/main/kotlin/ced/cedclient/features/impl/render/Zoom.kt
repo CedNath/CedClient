@@ -39,7 +39,7 @@ object Zoom : Module(
         "How much each scroll tick changes the zoom multiplier"
     )
     private val zoomSpeed = NumberSetting(
-        "Zoom Speed", 1.0, 0.05, 1.0, 0.05,
+        "Zoom Speed", 1.0, 0.05, 1.0, 1.0,
         "How quickly the FOV eases toward the target zoom each tick -- higher is snappier, lower is smoother"
     )
     private val dynamicSensitivity = BooleanSetting(
