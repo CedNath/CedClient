@@ -1,7 +1,7 @@
 package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.ModuleManager
-import ced.cedclient.ui.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.isAreaHovered
 import net.minecraft.client.input.CharacterEvent

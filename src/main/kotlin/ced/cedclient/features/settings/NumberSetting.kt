@@ -1,6 +1,6 @@
 package ced.cedclient.features.settings
 
-import ced.cedclient.ui.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
 import com.google.gson.JsonElement

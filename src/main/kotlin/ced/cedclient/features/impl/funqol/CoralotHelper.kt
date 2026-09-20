@@ -29,7 +29,7 @@ object CoralotHelper : Module(
     "CoralotHelper(!!!)",
 
     Category.Funqol,
-    description = "Auto-catches Axolotls with a net once the warning icon clears"
+   description = "Auto-catches Axolotls with a net once the warning icon clears"
 ) {
     private val mc = Minecraft.getInstance()
 

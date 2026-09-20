@@ -1,7 +1,7 @@
 package ced.cedclient.features.settings
 
 import ced.cedclient.ui.clickgui.Panel
-import ced.cedclient.ui.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.TextInputHandler
 import com.google.gson.Gson

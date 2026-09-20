@@ -1,4 +1,4 @@
-package cedclient.events
+package ced.cedclient.events
 
 import ced.cedclient.events.core.CancellableEvent
 import net.minecraft.network.protocol.Packet

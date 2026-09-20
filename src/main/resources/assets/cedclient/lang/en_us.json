@@ -1,4 +1,5 @@
 {
-  "key.category.cedclient": "CedClient",
-  "key.cedclient.freecam_toggle": "Toggle Freecam"
+  "key.category.cedclient.cedclient": "CedClient",
+  "key.cedclient.freecam_toggle": "Toggle Freecam",
+  "key.cedclient.zoom": "Zoom"
 }

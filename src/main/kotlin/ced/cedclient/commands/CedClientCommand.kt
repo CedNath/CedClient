@@ -1,13 +1,14 @@
 package ced.cedclient.commands
 
 import ced.cedclient.features.impl.funqol.CoralotHelper
-import ced.cedclient.features.impl.render.CustomNametag
+import ced.cedclient.features.impl.misc.DailyReset
+import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
-import ced.cedclient.utils.NametagFormatting
+import ced.cedclient.features.impl.render.nametag.NametagFormatting
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
@@ -147,8 +148,12 @@ object CedClientCommand {
                     .then(
                         ClientCommands.literal("list")
                             .executes { ctx ->
-                                val blocked = if (EntityESP.blockedNames.isEmpty()) "(none)" else EntityESP.blockedNames.joinToString(", ")
-                                val only = if (EntityESP.onlyNames.isEmpty()) "(none)" else EntityESP.onlyNames.joinToString(", ")
+                                val blocked =
+                                    if (EntityESP.blockedNames.isEmpty()) "(none)" else EntityESP.blockedNames.joinToString(
+                                        ", "
+                                    )
+                                val only =
+                                    if (EntityESP.onlyNames.isEmpty()) "(none)" else EntityESP.onlyNames.joinToString(", ")
 
                                 ctx.source.sendFeedback(Component.literal("Blocked: $blocked"))
                                 ctx.source.sendFeedback(Component.literal("Only: $only"))
@@ -228,6 +233,139 @@ object CedClientCommand {
                                     .executes { ctx ->
                                         CoralotHelper.titleText = StringArgumentType.getString(ctx, "text")
                                         ctx.source.sendFeedback(Component.literal("Title set"))
+                                        1
+                                    }
+                            )
+                    )
+            )
+
+            .then(
+                // Auto-tracked + manual checklist of daily-reset tasks -- see
+                // DailyReset.kt. Bare "/cc daily" (and "/cc daily list") print
+                // everything still outstanding today.
+                ClientCommands.literal("daily")
+                    .executes { ctx ->
+                        val remaining = DailyReset.remaining()
+                        ctx.source.sendFeedback(Component.literal("[CC] Daily tasks remaining:"))
+                        if (remaining.isEmpty()) {
+                            ctx.source.sendFeedback(Component.literal("  All done for today!"))
+                        } else {
+                            for (name in remaining) {
+                                ctx.source.sendFeedback(Component.literal("  - $name"))
+                            }
+                        }
+                        1
+                    }
+                    .then(
+                        ClientCommands.literal("list")
+                            .executes { ctx ->
+                                ctx.source.sendFeedback(Component.literal("[CC] Daily tasks:"))
+                                for ((name, completed) in DailyReset.allTasks()) {
+                                    val mark = if (completed) "\u00a7a[done]" else "\u00a77[ ]"
+                                    ctx.source.sendFeedback(Component.literal("  $mark \u00a7f$name"))
+                                }
+                                1
+                            }
+                    )
+                    .then(
+                        // Lists ONLY the auto-tracked definitions (not the
+                        // manual list) with their cooldown label and whether
+                        // a trigger has fired today -- handy for checking
+                        // which ones still need a Regex added.
+                        ClientCommands.literal("entries")
+                            .executes { ctx ->
+                                ctx.source.sendFeedback(Component.literal("[CC] Auto-tracked dailies:"))
+                                for ((name, cooldown, completed) in DailyReset.autoEntries()) {
+                                    val mark = if (completed) "\u00a7a[done]" else "\u00a77[ ]"
+                                    ctx.source.sendFeedback(Component.literal("  $mark \u00a7f$name \u00a78($cooldown)"))
+                                }
+                                1
+                            }
+                    )
+                    .then(
+                        ClientCommands.literal("add")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.add(name)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Added daily: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Already tracking: $name"))
+                                        }
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("remove")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.remove(name)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Removed daily: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                        }
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("done")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.setCompleted(name, true)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Marked done: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                        }
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        ClientCommands.literal("undo")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.setCompleted(name, false)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Marked not done: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                        }
+                                        1
+                                    }
+                            )
+                    )
+                    .then(
+                        // Enable/disable ONE auto-tracked daily by name --
+                        // the manual list has no toggle since it's already
+                        // add/remove-able. This is separate from `done`:
+                        // "done" clears at the next reset, "toggle off" hides
+                        // it until you toggle it back on.
+                        ClientCommands.literal("toggle")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        val currentlyOn = DailyReset.autoEntries()
+                                            .any { (n, _, _) -> n.equals(name, ignoreCase = true) }
+                                        if (!currentlyOn) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No auto-tracked daily named: $name"))
+                                        } else {
+                                            // autoEntries() doesn't expose current enabled state directly
+                                            // (it only lists enabled ones), so just flip based on presence.
+                                            val nowEnabled = !DailyReset.autoEntries().any { (n, _, _) -> n.equals(name, ignoreCase = true) }
+                                            DailyReset.setEntryEnabled(name, nowEnabled)
+                                            ctx.source.sendFeedback(
+                                                Component.literal("[CC] $name -> ${if (nowEnabled) "enabled" else "disabled"}")
+                                            )
+                                        }
                                         1
                                     }
                             )
