@@ -1,8 +1,6 @@
-package ced.cedclient.ui.nvg
+package ced.cedclient.render.nvg
 
 import ced.cedclient.render.font.Font
-import ced.cedclient.render.nvg.Gradient
-import ced.cedclient.render.nvg.Image
 import ced.cedclient.utils.alpha
 import ced.cedclient.utils.blue
 import ced.cedclient.utils.green

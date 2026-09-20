@@ -102,7 +102,7 @@ object BlockESP : Module(
 
     private val openBlockFilterMenu = ActionSetting("Select Blocks") {
         val mc = Minecraft.getInstance()
-        (mc.gui.screen() as? ClickGUI)?.openPopup(BlockFilterPopup())
+        (mc.screen as? ClickGUI)?.openPopup(BlockFilterPopup())
     }
 
     @Volatile

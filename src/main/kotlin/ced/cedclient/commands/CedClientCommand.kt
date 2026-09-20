@@ -33,11 +33,11 @@ object CedClientCommand {
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (pendingOpenGui) {
                 pendingOpenGui = false
-                client.gui.setScreen(ClickGUI())
+                client.setScreen(ClickGUI())
             }
             if (pendingOpenHudEdit) {
                 pendingOpenHudEdit = false
-                client.gui.setScreen(MasterHudEditScreen())
+                client.setScreen(MasterHudEditScreen())
             }
         }
 

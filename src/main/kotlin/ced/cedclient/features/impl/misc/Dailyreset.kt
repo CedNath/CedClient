@@ -8,10 +8,9 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.impl.render.HudElement
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
-
+import ced.cedclient.render.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.state.IslandState
-import ced.cedclient.ui.nvg.NVGRenderer
-import ced.cedclient.ui.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
 import net.minecraft.client.DeltaTracker
@@ -473,9 +472,7 @@ object DailyReset : Module(
         // local-only notices (e.g. "Please select a Realm"), so it never
         // touches the server and is never mistaken for a real chat/command
         // line by anything else listening on ChatMessageEvent.
-        // 26.2: Gui#getChat moved to Hud#getChat -- chat access now goes
-        // through gui.hud rather than directly off Gui.
-        val chat = Minecraft.getInstance().gui?.hud?.chat ?: return
+        val chat = Minecraft.getInstance().gui?.chat ?: return
         val message = Component.literal("[CedClient] ")
             .withStyle(Style.EMPTY.withColor(PREFIX_COLOR).withBold(true))
             .append(

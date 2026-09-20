@@ -37,9 +37,7 @@ object NametagFormatting {
         '9' to ChatFormatting.BLUE, 'a' to ChatFormatting.GREEN, 'b' to ChatFormatting.AQUA,
         'c' to ChatFormatting.RED, 'd' to ChatFormatting.LIGHT_PURPLE, 'e' to ChatFormatting.YELLOW,
         'f' to ChatFormatting.WHITE
-    ).mapValues { (_, formatting) ->
-        TextColor.fromLegacyFormat(formatting)!!
-    }
+    ).mapValues { (_, formatting) -> TextColor.fromRgb(formatting.color ?: 0xFFFFFF) }
 
     private data class RunStyle(
         var color: TextColor? = null,

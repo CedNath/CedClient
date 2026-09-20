@@ -168,7 +168,7 @@ object ChatChannelHud : Module(
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         if (!isEnabled) return
-        if (Minecraft.getInstance().gui.screen() !is net.minecraft.client.gui.screens.ChatScreen) return
+        if (Minecraft.getInstance().screen !is net.minecraft.client.gui.screens.ChatScreen) return
         renderInternal(g)
     }
 

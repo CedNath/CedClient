@@ -24,7 +24,7 @@ object BlockESPRenderer {
             if (!BlockESP.boxesEnabled && !BlockESP.tracersEnabled && !BlockESP.labelsEnabled) return@AfterSolidFeatures
 
             val poseStack = context.poseStack()
-            val camera = context.gameRenderer().mainCamera()
+            val camera = context.gameRenderer().mainCamera
             val cameraPos = camera.position()
             val bufferSource = context.bufferSource()
             val submitNodeCollector = context.submitNodeCollector()

@@ -29,12 +29,12 @@ import ced.cedclient.features.impl.render.ItemCooldowns
 import ced.cedclient.features.impl.render.TimeHud
 import ced.cedclient.features.impl.render.Zoom
 import ced.cedclient.features.impl.render.nametag.CustomNametag
+import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.state.CosmeticsSync
 import ced.cedclient.state.DungeonState
 import ced.cedclient.state.IslandState
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InventoryButtonManager
-import ced.cedclient.ui.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.PingTracker
 import ced.cedclient.utils.TabListCache
 import ced.cedclient.utils.debug.MouseLookDebugger
@@ -89,8 +89,8 @@ class CedClient : ClientModInitializer {
         }
         InventoryButtonManager.ensureLoaded()
 
-        PictureInPictureRendererRegistry.register {
-            NVGSpecialRenderer()
+        PictureInPictureRendererRegistry.register { context ->
+            NVGSpecialRenderer(context.bufferSource())
         }
 
         MouseLookDebugger.register()
@@ -173,7 +173,7 @@ class CedClient : ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (openGuiKey.consumeClick()) {
-                client.gui.setScreen(ClickGUI())
+                client.setScreen(ClickGUI())
             }
             if (freecamToggleKey.consumeClick()) {
                 Freecam.toggleFreecam()
