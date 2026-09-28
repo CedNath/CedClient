@@ -20,10 +20,11 @@
     "network.PingHeartbeatMixin",
 
     "item.ItemStackHoverNameMixin",
-    "item.ItemLoreMixin",
+
 
     "screen.ContainerEventHandlerMixin",
     "screen.AbstractContainerScreenMixin",
+    "screen.ScreenTooltipMixin",
 
     "input.KeyboardInputMixin",
     "input.MouseScrollMixin",

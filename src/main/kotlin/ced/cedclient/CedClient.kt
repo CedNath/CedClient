@@ -14,6 +14,7 @@ import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.ChatFilter
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.misc.InventoryButtons
+import ced.cedclient.features.impl.misc.ProfileViewer
 import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.features.impl.render.BlockESP
@@ -123,6 +124,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(LootTracker)
         ModuleManager.register(Zoom)
         ModuleManager.register(CompactTab)
+        ModuleManager.register(ProfileViewer)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {

@@ -14,12 +14,16 @@ import java.util.Optional
 
 /**
  * Shared logic for all of CustomNametag's text surfaces -- chat, tab list,
- * and (via [transformNameTag]) the in-world floating tag, which
- * PlayerRendererMixin calls into and applies to the render state's nameTag
- * Component directly.
+ * and item hover names/lore. The in-world floating tag is NOT handled here
+ * anymore -- see [overrideBareName], which EntityMixin calls from inside
+ * Entity#getDisplayName() to swap the bare name out before vanilla wraps
+ * team prefix/suffix around it, instead of text-splicing the already-
+ * assembled nametag the way the functions in this file still do for chat/
+ * tab-list/item-lore (those surfaces don't go through getDisplayName(), so
+ * splicing is still the right tool there).
  *
  * Two replacement sources, synced taking priority over self (same order
- * every transform* function here uses):
+ * every transform-/override- function here uses):
  *  - any IGN with a tag pushed via CosmeticsSync -> that tag, regardless of
  *    CustomNametag's own module toggle, but only while
  *    HardcodedCosmetics.isEnabled -- lets other people running this client
@@ -91,7 +95,7 @@ object CustomNametagText {
         // either as a match key or as literal text to splice onto. The
         // session username is set once locally at login and never touched
         // by anything the server sends, so it's unaffected by that fakery.
-        val localName = Minecraft.getInstance().user?.name ?: localPlayer?.gameProfile?.name
+        val localName = Minecraft.getInstance().user.name
 
         val uuidMatch = profileId != null && profileId == localPlayer?.uuid
         val nameMatch = profileName.equals(localName, ignoreCase = true)
@@ -108,63 +112,46 @@ object CustomNametagText {
     }
 
     /**
-     * In-world floating nametag for [player] -- splices the resolved tag
-     * text over just the name portion of [original] (vanilla's already-
-     * computed nametag Component, team prefix/suffix and all), the same
-     * way [transformTabListName] does for tab-list rows. This is what
-     * keeps Hypixel's network-level prefix (e.g. "[383]") and status-icon
-     * suffix (e.g. "[❤6]") intact instead of the old full-swap behavior,
-     * which discarded them along with the vanilla name.
+     * Replacement *bare name* Component for [player]'s in-world nametag, or
+     * null to leave vanilla's name untouched. Called by EntityMixin's
+     * redirect of the `this.getName()` call inside Entity#getDisplayName(),
+     * i.e. BEFORE PlayerTeam.formatNameForTeam()/getFormattedName() wraps
+     * team prefix + name + suffix around it. Because we're swapping the
+     * name out before that wrapping happens, vanilla's own team-prefix/
+     * suffix logic runs completely untouched afterwards -- Hypixel's
+     * SkyBlock level prefix, lobby rank tags, status-icon suffixes, all of
+     * it -- with no splicing or text-matching needed here at all.
      *
-     * Falls back to a full swap (just the parsed tag, nothing else) only
-     * when the matched name can't actually be located as literal text in
-     * [original] -- spliceOverName returns null in that case since there's
-     * nothing to splice onto.
+     * This replaces the old transformNameTag, which ran AFTER vanilla had
+     * already assembled prefix+name+suffix into one Component and had to
+     * text-match the real IGN back out of it to know where to splice --
+     * fragile, and the exact thing that was silently dropping the level
+     * prefix/suffix whenever the match failed.
      *
-     * Returns null when nothing should override this player's tag (the
-     * caller keeps vanilla's own nameTag untouched).
+     * CONFIRMED GAP (was a suspicion, now reproduced in-game): the
+     * CosmeticsSync branch below identifies other players by
+     * player.gameProfile.name, and SkyBlock fakes that for entities the
+     * same way it's confirmed to fake it for tab-list rows -- so this
+     * silently returns null for other players there, and the real IGN
+     * team-wraps through untouched. Unlike transformTabListName, there's
+     * no literal rendered text at *this* call site to fall back to
+     * scanning, because we're swapping the bare name out before vanilla
+     * assembles anything. See [transformNameTagFallback] below for the fix:
+     * it runs later, off the already-assembled render-state nameTag, where
+     * the real IGN text (if this function missed it) is still there to
+     * find -- same whole-line-splice trick transformTabListName already
+     * uses for its own fallback.
      */
-    fun transformNameTag(player: Player, original: Component): Component? {
+    fun overrideBareName(player: Player): Component? {
         if (HardcodedCosmetics.isEnabled) {
-            val profileName = player.gameProfile.name
-            CosmeticsSync.getOverride(profileName)?.tag?.let { syncedTag ->
-                val tag = NametagFormatting.parse(syncedTag)
-                return spliceOverName(original, profileName, tag) ?: tag
-            }
-
-            // Fallback: SkyBlock fakes the entity's GameProfile name (same
-            // trick confirmed for tab-list rows above), so the direct
-            // lookup misses there -- the real IGN is still present as
-            // literal text in vanilla's rendered nametag though.
-            val originalText = original.string
-            for ((ign, override) in CosmeticsSync.allTags()) {
-                val regex = Regex("\\b${Regex.escape(ign)}\\b", RegexOption.IGNORE_CASE)
-                if (regex.containsMatchIn(originalText)) {
-                    val tag = NametagFormatting.parse(override)
-                    return spliceOverName(original, ign, tag) ?: tag
-                }
+            CosmeticsSync.getOverride(player.gameProfile.name)?.tag?.let {
+                return NametagFormatting.parse(it)
             }
         }
 
         val ownTag = CustomNametag.tagText.value
-        val localPlayer = Minecraft.getInstance().player
-        if (CustomNametag.isEnabled && ownTag.isNotBlank() && player === localPlayer) {
-            // Session username, not localPlayer.gameProfile.name -- on
-            // SkyBlock the latter is faked for your own entity the same way
-            // it's faked for other players' (see the CosmeticsSync fallback
-            // above and the class doc comment), so splicing against it as
-            // the needle silently never matches anything in `original`'s
-            // text. That's what was causing the fallback below to discard
-            // Hypixel's own "[383]"-style level prefix and status-icon
-            // suffix and fall back to a bare full-text swap instead of
-            // preserving them. The session name is set locally at login and
-            // never touched by server-sent data, so it's always the real,
-            // literally-rendered name.
-            val localName = Minecraft.getInstance().user?.name
-                ?: localPlayer?.gameProfile?.name
-                ?: return null
-            val tag = NametagFormatting.parse(ownTag)
-            return spliceOverName(original, localName, tag) ?: tag
+        if (CustomNametag.isEnabled && ownTag.isNotBlank() && player === Minecraft.getInstance().player) {
+            return NametagFormatting.parse(ownTag)
         }
 
         return null
@@ -191,6 +178,12 @@ object CustomNametagText {
     private data class Run(val start: Int, val text: String, val style: Style)
 
     private fun isNameChar(c: Char): Boolean = c.isLetterOrDigit() || c == '_'
+
+    /** Legacy formatting code letter/digit that follows a literal '§' (e.g. the 'b' in "§b"). */
+    private fun isLegacyCode(c: Char): Boolean = c.lowercaseChar() in "0123456789abcdefklmnor"
+
+    /** One whole-word match in the flattened line, [start, end), with any literal legacy codes directly before it swallowed. */
+    private data class Hit(val start: Int, val end: Int, val key: String)
 
     private fun flatten(component: Component): Pair<String, List<Run>> {
         val runs = mutableListOf<Run>()
@@ -250,20 +243,31 @@ object CustomNametagText {
         // Manual left/right boundary check (rather than \b) so it stays
         // correct regardless of what's adjacent to the match once it's
         // matched against the *whole* line instead of a single run.
-        val matches = regex.findAll(fullText).filter { m ->
-            val leftOk = m.range.first == 0 || !isNameChar(fullText[m.range.first - 1])
-            val rightOk = m.range.last + 1 >= fullText.length || !isNameChar(fullText[m.range.last + 1])
-            leftOk && rightOk
+        //
+        // Hypixel puts legacy formatting codes into the text as LITERAL
+        // characters (e.g. "§8[§d336§8] §bkilleur27610 §6ௐ"), so the char
+        // right before the name is the 'b' of "§b" -- a letter, which used
+        // to fail the left-boundary check and made every match miss. We
+        // walk the start back over any "§x" pairs directly before the name
+        // first, then do the boundary check. That also swallows the old
+        // colour code so it can't leak into the replacement's styling.
+        val hits = regex.findAll(fullText).mapNotNull { m ->
+            var start = m.range.first
+            while (start >= 2 && fullText[start - 2] == '\u00A7' && isLegacyCode(fullText[start - 1])) start -= 2
+            val end = m.range.last + 1
+            val leftOk = start == 0 || !isNameChar(fullText[start - 1])
+            val rightOk = end >= fullText.length || !isNameChar(fullText[end])
+            if (leftOk && rightOk) Hit(start, end, m.value) else null
         }.toList()
-        if (matches.isEmpty()) return null
+        if (hits.isEmpty()) return null
 
         val result: MutableComponent = Component.literal("")
         var cursor = 0
-        for (match in matches) {
-            appendSlice(result, runs, cursor, match.range.first)
-            val replacement = replacements.entries.first { it.key.equals(match.value, ignoreCase = true) }.value
+        for (hit in hits) {
+            appendSlice(result, runs, cursor, hit.start)
+            val replacement = replacements.entries.first { it.key.equals(hit.key, ignoreCase = true) }.value
             result.append(replacement)
-            cursor = match.range.last + 1
+            cursor = hit.end
         }
         appendSlice(result, runs, cursor, fullText.length)
         return result
@@ -271,6 +275,28 @@ object CustomNametagText {
 
     private fun spliceOverName(original: Component, needle: String, replacement: Component): Component? =
         spliceAll(original, mapOf(needle to replacement))
+
+    /**
+     * Fallback for the in-world floating nametag, called by
+     * PlayerRendererMixin's TAIL injection against the render state's
+     * already-fully-assembled `nameTag` Component (team prefix/suffix and
+     * all). [overrideBareName] is the primary path and should be preferred
+     * whenever it resolves -- this only exists to catch the case where it
+     * missed because SkyBlock faked player.gameProfile.name (see the
+     * CONFIRMED GAP note on [overrideBareName]).
+     *
+     * By the time PlayerRendererMixin sees [original], one of two things
+     * is true: either overrideBareName already matched and [original]
+     * contains our replacement text (not the real IGN) -- in which case
+     * every key here misses and this is a harmless no-op -- or it missed,
+     * the real IGN team-wrapped straight through untouched, and it's still
+     * sitting there as literal text for this whole-line splice to find.
+     * Reuses the exact same [spliceAll] + [buildReplacements] plumbing
+     * transformChat/transformItemText/transformTabListName's fallback
+     * already use, rather than a separate one-off matcher.
+     */
+    fun transformNameTagFallback(original: Component): Component? =
+        spliceAll(original, buildReplacements())
 
     fun transformChat(original: Component): Component {
         val replacements = buildReplacements()
@@ -294,13 +320,30 @@ object CustomNametagText {
      * leaves the text alone while one of [FUNCTIONAL_MENU_TITLES] is the
      * open screen, so the swap stays cosmetic-only where it's safe.
      */
+    // TEMP DIAGNOSTIC -- delete once tooltip replacement is confirmed
+    // working. Only reprints when the incoming text actually changes, so
+    // it won't spam once-per-frame while a tooltip is held open.
+    private var lastDebugText: String? = null
+
     fun transformItemText(original: Component): Component {
         val screen = Minecraft.getInstance().screen
         if (screen is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>) {
             val title = screen.title.string.lowercase()
             if (FUNCTIONAL_MENU_TITLES.any { title.contains(it) }) return original
         }
-        return transformChat(original)
+        val result = transformChat(original)
+
+        val text = original.string
+        if (text != lastDebugText) {
+            lastDebugText = text
+            val keys = buildReplacements().keys
+   //         println(
+   //            "CedClient tooltip debug: text=\"$text\" replacementKeys=$keys " +
+   //                   "matched=${result !== original}"
+   //     )
+        }
+
+        return result
     }
 
     private fun buildReplacements(): Map<String, Component> {
@@ -313,9 +356,8 @@ object CustomNametagText {
 
         val ownTag = CustomNametag.tagText.value
         // Session username preferred over gameProfile.name -- see the
-        // matching comment in transformNameTag above.
-        val localName = Minecraft.getInstance().user?.name
-            ?: Minecraft.getInstance().player?.gameProfile?.name
+        // matching comment in transformTabListName above.
+        val localName = Minecraft.getInstance().user.name
         if (CustomNametag.isEnabled && ownTag.isNotBlank() && localName != null &&
             !map.keys.any { it.equals(localName, ignoreCase = true) }
         ) {

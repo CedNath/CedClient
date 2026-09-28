@@ -10,7 +10,6 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * One IGN's cosmetic override. Both parts are independently optional so a
@@ -60,11 +59,21 @@ object CosmeticsSync {
     private const val BRANCH = "main"
     private const val FILE_PATH = "cosmetics.json"
 
-    private const val POLL_INTERVAL_SECONDS = 30L
+    // GitHub's contents API: always the current file (its own cache is 60s).
+    // raw.githubusercontent.com is only used as a fallback -- it sits behind a
+    // ~5 min CDN cache that IGNORES query strings, so it can serve (and flip
+    // between) stale copies of the file.
+    private const val API_URL = "https://api.github.com/repos/$OWNER/$REPO/contents/$FILE_PATH?ref=$BRANCH"
+    private const val RAW_URL = "https://raw.githubusercontent.com/$OWNER/$REPO/$BRANCH/$FILE_PATH"
+
+    private const val POLL_INTERVAL_SECONDS = 60L
 
     private val gson = Gson()
 
-    private val overridesMap = ConcurrentHashMap<String, CosmeticOverride>()
+    // Replaced wholesale (never clear()+putAll()) so the render thread can
+    // never observe a half-empty map in the middle of an update.
+    @Volatile
+    private var overridesMap: Map<String, CosmeticOverride> = emptyMap()
 
     private val configDir: File
         get() = File(Minecraft.getInstance().gameDirectory, "cedclient")
@@ -79,9 +88,18 @@ object CosmeticsSync {
     @Volatile
     private var started = false
 
-    // Avoids re-downloading/re-applying when nothing changed.
+    // Body of the last payload applied from the network, so an unchanged
+    // file isn't re-applied on every poll.
+    @Volatile
+    private var lastBody: String? = null
+
+    // ETag of the last API response. Conditional requests answered with 304
+    // don't count against GitHub's unauthenticated rate limit (60/h).
     @Volatile
     private var lastEtag: String? = null
+
+    // Serialises polls so the background loop and a forced sync can't race.
+    private val pollLock = Any()
 
     /** Call once during mod init. Loads the local cache immediately, then
      *  starts a background thread that polls on an interval. */
@@ -96,6 +114,25 @@ object CosmeticsSync {
         thread.start()
     }
 
+    /**
+     * Re-downloads cosmetics.json right now on a short-lived background
+     * thread (never blocks the render/client thread). Hooked to the
+     * Cosmetics module's onEnable, so toggling it off/on in the GUI forces
+     * a sync. No-op before init() has run.
+     */
+    fun forceSync() {
+        if (!started) return
+        val thread = Thread({
+            try {
+                pollOnce(force = true)
+            } catch (e: Throwable) {
+                println("CedClient cosmetics sync: forced sync failed (${e.message})")
+            }
+        }, "cedclient-cosmetics-force-sync")
+        thread.isDaemon = true
+        thread.start()
+    }
+
     fun getOverride(ign: String): CosmeticOverride? = overridesMap[ign.lowercase()]
 
     /** All IGNs that currently have a tag pushed for them (scale-only entries excluded). */
@@ -105,7 +142,7 @@ object CosmeticsSync {
     private fun pollLoop() {
         while (true) {
             try {
-                pollOnce()
+                pollOnce(force = false)
             } catch (t: Throwable) {
                 println("CedClient cosmetics sync: poll failed (${t.message}), will retry")
             }
@@ -118,68 +155,107 @@ object CosmeticsSync {
         }
     }
 
-    private fun pollOnce() {
-        // Public repo, unauthenticated raw read -- no auth header needed.
-        val url = "https://raw.githubusercontent.com/$OWNER/$REPO/$BRANCH/$FILE_PATH"
+    private fun pollOnce(force: Boolean) {
+        synchronized(pollLock) { pollOnceLocked(force) }
+    }
+
+    private fun pollOnceLocked(force: Boolean) {
         val builder = HttpRequest.newBuilder()
-            .uri(URI.create(url))
+            .uri(URI.create(API_URL))
             .timeout(Duration.ofSeconds(15))
+            .header("Accept", "application/vnd.github.raw+json")
+            .header("X-GitHub-Api-Version", "2022-11-28")
+            .header("User-Agent", "CedClient")
             .GET()
 
-        lastEtag?.let { builder.header("If-None-Match", it) }
+        // A forced sync skips the conditional header so it always downloads.
+        if (!force) lastEtag?.let { builder.header("If-None-Match", it) }
 
         val response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString())
 
         when (response.statusCode()) {
             200 -> {
-                response.headers().firstValue("ETag").ifPresent { lastEtag = it }
-                applyPayload(response.body())
+                val body = response.body()
+                val etag = response.headers().firstValue("ETag").orElse(null)
+                if (force || body != lastBody) {
+                    if (applyPayload(body, "github api")) {
+                        lastBody = body
+                        lastEtag = etag
+                    }
+                } else {
+                    lastEtag = etag
+                }
             }
             304 -> {
-                // Not modified since last poll -- nothing to do.
-            }
-            404 -> {
-                println("CedClient cosmetics sync: file not found -- check OWNER/REPO/BRANCH/FILE_PATH in CosmeticsSync.kt, and that the repo is public")
-            }
-            403, 429 -> {
-                println("CedClient cosmetics sync: rate limited (HTTP ${response.statusCode()}), will retry next poll")
+                // Unchanged since the last poll -- nothing to do.
             }
             else -> {
-                println("CedClient cosmetics sync: unexpected HTTP ${response.statusCode()}")
+                println("CedClient cosmetics sync: GitHub API returned HTTP ${response.statusCode()}, falling back to raw.githubusercontent.com (may be up to ~5 min stale)")
+                pollRawFallback(force)
             }
         }
     }
 
-    private fun applyPayload(payload: String) {
+    private fun pollRawFallback(force: Boolean) {
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create(RAW_URL))
+            .timeout(Duration.ofSeconds(15))
+            .GET()
+            .build()
+
+        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+
+        when (response.statusCode()) {
+            200 -> {
+                val body = response.body()
+                if (force || body != lastBody) {
+                    if (applyPayload(body, "raw fallback")) {
+                        lastBody = body
+                        lastEtag = null // next API poll re-downloads and takes over again
+                    }
+                }
+            }
+            404 -> println("CedClient cosmetics sync: file not found -- check OWNER/REPO/BRANCH/FILE_PATH in CosmeticsSync.kt, and that the repo is public")
+            else -> println("CedClient cosmetics sync: raw fallback returned HTTP ${response.statusCode()}")
+        }
+    }
+
+    /** Returns true if the payload was valid and applied. */
+    private fun applyPayload(payload: String, source: String): Boolean {
         val parsed = try {
             JsonParser.parseString(payload).asJsonObject
         } catch (t: Throwable) {
             println("CedClient cosmetics sync: received something that wasn't valid JSON, ignoring it")
-            return
+            return false
         }
 
-        val newMap = ConcurrentHashMap<String, CosmeticOverride>()
+        val newMap = HashMap<String, CosmeticOverride>()
         for ((ign, value) in parsed.entrySet()) {
-            val obj = value.asJsonObject
-            newMap[ign.lowercase()] = CosmeticOverride(
-                tag = obj.get("tag")?.takeIf { !it.isJsonNull }?.asString,
-                scaleX = obj.get("scaleX")?.asFloat ?: 1f,
-                scaleY = obj.get("scaleY")?.asFloat ?: 1f,
-                scaleZ = obj.get("scaleZ")?.asFloat ?: 1f
-            )
+            try {
+                val obj = value.asJsonObject
+                newMap[ign.lowercase()] = CosmeticOverride(
+                    tag = obj.get("tag")?.takeIf { !it.isJsonNull }?.asString,
+                    scaleX = obj.get("scaleX")?.asFloat ?: 1f,
+                    scaleY = obj.get("scaleY")?.asFloat ?: 1f,
+                    scaleZ = obj.get("scaleZ")?.asFloat ?: 1f
+                )
+            } catch (t: Throwable) {
+                // One malformed entry shouldn't throw away everyone else's.
+                println("CedClient cosmetics sync: skipping malformed entry for \"$ign\" (${t.message})")
+            }
         }
 
-        overridesMap.clear()
-        overridesMap.putAll(newMap)
+        overridesMap = newMap // atomic swap
         saveCache()
-        println("CedClient cosmetics sync: applied update for ${newMap.size} name(s)")
+        println("CedClient cosmetics sync: applied update for ${newMap.size} name(s) (${source})")
+        return true
     }
 
     private fun loadCache() {
         val file = cacheFile
         if (!file.exists()) return
         try {
-            applyPayload(file.readText())
+            applyPayload(file.readText(), "local cache")
         } catch (t: Throwable) {
             t.printStackTrace()
         }
