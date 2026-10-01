@@ -6,12 +6,15 @@ import ced.cedclient.features.ModuleManager
 
 import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.FishingHelper
-import ced.cedclient.features.impl.render.HudEditScreen
+import ced.cedclient.features.impl.funqol.PlayerScale
+import ced.cedclient.features.impl.loot.LootSummaryCommand
+import ced.cedclient.features.impl.loot.LootTracker
 import ced.cedclient.features.impl.misc.AdvancedMode
-import ced.cedclient.features.impl.render.TimeHud
-import ced.cedclient.features.impl.misc.ResetPanels
-
+import ced.cedclient.features.impl.misc.ChatFilter
+import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.misc.InventoryButtons
+import ced.cedclient.features.impl.misc.ProfileViewer
+import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
@@ -20,22 +23,25 @@ import ced.cedclient.features.impl.misc.ChatFilter
 
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.render.ChatChannelHud
-import ced.cedclient.features.impl.render.CustomNametag
-import ced.cedclient.features.impl.render.HardcodedCosmetics
-import ced.cedclient.sync.CosmeticsSync
-import ced.cedclient.utils.dungeons.DungeonState
-
-
-
+import ced.cedclient.features.impl.render.CompactTab
+import ced.cedclient.features.impl.render.EntityESP
+import ced.cedclient.features.impl.render.EntityESPHud
+import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
+import ced.cedclient.features.impl.render.HardcodedCosmetics
 import ced.cedclient.features.impl.render.ItemCooldowns
+import ced.cedclient.features.impl.render.TimeHud
+import ced.cedclient.features.impl.render.Zoom
+import ced.cedclient.features.impl.render.nametag.CustomNametag
+import ced.cedclient.render.nvg.NVGSpecialRenderer
+import ced.cedclient.state.CosmeticsSync
+import ced.cedclient.state.DungeonState
+import ced.cedclient.state.IslandState
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InventoryButtonManager
-import ced.cedclient.ui.nvg.NVGSpecialRenderer
-import ced.cedclient.utils.Debug
-import ced.cedclient.utils.MouseLookDebugger
-import kotlinx.coroutines.Job
-import kotlinx.datetime.Month
+import ced.cedclient.utils.PingTracker
+import ced.cedclient.utils.TabListCache
+import ced.cedclient.utils.debug.MouseLookDebugger
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
@@ -44,11 +50,16 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.minecraft.client.KeyMapping
 import net.minecraft.resources.Identifier
 import org.lwjgl.glfw.GLFW
-import java.awt.Component
 
 class CedClient : ClientModInitializer {
 
     private lateinit var openGuiKey: KeyMapping
+    private lateinit var freecamToggleKey: KeyMapping
+    private lateinit var zoomKey: KeyMapping
+
+    private val cedclientCategory: KeyMapping.Category by lazy {
+        KeyMapping.Category.register(Identifier.fromNamespaceAndPath("cedclient", "cedclient"))
+    }
 
     override fun onInitializeClient() {
 
