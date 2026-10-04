@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.png" alt="CedClient: Fabric mod for Hypixel SkyBlock" width="100%">
+<img src="https://raw.githubusercontent.com/CedNath/CedClient/26.1.2/docs/banner.png" alt="CedClient: Fabric mod for Hypixel SkyBlock" width="100%">
 
 <br>
 
