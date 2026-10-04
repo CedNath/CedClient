@@ -7,7 +7,9 @@ plugins {
     id("maven-publish")
 }
 
-version = "${project.property("mod_version")}-${project.property("minecraft_version")}"
+val variantSuffix = (project.findProperty("variant_suffix") as String?) ?: "-Legit"
+
+version = "${project.property("mod_version")}-${project.property("minecraft_version")}$variantSuffix"
 group = project.property("maven_group") as String
 
 base {
