@@ -1,34 +1,42 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "cedclient.mixin",
+  "package": "ced.cedclient.mixin",
   "compatibilityLevel": "JAVA_25",
 
   "mixins": [
-    "ClientPacketListenerMixin",
+    "chat.ClientPacketListenerMixin",
+    "chat.ChatComponentMixin",
 
-    "EntityMixin",
-    "LevelRendererMixin",
-    "MultiPlayerGameModeMixin",
-    "PlayerRendererMixin",
-    "PlayerRenderStateMixin",
-    "ChatComponentMixin",
-    "PlayerTabOverlayMixin",
-    "ItemStackHoverNameMixin",
-    "ItemLoreMixin",
+    "entity.EntityMixin",
 
-    "ContainerEventHandlerMixin",
-    "AbstractContainerScreenMixin",
-    "AbstractContainerScreenAccessor",
-    "CameraAccessor",
-    "CameraMixin",
-    "KeyboardInputMixin",
-    "ClientInputAccessor",
-    "MinecraftTurnMixin"
+    "render.LevelRendererMixin",
+    "render.PlayerRendererMixin",
+    "render.PlayerRenderStateMixin",
+    "render.CameraMixin",
+    "render.OptionInstanceMixin",
+    "render.OptionsMixin",
+
+    "network.MultiPlayerGameModeMixin",
+    "network.PlayerTabOverlayMixin",
+    "network.PingHeartbeatMixin",
+    "network.PingPongMixin",
+    "network.ParticlePacketMixin",
+
+    "item.ItemStackHoverNameMixin",
+
+
+    "screen.ContainerEventHandlerMixin",
+    "screen.AbstractContainerScreenMixin",
+    "screen.ScreenTooltipMixin",
+    "scoreboard.PlayerTeamMixin",
+    "input.MouseScrollMixin",
+"accessor.AbstractContainerScreenAccessor",
+    "accessor.PlayerTabOverlayAccessor"
   ],
 
   "client": [
-    "MinecraftMixin"
+    "client.MinecraftMixin"
   ],
 
   "injectors": {

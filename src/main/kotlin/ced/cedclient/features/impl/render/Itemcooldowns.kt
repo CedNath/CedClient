@@ -8,7 +8,7 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.utils.Color
-import ced.cedclient.utils.dungeons.DungeonState
+import ced.cedclient.state.DungeonState
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft

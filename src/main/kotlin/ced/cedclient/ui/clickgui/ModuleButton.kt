@@ -4,7 +4,7 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.settings.RenderableSetting
 import ced.cedclient.ui.animations.ColorAnimation
 import ced.cedclient.ui.animations.EaseInOutAnimation
-import ced.cedclient.ui.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.brighter
 import ced.cedclient.utils.Colors

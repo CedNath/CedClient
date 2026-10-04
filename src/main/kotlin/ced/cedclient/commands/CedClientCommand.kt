@@ -1,13 +1,14 @@
 package ced.cedclient.commands
 
-import ced.cedclient.features.impl.funqol.CoralotHelper
-import ced.cedclient.features.impl.render.CustomNametag
-import ced.cedclient.features.impl.render.EntityESP
+import ced.cedclient.features.impl.misc.DailyReset
+import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.features.impl.misc.WarpShortcuts
+import ced.cedclient.features.impl.misc.ProfileViewer
 import ced.cedclient.ui.clickgui.ClickGUI
+import ced.cedclient.ui.pv.PvScreen
 import ced.cedclient.utils.Debug
-import ced.cedclient.utils.NametagFormatting
+import ced.cedclient.features.impl.render.nametag.NametagFormatting
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
@@ -24,6 +25,9 @@ object CedClientCommand {
     @Volatile
     private var pendingOpenHudEdit = false
 
+    @Volatile
+    private var pendingOpenPv = false
+
     fun register() {
         // One persistent listener, registered once — checks the flags every
         // tick and opens the relevant screen on the tick after the command
@@ -37,6 +41,10 @@ object CedClientCommand {
             if (pendingOpenHudEdit) {
                 pendingOpenHudEdit = false
                 client.setScreen(MasterHudEditScreen())
+            }
+            if (pendingOpenPv) {
+                pendingOpenPv = false
+                client.setScreen(PvScreen())
             }
         }
 
@@ -79,85 +87,6 @@ object CedClientCommand {
             )
 
             .then(
-                ClientCommands.literal("esp")
-                    .then(
-                        ClientCommands.literal("block")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.blockName(name)
-                                        ctx.source.sendFeedback(Component.literal("Blocked: $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("unblock")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.unblockName(name)
-                                        ctx.source.sendFeedback(Component.literal("Unblocked: $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("only")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.onlyName(name)
-                                        ctx.source.sendFeedback(Component.literal("Only showing (added): $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("unonly")
-                            .then(
-                                ClientCommands.argument("name", StringArgumentType.greedyString())
-                                    .executes { ctx ->
-                                        val name = StringArgumentType.getString(ctx, "name")
-                                        EntityESP.unOnlyName(name)
-                                        ctx.source.sendFeedback(Component.literal("Removed from only-list: $name"))
-                                        1
-                                    }
-                            )
-                    )
-                    .then(
-                        ClientCommands.literal("clearonly")
-                            .executes { ctx ->
-                                EntityESP.clearOnly()
-                                ctx.source.sendFeedback(Component.literal("Cleared only-list (showing all again)"))
-                                1
-                            }
-                    )
-                    .then(
-                        ClientCommands.literal("clearblocked")
-                            .executes { ctx ->
-                                EntityESP.clearBlocked()
-                                ctx.source.sendFeedback(Component.literal("Cleared blocked list"))
-                                1
-                            }
-                    )
-                    .then(
-                        ClientCommands.literal("list")
-                            .executes { ctx ->
-                                val blocked = if (EntityESP.blockedNames.isEmpty()) "(none)" else EntityESP.blockedNames.joinToString(", ")
-                                val only = if (EntityESP.onlyNames.isEmpty()) "(none)" else EntityESP.onlyNames.joinToString(", ")
-
-                                ctx.source.sendFeedback(Component.literal("Blocked: $blocked"))
-                                ctx.source.sendFeedback(Component.literal("Only: $only"))
-                                1
-                            }
-                    )
-            )
-
-            .then(
                 // Chat-based alternative to the (small) Tag Text box in the
                 // GUI -- mainly so &#hex/<gradient:...>/<rainbow> strings
                 // aren't painful to type. Bare "/cedclient nametag" clears it
@@ -185,52 +114,157 @@ object CedClientCommand {
             )
 
             .then(
-                ClientCommands.literal("coralot")
+                // Auto-tracked + manual checklist of daily-reset tasks -- see
+                // DailyReset.kt. Bare "/cc daily" (and "/cc daily list") print
+                // everything still outstanding today.
+                ClientCommands.literal("daily")
+                    .executes { ctx ->
+                        val remaining = DailyReset.remaining()
+                        ctx.source.sendFeedback(Component.literal("[CC] Daily tasks remaining:"))
+                        if (remaining.isEmpty()) {
+                            ctx.source.sendFeedback(Component.literal("  All done for today!"))
+                        } else {
+                            for (name in remaining) {
+                                ctx.source.sendFeedback(Component.literal("  - $name"))
+                            }
+                        }
+                        1
+                    }
                     .then(
-                        ClientCommands.literal("netname")
+                        ClientCommands.literal("list")
+                            .executes { ctx ->
+                                ctx.source.sendFeedback(Component.literal("[CC] Daily tasks:"))
+                                for ((name, completed) in DailyReset.allTasks()) {
+                                    val mark = if (completed) "\u00a7a[done]" else "\u00a77[ ]"
+                                    ctx.source.sendFeedback(Component.literal("  $mark \u00a7f$name"))
+                                }
+                                1
+                            }
+                    )
+                    .then(
+                        // Lists ONLY the auto-tracked definitions (not the
+                        // manual list) with their cooldown label and whether
+                        // a trigger has fired today -- handy for checking
+                        // which ones still need a Regex added.
+                        ClientCommands.literal("entries")
+                            .executes { ctx ->
+                                ctx.source.sendFeedback(Component.literal("[CC] Auto-tracked dailies:"))
+                                for ((name, cooldown, completed) in DailyReset.autoEntries()) {
+                                    val mark = if (completed) "\u00a7a[done]" else "\u00a77[ ]"
+                                    ctx.source.sendFeedback(Component.literal("  $mark \u00a7f$name \u00a78($cooldown)"))
+                                }
+                                1
+                            }
+                    )
+                    .then(
+                        ClientCommands.literal("add")
                             .then(
                                 ClientCommands.argument("name", StringArgumentType.greedyString())
                                     .executes { ctx ->
-                                        CoralotHelper.netItemName = StringArgumentType.getString(ctx, "name")
-                                        ctx.source.sendFeedback(Component.literal("Net item name set"))
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.add(name)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Added daily: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Already tracking: $name"))
+                                        }
                                         1
                                     }
                             )
                     )
                     .then(
-                        ClientCommands.literal("keywords")
+                        ClientCommands.literal("remove")
                             .then(
-                                ClientCommands.argument("words", StringArgumentType.greedyString())
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
                                     .executes { ctx ->
-                                        val words = StringArgumentType.getString(ctx, "words")
-                                            .split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                        CoralotHelper.catchKeywords = words
-                                        ctx.source.sendFeedback(Component.literal("Catch keywords set: $words"))
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.remove(name)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Removed daily: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                        }
                                         1
                                     }
                             )
                     )
                     .then(
-                        ClientCommands.literal("sound")
+                        ClientCommands.literal("done")
                             .then(
-                                ClientCommands.argument("id", StringArgumentType.greedyString())
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
                                     .executes { ctx ->
-                                        CoralotHelper.soundId = StringArgumentType.getString(ctx, "id")
-                                        ctx.source.sendFeedback(Component.literal("Sound set"))
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.setCompleted(name, true)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Marked done: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                        }
                                         1
                                     }
                             )
                     )
                     .then(
-                        ClientCommands.literal("title")
+                        ClientCommands.literal("undo")
                             .then(
-                                ClientCommands.argument("text", StringArgumentType.greedyString())
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
                                     .executes { ctx ->
-                                        CoralotHelper.titleText = StringArgumentType.getString(ctx, "text")
-                                        ctx.source.sendFeedback(Component.literal("Title set"))
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        if (DailyReset.setCompleted(name, false)) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] Marked not done: $name"))
+                                        } else {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                        }
                                         1
                                     }
                             )
+                    )
+                    .then(
+                        // Enable/disable ONE auto-tracked daily by name --
+                        // the manual list has no toggle since it's already
+                        // add/remove-able. This is separate from `done`:
+                        // "done" clears at the next reset, "toggle off" hides
+                        // it until you toggle it back on.
+                        ClientCommands.literal("toggle")
+                            .then(
+                                ClientCommands.argument("name", StringArgumentType.greedyString())
+                                    .executes { ctx ->
+                                        val name = StringArgumentType.getString(ctx, "name")
+                                        val currentlyOn = DailyReset.autoEntries()
+                                            .any { (n, _, _) -> n.equals(name, ignoreCase = true) }
+                                        if (!currentlyOn) {
+                                            ctx.source.sendFeedback(Component.literal("[CC] No auto-tracked daily named: $name"))
+                                        } else {
+                                            // autoEntries() doesn't expose current enabled state directly
+                                            // (it only lists enabled ones), so just flip based on presence.
+                                            val nowEnabled = !DailyReset.autoEntries().any { (n, _, _) -> n.equals(name, ignoreCase = true) }
+                                            DailyReset.setEntryEnabled(name, nowEnabled)
+                                            ctx.source.sendFeedback(
+                                                Component.literal("[CC] $name -> ${if (nowEnabled) "enabled" else "disabled"}")
+                                            )
+                                        }
+                                        1
+                                    }
+                            )
+                    )
+            )
+            .then(
+                // Kicks off the fetch chain (chat feedback + JsonObject caching, see
+                // ProfileViewer.fetch()) and opens PvScreen on the next tick -- the
+                // screen reads ProfileViewer's volatile fields live, so it's fine for
+                // it to already be open while the fetch is still in flight.
+                // Bare "pv" -> self, "pv <username>" -> that player.
+                ClientCommands.literal("pv")
+                    .executes { ctx ->
+                        ProfileViewer.fetch(null, ctx.source)
+                        pendingOpenPv = true
+                        1
+                    }
+                    .then(
+                        ClientCommands.argument("username", StringArgumentType.word())
+                            .executes { ctx ->
+                                val username = StringArgumentType.getString(ctx, "username")
+                                ProfileViewer.fetch(username, ctx.source)
+                                pendingOpenPv = true
+                                1
+                            }
                     )
             )
 
