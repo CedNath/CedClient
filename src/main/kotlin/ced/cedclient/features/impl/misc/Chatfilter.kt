@@ -66,11 +66,12 @@ data class ChatFilterEntry(
 object ChatFilter : Module(
     "ChatFilter",
     Category.Misc,
-    "Hides configured chat messages (spam, join/leave, dungeon noise, etc.)"
+    "Hides configured chat messages (spam, join/leave, dungeon noise, etc.)",
+    defaultEnabled = false
 ) {
     private val openFilterMenu = ActionSetting("Configure Filters") {
         val mc = Minecraft.getInstance()
-        (mc.gui.screen() as? ClickGUI)?.openPopup(ChatFilterPopup())
+        (mc.screen as? ClickGUI)?.openPopup(ChatFilterPopup())
     }
 
     // Collapses consecutive blank chat lines into one, same as Noamm's

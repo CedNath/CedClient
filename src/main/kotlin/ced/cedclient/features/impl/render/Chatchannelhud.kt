@@ -1,21 +1,24 @@
 package ced.cedclient.features.impl.render
 
 import ced.cedclient.events.ChatMessageEvent
+import ced.cedclient.events.chat.PrivateMessageChatEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
-import ced.cedclient.utils.Color
-import ced.cedclient.utils.Colors
+import ced.cedclient.state.PartyApi
+import ced.cedclient.utils.cleanPlayerName
 import com.google.gson.Gson
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
+import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
 import java.io.File
+import kotlin.math.max
 
 private data class ChatChannelHudPosition(val x: Int, val y: Int, val scale: Float = 1.0f)
 
@@ -23,16 +26,17 @@ private data class ChatChannelHudPosition(val x: Int, val y: Int, val scale: Flo
 object ChatChannelHud : Module(
     "Chat Channel HUD",
     Category.Render,
-    "Shows which Hypixel chat channel you're currently in (All/Party/Guild/Officer/Co-op/DM)."
+    "Shows which Hypixel chat channel you're currently in (All/Party/Guild/Officer/Co-op/DM).",
+    defaultEnabled = true
 ), HudElement {
 
-    private enum class Channel(val label: String, val color: Color) {
-        ALL("All", Colors.MINECRAFT_YELLOW),
-        PARTY("Party", Colors.MINECRAFT_BLUE),
-        GUILD("Guild", Colors.MINECRAFT_DARK_GREEN),
-        OFFICER("Officer", Colors.MINECRAFT_DARK_AQUA),
-        COOP("Co-op", Colors.MINECRAFT_AQUA),
-        PRIVATE("DM", Colors.MINECRAFT_LIGHT_PURPLE)
+    private enum class Channel(val label: String, val color: ChatFormatting) {
+        ALL("All", ChatFormatting.YELLOW),
+        PARTY("Party", ChatFormatting.BLUE),
+        GUILD("Guild", ChatFormatting.DARK_GREEN),
+        OFFICER("Officer", ChatFormatting.DARK_AQUA),
+        COOP("Co-op", ChatFormatting.AQUA),
+        PRIVATE("DM", ChatFormatting.LIGHT_PURPLE)
     }
 
     // Hypixel's raw channel name (from "You are now in the X channel") ->
@@ -55,29 +59,44 @@ object ChatChannelHud : Module(
         """Opened a chat conversation with (?:\[\S+]\s*)?(?<player>\S+) for the next 5 minutes\. Use /chat a to leave"""
     )
 
+    private const val DM_DURATION_MS = 5 * 60 * 1000L
+
     private var currentChannel: Channel = Channel.ALL
     private var privateMessagePlayer: String? = null
+    private var privateMessageEnd = 0L
 
     init {
-        on<ChatMessageEvent> { event ->
-            val text = event.unformattedText
+        // Channel switches are plain system messages (no sender), so they come from the raw tap.
+        on<ChatMessageEvent> { event -> handleChannelMessage(event.unformattedText) }
 
-            changedChannelRegex.find(text)?.let { match ->
-                val name = match.groups["chat"]!!.value.trim().uppercase()
-                channelNames[name]?.let { currentChannel = it }
-                return@on
+        // Any DM with the person you're chatting with refreshes the 5 minute timer.
+        on<PrivateMessageChatEvent> { event ->
+            if (currentChannel == Channel.PRIVATE && event.cleanAuthor.equals(privateMessagePlayer, ignoreCase = true)) {
+                privateMessageEnd = System.currentTimeMillis() + DM_DURATION_MS
             }
+        }
+    }
 
-            if (movedToAllRegex.containsMatchIn(text)) {
-                currentChannel = Channel.ALL
+    private fun handleChannelMessage(text: String) {
+        changedChannelRegex.find(text)?.let { match ->
+            val name = match.groups["chat"]!!.value.trim().uppercase()
+            channelNames[name]?.let {
+                currentChannel = it
                 privateMessagePlayer = null
-                return@on
             }
+            return
+        }
 
-            openPrivateMessageRegex.find(text)?.let { match ->
-                currentChannel = Channel.PRIVATE
-                privateMessagePlayer = match.groups["player"]!!.value
-            }
+        if (movedToAllRegex.containsMatchIn(text)) {
+            currentChannel = Channel.ALL
+            privateMessagePlayer = null
+            return
+        }
+
+        openPrivateMessageRegex.find(text)?.let { match ->
+            currentChannel = Channel.PRIVATE
+            privateMessagePlayer = match.groups["player"]!!.value.cleanPlayerName()
+            privateMessageEnd = System.currentTimeMillis() + DM_DURATION_MS
         }
     }
 
@@ -100,7 +119,8 @@ object ChatChannelHud : Module(
     override var lastHeight: Int = 16
         private set
 
-    private val showBackground = BooleanSetting("Show Background", true)
+    private val showBackground = BooleanSetting("Show Background", false)
+    private val customFont = BooleanSetting("Custom Font", false)
 
     private val gson = Gson()
     private val saveFile: File by lazy {
@@ -161,14 +181,44 @@ object ChatChannelHud : Module(
         panelScale = (panelScale + delta).coerceIn(MIN_SCALE, MAX_SCALE)
     }
 
-    private fun currentText(): String {
+    private fun formatTime(ms: Long): String {
+        val total = max(0L, ms) / 1000
+        return "%d:%02d".format(total / 60, total % 60)
+    }
+
+    // "Chat: " green, channel in its own color, plus extra info (DM timer / party size) like SkyHanni.
+    private fun buildText(): Component {
         val channel = currentChannel
-        return if (channel == Channel.PRIVATE) "Chat: DM (${privateMessagePlayer ?: "?"})" else "Chat: ${channel.label}"
+        val root = Component.empty()
+        if (customFont.value) root.withStyle(fontStyle)
+        root.append(Component.literal("Chat: ").withStyle(ChatFormatting.GREEN))
+        when (channel) {
+            Channel.PRIVATE -> {
+                val player = privateMessagePlayer
+                root.append(Component.literal((player ?: "Unknown") + " ")
+                    .withStyle(if (player != null) ChatFormatting.GOLD else ChatFormatting.RED))
+                val left = privateMessageEnd - System.currentTimeMillis()
+                root.append(
+                    if (left <= 0) Component.literal("(EXPIRED)").withStyle(ChatFormatting.RED)
+                    else Component.literal(formatTime(left)).withStyle(ChatFormatting.AQUA)
+                )
+            }
+            Channel.PARTY -> {
+                root.append(Component.literal(channel.label).withStyle(channel.color))
+                root.append(
+                    if (!PartyApi.isInParty()) Component.literal(" (NOT IN PARTY)").withStyle(ChatFormatting.RED)
+                    // PartyApi's list doesn't include yourself.
+                    else Component.literal(" (${PartyApi.partyMembers.size + 1} members)").withStyle(ChatFormatting.GREEN)
+                )
+            }
+            else -> root.append(Component.literal(channel.label).withStyle(channel.color))
+        }
+        return root
     }
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         if (!isEnabled) return
-        if (Minecraft.getInstance().gui.screen() !is net.minecraft.client.gui.screens.ChatScreen) return
+        if (Minecraft.getInstance().screen !is net.minecraft.client.gui.screens.ChatScreen) return
         renderInternal(g)
     }
 
@@ -176,7 +226,7 @@ object ChatChannelHud : Module(
         ensureLoaded()
 
         val font = Minecraft.getInstance().font
-        val styledText: Component = Component.literal(currentText()).withStyle(fontStyle)
+        val styledText: Component = buildText()
         val textWidth = font.width(styledText)
 
         val paddingX = 8
@@ -198,13 +248,13 @@ object ChatChannelHud : Module(
 
         val textX = (width - textWidth) / 2
         val textY = (height - font.lineHeight) / 2
-        g.text(font, styledText, textX, textY, currentChannel.color.rgba)
+        g.text(font, styledText, textX, textY, 0xFFFFFFFF.toInt())
 
         g.pose().popMatrix()
     }
 
     init {
         load()
-        addSettings(showBackground)
+        addSettings(showBackground, customFont)
     }
 }

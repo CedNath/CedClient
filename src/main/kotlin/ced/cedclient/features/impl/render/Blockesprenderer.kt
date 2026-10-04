@@ -9,6 +9,13 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 
+/**
+ * Same structure as EntityESPRenderer (see that file), except box and
+ * tracer color are independently user-configurable via BlockESP's
+ * boxColor/tracerColor ColorSettings instead of one fixed accent -- blocks
+ * don't have hostile/passive/player categories to color by, so there was
+ * nothing else worth keying color off of.
+ */
 object BlockESPRenderer {
 
     fun register() {
@@ -17,42 +24,45 @@ object BlockESPRenderer {
             if (!BlockESP.boxesEnabled && !BlockESP.tracersEnabled && !BlockESP.labelsEnabled) return@AfterSolidFeatures
 
             val poseStack = context.poseStack()
-            val camera = context.gameRenderer().mainCamera()
+            val camera = context.gameRenderer().mainCamera
             val cameraPos = camera.position()
+            val bufferSource = context.bufferSource()
             val submitNodeCollector = context.submitNodeCollector()
             val cameraRenderState = context.levelState().cameraRenderState
 
-            val boxColor = BlockESP.boxColorValue
-            val tracerColor = BlockESP.tracerColorValue
-            // TODO: adjust field names (red/green/blue) if Color exposes them differently.
-            val br = boxColor.red / 255f; val bg = boxColor.green / 255f; val bb = boxColor.blue / 255f
-            val tr = tracerColor.red / 255f; val tg = tracerColor.green / 255f; val tb = tracerColor.blue / 255f
+            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
 
-            submitNodeCollector.submitCustomGeometry(poseStack, CustomRenderType.LINES_ESP) { pose, lineBuffer ->
-                for (scanned in BlockESP.scannedBlocks) {
-                    val pos = scanned.pos
+            for (scanned in BlockESP.scannedBlocks) {
+                val pos = scanned.pos
 
-                    if (BlockESP.boxesEnabled) {
-                        val box = AABB(
-                            pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
-                            pos.x + 1.0, pos.y + 1.0, pos.z + 1.0
-                        ).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-                        drawLineBox(pose, lineBuffer, box, br, bg, bb)
-                    }
-
-                    if (BlockESP.tracersEnabled) {
-                        val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                        val targetPos = Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
-                        drawLine(pose, lineBuffer, direction, targetPos.subtract(cameraPos), tr, tg, tb)
-                    }
+                if (BlockESP.boxesEnabled) {
+                    val boxColor = BlockESP.boxColorValue
+                    val box: AABB = AABB(pos).inflate(0.02).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                    drawLineBox(
+                        poseStack, lineBuffer, box,
+                        boxColor.redFloat, boxColor.greenFloat, boxColor.blueFloat, boxColor.alphaFloat
+                    )
                 }
-            }
 
-            if (BlockESP.labelsEnabled) {
-                for (scanned in BlockESP.scannedBlocks) {
+                if (BlockESP.tracersEnabled) {
+                    val tracerColor = BlockESP.tracerColorValue
+                    val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
+                    val targetPos = Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
+                    drawLine(
+                        poseStack,
+                        lineBuffer,
+                        direction,
+                        targetPos.subtract(cameraPos),
+                        tracerColor.redFloat, tracerColor.greenFloat, tracerColor.blueFloat, tracerColor.alphaFloat
+                    )
+                }
+
+                if (BlockESP.labelsEnabled) {
                     submitLabel(poseStack, submitNodeCollector, scanned, cameraPos, cameraRenderState)
                 }
             }
+
+            bufferSource.endBatch()
         })
     }
 
@@ -76,66 +86,78 @@ object BlockESPRenderer {
         )
 
         val attachment = Vec3.ZERO
-        val lightCoords = 0xF000F0
+        val lightCoords = 0xF000F0 // fullbright so labels are always legible
+        val maxDistanceSq = maxOf(64.0, scanned.distance * scanned.distance * 4.0)
 
         submitNodeCollector.submitNameTag(
-            poseStack, attachment, 0, label, true, lightCoords, cameraRenderState
+            poseStack,
+            attachment,
+            0,
+            label,
+            true, // seeThrough - show through walls
+            lightCoords,
+            maxDistanceSq,
+            cameraRenderState
         )
 
         poseStack.popPose()
     }
 
+    /** Same manual AABB-edge-drawing approach as EntityESPRenderer.drawLineBox. */
     private fun drawLineBox(
-        pose: PoseStack.Pose,
+        poseStack: PoseStack,
         buffer: VertexConsumer,
         box: AABB,
-        r: Float, g: Float, b: Float, a: Float = 1.0f
+        r: Float, g: Float, b: Float, a: Float
     ) {
         val minX = box.minX; val minY = box.minY; val minZ = box.minZ
         val maxX = box.maxX; val maxY = box.maxY; val maxZ = box.maxZ
 
-        edge(pose, buffer, minX, minY, minZ, maxX, minY, minZ, r, g, b, a)
-        edge(pose, buffer, maxX, minY, minZ, maxX, minY, maxZ, r, g, b, a)
-        edge(pose, buffer, maxX, minY, maxZ, minX, minY, maxZ, r, g, b, a)
-        edge(pose, buffer, minX, minY, maxZ, minX, minY, minZ, r, g, b, a)
+        // Bottom face
+        edge(poseStack, buffer, minX, minY, minZ, maxX, minY, minZ, r, g, b, a)
+        edge(poseStack, buffer, maxX, minY, minZ, maxX, minY, maxZ, r, g, b, a)
+        edge(poseStack, buffer, maxX, minY, maxZ, minX, minY, maxZ, r, g, b, a)
+        edge(poseStack, buffer, minX, minY, maxZ, minX, minY, minZ, r, g, b, a)
 
-        edge(pose, buffer, minX, maxY, minZ, maxX, maxY, minZ, r, g, b, a)
-        edge(pose, buffer, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b, a)
-        edge(pose, buffer, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b, a)
-        edge(pose, buffer, minX, maxY, maxZ, minX, maxY, minZ, r, g, b, a)
+        // Top face
+        edge(poseStack, buffer, minX, maxY, minZ, maxX, maxY, minZ, r, g, b, a)
+        edge(poseStack, buffer, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b, a)
+        edge(poseStack, buffer, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b, a)
+        edge(poseStack, buffer, minX, maxY, maxZ, minX, maxY, minZ, r, g, b, a)
 
-        edge(pose, buffer, minX, minY, minZ, minX, maxY, minZ, r, g, b, a)
-        edge(pose, buffer, maxX, minY, minZ, maxX, maxY, minZ, r, g, b, a)
-        edge(pose, buffer, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b, a)
-        edge(pose, buffer, minX, minY, maxZ, minX, maxY, maxZ, r, g, b, a)
+        // Vertical edges
+        edge(poseStack, buffer, minX, minY, minZ, minX, maxY, minZ, r, g, b, a)
+        edge(poseStack, buffer, maxX, minY, minZ, maxX, maxY, minZ, r, g, b, a)
+        edge(poseStack, buffer, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b, a)
+        edge(poseStack, buffer, minX, minY, maxZ, minX, maxY, maxZ, r, g, b, a)
     }
 
     private fun edge(
-        pose: PoseStack.Pose,
+        poseStack: PoseStack,
         buffer: VertexConsumer,
         x1: Double, y1: Double, z1: Double,
         x2: Double, y2: Double, z2: Double,
-        r: Float, g: Float, b: Float, a: Float = 1.0f
+        r: Float, g: Float, b: Float, a: Float
     ) {
-        drawLine(pose, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b, a)
+        drawLine(poseStack, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b, a)
     }
 
     private fun drawLine(
-        pose: PoseStack.Pose,
+        poseStack: PoseStack,
         buffer: VertexConsumer,
         from: Vec3,
         to: Vec3,
         r: Float, g: Float, b: Float, a: Float = 1.0f
     ) {
-        val matrix = pose.pose()
+        val pose = poseStack.last().pose()
         val normal = to.subtract(from).normalize()
 
-        buffer.addVertex(matrix, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
+        buffer.addVertex(pose, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
             .setColor(r, g, b, a)
             .setNormal(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
             .setLineWidth(2.0f)
 
-        buffer.addVertex(matrix, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
+        buffer.addVertex(pose, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
             .setColor(r, g, b, a)
             .setNormal(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
             .setLineWidth(2.0f)

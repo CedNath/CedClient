@@ -2,6 +2,7 @@ package ced.cedclient.mixin.render;
 
 import ced.cedclient.features.impl.funqol.PlayerScale;
 import ced.cedclient.features.impl.render.HardcodedCosmetics;
+import ced.cedclient.features.impl.render.nametag.CustomNametag;
 import ced.cedclient.features.impl.render.nametag.CustomNametagText;
 import ced.cedclient.state.CosmeticOverride;
 import ced.cedclient.state.CosmeticsSync;
@@ -24,7 +25,7 @@ public abstract class PlayerRendererMixin {
     // of scaleY above 1.0 -- e.g. 0.15 means a 2x-scaled player's tag gets
     // an extra 0.15 blocks on top of the linear v.y * scaleY term. Start
     // small and bump it up if big players' tags still sit too low.
-    private static final double EXTRA_LIFT_PER_SCALE = 0.15;
+    private static final double EXTRA_LIFT_PER_SCALE = 0.25;
 
     @Inject(
             method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
@@ -109,31 +110,53 @@ public abstract class PlayerRendererMixin {
         }
 
         /*
-         * Splice the resolved tag text into the render state's own nametag
-         * Component when an override is active, instead of suppressing
-         * vanilla's nametag and submitting a parallel one. Vanilla's
-         * submitNameDisplay() then renders the result through its own
-         * pipeline, so we get its attachment-point math, distance culling,
-         * sneak-hide, and team prefix/suffix handling for free instead of
-         * reimplementing them.
+         * Fallback splice for the in-world floating nametag. The primary
+         * path is EntityMixin's @Redirect on the this.getName() call
+         * inside Entity#getDisplayName() (see cedclient$overrideNameForDisplayName /
+         * CustomNametagText.overrideBareName()), which runs upstream of
+         * team prefix/suffix wrapping -- by the time super's (vanilla)
+         * extractRenderState() builds state.nameTag below, that override
+         * is normally already baked in and nothing further is needed.
          *
-         * CustomNametagText.transformNameTag splices over just the name
-         * portion of vanilla's already-computed nameTag (state.nameTag
-         * below), preserving whatever prefix/suffix the server attached --
-         * e.g. Hypixel's network-level prefix ("[383]") and status-icon
-         * suffix ("[<3 6]") -- rather than discarding them, which is what
-         * a full-text swap here used to do. It only falls back to a full
-         * swap itself when the matched name can't be found as literal text
-         * in state.nameTag (e.g. Hypixel SkyBlock fakes the entity's
-         * GameProfile name; see CustomNametagText's doc comment).
+         * CONFIRMED GAP: overrideBareName identifies other players by
+         * player.gameProfile.name, and SkyBlock fakes that for entities
+         * the same way it fakes it for tab-list rows -- confirmed in-game
+         * (synced tag showed correctly in tab list but not on the floating
+         * nametag for the same player). When that happens the real IGN
+         * team-wraps through untouched into state.nameTag, still present
+         * there as literal text. CustomNametagText.transformNameTagFallback
+         * reuses the same whole-line splice transformTabListName's own
+         * fallback uses to catch that case; it's a no-op if
+         * overrideBareName already handled it (the real IGN text is gone
+         * by then, so nothing matches).
          */
         if (entity instanceof Player player && state.nameTag != null) {
-            // NOTE: verify `nameTag` is still the field name on
-            // AvatarRenderState / EntityRenderState for this mapping --
-            // it's the Component vanilla's submitNameDisplay() reads to
-            // draw the floating tag.
+            // TEMP DEBUG -- gated behind CustomNametag's "Log Nametag Debug"
+            // setting; toggle it in the mod's ClickGUI (Render category).
+            // Prints the render-state nameTag's literal text BEFORE the
+            // fallback splice (this is what EntityMixin's getDisplayName()
+            // redirect already produced -- if the real IGN isn't in here as
+            // text, there's nothing for the fallback to find no matter what
+            // CosmeticsSync contains), the set of IGNs CosmeticsSync
+            // currently has loaded (confirms sync data actually arrived),
+            // and gameProfile.name() for comparison against EntityMixin's
+            // own debug line for the same entity.
+            boolean debugOn = CustomNametag.INSTANCE.getLogNametagDebug().getValue();
+            if (debugOn) {
+                System.out.println(
+                        "[CedClient NameTag DEBUG] renderState: gameProfileName=\"" + player.getGameProfile().name()
+                                + "\" nameTagBefore=\"" + state.nameTag.getString()
+                                + "\" syncedIgns=" + CosmeticsSync.INSTANCE.allTags().keySet()
+                );
+            }
             net.minecraft.network.chat.Component transformed =
-                    CustomNametagText.INSTANCE.transformNameTag(player, state.nameTag);
+                    CustomNametagText.INSTANCE.transformNameTagFallback(state.nameTag);
+            if (debugOn) {
+                System.out.println(
+                        "[CedClient NameTag DEBUG] renderState: fallbackMatched=" + (transformed != null)
+                                + " nameTagAfter=\"" + (transformed != null ? transformed.getString() : state.nameTag.getString()) + "\""
+                );
+            }
             if (transformed != null) {
                 state.nameTag = transformed;
             }

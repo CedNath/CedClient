@@ -1,8 +1,11 @@
 package ced.cedclient.mixin.chat;
 
+import ced.cedclient.utils.ChatHide;
 import ced.cedclient.events.ChatMessageEvent;
 import ced.cedclient.events.EntityMetadataEvent;
 import ced.cedclient.events.PlaySoundEvent;
+import ced.cedclient.events.SubtitleEvent;
+import ced.cedclient.events.TitleEvent;
 import ced.cedclient.features.impl.loot.LootTracker;
 import ced.cedclient.features.impl.misc.ChatFilter;
 import ced.cedclient.state.IslandState;
@@ -11,6 +14,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.world.entity.Entity;
@@ -129,6 +134,7 @@ public class ClientPacketListenerMixin {
     // ============================================================
     @Inject(method = "handleSystemChat", at = @At("HEAD"), cancellable = true)
     private void cedclient$onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        ChatHide.pending = false;
         Component content = packet.content();
         if (content == null) return;
 
@@ -148,20 +154,34 @@ public class ClientPacketListenerMixin {
         }
 
         String stripped = content.getString().replaceAll("§.", "").trim();
+        // NOTE: reward-spam and ChatFilter hiding no longer call ci.cancel() -- they set
+        // ChatHide.pending and ChatComponentMixin drops the line at display time instead, so
+        // other mods hooking handleSystemChat (NoammAddons' key/door detection) still see it.
         if (cedclient$handleRewardSpam(stripped)) {
-            ci.cancel();
+            ChatHide.pending = true;
             return;
         }
 
         if (ChatFilter.INSTANCE.shouldHide(content.getString())) {
-            // Cancelling handleSystemChat entirely also skips vanilla's own
-            // chat-log call inside ChatComponent.addMessage() (that's where
-            // the "[CHAT] ..." log lines come from), since addMessage()
-            // never runs. Log it ourselves first so filtered lines still
-            // show up in the log file -- they just won't render in-game.
+            // Hiding the line skips vanilla's own chat-log call inside
+            // ChatComponent.addMessage() (that's where the "[CHAT] ..." log
+            // lines come from), since addMessage() gets cancelled. Log it
+            // ourselves first so filtered lines still show up in the log
+            // file -- they just won't render in-game.
             System.out.println(content.getString());
-            ci.cancel();
+            if (packet.overlay()) {
+                // Action-bar text never goes through ChatComponent.addMessage, so the
+                // display-time hide below can't catch it -- cancel it the old way.
+                ci.cancel();
+            } else {
+                ChatHide.pending = true;
+            }
         }
+    }
+
+    @Inject(method = "handleSystemChat", at = @At("TAIL"))
+    private void cedclient$clearChatHide(ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        ChatHide.pending = false;
     }
 
     // ============================================================
@@ -186,5 +206,24 @@ public class ClientPacketListenerMixin {
     private void cedclient$onHandleSoundEvent(ClientboundSoundPacket packet, CallbackInfo ci) {
         String soundName = packet.getSound().value().location().toString();
         new PlaySoundEvent(soundName, packet.getPitch(), packet.getVolume()).post();
+    }
+
+    // ============================================================
+    // SUBTITLE HANDLER (posts SubtitleEvent -- Rift Dance Room "Move!" etc.)
+    // ============================================================
+    // NOTE: setSubtitleText is the Mojmap handler name and text() the record
+    // accessor on ClientboundSetSubtitleTextPacket. If either fails to resolve,
+    // Navigate > Declaration on the packet / ClientPacketListener in IntelliJ.
+    @Inject(method = "setSubtitleText", at = @At("HEAD"))
+    private void cedclient$onSetSubtitleText(ClientboundSetSubtitleTextPacket packet, CallbackInfo ci) {
+        new SubtitleEvent(packet.text().getString()).post();
+    }
+
+    // ============================================================
+    // TITLE HANDLER (posts TitleEvent -- Rift Dance Room "Punch!" etc.)
+    // ============================================================
+    @Inject(method = "setTitleText", at = @At("HEAD"))
+    private void cedclient$onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
+        new TitleEvent(packet.text().getString()).post();
     }
 }
