@@ -3,8 +3,8 @@ package ced.cedclient.ui.clickgui
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.ui.animations.EaseOutAnimation
-import ced.cedclient.ui.nvg.NVGRenderer
-import ced.cedclient.ui.nvg.NVGSpecialRenderer
+import ced.cedclient.render.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.withAlpha
 import ced.cedclient.utils.Colors

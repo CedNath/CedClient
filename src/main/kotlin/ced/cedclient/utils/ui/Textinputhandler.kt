@@ -1,6 +1,6 @@
 package ced.cedclient.utils.ui
 
-import ced.cedclient.ui.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import net.minecraft.client.Minecraft
 import net.minecraft.client.input.CharacterEvent
