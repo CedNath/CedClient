@@ -14,6 +14,7 @@ import org.lwjgl.nanovg.NanoVG.*
 import org.lwjgl.nanovg.NanoVGGL3.*
 import org.lwjgl.opengl.GL33C
 import org.lwjgl.stb.STBImage.stbi_load_from_memory
+import org.lwjgl.stb.STBImage.stbi_image_free
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.lwjgl.system.MemoryUtil.memFree
 import java.nio.ByteBuffer
@@ -384,6 +385,50 @@ object NVGRenderer {
             images.remove(image)
         }
     }
+
+    /**
+     * Creates a NanoVG image handle straight from encoded image bytes (PNG,
+     * JPG, ...) already in memory -- e.g. bytes just downloaded over HTTP,
+     * as opposed to createImage()'s classpath-resource-only [Image] type.
+     * Used by the PV Home tab's skin-face fetch, which goes around this
+     * mod's own Minecraft skin/texture classes entirely (see SkinFetcher's
+     * doc comment for why) and just needs a raw handle to draw with.
+     *
+     * The returned [RawImage] is NOT refcounted like createImage()'s Image
+     * path -- the caller owns it and must eventually pass its handle to
+     * [deleteRawImage] itself, or it leaks a GL texture.
+     *
+     * MUST be called on the render thread, same as every other NVGRenderer
+     * call -- this isn't just a draw call, it uploads a new GL texture via
+     * NanoVG (nvgCreateImageRGBA).
+     */
+    fun createImageFromMemory(bytes: ByteArray): RawImage? {
+        val encoded = memAlloc(bytes.size).put(bytes).flip() as ByteBuffer
+        try {
+            val w = IntArray(1)
+            val h = IntArray(1)
+            val channels = IntArray(1)
+            val pixels = stbi_load_from_memory(encoded, w, h, channels, 4) ?: return null
+            try {
+                val handle = nvgCreateImageRGBA(vg, w[0], h[0], 0, pixels)
+                if (handle == -1) return null
+                return RawImage(handle, w[0], h[0])
+            } finally {
+                stbi_image_free(pixels)
+            }
+        } finally {
+            memFree(encoded)
+        }
+    }
+
+    /** Frees a handle returned by [createImageFromMemory]. Safe to call with a handle of -1/0 (no-op). */
+    fun deleteRawImage(handle: Int) {
+        if (handle <= 0) return
+        nvgDeleteImage(vg, handle)
+    }
+
+    /** Handle + source-texture dimensions for an image created via [createImageFromMemory]. */
+    data class RawImage(val handle: Int, val width: Int, val height: Int)
 
     private fun getImage(image: Image): Int {
         return images[image]?.nvg ?: throw IllegalStateException("Image (${image.identifier}) doesn't exist")

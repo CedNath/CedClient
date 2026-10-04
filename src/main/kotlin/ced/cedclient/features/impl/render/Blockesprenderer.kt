@@ -24,26 +24,22 @@ object BlockESPRenderer {
 
             val boxColor = BlockESP.boxColorValue
             val tracerColor = BlockESP.tracerColorValue
-            // TODO: adjust field names (red/green/blue) if Color exposes them differently.
-            val br = boxColor.red / 255f; val bg = boxColor.green / 255f; val bb = boxColor.blue / 255f
-            val tr = tracerColor.red / 255f; val tg = tracerColor.green / 255f; val tb = tracerColor.blue / 255f
+            val br = boxColor.redFloat; val bg = boxColor.greenFloat; val bb = boxColor.blueFloat; val ba = boxColor.alphaFloat
+            val tr = tracerColor.redFloat; val tg = tracerColor.greenFloat; val tb = tracerColor.blueFloat; val ta = tracerColor.alphaFloat
 
             submitNodeCollector.submitCustomGeometry(poseStack, CustomRenderType.LINES_ESP) { pose, lineBuffer ->
                 for (scanned in BlockESP.scannedBlocks) {
                     val pos = scanned.pos
 
                     if (BlockESP.boxesEnabled) {
-                        val box = AABB(
-                            pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(),
-                            pos.x + 1.0, pos.y + 1.0, pos.z + 1.0
-                        ).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-                        drawLineBox(pose, lineBuffer, box, br, bg, bb)
+                        val box: AABB = AABB(pos).inflate(0.02).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                        drawLineBox(pose, lineBuffer, box, br, bg, bb, ba)
                     }
 
                     if (BlockESP.tracersEnabled) {
                         val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
                         val targetPos = Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
-                        drawLine(pose, lineBuffer, direction, targetPos.subtract(cameraPos), tr, tg, tb)
+                        drawLine(pose, lineBuffer, direction, targetPos.subtract(cameraPos), tr, tg, tb, ta)
                     }
                 }
             }

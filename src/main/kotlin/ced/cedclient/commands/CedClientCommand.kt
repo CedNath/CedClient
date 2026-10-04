@@ -1,12 +1,15 @@
 package ced.cedclient.commands
 
 import ced.cedclient.features.impl.funqol.CoralotHelper
+import ced.cedclient.features.impl.funqol.TinyDancerHelper
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.features.impl.misc.WarpShortcuts
+import ced.cedclient.features.impl.misc.ProfileViewer
 import ced.cedclient.ui.clickgui.ClickGUI
+import ced.cedclient.ui.pv.PvScreen
 import ced.cedclient.utils.Debug
 import ced.cedclient.features.impl.render.nametag.NametagFormatting
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -25,6 +28,9 @@ object CedClientCommand {
     @Volatile
     private var pendingOpenHudEdit = false
 
+    @Volatile
+    private var pendingOpenPv = false
+
     fun register() {
         // One persistent listener, registered once — checks the flags every
         // tick and opens the relevant screen on the tick after the command
@@ -38,6 +44,10 @@ object CedClientCommand {
             if (pendingOpenHudEdit) {
                 pendingOpenHudEdit = false
                 client.gui.setScreen(MasterHudEditScreen())
+            }
+            if (pendingOpenPv) {
+                pendingOpenPv = false
+                client.gui.setScreen(PvScreen())
             }
         }
 
@@ -77,6 +87,24 @@ object CedClientCommand {
                         )
                         1
                     }
+            )
+
+            .then(
+                ClientCommands.literal("dance")
+                    .executes { ctx ->
+                        // Singleplayer test run of TinyDancerHelper (fake beats, floor shifted to you).
+                        TinyDancerHelper.startTest()?.let {
+                            ctx.source.sendFeedback(Component.literal(it))
+                        }
+                        1
+                    }
+                    .then(
+                        ClientCommands.literal("stop")
+                            .executes { ctx ->
+                                ctx.source.sendFeedback(Component.literal(TinyDancerHelper.stopTest()))
+                                1
+                            }
+                    )
             )
 
             .then(
@@ -369,6 +397,28 @@ object CedClientCommand {
                                         1
                                     }
                             )
+                    )
+            )
+            .then(
+                // Kicks off the fetch chain (chat feedback + JsonObject caching, see
+                // ProfileViewer.fetch()) and opens PvScreen on the next tick -- the
+                // screen reads ProfileViewer's volatile fields live, so it's fine for
+                // it to already be open while the fetch is still in flight.
+                // Bare "pv" -> self, "pv <username>" -> that player.
+                ClientCommands.literal("pv")
+                    .executes { ctx ->
+                        ProfileViewer.fetch(null, ctx.source)
+                        pendingOpenPv = true
+                        1
+                    }
+                    .then(
+                        ClientCommands.argument("username", StringArgumentType.word())
+                            .executes { ctx ->
+                                val username = StringArgumentType.getString(ctx, "username")
+                                ProfileViewer.fetch(username, ctx.source)
+                                pendingOpenPv = true
+                                1
+                            }
                     )
             )
 

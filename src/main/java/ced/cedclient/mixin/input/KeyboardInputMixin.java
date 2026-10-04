@@ -1,6 +1,7 @@
 package ced.cedclient.mixin.input;
 
 
+import ced.cedclient.features.impl.funqol.TinyDancerHelper;
 import ced.cedclient.features.impl.render.Freecam;
 import ced.cedclient.mixin.accessor.ClientInputAccessor;
 import net.minecraft.client.player.KeyboardInput;
@@ -29,6 +30,16 @@ public abstract class KeyboardInputMixin {
             accessor.ced$setKeyPresses(new Input(false, false, false, false, false, false, false));
             accessor.ced$setMoveVector(Vec2.ZERO);
             return;
+        }
+
+        // Tiny Dancer helper: force the scripted key presses for this tick.
+        Input forced = TinyDancerHelper.overrideInput();
+        if (forced != null) {
+            accessor.ced$setKeyPresses(forced);
+            float forward = (forced.forward() ? 1.0F : 0.0F) - (forced.backward() ? 1.0F : 0.0F);
+            float left = (forced.left() ? 1.0F : 0.0F) - (forced.right() ? 1.0F : 0.0F);
+            // Only one direction is held at a time, so no diagonal normalisation needed.
+            accessor.ced$setMoveVector(new Vec2(left, forward));
         }
     }
 }
