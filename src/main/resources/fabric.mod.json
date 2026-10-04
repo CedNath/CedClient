@@ -3,13 +3,9 @@
   "id": "cedclient",
   "version": "${version}",
   "name": "CedClient",
-  "description": "Nametags, cooldowns, ESP and helpers for Hypixel SkyBlock.",
+  "description": "",
   "authors": ["CedNath"],
-  "contact": {
-    "homepage": "https://cedclient.kasajonny420-dab.workers.dev/",
-    "sources": "https://github.com/CedNath/CedClient",
-    "issues": "https://github.com/CedNath/CedClient/issues"
-  },
+  "contact": {},
   "license": "All-Rights-Reserved",
   "icon": "assets/icons/CedClient.png",
   "environment": "client",

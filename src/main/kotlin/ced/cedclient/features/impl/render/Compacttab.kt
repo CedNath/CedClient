@@ -9,21 +9,13 @@ import ced.cedclient.mixin.accessor.PlayerTabOverlayAccessor
 import ced.cedclient.utils.PingTracker
 import ced.cedclient.utils.TabListCache
 import ced.cedclient.utils.TpsTracker
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
-import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.PlayerFaceExtractor
 import net.minecraft.client.gui.components.PlayerTabOverlay
 import net.minecraft.client.multiplayer.PlayerInfo
-import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.FormattedText
-import net.minecraft.network.chat.MutableComponent
-import net.minecraft.network.chat.Style
 import net.minecraft.world.scores.DisplaySlot
-import java.util.Optional
 import java.util.regex.Pattern
 import kotlin.math.max
 import kotlin.math.min
@@ -40,18 +32,12 @@ object CompactTab : Module(
     "Compact Tab",
     Category.Render,
     "Reorganizes Hypixel's tab list into a compact panel with a stat bar",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
 
     private val opacity = registerSetting(NumberSetting("Panel Opacity", 65.0, 0.0, 100.0, 1.0))
     private val statBar = registerSetting(BooleanSetting("Stat Bar", true))
     private val statBarPos = registerSetting(DropdownSetting("Stat Bar Position", listOf("TOP", "BOTTOM", "LEFT", "RIGHT"), "TOP"))
-    private val effectsPanel = registerSetting(
-        BooleanSetting(
-            "Effects Panel", true,
-            "Shows the Active Effects / Cookie Buff info from Hypixel's tab footer in a compact panel under the tab list"
-        )
-    )
 
     private const val BG_RGB = 0x0B0D13
     private fun bgPanel(): Int {
@@ -70,18 +56,6 @@ object CompactTab : Module(
 
     private val COL_KEY: Pattern = Pattern.compile("^!([A-Za-z])")
     private val SERVER_ID: Pattern = Pattern.compile("\\b((?:mini|mega|m)\\d+[A-Za-z]{1,3})\\b")
-
-    init {
-        // Drives the real-ping probe (PingTracker) -- only while the module is on.
-        ClientTickEvents.END_CLIENT_TICK.register { client ->
-            if (isEnabled) PingTracker.tick(client)
-        }
-        // Don't carry the previous server's ping/TPS over to the next one.
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
-            PingTracker.reset()
-            TpsTracker.reset()
-        }
-    }
 
     private var shouldRenderVersion = -1
     private var shouldRenderCached = false
@@ -110,10 +84,9 @@ object CompactTab : Module(
 
         val acc = overlay as PlayerTabOverlayAccessor
         val header = acc.`ced$getHeader`()?.string
-        val footerComp = acc.`ced$getFooter`()
-        val footer = footerComp?.string
+        val footer = acc.`ced$getFooter`()?.string
 
-        val mdl = model(mc, overlay, header, footer, footerComp) ?: return
+        val mdl = model(mc, overlay, header, footer) ?: return
         val columns = mdl.columns
         val colWidths = mdl.colWidths
         val rows = mdl.rows
@@ -151,7 +124,6 @@ object CompactTab : Module(
             roundRect(ctx, x0, y0, x0 + w, y0 + tabH, bgPanel())
             drawColumns(ctx, overlay, tr, columns, colWidths, x0 + pad, y0 + topPad, rows, gap, lh)
             centeredText(ctx, tr, mdl.footer, x0 + w / 2, y0 + tabH - footH + 2, GOLD)
-            drawEffects(ctx, tr, mdl, x0, w, y0 + tabH + boxGap / 2)
             return
         }
 
@@ -184,7 +156,6 @@ object CompactTab : Module(
                 val lw = tr.width("\u00A77" + labels[i] + " ")
                 ctx.text(tr, values[i], statX0 + 8 + lw, sy, valueColor(i))
             }
-            drawEffects(ctx, tr, mdl, x0, w, y0 + tabH + boxGap / 2)
         } else {
             val statBarH = 32
             val gapTB = 4
@@ -208,53 +179,6 @@ object CompactTab : Module(
                 centeredText(ctx, tr, "\u00A77" + labels[i], cxC, statY0 + 7, LABEL)
                 centeredText(ctx, tr, values[i], cxC, statY0 + 18, valueColor(i))
             }
-            val groupBottom = if (bottom) statY0 + statBarH else tabY0 + tabH
-            drawEffects(ctx, tr, mdl, x0, w, groupBottom + gapTB)
-        }
-    }
-
-    /**
-     * Slim effects bar under the tab list: same width as the tab group, one cell per effect
-     * ("God Potion: 2 days", "Cookie Buff: 2 hours", ...) spread evenly across it with dividers,
-     * like the stat bar. If there are too many to fit on one line they wrap onto extra rows.
-     */
-    private fun drawEffects(ctx: GuiGraphicsExtractor, tr: Font, mdl: Model, x0: Int, w: Int, topY: Int) {
-        if (!effectsPanel.value) return
-        val entries = mdl.effects
-        if (entries.isEmpty()) return
-
-        val pad = 8
-        val minGap = 16
-        val rowPitch = 12
-        val innerW = w - pad * 2
-
-        val rows = ArrayList<List<Component>>()
-        var cur = ArrayList<Component>()
-        var curW = 0
-        for (e in entries) {
-            val ew = tr.width(e)
-            if (cur.isNotEmpty() && curW + minGap + ew > innerW) {
-                rows.add(cur)
-                cur = ArrayList()
-                curW = 0
-            }
-            curW += if (cur.isEmpty()) ew else minGap + ew
-            cur.add(e)
-        }
-        if (cur.isNotEmpty()) rows.add(cur)
-
-        val panelH = rows.size * rowPitch + 6
-        roundRect(ctx, x0, topY, x0 + w, topY + panelH, bgPanel())
-
-        for ((ri, row) in rows.withIndex()) {
-            val cellW = w / row.size
-            val ty = topY + 4 + ri * rowPitch
-            for ((ci, entry) in row.withIndex()) {
-                val cellX = x0 + ci * cellW
-                if (ci > 0) ctx.fill(cellX, ty - 1, cellX + 1, ty + 9, DIVIDER)
-                val ew = tr.width(entry)
-                ctx.text(tr, entry, cellX + (cellW - ew) / 2, ty, NAME)
-            }
         }
     }
 
@@ -264,7 +188,6 @@ object CompactTab : Module(
         val rows: Int,
         val server: String,
         val footer: String,
-        val effects: List<Component>,
     )
 
     private var modelVersion = -1
@@ -273,18 +196,18 @@ object CompactTab : Module(
 
     /** Rebuilt only when TabListCache.version bumps or the header/footer text changes -- avoids
      *  re-sorting/re-grouping every single frame while Tab is held. */
-    private fun model(mc: Minecraft, overlay: PlayerTabOverlay, header: String?, footer: String?, footerComp: Component?): Model? {
+    private fun model(mc: Minecraft, overlay: PlayerTabOverlay, header: String?, footer: String?): Model? {
         val v = TabListCache.version
         val hf = (header ?: "") + "\u0000" + (footer ?: "")
         val cached = cachedModel
         if (cached != null && v == modelVersion && hf == modelHeaderFooterSig) return cached
         modelVersion = v
         modelHeaderFooterSig = hf
-        cachedModel = buildModel(mc, overlay, header, footer, footerComp)
+        cachedModel = buildModel(mc, overlay, header, footer)
         return cachedModel
     }
 
-    private fun buildModel(mc: Minecraft, overlay: PlayerTabOverlay, header: String?, footer: String?, footerComp: Component?): Model? {
+    private fun buildModel(mc: Minecraft, overlay: PlayerTabOverlay, header: String?, footer: String?): Model? {
         val tr = mc.font
         val all = ArrayList(TabListCache.entries.map { it.info })
         all.sortWith(Comparator { a, b -> a.profile.name.compareTo(b.profile.name, ignoreCase = true) })
@@ -324,7 +247,7 @@ object CompactTab : Module(
         if (columns.isEmpty()) return null
         rows = min(rows, 22)
 
-        return Model(columns, colWidths, rows, findServer(mc, footer, header), footerLine(footer), effectEntries(footerComp))
+        return Model(columns, colWidths, rows, findServer(mc, footer, header), footerLine(footer))
     }
 
     private fun drawColumns(
@@ -395,7 +318,7 @@ object CompactTab : Module(
         if (live > 0) return live
         try {
             val self = mc.connection?.getPlayerInfo(mc.player!!.uuid)
-            if (self != null && self.latency > 1) return self.latency // Hypixel pins this at 1, so ignore it
+            if (self != null && self.latency > 0) return self.latency
         } catch (ignored: Exception) {
         }
         try {
@@ -422,135 +345,6 @@ object CompactTab : Module(
         }
         val m = SERVER_ID.matcher(hay)
         return if (m.find()) m.group(1) else "-"
-    }
-
-    /** Splits a (styled) component into lines at '\n', keeping each piece's colors/formatting. */
-    private fun splitLines(c: Component): List<Component> {
-        val lines = ArrayList<MutableComponent>()
-        var cur: MutableComponent = Component.empty()
-        c.visit(FormattedText.StyledContentConsumer<Unit> { style, text ->
-            val parts = text.split("\n")
-            for ((i, part) in parts.withIndex()) {
-                if (i > 0) {
-                    lines.add(cur)
-                    cur = Component.empty()
-                }
-                if (part.isNotEmpty()) cur.append(Component.literal(part).setStyle(style))
-            }
-            Optional.empty()
-        }, Style.EMPTY)
-        lines.add(cur)
-        return lines
-    }
-
-    /** The part of [c] between plain-text offsets [from, to), keeping each piece's colors/formatting. */
-    private fun slice(c: Component, from: Int, to: Int): Component {
-        val out: MutableComponent = Component.empty()
-        var pos = 0
-        c.visit(FormattedText.StyledContentConsumer<Unit> { style, text ->
-            val start = max(from, pos)
-            val end = min(to, pos + text.length)
-            if (start < end) out.append(Component.literal(text.substring(start - pos, end - pos)).setStyle(style))
-            pos += text.length
-            Optional.empty()
-        }, Style.EMPTY)
-        return out
-    }
-
-    private val GOD_POT: Pattern = Pattern.compile("^You have an? (.+?) active!\\s*(.*)$")
-    private val NON_GOD: Pattern = Pattern.compile("^You have (\\d+) non-god effects?\\.?$")
-
-    private fun entry(label: Component, value: Component): Component {
-        if (value.string.isBlank()) return label
-        return Component.empty()
-            .append(label)
-            .append(Component.literal(": ").withStyle(ChatFormatting.GRAY))
-            .append(value)
-    }
-
-    /** One footer line from the "Active Effects" block -> one compact "Name: time" entry (or null to drop it). */
-    private fun parseEffectLine(line: Component): Component? {
-        val raw = line.string
-        val lead = raw.length - raw.trimStart().length
-        val text = raw.trim()
-        if (text.isEmpty() || text.contains("/effects")) return null
-
-        val god = GOD_POT.matcher(text)
-        if (god.matches()) {
-            return entry(
-                slice(line, lead + god.start(1), lead + god.end(1)),
-                slice(line, lead + god.start(2), lead + god.end(2))
-            )
-        }
-        val nonGod = NON_GOD.matcher(text)
-        if (nonGod.matches()) {
-            return entry(
-                Component.literal("Effects").withStyle(ChatFormatting.GRAY),
-                slice(line, lead + nonGod.start(1), lead + nonGod.end(1))
-            )
-        }
-        // generic "<name> <time>", e.g. "Celestial Mason Jar I 6d"
-        val sp = text.lastIndexOf(' ')
-        if (sp > 0 && text.substring(sp + 1).any { it.isDigit() }) {
-            return entry(slice(line, lead, lead + sp), slice(line, lead + sp + 1, lead + text.length))
-        }
-        return slice(line, lead, lead + text.length)
-    }
-
-    /**
-     * Footer -> compact entries. Sections are split on blank lines: the "Active Effects" block
-     * becomes one entry per line (God Potion, effect count, jars, ...), every other block
-     * (e.g. "Cookie Buff") becomes "Header: first sentence of its body". Hypixel store/server
-     * brand lines and the "/effects" hint are dropped.
-     */
-    private fun effectEntries(footer: Component?): List<Component> {
-        if (footer == null) return emptyList()
-
-        val sections = ArrayList<List<Component>>()
-        var cur = ArrayList<Component>()
-        for (line in splitLines(footer)) {
-            val plain = BLANK_COLOR.matcher(line.string).replaceAll("")
-            val upper = plain.uppercase()
-            val isBlank = BLANK_INVISIBLE.matcher(plain).replaceAll("").isEmpty()
-            // drops the store advert and the server brand line (e.g. ALPHA.HYPIXEL.NET) -- useless info
-            if (!isBlank && (upper.contains("HYPIXEL.NET") || upper.contains("RANKS, BOOSTERS"))) continue
-            if (isBlank) {
-                if (cur.isNotEmpty()) {
-                    sections.add(cur)
-                    cur = ArrayList()
-                }
-            } else {
-                cur.add(line)
-            }
-        }
-        if (cur.isNotEmpty()) sections.add(cur)
-
-        val out = ArrayList<Component>()
-        for (sec in sections) {
-            val header = sec[0]
-            val headerRaw = header.string
-            val headerLead = headerRaw.length - headerRaw.trimStart().length
-            val headerText = headerRaw.trim()
-            val label = slice(header, headerLead, headerLead + headerText.length)
-            val body = sec.drop(1)
-
-            if (headerText.equals("Active Effects", ignoreCase = true)) {
-                for (line in body) parseEffectLine(line)?.let { out.add(it) }
-            } else if (body.isEmpty()) {
-                out.add(label)
-            } else {
-                for (line in body) {
-                    val raw = line.string
-                    val lead = raw.length - raw.trimStart().length
-                    val text = raw.trim()
-                    if (text.isEmpty()) continue
-                    // "Not active! Obtain ..." -> "Not active"; plain times have no punctuation.
-                    val cut = text.indexOfFirst { it == '!' || it == '.' }.let { if (it < 0) text.length else it }
-                    out.add(entry(label, slice(line, lead, lead + cut)))
-                }
-            }
-        }
-        return out
     }
 
     private fun footerLine(footer: String?): String {

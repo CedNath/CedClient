@@ -28,13 +28,7 @@ repositories {
     maven { url = uri("https://api.modrinth.com/maven") }
     maven { url = uri("https://maven.terraformersmc.com/") }
 }
-loom {
-    runs {
-        named("client") {
-            vmArg("-Ddevauth.enabled=1")
-        }
-    }
-}
+
 dependencies {
     minecraft("com.mojang:minecraft:${property("minecraft_version")}")
 
@@ -46,7 +40,7 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl-nanovg:3.4.1:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-nanovg:3.4.1:natives-linux")
     runtimeOnly("org.lwjgl:lwjgl-nanovg:3.4.1:natives-macos")
-    localRuntime("maven.modrinth:dev-auth-neo:1.1.0")
+
 }
 
 tasks.processResources {

@@ -135,13 +135,13 @@ private data class SavedState(
  * regardless of where the client is running.
  */
 object DailyReset : Module(
-    "Daily Tasks",
+    "Daily Reset",
     Category.Misc,
     "Checklist of SkyBlock dailies -- known ones tick themselves off automatically, plus a manual list for anything else. Clears at Hypixel's daily reset (midnight ET).",
-    defaultEnabled = false
+    defaultEnabled = true
 ), HudElement {
 
-    override val label: String = "Daily Tasks"
+    override val label: String = "Daily Reset"
 
     private const val MIN_SCALE = 0.5f
     private const val MAX_SCALE = 3.0f
@@ -472,7 +472,9 @@ object DailyReset : Module(
         // local-only notices (e.g. "Please select a Realm"), so it never
         // touches the server and is never mistaken for a real chat/command
         // line by anything else listening on ChatMessageEvent.
-        val chat = Minecraft.getInstance().gui?.chat ?: return
+        // 26.2: Gui#getChat moved to Hud#getChat -- chat access now goes
+        // through gui.hud rather than directly off Gui.
+        val chat = Minecraft.getInstance().gui?.hud?.chat ?: return
         val message = Component.literal("[CedClient] ")
             .withStyle(Style.EMPTY.withColor(PREFIX_COLOR).withBold(true))
             .append(

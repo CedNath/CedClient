@@ -8,22 +8,19 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer
 import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState
-import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.SubmitNodeCollector
 import org.joml.Matrix3x2f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL13
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33C
 
-class NVGSpecialRenderer(
-    vertexConsumers: MultiBufferSource.BufferSource
-) : PictureInPictureRenderer<NVGSpecialRenderer.NVGRenderState>(vertexConsumers) {
-
+class NVGSpecialRenderer : PictureInPictureRenderer<NVGSpecialRenderer.NVGRenderState>() {
     // Cache one FBO per (colorTex, depthTex) glId pair, since DirectStateAccess
     // (Mojang's internal FBO cache) is no longer reachable from public API.
     private val fboCache = HashMap<Pair<Int, Int>, Int>()
 
-    override fun renderToTexture(state: NVGRenderState, poseStack: PoseStack) {
+    override fun renderToTexture(state: NVGRenderState, poseStack: PoseStack, submitNodeCollector: SubmitNodeCollector) {
         val colorTexView = RenderSystem.outputColorTextureOverride ?: return
         val depthTexView = RenderSystem.outputDepthTextureOverride ?: return
 
@@ -135,7 +132,7 @@ class NVGSpecialRenderer(
 
 
         GlStateManager._disableDepthTest()
-        GlStateManager._enableBlend()
+        GlStateManager._enableBlend(0)
         GlStateManager._blendFuncSeparate(770, 771, 1, 0)
     }
 

@@ -567,12 +567,12 @@ object PangolinCatcher : Module(
             }
 
             if (showTitle.value) {
-                mc.gui.setTitle(
+                mc.gui.hud.setTitle(
                     Component.literal(
                         titleText.replace('&', '\u00A7')
                     )
                 )
-                mc.gui.setTimes(5, 40, 10)
+                mc.gui.hud.setTimes(5, 40, 10)
             }
 
             stopAndReset()
@@ -592,8 +592,8 @@ object PangolinCatcher : Module(
 
     private fun onSessionComplete() {
         if (showTitle.value) {
-            mc.gui.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
-            mc.gui.setTimes(5, 40, 10)
+            mc.gui.hud.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
+            mc.gui.hud.setTimes(5, 40, 10)
         }
 
         if (debugLog.value) println("[PangolinCatcher] Session-complete → stopAndReset()")

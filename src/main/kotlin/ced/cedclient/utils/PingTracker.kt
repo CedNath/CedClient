@@ -1,24 +1,7 @@
 package ced.cedclient.utils
 
-import net.minecraft.client.Minecraft
-import net.minecraft.network.protocol.ping.ServerboundPingRequestPacket
-
-/**
- * Measures real round-trip time by sending vanilla's own ping request packet and timing the
- * pong that comes back (see PingPongMixin). Needed on Hypixel because the tab-list latency
- * there is stuck at ~1ms, so PlayerInfo#getLatency() can't be used.
- *
- * tick() must be called once per client tick while the ping display is wanted (CompactTab
- * does this while enabled); PingPongMixin calls onPong() when the response arrives.
- */
+/** Computes RTT from the vanilla ping/pong packets so it's accurate on proxied servers like Hypixel, unlike a TCP-edge probe. */
 object PingTracker {
-
-    private const val PROBE_INTERVAL_TICKS = 40 // one probe every ~2s
-    private const val PROBE_TIMEOUT_MS = 5_000L
-
-    @Volatile
-    private var pendingSentAt = 0L
-    private var ticksSinceProbe = 0
 
     @Volatile
     private var latestMs: Int = -1
@@ -41,36 +24,9 @@ object PingTracker {
         return latestMs
     }
 
-    /** Sends a ping request every [PROBE_INTERVAL_TICKS] ticks, one in flight at a time. */
-    @JvmStatic
-    fun tick(mc: Minecraft) {
-        val conn = mc.connection
-        if (conn == null || mc.player == null) return
-
-        val now = System.currentTimeMillis()
-        if (pendingSentAt > 0 && now - pendingSentAt > PROBE_TIMEOUT_MS) pendingSentAt = 0 // lost, try again
-        if (pendingSentAt > 0) return
-        if (++ticksSinceProbe < PROBE_INTERVAL_TICKS) return
-
-        ticksSinceProbe = 0
-        pendingSentAt = now
-        conn.send(ServerboundPingRequestPacket(now))
-    }
-
-    /** Called from PingPongMixin when a ClientboundPongResponsePacket arrives. */
-    @JvmStatic
-    fun onPong() {
-        val sent = pendingSentAt
-        if (sent <= 0) return // not ours (e.g. vanilla's F3 ping chart)
-        pendingSentAt = 0
-        pushRtt(System.currentTimeMillis() - sent)
-    }
-
     @JvmStatic
     fun reset() {
         latestMs = -1
         updatedAt = 0
-        pendingSentAt = 0
-        ticksSinceProbe = 0
     }
 }
