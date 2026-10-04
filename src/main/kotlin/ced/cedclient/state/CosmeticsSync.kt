@@ -25,8 +25,16 @@ data class CosmeticOverride(
 )
 
 /**
- * Pulls a { ign -> CosmeticOverride } map from a cosmetics.json file living
- * in a public GitHub repo, and keeps it applied live.
+ * Pulls a { ign -> CosmeticOverride } map and keeps it applied live.
+ *
+ * SOURCES, in order:
+ *   1. The CedClient Cloudflare Worker (GET /cosmetics) -- edited from the owner
+ *      dashboard. Answers with 304 when nothing changed. Anything it sends is treated
+ *      as untrusted: IGNs must look like IGNs, tags are length-limited and stripped of
+ *      control characters, and sizes are clamped to 0.1..5.0.
+ *   2. The GitHub cosmetics.json described below -- used only when the Worker is
+ *      unreachable, errors, answers 404 (nothing published yet) or sends invalid data.
+ *      Behaves exactly as before.
  *
  * Replaces the old ntfy.sh long-lived stream. That design's weak point was
  * write access: the ntfy topic was just a shared string baked into the jar,
@@ -68,6 +76,18 @@ object CosmeticsSync {
 
     private const val POLL_INTERVAL_SECONDS = 60L
 
+    // Primary source. The Worker answers 304 for an unchanged map, so a slower poll
+    // keeps a long-running client far inside Cloudflare's free request limit.
+    private const val WORKER_URL = "https://cedclient.kasajonny420-dab.workers.dev/cosmetics"
+    private const val WORKER_POLL_INTERVAL_SECONDS = 180L
+
+    // Limits applied to anything that comes from the Worker (it also enforces them).
+    private const val MAX_TAG_LENGTH = 128
+    private const val MIN_SCALE = 0.1f
+    private const val MAX_SCALE = 5.0f
+    private const val MAX_WORKER_BODY_CHARS = 1_000_000
+    private val ignPattern = Regex("^\\w{1,16}$")
+
     private val gson = Gson()
 
     // Replaced wholesale (never clear()+putAll()) so the render thread can
@@ -97,6 +117,10 @@ object CosmeticsSync {
     // don't count against GitHub's unauthenticated rate limit (60/h).
     @Volatile
     private var lastEtag: String? = null
+
+    // ETag of the last Worker response (sent back as If-None-Match -> 304 when unchanged).
+    @Volatile
+    private var lastWorkerEtag: String? = null
 
     // Serialises polls so the background loop and a forced sync can't race.
     private val pollLock = Any()
@@ -139,27 +163,88 @@ object CosmeticsSync {
     fun allTags(): Map<String, String> =
         overridesMap.mapNotNull { (ign, override) -> override.tag?.let { ign to it } }.toMap()
 
+    /**
+     * Cheap change detector for hot paths: overridesMap is only ever replaced wholesale, so
+     * this returns a different object whenever the synced data changes and the same object
+     * otherwise. Compare with === instead of rebuilding allTags() every frame.
+     */
+    fun tagsSnapshot(): Any = overridesMap
+
     private fun pollLoop() {
         while (true) {
+            var viaWorker = false
             try {
-                pollOnce(force = false)
+                viaWorker = pollOnce(force = false)
             } catch (t: Throwable) {
                 println("CedClient cosmetics sync: poll failed (${t.message}), will retry")
             }
 
             try {
-                Thread.sleep(POLL_INTERVAL_SECONDS * 1000)
+                // Poll faster while on the GitHub fallback so it recovers/updates as before.
+                val seconds = if (viaWorker) WORKER_POLL_INTERVAL_SECONDS else POLL_INTERVAL_SECONDS
+                Thread.sleep(seconds * 1000)
             } catch (_: InterruptedException) {
                 return
             }
         }
     }
 
-    private fun pollOnce(force: Boolean) {
-        synchronized(pollLock) { pollOnceLocked(force) }
+    /** Returns true if the Worker supplied (or confirmed) the data, false if GitHub was used. */
+    private fun pollOnce(force: Boolean): Boolean {
+        return synchronized(pollLock) {
+            if (pollWorker(force)) {
+                true
+            } else {
+                pollGithubLocked(force)
+                false
+            }
+        }
     }
 
-    private fun pollOnceLocked(force: Boolean) {
+    /** True = the Worker answered with usable data (new, or 304 unchanged). */
+    private fun pollWorker(force: Boolean): Boolean {
+        val builder = HttpRequest.newBuilder()
+            .uri(URI.create(WORKER_URL))
+            .timeout(Duration.ofSeconds(10))
+            .header("Accept", "application/json")
+            .header("User-Agent", "CedClient")
+            .GET()
+
+        if (!force) lastWorkerEtag?.let { builder.header("If-None-Match", it) }
+
+        val response = try {
+            client.send(builder.build(), HttpResponse.BodyHandlers.ofString())
+        } catch (e: InterruptedException) {
+            throw e
+        } catch (t: Throwable) {
+            println("CedClient cosmetics sync: Worker unreachable (${t.message}), using GitHub")
+            return false
+        }
+
+        return when (response.statusCode()) {
+            200 -> {
+                val body = response.body()
+                val etag = response.headers().firstValue("ETag").orElse(null)
+                if (applyPayload(body, "cloudflare worker", fromWorker = true)) {
+                    lastWorkerEtag = etag
+                    true
+                } else {
+                    false
+                }
+            }
+            304 -> true
+            404 -> {
+                // Nothing published on the Worker yet -- GitHub stays the source.
+                false
+            }
+            else -> {
+                println("CedClient cosmetics sync: Worker returned HTTP ${response.statusCode()}, using GitHub")
+                false
+            }
+        }
+    }
+
+    private fun pollGithubLocked(force: Boolean) {
         val builder = HttpRequest.newBuilder()
             .uri(URI.create(API_URL))
             .timeout(Duration.ofSeconds(15))
@@ -220,8 +305,25 @@ object CosmeticsSync {
         }
     }
 
-    /** Returns true if the payload was valid and applied. */
-    private fun applyPayload(payload: String, source: String): Boolean {
+    /** Strips control characters / section signs and limits length. Null = no tag. */
+    private fun cleanTag(raw: String): String? {
+        val t = raw.filter { it >= ' ' && it != '\u007f' && it != '\u00a7' }.trim().take(MAX_TAG_LENGTH)
+        return t.ifEmpty { null }
+    }
+
+    private fun clampScale(v: Float): Float =
+        if (v.isNaN() || v.isInfinite()) 1f else v.coerceIn(MIN_SCALE, MAX_SCALE)
+
+    /**
+     * Returns true if the payload was valid and applied.
+     * [fromWorker] payloads are treated as untrusted and sanitised (see class doc).
+     */
+    private fun applyPayload(payload: String, source: String, fromWorker: Boolean = false): Boolean {
+        if (fromWorker && payload.length > MAX_WORKER_BODY_CHARS) {
+            println("CedClient cosmetics sync: Worker payload too large, ignoring it")
+            return false
+        }
+
         val parsed = try {
             JsonParser.parseString(payload).asJsonObject
         } catch (t: Throwable) {
@@ -232,12 +334,18 @@ object CosmeticsSync {
         val newMap = HashMap<String, CosmeticOverride>()
         for ((ign, value) in parsed.entrySet()) {
             try {
+                if (fromWorker && !ignPattern.matches(ign)) continue
                 val obj = value.asJsonObject
+                val rawTag = obj.get("tag")?.takeIf { !it.isJsonNull }?.asString
+                fun axis(name: String): Float {
+                    val v = obj.get(name)?.takeIf { !it.isJsonNull }?.asFloat ?: 1f
+                    return if (fromWorker) clampScale(v) else v
+                }
                 newMap[ign.lowercase()] = CosmeticOverride(
-                    tag = obj.get("tag")?.takeIf { !it.isJsonNull }?.asString,
-                    scaleX = obj.get("scaleX")?.asFloat ?: 1f,
-                    scaleY = obj.get("scaleY")?.asFloat ?: 1f,
-                    scaleZ = obj.get("scaleZ")?.asFloat ?: 1f
+                    tag = if (fromWorker) rawTag?.let { cleanTag(it) } else rawTag,
+                    scaleX = axis("scaleX"),
+                    scaleY = axis("scaleY"),
+                    scaleZ = axis("scaleZ")
                 )
             } catch (t: Throwable) {
                 // One malformed entry shouldn't throw away everyone else's.
@@ -246,6 +354,14 @@ object CosmeticsSync {
         }
 
         overridesMap = newMap // atomic swap
+        // Whichever source just applied owns the "unchanged" bookkeeping; the other one
+        // must re-download in full the next time it takes over.
+        if (fromWorker) {
+            lastBody = null
+            lastEtag = null
+        } else {
+            lastWorkerEtag = null
+        }
         saveCache()
         println("CedClient cosmetics sync: applied update for ${newMap.size} name(s) (${source})")
         return true

@@ -57,10 +57,11 @@ object Freecam : Module(
             // Safety: if module disabled externally, do nothing
             if (!isEnabled) return@register
 
-            // If we lost player or level (left server / world unloaded), disable freecam
-            // This covers "leave server" reliably across versions.
+            // If we lost player or level (left server / world unloaded), only disengage the
+            // camera detachment. The module itself stays enabled -- calling toggle() here
+            // used to disable it and persist that to the config, so it came back off on rejoin.
             if (mc.player == null || mc.level == null) {
-                if (isEnabled) toggle()
+                disengage()
                 return@register
             }
 
@@ -72,9 +73,17 @@ object Freecam : Module(
         }
 
         // When the client is stopping (quit game), ensure freecam is turned off
-        ClientLifecycleEvents.CLIENT_STOPPING.register { client ->
-            if (isEnabled) toggle()
+        // Same as above: restore the camera, but don't flip (and save) the enabled state.
+        ClientLifecycleEvents.CLIENT_STOPPING.register { _ ->
+            disengage()
         }
+    }
+
+    /** Drops out of freecam (restores the camera) without touching the module's enabled state. */
+    private fun disengage() {
+        if (!active) return
+        active = false
+        stopFreecam()
     }
 
     override fun onEnable() {

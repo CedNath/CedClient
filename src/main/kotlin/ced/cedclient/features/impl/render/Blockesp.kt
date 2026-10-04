@@ -131,9 +131,9 @@ object BlockESP : Module(
     }
 
     fun blockName(name: String) { blockedNames.add(name); saveFilters() }
-    fun unblockName(name: String) { blockedNames.removeAll { it.equals(name, ignoreCase = true) }; saveFilters() }
+    fun unblockName(name: String) { blockedNames.removeIf { it.equals(name, ignoreCase = true) }; saveFilters() }
     fun onlyName(name: String) { onlyNames.add(name); saveFilters() }
-    fun unOnlyName(name: String) { onlyNames.removeAll { it.equals(name, ignoreCase = true) }; saveFilters() }
+    fun unOnlyName(name: String) { onlyNames.removeIf { it.equals(name, ignoreCase = true) }; saveFilters() }
     fun clearOnly() { onlyNames.clear(); saveFilters() }
     fun clearBlocked() { blockedNames.clear(); saveFilters() }
 

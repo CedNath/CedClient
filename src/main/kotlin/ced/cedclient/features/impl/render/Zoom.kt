@@ -24,7 +24,8 @@ import net.minecraft.client.Minecraft
 object Zoom : Module(
     "Zoom",
     Category.Render,
-    description = "Hold the zoom key to zoom in, scroll while zooming to zoom further."
+    description = "Hold the zoom key to zoom in, scroll while zooming to zoom further.",
+    defaultEnabled = false
 ) {
     private val maxZoom = NumberSetting(
         "Max Zoom", 16.0, 2.0, 50.0, 1.0,

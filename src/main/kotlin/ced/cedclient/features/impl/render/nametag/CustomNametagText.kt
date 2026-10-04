@@ -65,7 +65,54 @@ object CustomNametagText {
      * on servers that don't do the fake-name trick for other players' rows.
      */
     fun transformTabListName(profileName: String, profileId: java.util.UUID?, original: Component): Component? {
-        if (HardcodedCosmetics.isEnabled) {
+        val r = currentReplacements()
+
+        // Nothing configured (no synced tags, no own tag) -> nothing to do. This is the common
+        // case and must cost next to nothing: the tab list calls this for every row, every frame.
+        val ownTagActive = r.nametagOn && r.ownTag.isNotBlank()
+        if (r.cosmetics.isEmpty() && !ownTagActive) return null
+
+        // Rows are re-requested every frame with an identical (structurally equal) component, so
+        // remember the answer instead of re-running the regex matching + splicing each time.
+        val localId = Minecraft.getInstance().player?.uuid
+        val key = TabKey(original, profileName, profileId, localId)
+        synchronized(tabResultCache) {
+            if (tabCacheOwner !== r || tabResultCache.size > TAB_CACHE_MAX) {
+                tabResultCache.clear()
+                tabCacheOwner = r
+            }
+            tabResultCache[key]?.let { return it.value }
+        }
+
+        val result = computeTabListName(r, profileName, profileId, original)
+
+        synchronized(tabResultCache) {
+            if (tabCacheOwner === r) tabResultCache[key] = TabResult(result)
+        }
+        return result
+    }
+
+    private data class TabKey(
+        val original: Component,
+        val name: String,
+        val id: java.util.UUID?,
+        val localId: java.util.UUID?
+    )
+
+    /** Wrapper so a cached "no override" (null) can be told apart from "not cached yet". */
+    private class TabResult(val value: Component?)
+
+    private val tabResultCache = HashMap<TabKey, TabResult>()
+    private var tabCacheOwner: Replacements? = null
+    private const val TAB_CACHE_MAX = 1024
+
+    private fun computeTabListName(
+        r: Replacements,
+        profileName: String,
+        profileId: java.util.UUID?,
+        original: Component
+    ): Component? {
+        if (r.cosmeticsOn) {
             // Direct match: works wherever the server sends a real profile name.
             CosmeticsSync.getOverride(profileName)?.tag?.let { syncedTag ->
                 val tag = NametagFormatting.parse(syncedTag)
@@ -76,17 +123,18 @@ object CustomNametagText {
             // rows, so the direct lookup above always misses there. The real
             // IGN is still present as literal text in the rendered row though,
             // so scan known synced IGNs for a whole-word match against it.
-            val originalText = original.string
-            for ((ign, override) in CosmeticsSync.allTags()) {
-                val regex = Regex("\\b${Regex.escape(ign)}\\b", RegexOption.IGNORE_CASE)
-                if (regex.containsMatchIn(originalText)) {
-                    val tag = NametagFormatting.parse(override)
-                    return spliceOverName(original, ign, tag) ?: tag
+            // (Word regexes and parsed tags are prebuilt in [Replacements].)
+            if (r.cosmetics.isNotEmpty()) {
+                val originalText = original.string
+                for (entry in r.cosmetics) {
+                    if (entry.wordRegex.containsMatchIn(originalText)) {
+                        return spliceAll(original, mapOf(entry.ign to entry.tag), entry.spliceRegex) ?: entry.tag
+                    }
                 }
             }
         }
 
-        val ownTag = CustomNametag.tagText.value
+        val ownTag = r.ownTag
         val localPlayer = Minecraft.getInstance().player
         // Minecraft.getInstance().user.name (the login session's own username)
         // rather than localPlayer.gameProfile.name -- SkyBlock fakes the
@@ -95,17 +143,16 @@ object CustomNametagText {
         // either as a match key or as literal text to splice onto. The
         // session username is set once locally at login and never touched
         // by anything the server sends, so it's unaffected by that fakery.
-        val localName = Minecraft.getInstance().user.name
+        val localName = r.localName
 
-        val uuidMatch = profileId != null && profileId == localPlayer?.uuid
-        val nameMatch = profileName.equals(localName, ignoreCase = true)
-        val textMatch = localName != null && localName.isNotBlank()
-                && Regex("\\b${Regex.escape(localName)}\\b").containsMatchIn(original.string)
-        val isOwnEntry = uuidMatch || nameMatch || textMatch
-
-        if (CustomNametag.isEnabled && ownTag.isNotBlank() && isOwnEntry && localName != null) {
-            val tag = NametagFormatting.parse(ownTag)
-            return spliceOverName(original, localName, tag) ?: tag
+        if (r.nametagOn && ownTag.isNotBlank() && localName != null) {
+            val uuidMatch = profileId != null && profileId == localPlayer?.uuid
+            val nameMatch = profileName.equals(localName, ignoreCase = true)
+            val textMatch = r.localNameRegex?.containsMatchIn(original.string) == true
+            if (uuidMatch || nameMatch || textMatch) {
+                val tag = r.ownTagComponent ?: NametagFormatting.parse(ownTag)
+                return spliceOverName(original, localName, tag) ?: tag
+            }
         }
 
         return null
@@ -230,15 +277,17 @@ object CustomNametagText {
      * never shows up as text) -- callers fall back to a full swap in
      * that case, since there's nothing to splice onto.
      */
-    private fun spliceAll(original: Component, replacements: Map<String, Component>): Component? {
+    private fun spliceAll(
+        original: Component,
+        replacements: Map<String, Component>,
+        precompiled: Regex? = null
+    ): Component? {
         if (replacements.isEmpty()) return null
         val (fullText, runs) = flatten(original)
         if (fullText.isEmpty()) return null
 
-        val pattern = replacements.keys
-            .sortedByDescending { it.length }
-            .joinToString("|") { Regex.escape(it) }
-        val regex = Regex(pattern, RegexOption.IGNORE_CASE)
+        // Hot paths (item names/lore, chat) pass in a regex compiled once per replacement set.
+        val regex = precompiled ?: compileRegex(replacements)
 
         // Manual left/right boundary check (rather than \b) so it stays
         // correct regardless of what's adjacent to the match once it's
@@ -295,12 +344,42 @@ object CustomNametagText {
      * transformChat/transformItemText/transformTabListName's fallback
      * already use, rather than a separate one-off matcher.
      */
-    fun transformNameTagFallback(original: Component): Component? =
-        spliceAll(original, buildReplacements())
+    fun transformNameTagFallback(original: Component): Component? {
+        val c = currentReplacements()
+        if (c.map.isEmpty()) return null
+        return spliceCached(c, original)
+    }
 
     fun transformChat(original: Component): Component {
-        val replacements = buildReplacements()
-        return spliceAll(original, replacements) ?: original
+        val c = currentReplacements()
+        if (c.map.isEmpty()) return original
+        return spliceCached(c, original) ?: original
+    }
+
+    // PlayerTeam.formatNameForTeam (scoreboard lines, tab rows, nametags) hands over a brand-new
+    // Component every call, so identity caching can't help there -- but the content is the same
+    // frame after frame. Results are cached by structural equality instead (Component implements
+    // equals/hashCode), keyed on a copy so later mutation of the original can't corrupt the key.
+    // A cached "no match" is stored too, which is by far the most common answer.
+    private val spliceCache = HashMap<Component, TabResult>()
+    private var spliceCacheOwner: Replacements? = null
+    private const val SPLICE_CACHE_MAX = 2048
+
+    private fun spliceCached(c: Replacements, original: Component): Component? {
+        synchronized(spliceCache) {
+            if (spliceCacheOwner !== c || spliceCache.size > SPLICE_CACHE_MAX) {
+                spliceCache.clear()
+                spliceCacheOwner = c
+            }
+            spliceCache[original]?.let { return it.value }
+        }
+
+        val result = spliceAll(original, c.map, c.regex)
+
+        synchronized(spliceCache) {
+            if (spliceCacheOwner === c) spliceCache[original.copy()] = TabResult(result)
+        }
+        return result
     }
 
     // Menus where a slot's item name/lore is read back out to figure out
@@ -312,6 +391,28 @@ object CustomNametagText {
     // turns out to have the same problem.
     private val FUNCTIONAL_MENU_TITLES = listOf("leap")
 
+    // The "is this a functional menu" answer only depends on which screen is open, so it's
+    // worked out once per screen instance instead of lowercasing the title on every call.
+    private var lastCheckedScreen: Any? = null
+    private var lastScreenFunctional = false
+
+    private fun isFunctionalMenu(screen: Any?): Boolean {
+        if (screen !is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>) return false
+        if (screen !== lastCheckedScreen) {
+            val title = screen.title.string.lowercase()
+            lastScreenFunctional = FUNCTIONAL_MENU_TITLES.any { title.contains(it) }
+            lastCheckedScreen = screen
+        }
+        return lastScreenFunctional
+    }
+
+    // Item names/lore are read many times per frame (every slot, every tooltip line), and the
+    // same Component instances come back each time. Results are cached by instance identity
+    // and thrown away whenever the replacement set changes or the cache gets big.
+    private val itemResultCache = java.util.IdentityHashMap<Component, Component>()
+    private var itemCacheOwner: Replacements? = null
+    private const val ITEM_CACHE_MAX = 4096
+
     /**
      * Same idea as [transformChat] but for item hover names / lore
      * specifically -- those show up inside functional menus as well as
@@ -320,45 +421,113 @@ object CustomNametagText {
      * leaves the text alone while one of [FUNCTIONAL_MENU_TITLES] is the
      * open screen, so the swap stays cosmetic-only where it's safe.
      */
-    // TEMP DIAGNOSTIC -- delete once tooltip replacement is confirmed
-    // working. Only reprints when the incoming text actually changes, so
-    // it won't spam once-per-frame while a tooltip is held open.
-    private var lastDebugText: String? = null
-
     fun transformItemText(original: Component): Component {
-        val screen = Minecraft.getInstance().screen
-        if (screen is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>) {
-            val title = screen.title.string.lowercase()
-            if (FUNCTIONAL_MENU_TITLES.any { title.contains(it) }) return original
-        }
-        val result = transformChat(original)
+        val c = currentReplacements()
+        // Nothing to replace -> the cheapest possible exit.
+        if (c.map.isEmpty()) return original
 
-        val text = original.string
-        if (text != lastDebugText) {
-            lastDebugText = text
-            val keys = buildReplacements().keys
-   //         println(
-   //            "CedClient tooltip debug: text=\"$text\" replacementKeys=$keys " +
-   //                   "matched=${result !== original}"
-   //     )
+        if (isFunctionalMenu(Minecraft.getInstance().screen)) return original
+
+        synchronized(itemResultCache) {
+            if (itemCacheOwner !== c || itemResultCache.size > ITEM_CACHE_MAX) {
+                itemResultCache.clear()
+                itemCacheOwner = c
+            }
+            itemResultCache[original]?.let { return it }
         }
 
+        val result = spliceAll(original, c.map, c.regex) ?: original
+
+        synchronized(itemResultCache) {
+            if (itemCacheOwner === c) itemResultCache[original] = result
+        }
         return result
     }
 
-    private fun buildReplacements(): Map<String, Component> {
+    /**
+     * Everything transformChat/transformItemText/transformNameTagFallback need, built once and
+     * reused until one of the inputs changes. Rebuilding this per call (parsing every synced
+     * tag + compiling a regex) was the cause of the huge FPS drop in item-heavy menus.
+     */
+    private class Replacements(
+        val tagsRef: Any,
+        val cosmeticsOn: Boolean,
+        val nametagOn: Boolean,
+        val ownTag: String,
+        val localName: String?,
+        val map: Map<String, Component>,
+        val regex: Regex?,
+        // --- tab-list extras, all prebuilt so per-row work never compiles a regex ---
+        val cosmetics: List<CosmeticEntry>,
+        val localNameRegex: Regex?,
+        val ownTagComponent: Component?
+    )
+
+    /** One synced IGN with everything the tab-list fallback needs, built once. */
+    private class CosmeticEntry(val ign: String, val tag: Component) {
+        val wordRegex = Regex("\\b${Regex.escape(ign)}\\b", RegexOption.IGNORE_CASE)
+        val spliceRegex = Regex(Regex.escape(ign), RegexOption.IGNORE_CASE)
+    }
+
+    @Volatile
+    private var cachedReplacements: Replacements? = null
+
+    private fun currentReplacements(): Replacements {
+        val tagsRef = CosmeticsSync.tagsSnapshot()
+        val cosmeticsOn = HardcodedCosmetics.isEnabled
+        val nametagOn = CustomNametag.isEnabled
+        val ownTag = CustomNametag.tagText.value
+        val localName = Minecraft.getInstance().user?.name
+
+        val cached = cachedReplacements
+        if (cached != null &&
+            cached.tagsRef === tagsRef &&
+            cached.cosmeticsOn == cosmeticsOn &&
+            cached.nametagOn == nametagOn &&
+            cached.ownTag == ownTag &&
+            cached.localName == localName
+        ) return cached
+
+        val map = buildReplacements(cosmeticsOn, nametagOn, ownTag, localName)
+        val cosmetics = if (cosmeticsOn) {
+            CosmeticsSync.allTags().map { (ign, tag) -> CosmeticEntry(ign, NametagFormatting.parse(tag)) }
+        } else emptyList()
+        val localNameRegex = if (!localName.isNullOrBlank()) {
+            Regex("\\b${Regex.escape(localName)}\\b")
+        } else null
+        val ownTagComponent = if (ownTag.isNotBlank()) NametagFormatting.parse(ownTag) else null
+        val rebuilt = Replacements(
+            tagsRef, cosmeticsOn, nametagOn, ownTag, localName,
+            map, if (map.isEmpty()) null else compileRegex(map),
+            cosmetics, localNameRegex, ownTagComponent
+        )
+        cachedReplacements = rebuilt
+        return rebuilt
+    }
+
+    private fun compileRegex(replacements: Map<String, Component>): Regex {
+        val pattern = replacements.keys
+            .sortedByDescending { it.length }
+            .joinToString("|") { Regex.escape(it) }
+        return Regex(pattern, RegexOption.IGNORE_CASE)
+    }
+
+    private fun buildReplacements(
+        cosmeticsOn: Boolean,
+        nametagOn: Boolean,
+        ownTag: String,
+        localName: String?
+    ): Map<String, Component> {
         val map = linkedMapOf<String, Component>()
-        if (HardcodedCosmetics.isEnabled) {
+        if (cosmeticsOn) {
             for ((ign, tag) in CosmeticsSync.allTags()) {
                 map[ign] = NametagFormatting.parse(tag)
             }
         }
 
-        val ownTag = CustomNametag.tagText.value
         // Session username preferred over gameProfile.name -- see the
         // matching comment in transformTabListName above.
-        val localName = Minecraft.getInstance().user.name
-        if (CustomNametag.isEnabled && ownTag.isNotBlank() && localName != null &&
+        if (nametagOn && ownTag.isNotBlank() && localName != null &&
             !map.keys.any { it.equals(localName, ignoreCase = true) }
         ) {
             map[localName] = NametagFormatting.parse(ownTag)

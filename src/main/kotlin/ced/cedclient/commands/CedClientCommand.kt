@@ -1,6 +1,7 @@
 package ced.cedclient.commands
 
 import ced.cedclient.features.impl.funqol.CoralotHelper
+import ced.cedclient.features.impl.funqol.TinyDancerHelper
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.features.impl.render.EntityESP
@@ -86,6 +87,24 @@ object CedClientCommand {
                         )
                         1
                     }
+            )
+
+            .then(
+                ClientCommands.literal("dance")
+                    .executes { ctx ->
+                        // Singleplayer test run of TinyDancerHelper (fake beats, floor shifted to you).
+                        TinyDancerHelper.startTest()?.let {
+                            ctx.source.sendFeedback(Component.literal(it))
+                        }
+                        1
+                    }
+                    .then(
+                        ClientCommands.literal("stop")
+                            .executes { ctx ->
+                                ctx.source.sendFeedback(Component.literal(TinyDancerHelper.stopTest()))
+                                1
+                            }
+                    )
             )
 
             .then(

@@ -14,10 +14,14 @@
     "render.PlayerRendererMixin",
     "render.PlayerRenderStateMixin",
     "render.CameraMixin",
+    "render.OptionInstanceMixin",
+    "render.OptionsMixin",
 
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
     "network.PingHeartbeatMixin",
+    "network.PingPongMixin",
+    "network.ParticlePacketMixin",
 
     "item.ItemStackHoverNameMixin",
 
@@ -25,6 +29,7 @@
     "screen.ContainerEventHandlerMixin",
     "screen.AbstractContainerScreenMixin",
     "screen.ScreenTooltipMixin",
+    "scoreboard.PlayerTeamMixin",
 
     "input.KeyboardInputMixin",
     "input.MouseScrollMixin",
@@ -38,7 +43,8 @@
   ],
 
   "client": [
-    "client.MinecraftMixin"
+    "client.MinecraftMixin",
+    "accessor.MinecraftAccessor"
   ],
 
   "injectors": {

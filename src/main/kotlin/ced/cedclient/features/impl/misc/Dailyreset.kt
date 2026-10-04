@@ -135,13 +135,13 @@ private data class SavedState(
  * regardless of where the client is running.
  */
 object DailyReset : Module(
-    "Daily Reset",
+    "Daily Tasks",
     Category.Misc,
     "Checklist of SkyBlock dailies -- known ones tick themselves off automatically, plus a manual list for anything else. Clears at Hypixel's daily reset (midnight ET).",
-    defaultEnabled = true
+    defaultEnabled = false
 ), HudElement {
 
-    override val label: String = "Daily Reset"
+    override val label: String = "Daily Tasks"
 
     private const val MIN_SCALE = 0.5f
     private const val MAX_SCALE = 3.0f
