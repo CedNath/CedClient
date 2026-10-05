@@ -53,19 +53,36 @@ object EntityESP : Module(
     // running in-world while hiding just the summary panel, or vice versa.
     private val showHudPanel = BooleanSetting("Show HUD Panel", true)
 
+    // On by default now that it's been tested — same NVGSpecialRenderer
+    // pipeline ClickGUI and DailyReset's HUD card use, instead of
+    // EntityESPHud's scanline-approximated rounded corners.
+    // EntityESPHud.renderInternal() still wraps its NVG path in try/catch
+    // and silently falls back to the plain rendering for that frame if
+    // anything throws, so a regression shows up as a wrong-looking panel
+    // rather than breaking anything else. Flagged .advanced so the toggle
+    // to fall back to the plain renderer is only visible with Advanced
+    // Mode on, out of the way for everyone else.
+    private val useNanoVGRendering = BooleanSetting(
+        "Use NanoVG Rendering",
+        true,
+        "True rounded corners + antialiasing via the same NanoVG pipeline ClickGUI/Daily Reset use, " +
+                "instead of the scanline-approximated corners GuiGraphicsExtractor.fill() draws. " +
+                "EntityESPHud falls back to the old rendering automatically if anything goes wrong."
+    ).also { it.advanced = true }
+
     private val openMobFilterMenu = ActionSetting("Select Mobs") {
         val mc = Minecraft.getInstance()
-        (mc.screen as? ClickGUI)?.openPopup(MobFilterPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(MobFilterPopup())
     }
 
     private val openPlayerFilterMenu = ActionSetting("Select Players") {
         val mc = net.minecraft.client.Minecraft.getInstance()
-        (mc.screen as? ClickGUI)?.openPopup(PlayerFilterPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(PlayerFilterPopup())
     }
 
     private val openCustomFilterMenu = ActionSetting("Select Custom") {
         val mc = net.minecraft.client.Minecraft.getInstance()
-        (mc.screen as? ClickGUI)?.openPopup(ESPFilterPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(ESPFilterPopup())
     }
     @Volatile
     var scannedEntities: List<ScannedEntity> = emptyList()
@@ -81,6 +98,7 @@ object EntityESP : Module(
     val tracersEnabled: Boolean get() = showTracers.value
     val labelsEnabled: Boolean get() = showLabels.value
     val hudPanelEnabled: Boolean get() = showHudPanel.value
+    val nvgHudRenderingEnabled: Boolean get() = useNanoVGRendering.value
 
     val blockedNames = mutableSetOf<String>()
     val onlyNames = mutableSetOf<String>()
@@ -131,7 +149,7 @@ object EntityESP : Module(
 
         addSettings(
             showHostile, showPassive, showPlayers, maxDistance, scanIntervalTicks,
-            showBoxes, showTracers, showLabels, showHudPanel,
+            showBoxes, showTracers, showLabels, showHudPanel, useNanoVGRendering,
             debugLog, openMobFilterMenu, openPlayerFilterMenu, openCustomFilterMenu
         )
 

@@ -1,8 +1,8 @@
 package ced.cedclient.ui.inventory
 
 import ced.cedclient.ui.clickgui.ClickGUI
-import ced.cedclient.ui.nvg.NVGRenderer
-import ced.cedclient.ui.nvg.NVGSpecialRenderer
+import ced.cedclient.render.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.Colors
 import net.minecraft.client.gui.GuiGraphicsExtractor

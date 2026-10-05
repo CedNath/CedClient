@@ -5,8 +5,8 @@ import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InvButton
 import ced.cedclient.ui.inventory.InventoryButtonManager
 import ced.cedclient.ui.inventory.InventoryButtonRenderer
-import ced.cedclient.ui.nvg.NVGRenderer
-import ced.cedclient.ui.nvg.NVGSpecialRenderer
+import ced.cedclient.render.nvg.NVGRenderer
+import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Color.Companion.withAlpha
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.Debug

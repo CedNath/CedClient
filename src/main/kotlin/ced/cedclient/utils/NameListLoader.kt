@@ -1,4 +1,4 @@
-package ced.cedclient.ced.cedclient.utils
+package ced.cedclient.utils
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken

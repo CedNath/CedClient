@@ -3,7 +3,7 @@ package ced.cedclient.features.impl.render
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
-import ced.cedclient.utils.render.CustomRenderType
+import ced.cedclient.render.pipeline.CustomRenderType
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.AABB
@@ -12,47 +12,57 @@ import net.minecraft.world.phys.Vec3
 object EntityESPRenderer {
 
     fun register() {
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!EntityESP.isEnabled) return@AfterSolidFeatures
-            if (!EntityESP.boxesEnabled && !EntityESP.tracersEnabled && !EntityESP.labelsEnabled) return@AfterSolidFeatures
+        // 26.2: MultiBufferSource/BufferSource are gone, so the lines are now submitted
+        // through the SubmitNodeCollector (submitCustomGeometry) instead of written into a
+        // buffer we flush ourselves. That has to happen in COLLECT_SUBMITS: it runs before
+        // the feature passes are drawn, whereas AFTER_SOLID_FEATURES fires once the solid
+        // pass is already finished, so anything submitted there would never be drawn.
+        LevelRenderEvents.COLLECT_SUBMITS.register { context ->
+            if (!EntityESP.isEnabled) return@register
+            if (!EntityESP.boxesEnabled && !EntityESP.tracersEnabled && !EntityESP.labelsEnabled) return@register
 
             val poseStack = context.poseStack()
-            val camera = context.gameRenderer().mainCamera
+            val camera = context.gameRenderer().mainCamera()
             val cameraPos = camera.position()
-            val bufferSource = context.bufferSource()
             val submitNodeCollector = context.submitNodeCollector()
             val cameraRenderState = context.levelState().cameraRenderState
 
-            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
+            // The geometry callback below runs later, during the draw pass -- iterate a snapshot.
+            val entities = EntityESP.scannedEntities.toList()
 
-            for (scanned in EntityESP.scannedEntities) {
-                val entity = scanned.entity
-                val (r, g, b) = colorFor(scanned.category)
+            if (EntityESP.boxesEnabled || EntityESP.tracersEnabled) {
+                // The callback hands back a PoseStack.Pose (one frozen transform), not a PoseStack.
+                submitNodeCollector.submitCustomGeometry(poseStack, CustomRenderType.LINES_ESP) { pose, lineBuffer ->
+                    for (scanned in entities) {
+                        val entity = scanned.entity
+                        val (r, g, b) = colorFor(scanned.category)
 
-                if (EntityESP.boxesEnabled) {
-                    val box: AABB = entity.boundingBox.inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-                    drawLineBox(poseStack, lineBuffer, box, r, g, b)
-                }
+                        if (EntityESP.boxesEnabled) {
+                            val box: AABB = entity.boundingBox.inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                            drawLineBox(pose, lineBuffer, box, r, g, b)
+                        }
 
-                if (EntityESP.tracersEnabled) {
-                    val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                    val targetPos: Vec3 = entity.position().add(0.0, entity.bbHeight / 2.0, 0.0)
-                    drawLine(
-                        poseStack,
-                        lineBuffer,
-                        direction,
-                        targetPos.subtract(cameraPos),
-                        r, g, b
-                    )
-                }
-
-                if (EntityESP.labelsEnabled) {
-                    submitLabel(poseStack, submitNodeCollector, entity, scanned, cameraPos, cameraRenderState)
+                        if (EntityESP.tracersEnabled) {
+                            val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
+                            val targetPos: Vec3 = entity.position().add(0.0, entity.bbHeight / 2.0, 0.0)
+                            drawLine(
+                                pose,
+                                lineBuffer,
+                                direction,
+                                targetPos.subtract(cameraPos),
+                                r, g, b
+                            )
+                        }
+                    }
                 }
             }
 
-            bufferSource.endBatch()
-        })
+            if (EntityESP.labelsEnabled) {
+                for (scanned in entities) {
+                    submitLabel(poseStack, submitNodeCollector, scanned.entity, scanned, cameraPos, cameraRenderState)
+                }
+            }
+        }
     }
     private fun submitLabel(
         poseStack: PoseStack,
@@ -98,9 +108,8 @@ object EntityESPRenderer {
         val attachment = Vec3(0.0, entity.bbHeight + 0.5, 0.0)
         val lightCoords = 0xF000F0 // fullbright so labels are always legible
 
-        // Increase max distance so labels remain visible from farther away.
-        val maxDistanceSq = maxOf(64.0, scanned.distance * scanned.distance * 4.0)
-
+        // 26.2: submitNameTag no longer takes a max-distance argument (the old
+        // "labels stay visible from farther away" squared-distance tweak is gone with it).
         submitNodeCollector.submitNameTag(
             poseStack,
             attachment,
@@ -108,7 +117,6 @@ object EntityESPRenderer {
             label,
             true, // seeThrough - show through walls
             lightCoords,
-            maxDistanceSq,
             cameraRenderState
         )
 
@@ -121,7 +129,7 @@ object EntityESPRenderer {
      * Draws the 12 edges of an AABB using the same buffer/vertex pattern as drawLine.
      */
     private fun drawLineBox(
-        poseStack: PoseStack,
+        pose: PoseStack.Pose,
         buffer: VertexConsumer,
         box: AABB,
         r: Float, g: Float, b: Float
@@ -130,50 +138,50 @@ object EntityESPRenderer {
         val maxX = box.maxX; val maxY = box.maxY; val maxZ = box.maxZ
 
         // Bottom face
-        edge(poseStack, buffer, minX, minY, minZ, maxX, minY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, minZ, maxX, minY, maxZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, maxZ, minX, minY, maxZ, r, g, b)
-        edge(poseStack, buffer, minX, minY, maxZ, minX, minY, minZ, r, g, b)
+        edge(pose, buffer, minX, minY, minZ, maxX, minY, minZ, r, g, b)
+        edge(pose, buffer, maxX, minY, minZ, maxX, minY, maxZ, r, g, b)
+        edge(pose, buffer, maxX, minY, maxZ, minX, minY, maxZ, r, g, b)
+        edge(pose, buffer, minX, minY, maxZ, minX, minY, minZ, r, g, b)
 
         // Top face
-        edge(poseStack, buffer, minX, maxY, minZ, maxX, maxY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b)
-        edge(poseStack, buffer, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b)
-        edge(poseStack, buffer, minX, maxY, maxZ, minX, maxY, minZ, r, g, b)
+        edge(pose, buffer, minX, maxY, minZ, maxX, maxY, minZ, r, g, b)
+        edge(pose, buffer, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, minX, maxY, maxZ, minX, maxY, minZ, r, g, b)
 
         // Vertical edges
-        edge(poseStack, buffer, minX, minY, minZ, minX, maxY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, minZ, maxX, maxY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b)
-        edge(poseStack, buffer, minX, minY, maxZ, minX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, minX, minY, minZ, minX, maxY, minZ, r, g, b)
+        edge(pose, buffer, maxX, minY, minZ, maxX, maxY, minZ, r, g, b)
+        edge(pose, buffer, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, minX, minY, maxZ, minX, maxY, maxZ, r, g, b)
     }
 
     private fun edge(
-        poseStack: PoseStack,
+        pose: PoseStack.Pose,
         buffer: VertexConsumer,
         x1: Double, y1: Double, z1: Double,
         x2: Double, y2: Double, z2: Double,
         r: Float, g: Float, b: Float
     ) {
-        drawLine(poseStack, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b)
+        drawLine(pose, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b)
     }
 
     private fun drawLine(
-        poseStack: PoseStack,
+        pose: PoseStack.Pose,
         buffer: VertexConsumer,
         from: Vec3,
         to: Vec3,
         r: Float, g: Float, b: Float
     ) {
-        val pose = poseStack.last().pose()
+        val matrix = pose.pose()
         val normal = to.subtract(from).normalize()
 
-        buffer.addVertex(pose, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
+        buffer.addVertex(matrix, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
             .setColor(r, g, b, 1.0f)
             .setNormal(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
             .setLineWidth(2.0f)
 
-        buffer.addVertex(pose, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
+        buffer.addVertex(matrix, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
             .setColor(r, g, b, 1.0f)
             .setNormal(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
             .setLineWidth(2.0f)

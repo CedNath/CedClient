@@ -21,6 +21,13 @@ object Freecam : Module(
     var active = false
         private set
 
+    // Public, Java-visible getter for the mixins below -- same pattern
+    // Module.isEnabled uses for the same reason: a plain Kotlin Boolean
+    // property named "active" (not starting with "is") only generates
+    // getActive() on the JVM side, not isActive().
+    val isActive: Boolean
+        get() = active
+
     private val mc = Minecraft.getInstance()
 
     private val flySpeed = NumberSetting("Fly Speed", 1.0, 0.5, 5.0, 0.5)
@@ -50,30 +57,62 @@ object Freecam : Module(
             // Safety: if module disabled externally, do nothing
             if (!isEnabled) return@register
 
-            // If we lost player or level (left server / world unloaded), disable freecam
-            // This covers "leave server" reliably across versions.
+            // If we lost player or level (left server / world unloaded), only disengage the
+            // camera detachment. The module itself stays enabled -- calling toggle() here
+            // used to disable it and persist that to the config, so it came back off on rejoin.
             if (mc.player == null || mc.level == null) {
-                if (isEnabled) toggle()
+                disengage()
                 return@register
             }
+
+            // Module being enabled only arms the keybind (see toggleFreecam())
+            // -- movement should only run once freecam is actually engaged.
+            if (!active) return@register
 
             tick()
         }
 
         // When the client is stopping (quit game), ensure freecam is turned off
-        ClientLifecycleEvents.CLIENT_STOPPING.register { client ->
-            if (isEnabled) toggle()
+        // Same as above: restore the camera, but don't flip (and save) the enabled state.
+        ClientLifecycleEvents.CLIENT_STOPPING.register { _ ->
+            disengage()
         }
     }
 
+    /** Drops out of freecam (restores the camera) without touching the module's enabled state. */
+    private fun disengage() {
+        if (!active) return
+        active = false
+        stopFreecam()
+    }
+
     override fun onEnable() {
-        active = true
-        startFreecam()
+        // Enabling the module only arms Freecam -- it does NOT detach the
+        // camera by itself. The camera only detaches once the keybind
+        // (see toggleFreecam(), default B) is actually pressed.
     }
 
     override fun onDisable() {
-        active = false
-        stopFreecam()
+        // Disabling the module always fully disengages freecam too, even
+        // if it was actively engaged, so the camera never stays detached
+        // after the feature itself gets turned off.
+        if (active) {
+            active = false
+            stopFreecam()
+        }
+    }
+
+    /**
+     * The actual keybind action (bound to B by default, see CedClient.kt).
+     * A no-op while the module itself is disabled -- the module toggle
+     * (ClickGUI or /cedclient) is what arms this; the keybind then only
+     * engages/disengages the camera detachment while armed.
+     */
+    fun toggleFreecam() {
+        if (!isEnabled) return
+
+        active = !active
+        if (active) startFreecam() else stopFreecam()
     }
 
     private fun startFreecam() {

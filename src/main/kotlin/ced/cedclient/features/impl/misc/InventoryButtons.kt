@@ -36,7 +36,7 @@ object InventoryButtons : Module(
         InventoryButtonManager.ensureLoaded()
         Debug.log("InventoryButtons: opening InvButtonEditorScreen -- buttons = ${InventoryButtonManager.buttons.size}")
 
-        Minecraft.getInstance().setScreen(InvButtonEditorScreen())
+        Minecraft.getInstance().gui.setScreen(InvButtonEditorScreen())
     }
 
     init {

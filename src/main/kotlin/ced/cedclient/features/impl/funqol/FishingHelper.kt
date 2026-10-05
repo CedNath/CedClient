@@ -10,6 +10,7 @@ import net.minecraft.client.player.LocalPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.projectile.FishingHook
+import net.minecraft.world.item.FishingRodItem
 import net.minecraft.world.phys.AABB
 import kotlin.random.Random
 import java.util.concurrent.ConcurrentHashMap
@@ -70,8 +71,27 @@ object FishingHelper : Module(
     // Main tick (bobber + reel)
     // -------------------------
     private fun tick(client: Minecraft) {
-        val player = client.player as? LocalPlayer ?: return
-        val world = client.level ?: return
+        val player = client.player as? LocalPlayer
+        val world = client.level
+
+        // Not in a world (title screen, loading, disconnected) -> drop any queued actions.
+        if (player == null || world == null) {
+            clearPending()
+            return
+        }
+
+        // Any open screen (inventory, chest, pause menu, chat, ClickGUI, ...) means the player
+        // isn't actually fishing right now. Drop queued actions so nothing fires on close.
+        if (client.gui.screen() != null) {
+            clearPending()
+            return
+        }
+
+        // Only act while a fishing rod is in the main hand.
+        if (!isHoldingRod(player)) {
+            clearPending()
+            return
+        }
 
         // always process timers (cheap)
         processPendingReel(player, world)
@@ -138,7 +158,7 @@ object FishingHelper : Module(
         val bob = world.getEntitiesOfClass(FishingHook::class.java, searchBox) { true }
             .firstOrNull { it.id == pr.bobId }
 
-        if (bob != null) {
+        if (bob != null && mc.gui.screen() == null && isHoldingRod(player)) {
             performReel(player)
             lastReelAt[bob.id] = now
 
@@ -159,7 +179,7 @@ object FishingHelper : Module(
         val now = System.currentTimeMillis()
         if (now < prc.executeAt) return
 
-        performCast(player)
+        if (mc.gui.screen() == null && isHoldingRod(player)) performCast(player)
         pendingRecast = null
         if (FishinghelperConfig.debugLogging) {
             println("[FishingHelper] Performed recast")
@@ -175,6 +195,19 @@ object FishingHelper : Module(
         if (range == 0L) return baseMs.coerceAtLeast(0L)
         val offset = Random.nextLong(-range, range + 1)
         return (baseMs + offset).coerceAtLeast(0L)
+    }
+
+    private fun isHoldingRod(player: LocalPlayer): Boolean =
+        player.mainHandItem.item is FishingRodItem
+
+    private fun clearPending() {
+        pendingReel = null
+        pendingRecast = null
+    }
+
+    override fun onDisable() {
+        clearPending()
+        lastReelAt.clear()
     }
 
     private fun performReel(player: LocalPlayer) {
