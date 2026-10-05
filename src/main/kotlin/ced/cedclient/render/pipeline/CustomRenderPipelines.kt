@@ -1,0 +1,19 @@
+package ced.cedclient.render.pipeline
+
+import com.mojang.blaze3d.pipeline.RenderPipeline
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.resources.Identifier
+import java.util.Optional
+
+/**
+ * Depth-disabled variants of vanilla pipelines, used to draw ESP boxes/tracers
+ * that render through walls. Adapted from OdinFabric's CustomRenderPipelines.
+ */
+object CustomRenderPipelines {
+    val LINES_ESP: RenderPipeline = RenderPipelines.register(
+        RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+            .withDepthStencilState(Optional.empty())
+            .withLocation(Identifier.fromNamespaceAndPath("cedclient", "pipeline/lines_esp"))
+            .build()
+    )
+}
