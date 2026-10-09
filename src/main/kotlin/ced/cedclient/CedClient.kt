@@ -32,6 +32,7 @@ import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
+import ced.cedclient.features.impl.render.CosmeticBlocks
 import ced.cedclient.features.impl.render.FloorDrops
 import ced.cedclient.features.impl.render.Fullbright
 import ced.cedclient.features.impl.render.HardcodedCosmetics
@@ -148,7 +149,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CompactTab)
         ModuleManager.register(CompactScoreboard)
         ModuleManager.register(ProfileViewer)
-        ModuleManager.register(TinyDancerHelper)
+        ModuleManager.register(CosmeticBlocks)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {
