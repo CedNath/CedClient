@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.chat.PrivateMessageChatEvent
 import ced.cedclient.events.core.on
@@ -124,7 +125,7 @@ object ChatChannelHud : Module(
 
     private val gson = Gson()
     private val saveFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/chat_channel_hud.json")
+        CedPaths.file("chat_channel_hud.json")
     }
 
     private var loadedOnce = false

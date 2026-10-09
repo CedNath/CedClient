@@ -138,6 +138,12 @@ object DungeonState {
         AABB(91.0, 158.0, 50.0, -3.0, 106.0, 30.0),
     )
 
+    /**
+     * Boss room bounding box for a floor number (1..7; Master Mode shares the same bounds), or null if out of range.
+     * Used by Cosmetic Blocks to know which region to re-skin / re-mesh.
+     */
+    fun bossRoomBox(floorNum: Int): AABB? = bossRoomBounds.getOrNull(floorNum - 1)
+
     var inDungeon: Boolean = false
         private set
 
