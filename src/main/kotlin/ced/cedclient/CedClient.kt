@@ -63,8 +63,6 @@ import org.lwjgl.glfw.GLFW
 class CedClient : ClientModInitializer {
 
     private lateinit var openGuiKey: KeyMapping
-    private lateinit var freecamToggleKey: KeyMapping
-    private lateinit var zoomKey: KeyMapping
 
     private val cedclientCategory: KeyMapping.Category by lazy {
         KeyMapping.Category.register(Identifier.fromNamespaceAndPath("cedclient", "cedclient"))
@@ -191,29 +189,27 @@ class CedClient : ClientModInitializer {
         openGuiKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping("CedClient Gui", GLFW.GLFW_KEY_P, cedclientCategory)
         )
-        freecamToggleKey = KeyMappingHelper.registerKeyMapping(
-            KeyMapping("key.cedclient.freecam_toggle", GLFW.GLFW_KEY_B, cedclientCategory)
-        )
-        zoomKey = KeyMappingHelper.registerKeyMapping(
-            KeyMapping("key.cedclient.zoom", GLFW.GLFW_KEY_C, cedclientCategory)
-        )
-
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (openGuiKey.consumeClick()) {
                 client.setScreen(ClickGUI())
             }
-            if (freecamToggleKey.consumeClick()) {
-                Freecam.toggleFreecam()
-            }
 
-            // Zoom is a hold key, not a toggle -- use isDown (the raw
-            // "currently pressed" state) every tick rather than
-            // consumeClick() (which only fires once per press and would
-            // make Zoom.setHeld() see a single true tick instead of a
-            // sustained hold).
-            Zoom.setHeld(zoomKey.isDown)
+            // Freecam / Zoom keys are KeybindSettings on their modules (rebindable in the ClickGUI), polled here.
+            // Only while no screen is open, so typing in chat doesn't trigger them.
+            val window = GLFW.glfwGetCurrentContext()
+            fun down(code: Int) = code > 0 && window != 0L && client.screen == null &&
+                    GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
+
+            val freecamDown = down(Freecam.toggleKey.value)
+            if (freecamDown && !freecamKeyWasDown) Freecam.toggleFreecam()
+            freecamKeyWasDown = freecamDown
+
+            // Zoom is a hold key, not a toggle -- pass the held state every tick.
+            Zoom.setHeld(down(Zoom.zoomKey.value))
         }
     }
+
+    private var freecamKeyWasDown = false
 
     private fun loadConfig() {
         // Load module config safely. If something inside loadModulesOnly throws (NPE etc.),

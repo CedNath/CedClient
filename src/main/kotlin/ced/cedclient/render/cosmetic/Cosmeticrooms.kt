@@ -238,9 +238,19 @@ object CosmeticRooms {
         roomKeys.clear()
     }
 
+
     // ------------------------------------------------------------------
     // Tick + scanner
+    //
+    // Same detection as Odin (modern) / NoammAddons: each 32x32 tile's "core" is hashed from its own centre column
+    // (with that tile's own highest block), matched against rooms.json; a room only counts once ALL its tiles are
+    // found; the rotation comes from the blue terracotta marker at one of the room's outer corners.
     // ------------------------------------------------------------------
+
+    /** Why the last scan did not produce a room (for /cc cosmetic rooms debug). */
+    var lastScanResult = "not scanned yet"
+        private set
+    private var retryDelay = 0
 
     fun tick() {
         if (saveDelay > 0 && --saveDelay == 0) flush()
@@ -256,10 +266,11 @@ object CosmeticRooms {
         val center = tileOf(player.blockPosition().x, player.blockPosition().z)
         val cur = currentRoom
         if (cur != null && cur.components.contains(center)) return
-        if (center == lastCenter) return
+        // A failed scan is retried (chunks may still be loading), just not every tick.
+        if (center == lastCenter && retryDelay-- > 0) return
         lastCenter = center
+        retryDelay = 10
         val room = scanRoom(center, level) ?: return
-        if (room.rotation == RoomRotation.NONE) return
         val changed = cur == null || cur.data.name != room.data.name || !cur.components.containsAll(room.components) ||
                 cur.clayPos != room.clayPos
         if (changed) {
@@ -274,42 +285,66 @@ object CosmeticRooms {
         return RoomTile((rx shl 5) + START, (rz shl 5) + START)
     }
 
+    /** Tile centres of the 6x6 dungeon grid. */
+    private fun inGrid(t: RoomTile): Boolean {
+        val ix = (t.x - START) shr 5
+        val iz = (t.z - START) shr 5
+        return ix in 0..5 && iz in 0..5 && (t.x - START) % 32 == 0 && (t.z - START) % 32 == 0
+    }
+
+    private fun tileCount(shape: String): Int = when (shape) {
+        "1x2" -> 2
+        "1x3", "L" -> 3
+        "1x4", "2x2" -> 4
+        else -> 1
+    }
+
     private fun chunkAt(level: ClientLevel, x: Int, z: Int): LevelChunk? =
         try { level.getChunk(x shr 4, z shr 4) } catch (_: Exception) { null }
 
+    private class Core(val hash: Int, val highest: Int)
+
     private fun scanRoom(center: RoomTile, level: ClientLevel): ScannedRoom? {
-        val chunk = chunkAt(level, center.x, center.z) ?: return null
-        val height = topLayer(center.x, center.z, chunk)
-        if (height <= 0) return null
-        val info = coreToRoom[coreAt(center.x, center.z, height, chunk)] ?: return null
+        val chunk = chunkAt(level, center.x, center.z) ?: return fail("chunk not loaded")
+        val core = coreAt(center.x, center.z, chunk)
+        if (core.highest == 0) return fail("tile is empty (chunk still loading?)")
+        val info = coreToRoom[core.hash] ?: return fail("unknown room core ${core.hash}")
+
         val tiles = LinkedHashSet<RoomTile>()
-        findComponents(center, info.cores, height, level, HashSet(), tiles)
+        val heights = LinkedHashSet<Int>()
+        findComponents(center, info.cores, level, HashSet(), tiles, heights)
+        val needed = tileCount(info.shape)
+        if (tiles.size < needed) return fail("${info.name}: found ${tiles.size}/$needed tiles (rest not loaded yet)")
+
         val room = ScannedRoom(info, RoomRotation.NONE, BlockPos.ZERO, tiles)
-        findRotation(room, height, level)
+        findRotation(room, core.highest, heights, level)
+        if (room.rotation == RoomRotation.NONE) return fail("${info.name}: no blue terracotta marker found")
+        lastScanResult = "${info.name} (${info.shape}, ${room.rotation.name.lowercase()}, marker ${room.clayPos.x},${room.clayPos.z})"
         return room
     }
 
-    private fun topLayer(x: Int, z: Int, chunk: LevelChunk): Int {
-        for (y in 140 downTo 60) {
-            mutable.set(x, y, z)
-            val state = chunk.getBlockState(mutable)
-            if (state.isAir) continue
-            return if (state.block == Blocks.GOLD_BLOCK) y - 1 else y
-        }
-        return 0
+    private fun fail(reason: String): ScannedRoom? {
+        lastScanResult = reason
+        return null
     }
 
-    /** Same hash as cb / the Odin-style room cores: the column's block names from the top down, with padding. */
-    private fun coreAt(x: Int, z: Int, roomHeight: Int, chunk: LevelChunk): Int {
-        val sb = StringBuilder(150)
-        val clamped = roomHeight.coerceIn(11, 140)
-        repeat(140 - clamped) { sb.append('0') }
+    /**
+     * Odin's room core: the column's block ids from y=140 down, '0' for everything above the room's top
+     * (air and gold), skipping planks / chests, and padding once it reaches the bedrock floor.
+     */
+    private fun coreAt(x: Int, z: Int, chunk: LevelChunk): Core {
+        val sb = StringBuilder(1024)
+        var highest = 0
         var bedrock = 0
-        var y = clamped
-        while (y > 11) {
+        for (y in 140 downTo 12) {
             mutable.set(x, y, z)
-            val block = chunk.getBlockState(mutable).block
-            if (block == Blocks.AIR && bedrock >= 2 && y < 69) {
+            val state = chunk.getBlockState(mutable)
+            if (highest == 0) {
+                if (!state.isAir && state.block != Blocks.GOLD_BLOCK) highest = y
+                else { sb.append('0'); continue }
+            }
+            val block = state.block
+            if (state.isAir && bedrock >= 2 && y < 69) {
                 repeat(y - 11) { sb.append('0') }
                 break
             }
@@ -317,27 +352,35 @@ object CosmeticRooms {
                 bedrock++
             } else {
                 bedrock = 0
-                if (block == Blocks.OAK_PLANKS || block == Blocks.TRAPPED_CHEST || block == Blocks.CHEST) { y--; continue }
+                if (block == Blocks.OAK_PLANKS || block == Blocks.TRAPPED_CHEST || block == Blocks.CHEST) continue
             }
             sb.append(block)
-            y--
         }
-        return sb.toString().hashCode()
+        return Core(sb.toString().hashCode(), highest)
     }
 
-    private fun findComponents(center: RoomTile, cores: List<Int>, height: Int, level: ClientLevel, visited: MutableSet<RoomTile>, tiles: MutableSet<RoomTile>) {
-        if (!visited.add(center)) return
-        val chunk = chunkAt(level, center.x, center.z) ?: return
-        if (!cores.contains(coreAt(center.x, center.z, height, chunk))) return
-        tiles += center
+    /** Flood-fills the neighbouring tiles whose own core belongs to the same room. */
+    private fun findComponents(
+        tile: RoomTile, cores: List<Int>, level: ClientLevel,
+        visited: MutableSet<RoomTile>, tiles: MutableSet<RoomTile>, heights: MutableSet<Int>,
+    ) {
+        if (!inGrid(tile) || !visited.add(tile)) return
+        val chunk = chunkAt(level, tile.x, tile.z) ?: return
+        val core = coreAt(tile.x, tile.z, chunk)
+        if (!cores.contains(core.hash)) return
+        tiles += tile
+        heights += core.highest
         for (dir in HORIZONTALS) {
-            val nx = center.x + ((if (dir.axis == Direction.Axis.X) dir.stepX else 0) shl 5)
-            val nz = center.z + ((if (dir.axis == Direction.Axis.Z) dir.stepZ else 0) shl 5)
-            findComponents(RoomTile(nx, nz), cores, height, level, visited, tiles)
+            findComponents(RoomTile(tile.x + dir.stepX * 32, tile.z + dir.stepZ * 32), cores, level, visited, tiles, heights)
         }
     }
 
-    private fun findRotation(room: ScannedRoom, height: Int, level: ClientLevel) {
+    /**
+     * The blue terracotta sits at one outer corner of the room, at roof height. Which corner it is gives the rotation:
+     * its offset from the nearest tile centre is (+-15, +-15), the same offsets [RoomRotation] uses for 1x1 rooms.
+     * Straight rooms (1xN, 2x2) are checked at their bounding-box corners, L rooms at every tile corner.
+     */
+    private fun findRotation(room: ScannedRoom, height: Int, heights: Set<Int>, level: ClientLevel) {
         if (room.data.name == "Fairy") {
             room.components.firstOrNull()?.let {
                 room.clayPos = BlockPos(it.x - 15, height, it.z - 15)
@@ -345,25 +388,43 @@ object CosmeticRooms {
             }
             return
         }
-        for (rotation in RoomRotation.entries) {
-            if (rotation == RoomRotation.NONE) continue
-            for (c in room.components) {
-                val test = BlockPos(c.x + rotation.x, height, c.z + rotation.z)
-                val state = try { level.getBlockState(test) } catch (_: Exception) { continue }
-                if (state.block != Blocks.BLUE_TERRACOTTA) continue
-                if (room.components.size != 1 && !validClay(test, level)) continue
-                room.clayPos = test
-                room.rotation = rotation
-                return
+        val ys = listOf(height) + (heights - height)
+        val candidates = ArrayList<Pair<RoomRotation, Pair<Int, Int>>>()
+        if (room.data.shape == "L") {
+            for (c in room.components) for (rot in RoomRotation.entries) {
+                if (rot != RoomRotation.NONE) candidates += rot to (c.x + rot.x to c.z + rot.z)
             }
+        } else {
+            val minX = room.components.minOf { it.x }
+            val maxX = room.components.maxOf { it.x }
+            val minZ = room.components.minOf { it.z }
+            val maxZ = room.components.maxOf { it.z }
+            candidates += RoomRotation.SOUTH to (minX - 15 to minZ - 15)
+            candidates += RoomRotation.WEST to (maxX + 15 to minZ - 15)
+            candidates += RoomRotation.NORTH to (maxX + 15 to maxZ + 15)
+            candidates += RoomRotation.EAST to (minX - 15 to maxZ + 15)
+        }
+        for (y in ys) for ((rot, xz) in candidates) {
+            val pos = BlockPos(xz.first, y, xz.second)
+            val state = try { level.getBlockState(pos) } catch (_: Exception) { continue }
+            if (state.block != Blocks.BLUE_TERRACOTTA) continue
+            room.clayPos = pos
+            room.rotation = rot
+            return
         }
     }
 
-    private fun validClay(pos: BlockPos, level: ClientLevel): Boolean {
-        for (dir in HORIZONTALS) {
-            val block = try { level.getBlockState(pos.relative(dir)).block } catch (_: Exception) { return false }
-            if (block != Blocks.AIR && block != Blocks.BLUE_TERRACOTTA) return false
-        }
-        return true
+    /** Lines for /cc cosmetic rooms debug. */
+    fun debugInfo(): List<String> {
+        val player = mc.player
+        val tile = player?.let { tileOf(it.blockPosition().x, it.blockPosition().z) }
+        val core = tile?.let { t -> mc.level?.let { chunkAt(it, t.x, t.z) }?.let { coreAt(t.x, t.z, it) } }
+        return listOf(
+            "In dungeon: ${CosmeticConfig.inDungeon()}, Room Scanning: ${CosmeticConfig.roomScanning}, module on: ${CosmeticStore.enabled}",
+            "Room database: ${coreToRoom.size} cores loaded",
+            "Tile: ${tile?.let { "${it.x},${it.z}" } ?: "-"}, core ${core?.hash ?: "-"} (top y ${core?.highest ?: "-"}) -> ${core?.let { coreToRoom[it.hash]?.name } ?: "no match"}",
+            "Current room: ${currentRoom?.let { "${it.data.name} (${it.rotation.name.lowercase()}, ${it.components.size} tile(s))" } ?: "none"}",
+            "Last scan: $lastScanResult",
+        )
     }
 }

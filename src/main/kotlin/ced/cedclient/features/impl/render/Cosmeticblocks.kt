@@ -647,7 +647,11 @@ object CosmeticBlocks : Module(
                         val n = CosmeticRooms.clearRoom(word(ctx, "name"))
                         feedback(ctx.source, if (n == 0) "No blocks saved for that room" else "Cleared $n block(s)"); 1
                     }))
-                    .then(lit("clearall").executes(run { feedback(it, "Cleared ${CosmeticRooms.clearAllRooms()} room block(s)") })))
+                    .then(lit("clearall").executes(run { feedback(it, "Cleared ${CosmeticRooms.clearAllRooms()} room block(s)") }))
+                    .then(lit("debug").executes(run { src ->
+                        feedback(src, "Room scanner:")
+                        CosmeticRooms.debugInfo().forEach { src.sendFeedback(Component.literal("  §7$it")) }
+                    })))
                 // ---- share ----
                 .then(lit("export").executes(run {
                     mc.keyboardHandler.clipboard = CosmeticStore.exportCurrent()
@@ -752,7 +756,7 @@ object CosmeticBlocks : Module(
             "§7  weighted blocks: set stone:3 andesite:1 cobblestone",
             "§efavourites:§f fav [add [id] | remove <id> | list]",
             "§eremaps:§f remap add <from> <to> [weight] | remove <from> [index] | list | clear | export | import",
-            "§erooms:§f rooms [list | current | clear <name> | clearall]",
+            "§erooms:§f rooms [list | current | debug | clear <name> | clearall]",
             "§epresets:§f presets (quick switcher) | preset [list | island | new | use | delete | copy <island> <preset> <newname>]",
             "§eshare:§f export | import  (active preset via clipboard)",
             "§econfig:§f config [list | export [name] | import <name> [replace] | copy | paste [replace] | folder]",

@@ -3,7 +3,9 @@ package ced.cedclient.features.impl.render
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
+import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.features.settings.NumberSetting
+import org.lwjgl.glfw.GLFW
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
@@ -27,6 +29,9 @@ object Zoom : Module(
     description = "Hold the zoom key to zoom in, scroll while zooming to zoom further.",
     defaultEnabled = false
 ) {
+    /** Hold to zoom (polled in CedClient). */
+    val zoomKey = KeybindSetting("Zoom Key", GLFW.GLFW_KEY_C, "Hold to zoom.")
+
     private val maxZoom = NumberSetting(
         "Max Zoom", 16.0, 2.0, 50.0, 1.0,
         "Highest zoom multiplier reachable by scrolling"
@@ -68,7 +73,7 @@ object Zoom : Module(
     private var originalSensitivity: Double? = null
 
     init {
-        addSettings(maxZoom, defaultZoomSetting, scrollStep, zoomSpeed, dynamicSensitivity)
+        addSettings(zoomKey, maxZoom, defaultZoomSetting, scrollStep, zoomSpeed, dynamicSensitivity)
 
         ClientTickEvents.END_CLIENT_TICK.register {
             if (!isEnabled) return@register
