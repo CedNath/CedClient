@@ -20,6 +20,7 @@ import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.features.impl.render.ChatChannelHud
 import ced.cedclient.features.impl.render.CompactScoreboard
 import ced.cedclient.features.impl.render.CompactTab
+import ced.cedclient.features.impl.render.CosmeticBlocks
 import ced.cedclient.features.impl.render.FloorDrops
 import ced.cedclient.features.impl.render.StarredMobHighlight
 import ced.cedclient.features.impl.render.Fullbright
@@ -126,6 +127,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CompactTab)
         ModuleManager.register(CompactScoreboard)
         ModuleManager.register(ProfileViewer)
+        ModuleManager.register(CosmeticBlocks)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {

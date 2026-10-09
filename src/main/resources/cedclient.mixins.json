@@ -16,6 +16,7 @@
     "render.CameraMixin",
     "render.OptionInstanceMixin",
     "render.OptionsMixin",
+    "render.RenderSectionRegionMixin",
 
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
