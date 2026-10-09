@@ -1,4 +1,4 @@
-package ced.cedclient.mixin.render;
+package ced.cedclient.mixin.cosmetic;
 
 import ced.cedclient.render.cosmetic.CosmeticHooks;
 import net.minecraft.core.Direction;
@@ -17,12 +17,11 @@ public class BlockFaceCullingMixin {
 
     @Inject(method = "shouldRenderFace", at = @At("HEAD"), cancellable = true)
     private static void cedclient$fixCulling(BlockState adjacentState, BlockState thisState, Direction direction, CallbackInfoReturnable<Boolean> cir) {
-        if (CosmeticHooks.hasActive()) {
-            VoxelShape adjShape = thisState.getFaceOcclusionShape(direction.getOpposite());
-            VoxelShape selfShape = adjacentState.getFaceOcclusionShape(direction);
-            if (adjShape != Shapes.block() || selfShape != Shapes.block()) {
-                cir.setReturnValue(true);
-            }
+        if (!CosmeticHooks.hasActive()) return;
+        VoxelShape adjShape = thisState.getFaceOcclusionShape(direction.getOpposite());
+        VoxelShape selfShape = adjacentState.getFaceOcclusionShape(direction);
+        if (adjShape != Shapes.block() || selfShape != Shapes.block()) {
+            cir.setReturnValue(true);
         }
     }
 }

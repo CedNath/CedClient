@@ -50,17 +50,24 @@ class KeybindSetting(
         return height
     }
 
+    /** Left-click: listen for a key. Right-click: unbind. */
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (!isHovered) return false
-        listening = true
+        if (click.button() == 1) {
+            value = GLFW.GLFW_KEY_UNKNOWN
+            listening = false
+        } else {
+            listening = true
+        }
         return true
     }
 
+    /** While listening: Escape / Backspace / Delete unbind, any other key binds. */
     override fun keyPressed(input: KeyEvent): Boolean {
         if (!listening) return false
 
         val key = input.key()
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_BACKSPACE || key == GLFW.GLFW_KEY_DELETE) {
             value = GLFW.GLFW_KEY_UNKNOWN
         } else {
             value = key

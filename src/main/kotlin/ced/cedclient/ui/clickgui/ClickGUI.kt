@@ -104,8 +104,6 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
             draggedPanel?.draw(scaledMouseX, scaledMouseY)
 
-            desc.render()
-
             activePopup?.let { popup ->
                 popup.x = (canvasWidth - popup.width) / 2f
                 popup.y = (canvasHeight - popup.height) / 2f
@@ -113,6 +111,9 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
                 NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(0.55f).rgba)
                 popup.draw(scaledMouseX, scaledMouseY)
             }
+
+            // After the popup, so settings shown inside a SettingsPopup get their tooltip on top of it.
+            desc.render()
         })
         super.extractRenderState(context, mouseX, mouseY, deltaTicks)
     }
@@ -197,11 +198,10 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
         activePopup?.let { popup ->
-            if (keyEvent.key == GLFW.GLFW_KEY_ESCAPE) {
-                closePopup()
-                return true
-            }
-            return popup.keyPressed(keyEvent)
+            // The popup gets first go, so a keybind setting inside it can take Escape to unbind.
+            if (popup.keyPressed(keyEvent)) return true
+            if (keyEvent.key == GLFW.GLFW_KEY_ESCAPE) closePopup()
+            return true
         }
 
         SearchBar.keyPressed(keyEvent)

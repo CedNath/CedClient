@@ -7,6 +7,7 @@
   "mixins": [
     "chat.ClientPacketListenerMixin",
     "chat.ChatComponentMixin",
+    "chat.ClientCommandTreeMixin",
 
     "entity.EntityMixin",
 
@@ -16,7 +17,6 @@
     "render.CameraMixin",
     "render.OptionInstanceMixin",
     "render.OptionsMixin",
-    "render.RenderSectionRegionMixin",
 
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
@@ -40,7 +40,16 @@
     "accessor.ClientInputAccessor",
     "accessor.PlayerTabOverlayAccessor",
 
-    "client.MinecraftTurnMixin"
+    "client.MinecraftTurnMixin",
+
+    "cosmetic.RenderSectionRegionMixin",
+    "cosmetic.BlockFaceCullingMixin",
+    "cosmetic.BlockStateModelSetMixin",
+    "cosmetic.BiomeColorsMixin",
+    "cosmetic.ClientLevelEffectsMixin",
+    "cosmetic.EntityStepSoundMixin",
+    "cosmetic.LevelEventHandlerMixin",
+    "cosmetic.MinecraftPickBlockMixin"
   ],
 
   "client": [

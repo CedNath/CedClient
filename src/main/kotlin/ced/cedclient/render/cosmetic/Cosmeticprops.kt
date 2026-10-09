@@ -18,6 +18,29 @@ object CosmeticProps {
         return if (value.isPresent) state.setValue(prop, value.get()) else null
     }
 
+    /** The serialized name of [p]'s current value on [state] ("east", "true", "3", ...). */
+    fun valueName(state: BlockState, p: Property<*>): String {
+        val prop = raw(p)
+        return prop.getName(state.getValue(prop))
+    }
+
+    /** Every serialized value [p] can take ("north", "south", ...). */
+    fun possibleValueNames(p: Property<*>): List<String> {
+        val prop = raw(p)
+        return prop.possibleValues.map { prop.getName(it) }
+    }
+
+    /** Copies every property [from] has onto [to] where [to] has the same property (stairs facing/half, slab type...). */
+    fun copyMatching(from: BlockState, to: BlockState): BlockState {
+        var result = to
+        for (p in from.block.stateDefinition.properties) {
+            if (!result.hasProperty(p)) continue
+            val prop = raw(p)
+            result = result.setValue(prop, from.getValue(prop))
+        }
+        return result
+    }
+
     /** "minecraft:oak_stairs[facing=east,half=bottom,...]" (just the id when the block has no properties). */
     fun serialize(state: BlockState): String {
         val id = BuiltInRegistries.BLOCK.getKey(state.block).toString()
