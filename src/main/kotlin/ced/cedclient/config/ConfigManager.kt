@@ -24,7 +24,7 @@ object ConfigManager {
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
     private val configDir: File
-        get() = File(Minecraft.getInstance().gameDirectory, "cedclient")
+        get() = CedPaths.dir
 
     private val configFile: File
         get() = File(configDir, "config.json")

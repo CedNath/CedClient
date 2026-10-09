@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
@@ -669,7 +670,7 @@ object DailyReset : Module(
     // -------------------------
     private val gson = Gson()
     private val saveFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/daily_reset.json")
+        CedPaths.file("daily_reset.json")
     }
 
     private fun persist() {

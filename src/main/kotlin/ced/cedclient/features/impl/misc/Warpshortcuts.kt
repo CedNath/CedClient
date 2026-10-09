@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import com.google.gson.Gson
@@ -227,7 +228,7 @@ object WarpShortcuts : Module(
 
     private val gson = Gson()
     private val shortcutsFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/warp_shortcuts.json")
+        CedPaths.file("warp_shortcuts.json")
     }
 
     private fun save() {
