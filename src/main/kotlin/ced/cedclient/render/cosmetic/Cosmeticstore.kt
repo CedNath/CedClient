@@ -1,6 +1,7 @@
 package ced.cedclient.render.cosmetic
 
 import ced.cedclient.config.CedPaths
+import ced.cedclient.state.DungeonState
 import ced.cedclient.state.IslandState
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
@@ -77,9 +78,29 @@ object CosmeticStore {
         ClientLifecycleEvents.CLIENT_STOPPING.register { flush(); CosmeticRooms.flush() }
     }
 
+    /** Dungeon boss scopes: each floor has its own presets, active while you are in a run of that floor. */
+    val FLOORS = (1..7).map { "f$it" } + (1..7).map { "m$it" }
+
     fun islandNames(): List<String> = IslandState.Island.entries.map { it.name.lowercase() } + OTHER
 
-    private fun islandKeyNow(): String = IslandState.island?.name?.lowercase() ?: OTHER
+    /** Every preset scope: the boss floors, then the islands. */
+    fun scopeNames(): List<String> = FLOORS + islandNames()
+
+    /** Display name of a scope ("F7 Boss", "Dwarven Mines", ...). */
+    fun scopeLabel(scope: String): String {
+        if (scope in FLOORS) return "${scope.uppercase()} Boss"
+        if (scope == OTHER) return "Other"
+        return IslandState.Island.entries.firstOrNull { it.name.equals(scope, ignoreCase = true) }?.displayName ?: scope
+    }
+
+    /** The floor's scope while in a run whose floor is known, else the island (catacombs when the floor is unknown). */
+    private fun islandKeyNow(): String {
+        val island = IslandState.island
+        if (DungeonState.inDungeon || island == IslandState.Island.CATACOMBS) {
+            DungeonState.floor?.lowercase()?.takeIf { it in FLOORS }?.let { return it }
+        }
+        return island?.name?.lowercase() ?: OTHER
+    }
 
     // ------------------------------------------------------------------
     // Presets
@@ -106,8 +127,66 @@ object CosmeticStore {
 
     fun entryCount(): Int = current().entries.size
 
-    /** Block count of a preset on the current island (0 for one that does not exist yet). */
-    fun presetSize(name: String): Int = presetsFor(islandKey)[name]?.entries?.size ?: 0
+    /** Block count of a preset (0 for one that does not exist yet). */
+    fun presetSize(name: String, scope: String = islandKey): Int = presetsFor(scope)[name]?.entries?.size ?: 0
+
+    fun activePresetOf(scope: String): String = activeNames[scope] ?: DEFAULT_PRESET
+
+    /** Total blocks in every preset of [scope]. */
+    fun scopeSize(scope: String): Int = presetsFor(scope).values.sumOf { it.entries.size }
+
+    /** Makes [name] the active preset of [scope] (switches immediately when that is where you are). */
+    fun setActive(scope: String, name: String): Boolean {
+        if (scope == islandKey) return usePreset(name)
+        if (!presetsFor(scope).containsKey(name) && name != DEFAULT_PRESET) return false
+        activeNames[scope] = name
+        indexDirty = true
+        saveDelay = 40
+        return true
+    }
+
+    /** A free preset name in [scope]: [base], else base_2, base_3, ... */
+    fun freeName(scope: String, base: String): String {
+        val map = presetsFor(scope)
+        val b = sanitize(base).ifEmpty { "preset" }
+        if (!map.containsKey(b)) return b
+        var i = 2
+        while (map.containsKey("${b.take(28)}_$i")) i++
+        return "${b.take(28)}_$i"
+    }
+
+    /** Copies (or with [move] moves) a preset to another scope under a free name. Returns the new name, or null. */
+    fun transferPreset(srcScope: String, name: String, dstScope: String, move: Boolean): String? {
+        if (move && srcScope == dstScope) return null
+        val src = presetsFor(srcScope)[name] ?: return null
+        val n = freeName(dstScope, name)
+        if (!createPreset(n, dstScope, src)) return null
+        if (move) deletePreset(name, srcScope)
+        flush()
+        return n
+    }
+
+    /**
+     * Writes [entries] into preset [name] of [scope] ([replace] clears it first, otherwise merged, imported blocks win).
+     * [activate] makes it the scope's active preset. Not undoable. Returns the number of blocks written.
+     */
+    fun importPreset(scope: String, name: String, entries: Map<Long, String>, replace: Boolean, activate: Boolean): Int {
+        val n = sanitize(name).ifEmpty { "imported" }
+        val p = presetsFor(scope).getOrPut(n) { Preset() }
+        if (replace) p.entries.clear()
+        p.entries.putAll(entries)
+        dirtyPresets += scope to n
+        if (activate) {
+            activeNames[scope] = n
+            indexDirty = true
+        }
+        flush()
+        if (scope == islandKey) {
+            undoStack.clear()
+            rebuildCache()
+        }
+        return entries.size
+    }
 
     /** Switches to the preset after the active one on this island (wraps). Returns its name, or null if there is only one. */
     fun cyclePreset(): String? {
@@ -148,12 +227,18 @@ object CosmeticStore {
         return true
     }
 
-    fun deletePreset(name: String): Boolean {
-        val map = presetsFor(islandKey)
+    fun deletePreset(name: String, scope: String = islandKey): Boolean {
+        val map = presetsFor(scope)
         if (map.remove(name) == null) return false
-        CedPaths.file("cosmetic/$islandKey/$name.json").delete()
-        dirtyPresets.remove(islandKey to name)
-        if (name == activePresetName) usePreset(DEFAULT_PRESET)
+        CedPaths.file("cosmetic/$scope/$name.json").delete()
+        dirtyPresets.remove(scope to name)
+        if (scope == islandKey) {
+            if (name == activePresetName) usePreset(DEFAULT_PRESET)
+        } else if (activeNames[scope] == name) {
+            activeNames.remove(scope)
+            indexDirty = true
+            saveDelay = 40
+        }
         return true
     }
 
@@ -164,15 +249,22 @@ object CosmeticStore {
         return root.toString()
     }
 
-    /** Merges exported JSON into the active preset (one undo step). Returns the number of blocks imported, or -1. */
+    /**
+     * Merges exported JSON (ours, or a cb mod export) into the active preset (one undo step).
+     * Returns the number of blocks imported, or -1.
+     */
     fun importIntoCurrent(json: String): Int {
         return try {
-            val obj = JsonParser.parseString(json).asJsonObject.getAsJsonObject("replacements") ?: return -1
+            val root = JsonParser.parseString(json).asJsonObject
+            val obj = root.getAsJsonObject("replacements") ?: CosmeticBackup.cbEntries(root) ?: return -1
             val changes = ArrayList<Pair<BlockPos, String?>>()
             for ((k, v) in obj.entrySet()) {
                 val parts = k.split(',')
-                if (parts.size != 3) continue
-                changes += BlockPos(parts[0].trim().toInt(), parts[1].trim().toInt(), parts[2].trim().toInt()) to v.asString
+                if (parts.size != 3 || !v.isJsonPrimitive) continue
+                val x = parts[0].trim().toIntOrNull() ?: continue
+                val y = parts[1].trim().toIntOrNull() ?: continue
+                val z = parts[2].trim().toIntOrNull() ?: continue
+                changes += BlockPos(x, y, z) to v.asString
             }
             applyWorldChanges(changes)
             changes.size

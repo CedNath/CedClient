@@ -211,6 +211,13 @@ object CosmeticRooms {
         return n
     }
 
+    /** Imports rooms ({ room name: { "x,y,z": raw } }, same as the cb mod's cb_rooms.json). [replaceListed] wipes only the rooms in [obj] first. */
+    fun importRooms(obj: JsonObject, replaceListed: Boolean): Int {
+        loadBlocks()
+        if (replaceListed) for (name in obj.keySet()) roomBlocks.remove(name)
+        return importAll(obj, replace = false)
+    }
+
     fun clearAllRooms(): Int {
         loadBlocks()
         val n = roomBlocks.values.sumOf { it.size }

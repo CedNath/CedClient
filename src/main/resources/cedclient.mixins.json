@@ -55,7 +55,8 @@
     "cosmetic.ClientLevelEffectsMixin",
     "cosmetic.EntityStepSoundMixin",
     "cosmetic.LevelEventHandlerMixin",
-    "cosmetic.MinecraftPickBlockMixin"
+    "cosmetic.MinecraftPickBlockMixin",
+    "cosmetic.SodiumLevelSliceMixin"
   ],
 
   "client": [

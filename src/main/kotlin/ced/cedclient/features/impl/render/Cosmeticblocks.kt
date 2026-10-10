@@ -509,6 +509,11 @@ object CosmeticBlocks : Module(
 
     private fun importConfigText(text: String, replace: Boolean, source: String): String {
         val bundle = CosmeticBackup.parse(text) ?: return "$source is not a Cosmetic Blocks config export"
+        return importBundle(bundle, replace)
+    }
+
+    /** Applies a whole-config bundle (the old config is backed up first). Returns a status line. */
+    fun importBundle(bundle: JsonObject, replace: Boolean): String {
         return try {
             val result = CosmeticBackup.import(bundle, replace, settingsJson(), ::applySettings)
             "${if (replace) "Replaced config with" else "Merged"} $result (old config backed up to cosmetic_exports)"
