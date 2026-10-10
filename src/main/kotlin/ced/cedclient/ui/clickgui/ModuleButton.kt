@@ -29,7 +29,11 @@ class ModuleButton(val module: Module, val panel: Panel) {
 
     private val color: Color
         get() =
-            colorAnim.get(ClickGUI.clickGUIColor, Colors.gray26, module.enabled).brighter(1 + hover.percent() / 500f)
+            colorAnim.get(ClickGUI.clickGUIColor, Colors.gray26, module.enabled || pressed()).brighter(1 + hover.percent() / 500f)
+
+    /** Action modules (one-shot buttons) light up briefly after a click instead of staying on. */
+    private var pressedAt = 0L
+    private fun pressed() = module.isAction && System.currentTimeMillis() - pressedAt < 150L
 
     private val nameWidth = NVGRenderer.textWidth(module.name, 21f, NVGRenderer.defaultFont)
     private val hoverHandler = HoverHandler(750)
@@ -80,6 +84,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
         if (hover.isHovered) {
             if (click.button() == 0) {
                 colorAnim.start()
+                if (module.isAction) pressedAt = System.currentTimeMillis()
                 module.toggle()
                 return true
             } else if (click.button() == 1) {

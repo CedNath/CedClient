@@ -66,7 +66,7 @@ object WarpShortcuts : Module(
     "WarpShortcuts",
     Category.Misc,
     "Type /<alias> instead of /warp <alias>, e.g. /dh -> /warp dh",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
 
     // Mirrors SkyHanni-REPO's constants/Warps.json warpCommands array (85

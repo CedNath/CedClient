@@ -7,7 +7,7 @@ import ced.cedclient.state.CosmeticsSync
 
 object HardcodedCosmetics : Module(
     "Cosmetics",
-    Category.CedClient,
+    Category.Cosmetic,
     "Shows Custom built-in cosmetic tag on your client.",
     defaultEnabled = true
 ) {

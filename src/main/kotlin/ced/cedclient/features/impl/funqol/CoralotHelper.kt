@@ -28,7 +28,7 @@ private enum class CoralotState { IDLE, CATCH_DELAY, CONFIRMING }
 object CoralotHelper : Module(
     "CoralotHelper(!!!)",
 
-    Category.Funqol,
+    Category.Skyblock,
    description = "Auto-catches Axolotls with a net once the warning icon clears"
 ) {
     private val mc = Minecraft.getInstance()

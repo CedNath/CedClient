@@ -137,7 +137,7 @@ private data class SavedState(
  */
 object DailyReset : Module(
     "Daily Tasks",
-    Category.Misc,
+    Category.HUD,
     "Checklist of SkyBlock dailies -- known ones tick themselves off automatically, plus a manual list for anything else. Clears at Hypixel's daily reset (midnight ET).",
     defaultEnabled = false
 ), HudElement {

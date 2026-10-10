@@ -180,7 +180,7 @@ enum class ItemAbility(
 
 object ItemCooldowns : Module(
     "Item Cooldowns",
-    Category.Render,
+    Category.HUD,
     "Shows a countdown on items whose ability is on cooldown, inspired by SkyHanni.",
     defaultEnabled = false
 ) {

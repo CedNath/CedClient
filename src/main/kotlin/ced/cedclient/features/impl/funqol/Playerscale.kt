@@ -22,7 +22,7 @@ import ced.cedclient.features.settings.NumberSetting
  */
 object PlayerScale : Module(
     "Player Scale",
-    Category.Funqol,
+    Category.Cosmetic,
     "Scales your own player model per-axis. Names with a synced scale pushed via CosmeticsSync always render at that fixed size, independent of these sliders and this toggle."
 ) {
     private val scaleX = NumberSetting("Scale X", 1.0, 0.1, 5.0, 0.05)

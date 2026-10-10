@@ -36,7 +36,7 @@ object ScreenshotTweaks : Module(
     "ScreenshotTweaks",
     Category.Misc,
     "Hides the screenshot chat message and copies screenshots to your clipboard",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private const val SUCCESS_KEY = "screenshot.success"
 

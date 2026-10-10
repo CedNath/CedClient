@@ -23,7 +23,6 @@ class Panel(val panelSetting: PanelSetting) {
     private val category = panelSetting.category
 
     val moduleButtons = ModuleManager.modulesByCategory[category]
-        ?.sortedByDescending { NVGRenderer.textWidth(it.name, 16f, NVGRenderer.defaultFont) }
         ?.map { ModuleButton(it, this@Panel) } ?: listOf()
     private val lastModuleButton by lazy { moduleButtons.lastOrNull() }
 

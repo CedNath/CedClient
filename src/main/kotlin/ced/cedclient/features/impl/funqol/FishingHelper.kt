@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 object FishingHelper : Module(
     "FishingHelper",
-    Category.Funqol,
+    Category.Skyblock,
     "Fishing helper with optimized scanning and human-like timing"
 ) {
     private val mc: Minecraft = Minecraft.getInstance()

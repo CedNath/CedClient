@@ -40,11 +40,15 @@ object ConfigManager {
     // 30px gutter between panels: 15, 15+320+30=365, 365+320+30=715,
     // 715+320+30=1065.
     private val defaultPanelPositions: Map<String, Pair<Float, Float>> = mapOf(
-        "Render" to (365f to 15f),
-        "Funqol" to (15f to 15f),
-        "Misc" to (715f to 15f),
-        "CedClient" to (1065f to 15f)
+        "Render" to (15f to 15f),
+        "HUD" to (365f to 15f),
+        "Cosmetic" to (715f to 15f),
+        "Skyblock" to (1065f to 15f),
+        "Misc" to (1415f to 15f),
     )
+
+    /** Panels that existed before the category reshuffle; a saved layout containing them is reset once. */
+    private val legacyPanels = setOf("Funqol", "CedClient")
 
     private fun readRoot(): JsonObject? {
         if (!configFile.exists()) return null
@@ -172,7 +176,10 @@ object ConfigManager {
             // LOAD PANEL POSITIONS (with defaults) -- runs even if config.json
             // doesn't exist yet, so first launch still gets the right layout
             // -------------------------
+            // Old layout (pre HUD/Cosmetic/Skyblock split): its Render/Misc positions would overlap the new
+            // panels, so start from the defaults instead.
             val panelsJson = root?.get("panels")?.asJsonObject
+                ?.takeUnless { saved -> saved.keySet().any { it in legacyPanels } }
             for (panel in panels) {
                 val entry = panelsJson?.get(panel.category.name)?.asJsonObject
                 val x = entry?.get("x")?.asFloat

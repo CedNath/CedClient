@@ -7,7 +7,7 @@ import ced.cedclient.features.settings.TextSetting
 
 object CustomNametag : Module(
     "Custom Nametag",
-    Category.Render,
+    Category.Cosmetic,
     "Shows a custom tag in place of a username -- in-world, tab list, and chat."
 ) {
     val tagText = TextSetting(

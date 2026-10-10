@@ -31,9 +31,9 @@ import kotlin.math.roundToInt
  */
 object CompactScoreboard : Module(
     "Compact Scoreboard",
-    Category.Render,
+    Category.HUD,
     "Restyles the sidebar scoreboard into a compact panel matching Compact Tab",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val opacity = registerSetting(NumberSetting("Panel Opacity", 65.0, 0.0, 100.0, 1.0))
     private val scale = registerSetting(NumberSetting("Scale", 1.0, 0.5, 2.0, 0.05))

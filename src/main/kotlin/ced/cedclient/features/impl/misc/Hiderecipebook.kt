@@ -20,7 +20,7 @@ object HideRecipeBook : Module(
     "HideRecipeBook",
     Category.Misc,
     "Hides the recipe book button in your inventory",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val alsoCraftingTable = BooleanSetting(
         "Also Crafting Table", true,

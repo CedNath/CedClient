@@ -61,7 +61,7 @@ import org.lwjgl.glfw.GLFW
  */
 object CosmeticBlocks : Module(
     "Cosmetic Blocks",
-    Category.Render,
+    Category.Cosmetic,
     "Client-side only: change how blocks look. Presets per SkyBlock island, room-relative in dungeons. /cc cosmetic help"
 ) {
     // ---- modes ----

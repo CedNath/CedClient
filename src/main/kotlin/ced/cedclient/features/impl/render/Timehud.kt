@@ -51,7 +51,7 @@ private data class TimeHudPosition(val x: Int, val y: Int, val scale: Float = 1.
  */
 object TimeHud : Module(
     "Time HUD",
-    Category.Render,
+    Category.HUD,
     "Shows your real-world clock time on screen"
 ), HudElement {
 

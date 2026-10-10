@@ -9,16 +9,14 @@ import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
-import ced.cedclient.features.impl.loot.LootSummaryCommand
-import ced.cedclient.features.impl.loot.LootTracker
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.AutoSprint
+import ced.cedclient.features.impl.misc.BorderlessFullscreen
 import ced.cedclient.chat.PlayerChatManager
 import ced.cedclient.features.impl.misc.ChatFilter
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.misc.HideRecipeBook
 import ced.cedclient.features.impl.misc.InventoryButtons
-import ced.cedclient.features.impl.misc.ProfileViewer
 import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.ScreenshotTweaks
 import ced.cedclient.features.impl.misc.WarpShortcuts
@@ -80,7 +78,6 @@ class CedClient : ClientModInitializer {
         loadConfig()
 
         CedClientCommand.register()
-        LootSummaryCommand.register()
         TabListCache.register()
 
         // One small launch ping (username, UUID, mod + MC version) so the dev can see
@@ -91,14 +88,13 @@ class CedClient : ClientModInitializer {
 
     /**
      * State trackers that run regardless of any Module's enabled state --
-     * DungeonState needs to track floor/in-dungeon status, CosmeticsSync and
-     * LootTracker need to keep listening, and InventoryButtonManager needs
+     * DungeonState needs to track floor/in-dungeon status, CosmeticsSync needs
+     * to keep listening, and InventoryButtonManager needs
      * its buttons loaded, no matter what's toggled on in the ClickGUI.
      */
     private fun registerAlwaysOnState() {
         DungeonState.init()
         CosmeticsSync.init()
-        LootTracker.init()
         IslandState.init()
         PlayerChatManager.init()
         PartyApi.init()
@@ -120,38 +116,50 @@ class CedClient : ClientModInitializer {
         EntityESPHud.load()
         BlockESPRenderer.register()
 
-        ModuleManager.register(PangolinCatcher)
-        ModuleManager.register(LassoHelper)
-        ModuleManager.register(ChatChannelHud)
-        ModuleManager.register(CustomNametag)
-        ModuleManager.register(HardcodedCosmetics)
-        ModuleManager.register(ResetPanels)
-        ModuleManager.register(DailyReset)
-        ModuleManager.register(AdvancedMode)
-        ModuleManager.register(TimeHud)
-        ModuleManager.register(ChatFilter)
-        ModuleManager.register(Freecam)
-        ModuleManager.register(AutoSprint)
-        ModuleManager.register(CoralotHelper)
+        // Registration order = order inside each ClickGUI panel, so related modules sit together.
+
+        // Render: ESP / highlights, then world visuals, then camera
         ModuleManager.register(EntityESP)
-        ModuleManager.register(BlockESP)
         ModuleManager.register(StarredMobESP)
+        ModuleManager.register(BlockESP)
         ModuleManager.register(FloorDrops)
         ModuleManager.register(Fullbright)
-        ModuleManager.register(RenderOptimizer)
         ModuleManager.register(CleanView)
-        ModuleManager.register(ScreenshotTweaks)
-        ModuleManager.register(HideRecipeBook)
-        ModuleManager.register(FishingHelper)
-        ModuleManager.register(InventoryButtons)
-        ModuleManager.register(ItemCooldowns)
-        ModuleManager.register(PlayerScale)
-        ModuleManager.register(WarpShortcuts)
+        ModuleManager.register(RenderOptimizer)
+        ModuleManager.register(Freecam)
         ModuleManager.register(Zoom)
-        ModuleManager.register(CompactTab)
+
+        // HUD: vanilla UI tweaks, then info overlays
         ModuleManager.register(CompactScoreboard)
-        ModuleManager.register(ProfileViewer)
+        ModuleManager.register(CompactTab)
+        ModuleManager.register(ChatChannelHud)
+        ModuleManager.register(TimeHud)
+        ModuleManager.register(ItemCooldowns)
+        ModuleManager.register(DailyReset)
+
+        // Cosmetic: world, then player
         ModuleManager.register(CosmeticBlocks)
+        ModuleManager.register(CustomNametag)
+        ModuleManager.register(HardcodedCosmetics)
+        ModuleManager.register(PlayerScale)
+
+        // Skyblock: Galatea hunting, fishing, Rift
+        ModuleManager.register(LassoHelper)
+        ModuleManager.register(PangolinCatcher)
+        ModuleManager.register(CoralotHelper)
+        ModuleManager.register(FishingHelper)
+        ModuleManager.register(TinyDancerHelper)
+
+        // Misc: movement / navigation, inventory, chat, screenshots, then client settings
+        ModuleManager.register(AutoSprint)
+        ModuleManager.register(WarpShortcuts)
+        ModuleManager.register(InventoryButtons)
+        ModuleManager.register(HideRecipeBook)
+        ModuleManager.register(ChatFilter)
+        ModuleManager.register(ScreenshotTweaks)
+        ModuleManager.register(BorderlessFullscreen)
+        ModuleManager.register(AdvancedMode)
+        ModuleManager.register(ResetPanels)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {

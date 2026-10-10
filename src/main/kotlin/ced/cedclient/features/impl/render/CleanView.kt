@@ -21,7 +21,8 @@ import net.minecraft.world.entity.projectile.Projectile
 object CleanView : Module(
     "Clean View",
     Category.Render,
-    "In first person, hides particles, arrows and other clutter right in front of your face"
+    "In first person, hides particles, arrows and other clutter right in front of your face",
+    defaultEnabled = true
 ) {
     private val radius = NumberSetting("Radius", 2.5, 0.5, 8.0, 0.5, "Blocks around your camera that are kept clear.")
     private val particles = BooleanSetting("Particles", true, "Hide particles close to your face.")

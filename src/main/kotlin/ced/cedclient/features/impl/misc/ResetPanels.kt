@@ -6,16 +6,12 @@ import ced.cedclient.features.Module
 import ced.cedclient.ui.clickgui.ClickGUI
 import net.minecraft.client.Minecraft
 
-object ResetPanels : Module("Reset Panels", Category.CedClient) {
+/** Button: puts every ClickGUI panel back at its default position. */
+object ResetPanels : Module("Reset Panels", Category.Misc, "Moves every panel back to its default position.") {
 
-    private var lastRunMillis: Long = 0L
-    private val debounceMs: Long = 1000L
+    override val isAction = true
 
-    override fun onEnable() {
-        val now = System.currentTimeMillis()
-        if (now - lastRunMillis < debounceMs) return
-        lastRunMillis = now
-
+    override fun onAction() {
         try {
             val screen = Minecraft.getInstance().screen
             if (screen is ClickGUI) {
