@@ -2,7 +2,6 @@ package ced.cedclient.ui.clickgui
 
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
-import ced.cedclient.ui.animations.EaseOutAnimation
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Color
@@ -43,11 +42,13 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
 class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     private val panelSettings: List<PanelSetting> =
-        Category.entries.map { PanelSetting(it) }.also { ConfigManager.load(it) }
+        Category.entries.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }
 
     private val panels: List<Panel> = panelSettings.map { Panel(it) }
 
-    private var openAnim = EaseOutAnimation(500)
+    /** When this screen opened / the current popup appeared (System.nanoTime), for the open animations. */
+    private var openedAt = System.nanoTime()
+    private var popupOpenedAt = 0L
 
     private var activePopup: Popup? = null
 
@@ -56,7 +57,11 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     /** Opens [popup] as a modal on top of this ClickGUI, replacing whichever popup (if any) is already open. */
     fun openPopup(popup: Popup) {
+        val now = System.nanoTime()
+        // Opened straight into a popup (/cc cosmetic etc.): skip the panel slide-in behind it, just pop the popup.
+        if ((now - openedAt) / 1_000_000f < 50f) openedAt = now - PANELS_DONE_NANOS
         activePopup = popup
+        popupOpenedAt = now
     }
 
     fun closePopup() {
@@ -79,27 +84,33 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             val canvasWidth = NVGRenderer.canvasWidth / clickGuiScale
             val canvasHeight = NVGRenderer.canvasHeight / clickGuiScale
 
+            // Our own background dim instead of vanilla's menu blur (see extractBackground).
+            val elapsed = (System.nanoTime() - openedAt) / 1_000_000f
+            val dim = easeOutCubic(elapsed / DIM_FADE_MS)
+            NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(BACKGROUND_DIM * dim).rgba)
+
             // Bottom-center, a fixed 50px gap above the screen edge.
+            NVGRenderer.push()
+            NVGRenderer.globalAlpha(dim)
             SearchBar.draw(
                 canvasWidth / 2f - 175f,
                 canvasHeight - 90f,
                 scaledMouseX,
                 scaledMouseY
             )
+            NVGRenderer.pop()
 
-            if (openAnim.isAnimating()) {
-                val scale = openAnim.get(0f, 1f)
-
-                val centerX = canvasWidth
-                val centerY = canvasHeight
-                NVGRenderer.translate(centerX, centerY)
-                NVGRenderer.scale(scale, scale)
-                NVGRenderer.translate(-centerX, -centerY)
-            }
-
+            // Opening: each panel slides up and fades in, left to right, slightly after the one before it.
             val draggedPanel = panels.firstOrNull { it.dragging }
-            for (panel in panels) {
-                if (panel != draggedPanel) panel.draw(scaledMouseX, scaledMouseY)
+            panels.forEachIndexed { i, panel ->
+                if (panel == draggedPanel) return@forEachIndexed
+                val t = easeOutCubic((elapsed - i * PANEL_STAGGER_MS) / PANEL_ANIM_MS)
+                if (t <= 0f) return@forEachIndexed
+                NVGRenderer.push()
+                NVGRenderer.globalAlpha(t)
+                NVGRenderer.translate(0f, (1f - t) * PANEL_SLIDE)
+                panel.draw(scaledMouseX, scaledMouseY)
+                NVGRenderer.pop()
             }
 
             draggedPanel?.draw(scaledMouseX, scaledMouseY)
@@ -108,8 +119,19 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
                 popup.x = (canvasWidth - popup.width) / 2f
                 popup.y = (canvasHeight - popup.height) / 2f
 
-                NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(0.55f).rgba)
+                // Popup: its own quick fade + small pop from 96% around its centre.
+                val p = easeOutCubic((System.nanoTime() - popupOpenedAt) / 1_000_000f / POPUP_ANIM_MS)
+                NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(0.55f * p).rgba)
+                NVGRenderer.push()
+                NVGRenderer.globalAlpha(p)
+                val s = 0.96f + 0.04f * p
+                val cx = popup.x + popup.width / 2f
+                val cy = popup.y + popup.height / 2f
+                NVGRenderer.translate(cx, cy)
+                NVGRenderer.scale(s, s)
+                NVGRenderer.translate(-cx, -cy)
                 popup.draw(scaledMouseX, scaledMouseY)
+                NVGRenderer.pop()
             }
 
             // After the popup, so settings shown inside a SettingsPopup get their tooltip on top of it.
@@ -211,10 +233,22 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         return super.keyPressed(keyEvent)
     }
 
+    // openedAt is set at construction, not in init(): init() also runs on every window resize.
     override fun init() {
-        openAnim.start()
         super.init()
     }
+
+    private fun easeOutCubic(x: Float): Float {
+        val t = x.coerceIn(0f, 1f)
+        val inv = 1f - t
+        return 1f - inv * inv * inv
+    }
+
+    /**
+     * No vanilla menu background: its full-screen blur pass (plus the dark texture) ran every frame under the GUI.
+     * The dim is drawn in extractRenderState instead, fading in with the open animation.
+     */
+    override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {}
 
     override fun onClose() {
         for (panel in panels.filter { it.panelSetting.extended }.reversed()) {
@@ -235,6 +269,16 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
         const val roundedPanelBottom = true
         val clickGUIColor: Color = Color(110, 50, 200)
+
+        // Open animation timings (ms) and sizes.
+        private const val BACKGROUND_DIM = 0.35f
+        private const val DIM_FADE_MS = 160f
+        private const val PANEL_ANIM_MS = 260f
+        private const val PANEL_STAGGER_MS = 45f
+        private const val PANEL_SLIDE = 24f
+        private const val POPUP_ANIM_MS = 150f
+        /** Far enough in the past that every panel (and the dim) has finished animating. */
+        private const val PANELS_DONE_NANOS = 2_000_000_000L
 
         private var desc = Description("", 0f, 0f, HoverHandler(150))
 

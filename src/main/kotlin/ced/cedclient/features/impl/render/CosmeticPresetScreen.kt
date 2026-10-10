@@ -102,12 +102,23 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             val cw = NVGRenderer.canvasWidth / clickGuiScale
             val ch = NVGRenderer.canvasHeight / clickGuiScale
 
-            NVGRenderer.rect(0f, 0f, cw, ch, Colors.BLACK.withAlpha(0.35f).rgba)
+            // Same open feel as the ClickGUI: the dim fades in, the window fades in with a small pop.
+            val t = (System.nanoTime() - openedAt) / 1_000_000f
+            val dim = easeOutCubic(t / 160f)
+            val p = easeOutCubic(t / 180f)
+            NVGRenderer.rect(0f, 0f, cw, ch, Colors.BLACK.withAlpha(0.35f * dim).rgba)
             height = HEIGHT.coerceAtMost(ch - 20f)
             x = (cw - WIDTH) / 2f
             y = (ch - height) / 2f
             hits.clear()
+            NVGRenderer.push()
+            NVGRenderer.globalAlpha(p)
+            val s = 0.96f + 0.04f * p
+            NVGRenderer.translate(cw / 2f, ch / 2f)
+            NVGRenderer.scale(s, s)
+            NVGRenderer.translate(-cw / 2f, -ch / 2f)
             draw(mx, my)
+            NVGRenderer.pop()
         })
         super.extractRenderState(context, mouseX, mouseY, deltaTicks)
     }
@@ -636,6 +647,16 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
     }
 
     override fun isPauseScreen(): Boolean = false
+
+    /** No vanilla blur / menu texture behind this screen; the dim above is drawn instead (same as the ClickGUI). */
+    override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {}
+
+    private val openedAt = System.nanoTime()
+
+    private fun easeOutCubic(x: Float): Float {
+        val inv = 1f - x.coerceIn(0f, 1f)
+        return 1f - inv * inv * inv
+    }
 
     companion object {
         private const val WIDTH = 620f

@@ -168,7 +168,12 @@ object ConfigManager {
         writeRoot(root)
     }
 
-    fun load(panels: List<PanelSetting>) {
+    /**
+     * Panel layout only, for the ClickGUI as it opens. Module settings are NOT re-read here: they are loaded once at
+     * startup (loadModulesOnly) and saved on every change, so the in-memory state is already current -- re-applying
+     * them on every GUI open was a wasted disk read plus a re-apply of every setting, a hitch on the opening frame.
+     */
+    fun loadPanels(panels: List<PanelSetting>) {
         try {
             val root = readRoot()
 
@@ -192,24 +197,10 @@ object ConfigManager {
                     applyDefaultPosition(panel)
                 }
             }
-
-            if (root == null) return
-
-            // -------------------------
-            // LOAD MODULES + SETTINGS
-            // -------------------------
-            val modulesJson = root.get("modules")?.asJsonObject ?: return
-
-            suppressAutoSave = true
-            try {
-                applyModulesJson(modulesJson)
-            } finally {
-                suppressAutoSave = false
-            }
         } catch (t: Throwable) {
             // Catch any unexpected parsing/runtime errors and log them instead of crashing
             t.printStackTrace()
-            println("Warning: ConfigManager.load encountered an error; continuing with defaults where possible.")
+            println("Warning: ConfigManager.loadPanels encountered an error; using default panel positions.")
         }
     }
 }
