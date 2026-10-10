@@ -661,7 +661,19 @@ object CosmeticBlocks : Module(
                 .then(lit("export").executes(run {
                     mc.keyboardHandler.clipboard = CosmeticStore.exportCurrent()
                     feedback(it, "Copied ${CosmeticStore.entryCount()} block(s) of '${CosmeticStore.activePresetName}' to the clipboard")
-                }))
+                }).then(lit("cb").executes(run {
+                    // Active preset as a cb mod config: saved to config/cb/cb and copied to the clipboard.
+                    val scope = CosmeticStore.islandKey
+                    val name = CosmeticStore.activePresetName
+                    val entries = CosmeticStore.presetEntries(scope, name)
+                    if (entries.isNullOrEmpty()) {
+                        feedback(it, "'$name' has no blocks to export")
+                    } else {
+                        val file = CosmeticBackup.exportToCb("${scope}_$name", entries)
+                        mc.keyboardHandler.clipboard = CosmeticBackup.toCbJson(entries).toString()
+                        feedback(it, "Exported ${entries.size} block(s) as cb config config/cb/cb/${file.name} (also copied)")
+                    }
+                })))
                 .then(lit("import").executes(run {
                     val n = CosmeticStore.importIntoCurrent(mc.keyboardHandler.clipboard ?: "")
                     feedback(it, if (n < 0) "Clipboard is not a Cosmetic Blocks export" else "Imported $n block(s) into '${CosmeticStore.activePresetName}' (undo with /cc cosmetic undo)")
@@ -763,7 +775,7 @@ object CosmeticBlocks : Module(
             "§eremaps:§f remap add <from> <to> [weight] | remove <from> [index] | list | clear | export | import",
             "§erooms:§f rooms [list | current | debug | clear <name> | clearall]",
             "§epresets:§f presets (quick switcher) | preset [list | island | new | use | delete | copy <island> <preset> <newname>]",
-            "§eshare:§f export | import  (active preset via clipboard)",
+            "§eshare:§f export [cb] | import  (active preset via clipboard; cb = save as a cb mod config)",
             "§econfig:§f config [list | export [name] | import <name> [replace] | copy | paste [replace] | folder]",
             "§7  whole config: every preset, rooms, remaps, favourites, settings"
         )

@@ -171,6 +171,32 @@ object CosmeticBackup {
         return out
     }
 
+    // ------------------------------------------------------------------
+    // Export as a cb mod config
+    // ------------------------------------------------------------------
+
+    /** A preset as a cb mod config: { "minecraft:overworld": { "x,y,z": raw } } (same raw format, "!" and "|shape=" included). */
+    fun toCbJson(entries: Map<Long, String>): JsonObject {
+        val blocks = JsonObject()
+        for ((k, raw) in entries) blocks.addProperty("${BlockPos.getX(k)},${BlockPos.getY(k)},${BlockPos.getZ(k)}", raw)
+        return JsonObject().apply { add("minecraft:overworld", blocks) }
+    }
+
+    /**
+     * Writes [entries] as a new cb config (config/cb/cb/<name>.json, never overwriting one: a free name is picked),
+     * so cb lists it in its config switcher. Returns the file.
+     */
+    fun exportToCb(name: String, entries: Map<Long, String>): File {
+        val dir = File(cbDir, "cb")
+        dir.mkdirs()
+        val base = sanitize(name).ifEmpty { "cedclient" }
+        var file = File(dir, "$base.json")
+        var i = 2
+        while (file.exists()) file = File(dir, "${base}_${i++}.json")
+        file.writeText(gson.toJson(toCbJson(entries)))
+        return file
+    }
+
     /** Wraps a cb mod export as a bundle holding one preset ([CB_PRESET], made active) on the current island. */
     private fun fromCbExport(obj: JsonObject): JsonObject? {
         val entries = cbEntries(obj) ?: return null

@@ -132,6 +132,9 @@ object CosmeticStore {
 
     fun activePresetOf(scope: String): String = activeNames[scope] ?: DEFAULT_PRESET
 
+    /** Snapshot of a preset's entries (packed pos -> raw), or null when it does not exist. */
+    fun presetEntries(scope: String, name: String): Map<Long, String>? = presetsFor(scope)[name]?.entries?.let { LinkedHashMap(it) }
+
     /** Total blocks in every preset of [scope]. */
     fun scopeSize(scope: String): Int = presetsFor(scope).values.sumOf { it.entries.size }
 

@@ -236,7 +236,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             })
             NVGRenderer.text(if (i < 9 && here) "${i + 1}" else "", paneX + 6f, ry + 4f, 14f, Colors.MINECRAFT_GRAY.rgba, font)
             val count = "${CosmeticStore.presetSize(name, scope)} blocks" + if (isActive) " - active" else ""
-            val actionsW = 3 * SMALL_W + 2 * 4f
+            val actionsW = 4 * SMALL_W + 3 * 4f
             val countW = NVGRenderer.textWidth(count, 12f, font)
             NVGRenderer.text(NVGRenderer.truncate(name, paneW - 30f - countW - actionsW - 16f, 14f, font), paneX + 22f, ry + 4f, 14f, Colors.WHITE.rgba, font)
             val ax = paneX + paneW - 4f - actionsW
@@ -244,10 +244,11 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             if (hov || confirmDelete == "$scope/$name") {
                 val by = ry + 2f
                 val bh = ROW_H - 6f
-                smallButton("Copy", ax, by, bh, mx, my, top, h) { transfer = Triple(scope, name, false); status = "" }
-                smallButton("Move", ax + SMALL_W + 4f, by, bh, mx, my, top, h) { transfer = Triple(scope, name, true); status = "" }
+                smallButton("To cb", ax, by, bh, mx, my, top, h) { status = exportToCb(scope, name) }
+                smallButton("Copy", ax + SMALL_W + 4f, by, bh, mx, my, top, h) { transfer = Triple(scope, name, false); status = "" }
+                smallButton("Move", ax + 2 * (SMALL_W + 4f), by, bh, mx, my, top, h) { transfer = Triple(scope, name, true); status = "" }
                 val del = confirmDelete == "$scope/$name"
-                smallButton(if (del) "Sure?" else "Delete", ax + 2 * (SMALL_W + 4f), by, bh, mx, my, top, h, danger = true) {
+                smallButton(if (del) "Sure?" else "Delete", ax + 3 * (SMALL_W + 4f), by, bh, mx, my, top, h, danger = true) {
                     if (del) {
                         confirmDelete = null
                         status = if (CosmeticStore.deletePreset(name, scope)) "Deleted '$name'" else "'$name' has no blocks to delete"
@@ -306,6 +307,19 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             }
         }
         NVGRenderer.popScissor()
+    }
+
+    /** Saves the preset as a new cb mod config (config/cb/cb) and copies it to the clipboard. */
+    private fun exportToCb(scope: String, name: String): String {
+        val entries = CosmeticStore.presetEntries(scope, name)
+        if (entries.isNullOrEmpty()) return "'$name' has no blocks to export"
+        return try {
+            val file = CosmeticBackup.exportToCb("${scope}_$name", entries)
+            Minecraft.getInstance().keyboardHandler.clipboard = CosmeticBackup.toCbJson(entries).toString()
+            "Exported ${entries.size} blocks to config/cb/cb/${file.name} (also copied)"
+        } catch (e: Exception) {
+            "§cExport failed: ${e.message}"
+        }
     }
 
     private fun createPreset() {
