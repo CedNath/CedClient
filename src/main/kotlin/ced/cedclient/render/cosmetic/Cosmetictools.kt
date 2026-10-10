@@ -41,13 +41,14 @@ object CosmeticTools {
         return "${sx}x${sy}x$sz (${sx * sy * sz} blocks) | P1 ${a.x},${a.y},${a.z} | P2 ${b.x},${b.y},${b.z}"
     }
 
-    private const val MAX_REGION = 250_000
+    /** Largest region an edit may touch: the Max Region Size setting. */
+    private val maxRegion get() = CosmeticConfig.maxRegion
 
     private inline fun forRegion(fn: (BlockPos) -> Unit): String? {
         val a = pos1 ?: return "§cPos1 not set"
         val b = pos2 ?: return "§cPos2 not set"
         val vol = (Math.abs(a.x - b.x) + 1L) * (Math.abs(a.y - b.y) + 1L) * (Math.abs(a.z - b.z) + 1L)
-        if (vol > MAX_REGION) return "§cSelection too big ($vol blocks, max $MAX_REGION)"
+        if (vol > maxRegion) return "§cSelection too big ($vol blocks, max $maxRegion - raise Max Region Size in the settings)"
         for (p in BlockPos.betweenClosed(a, b)) fn(p.immutable())
         return null
     }
@@ -73,12 +74,13 @@ object CosmeticTools {
     }
 
     const val DEFAULT_NEAR_RADIUS = 8
-    const val MAX_NEAR_RADIUS = 30
+    /** Biggest replacenear radius whose cube fits in Max Region Size. */
+    fun maxNearRadius(): Int = ((Math.cbrt(maxRegion.toDouble()) - 1) / 2).toInt().coerceAtLeast(1)
 
     /** [replace] in a cube of [radius] blocks around the player instead of the selection. */
     fun replaceNear(radius: Int, from: String, toSpecs: String): String {
         val player = mc.player ?: return "§cNot in a world"
-        val r = radius.coerceIn(1, MAX_NEAR_RADIUS)
+        val r = radius.coerceIn(1, maxNearRadius())
         val c = player.blockPosition()
         val result = replaceBetween(c.offset(-r, -r, -r), c.offset(r, r, r), from, toSpecs)
         return if (result.startsWith("§a")) "$result within $r blocks" else result
@@ -89,7 +91,7 @@ object CosmeticTools {
         val blocks = CosmeticCodec.parseWeighted(toSpecs) ?: return "§cInvalid target block specification"
         val level = mc.level ?: return "§cNot in a world"
         val vol = (Math.abs(a.x - b.x) + 1L) * (Math.abs(a.y - b.y) + 1L) * (Math.abs(a.z - b.z) + 1L)
-        if (vol > MAX_REGION) return "§cSelection too big ($vol blocks, max $MAX_REGION)"
+        if (vol > maxRegion) return "§cSelection too big ($vol blocks, max $maxRegion - raise Max Region Size in the settings)"
         val changes = ArrayList<Pair<BlockPos, String?>>()
         for (m in BlockPos.betweenClosed(a, b)) {
             val p = m.immutable()

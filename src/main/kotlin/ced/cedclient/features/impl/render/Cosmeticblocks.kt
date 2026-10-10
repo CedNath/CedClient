@@ -69,6 +69,10 @@ object CosmeticBlocks : Module(
     val placeMode = BooleanSetting("Place Mode", false, "Right-click places a phantom block on the face (works on air) instead of replacing.")
     private val fillMode = BooleanSetting("Fill Mode", false, "Right-click flood-fills every connected block of the same type.")
     private val fillLimit = NumberSetting("Fill Limit", 2000.0, 50.0, 20000.0, 50.0, "Max blocks one flood fill / fill can change.")
+    private val maxRegion = NumberSetting(
+        "Max Region Size", 250_000.0, 10_000.0, 5_000_000.0, 10_000.0,
+        "Largest World Edit region (set / replace / remove / replacenear), in blocks. Big edits run in one go and can freeze the game for a moment."
+    )
     private val shapeSetting = DropdownSetting("Brush Shape", listOf("None", "Fence", "Wall", "Pane"), "None",
         "Draw the brush's texture on a fence / wall / pane model.")
     private val weFillOnClick = BooleanSetting("WE Fill on Click", false, "World Edit: fill the selection as soon as Pos2 is set.")
@@ -144,7 +148,7 @@ object CosmeticBlocks : Module(
 
     init {
         addSettings(
-            placeMode, fillMode, fillLimit, shapeSetting, weFillOnClick,
+            placeMode, fillMode, fillLimit, maxRegion, shapeSetting, weFillOnClick,
             keepBlockSize, lavaAsWater, customWater, waterColor, onlyInDungeons, roomScanning, remaps, remapKeepShape,
             showReplaced, overlayRange, overlayColor,
             editKey, placeKey, fillKey, worldEditKey, rulerKey, undoKey, selectorKey, favoriteKey, presetMenuKey, nextPresetKey,
@@ -194,6 +198,7 @@ object CosmeticBlocks : Module(
         CosmeticConfig.remapsEnabled = remaps.value
         CosmeticConfig.remapKeepShape = remapKeepShape.value
         CosmeticConfig.fillLimit = fillLimit.value.toInt()
+        CosmeticConfig.maxRegion = maxRegion.value.toInt()
     }
 
     private fun renderKey(): String =
@@ -458,7 +463,7 @@ object CosmeticBlocks : Module(
         "Cosmetic Blocks",
         columns = listOf(
             listOf(
-                SettingsPopup.Section("Editing", listOf(placeMode, fillMode, fillLimit, shapeSetting, weFillOnClick)),
+                SettingsPopup.Section("Editing", listOf(placeMode, fillMode, fillLimit, maxRegion, shapeSetting, weFillOnClick)),
                 SettingsPopup.Section("Overlay", listOf(showReplaced, overlayRange, overlayColor)),
             ),
             listOf(
@@ -831,7 +836,7 @@ object CosmeticBlocks : Module(
             "§e/cc cosmetic§f (opens settings) | status | edit | we | ruler | place | fillmode | select | undo | clear",
             "§ebrush:§f block <id[props]> | props | prop <name> <value> | shape <none|fence|wall|pane>",
             "§eregion:§f pos1 | pos2 | sel | clearsel | set [blocks] | replace <from> <to> | remove [block]",
-            "§e  near you:§f replacenear [radius] <from> <to>  (default radius ${CosmeticTools.DEFAULT_NEAR_RADIUS}, max ${CosmeticTools.MAX_NEAR_RADIUS})",
+            "§e  near you:§f replacenear [radius] <from> <to>  (default radius ${CosmeticTools.DEFAULT_NEAR_RADIUS}, max ${CosmeticTools.maxNearRadius()} with your Max Region Size)",
             "§7  weighted blocks: set stone:3 andesite:1 cobblestone",
             "§efavourites:§f fav [add [id] | remove <id> | list]",
             "§eremaps:§f remap add <from> <to> [weight] | remove <from> [index] | list | clear | export | import",

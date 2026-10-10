@@ -21,6 +21,8 @@ object CosmeticConfig {
     @JvmField @Volatile var remapsEnabled = true
     @JvmField @Volatile var remapKeepShape = false
     @JvmField @Volatile var fillLimit = 2000
+    /** World Edit: largest region (blocks) set / replace / remove / replacenear may touch. */
+    @JvmField @Volatile var maxRegion = 250_000
 
     fun inDungeon(): Boolean = DungeonState.inDungeon || IslandState.island == IslandState.Island.CATACOMBS
 

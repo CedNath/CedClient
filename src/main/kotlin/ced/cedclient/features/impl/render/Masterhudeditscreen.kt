@@ -6,6 +6,7 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import ced.cedclient.features.impl.render.ChatChannelHud
 import ced.cedclient.features.impl.misc.DailyReset
+import ced.cedclient.features.impl.funqol.DungeonSplits
 
 /**
  * Opened by /cc hud or /cedclient hud (deliberately no keybind). Shows every
@@ -16,7 +17,7 @@ import ced.cedclient.features.impl.misc.DailyReset
  */
 class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
-    private val elements: List<HudElement> = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset)
+    private val elements: List<HudElement> = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset, DungeonSplits)
     private var dragging: HudElement? = null
     private var dragOffsetX = 0
     private var dragOffsetY = 0

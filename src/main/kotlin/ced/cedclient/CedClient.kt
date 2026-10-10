@@ -4,6 +4,7 @@ import ced.cedclient.commands.CedClientCommand
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.impl.funqol.CoralotHelper
+import ced.cedclient.features.impl.funqol.DungeonSplits
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
@@ -144,7 +145,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(PlayerScale)
 
-        // Skyblock: Galatea hunting, fishing, Rift
+        // Skyblock: dungeons, Galatea hunting, fishing, Rift
+        ModuleManager.register(DungeonSplits)
         ModuleManager.register(LassoHelper)
         ModuleManager.register(PangolinCatcher)
         ModuleManager.register(CoralotHelper)
@@ -171,6 +173,11 @@ class CedClient : ClientModInitializer {
     }
 
     private fun registerHudElements() {
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")
+        ) { graphics, tickCounter ->
+            DungeonSplits.render(graphics, tickCounter)
+        }
         // First, so HUD panels draw over the floating entity labels.
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "entity_esp_labels")
