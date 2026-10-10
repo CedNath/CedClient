@@ -261,6 +261,7 @@ object CosmeticStore {
             record(pos.asLong(), CosmeticRooms.rawAtWorld(pos, room), room)
             CosmeticRooms.setRaw(pos, stored, room)
         } else {
+            if (CosmeticRooms.rejectsWorldEdit(pos)) return
             val key = pos.asLong()
             val p = current()
             record(key, p.entries[key], null)
@@ -340,6 +341,7 @@ object CosmeticStore {
             CosmeticRooms.setRaw(pos, raw, room)
             return
         }
+        if (CosmeticRooms.rejectsWorldEdit(pos)) return
         val key = pos.asLong()
         val p = current()
         record(key, p.entries[key], null)

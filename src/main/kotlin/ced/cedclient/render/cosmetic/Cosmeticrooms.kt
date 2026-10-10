@@ -120,6 +120,29 @@ object CosmeticRooms {
         return if (room.components.contains(tileOf(pos.x, pos.z))) room else null
     }
 
+    private var lastRejectWarn = 0L
+
+    /**
+     * True when an edit at [pos] has no room to go to but sits inside the dungeon's room grid. Rooms are laid out
+     * differently every run, so a world-preset (absolute coordinate) block there would just reappear in whatever
+     * room lands on that spot next run. Boss rooms are outside the grid and keep using the world preset.
+     */
+    fun rejectsWorldEdit(pos: BlockPos): Boolean {
+        if (!CosmeticConfig.inDungeon() || !inGridArea(pos.x) || !inGridArea(pos.z)) return false
+        val now = System.currentTimeMillis()
+        if (now - lastRejectWarn > 3000L) {
+            lastRejectWarn = now
+            CosmeticChat.say(
+                if (!CosmeticConfig.roomScanning) "§cNot placed:§f turn on Room Scanning to edit dungeon rooms"
+                else "§cNot placed:§f this room isn't identified yet (hallway, or still scanning) - see /cc cosmetic rooms debug"
+            )
+        }
+        return true
+    }
+
+    /** Whole 6x6 grid, tile edges included (tile centres START..START+160, each +-16). */
+    private fun inGridArea(v: Int): Boolean = v in (START - 16)..(START + 5 * 32 + 15)
+
     private fun relKey(pos: BlockPos, room: ScannedRoom): String {
         val rel = room.rotation.toNorth(pos.subtract(room.clayPos.atY(0)))
         return "${rel.x},${rel.y},${rel.z}"
