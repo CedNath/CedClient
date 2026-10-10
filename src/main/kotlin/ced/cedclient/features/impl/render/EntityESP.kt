@@ -48,6 +48,8 @@ object EntityESP : Module(
     private val showBoxes = BooleanSetting("Show Boxes", true)
     private val showTracers = BooleanSetting("Show Tracers", true)
     private val showLabels = BooleanSetting("Show Labels", true)
+    private val labelScaleSetting = NumberSetting("Label Scale", 1.0, 0.5, 2.5, 0.1, "Size of the name labels (they keep this size at any distance).")
+    private val labelHealthBarSetting = BooleanSetting("Label Health Bar", true)
 
     // separate from the module's own on/off — lets you keep boxes/tracers/labels
     // running in-world while hiding just the summary panel, or vice versa.
@@ -97,6 +99,8 @@ object EntityESP : Module(
     val boxesEnabled: Boolean get() = showBoxes.value
     val tracersEnabled: Boolean get() = showTracers.value
     val labelsEnabled: Boolean get() = showLabels.value
+    val labelScale: Float get() = labelScaleSetting.value.toFloat()
+    val labelHealthBar: Boolean get() = labelHealthBarSetting.value
     val hudPanelEnabled: Boolean get() = showHudPanel.value
     val nvgHudRenderingEnabled: Boolean get() = useNanoVGRendering.value
 
@@ -149,7 +153,7 @@ object EntityESP : Module(
 
         addSettings(
             showHostile, showPassive, showPlayers, maxDistance, scanIntervalTicks,
-            showBoxes, showTracers, showLabels, showHudPanel, useNanoVGRendering,
+            showBoxes, showTracers, showLabels, labelScaleSetting, labelHealthBarSetting, showHudPanel, useNanoVGRendering,
             debugLog, openMobFilterMenu, openPlayerFilterMenu, openCustomFilterMenu
         )
 

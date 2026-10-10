@@ -28,6 +28,7 @@ import ced.cedclient.features.impl.render.CompactScoreboard
 import ced.cedclient.features.impl.render.CompactTab
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
+import ced.cedclient.features.impl.render.EntityESPLabels
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
 import ced.cedclient.features.impl.render.CosmeticBlocks
@@ -170,6 +171,12 @@ class CedClient : ClientModInitializer {
     }
 
     private fun registerHudElements() {
+        // First, so HUD panels draw over the floating entity labels.
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "entity_esp_labels")
+        ) { graphics, tickCounter ->
+            EntityESPLabels.render(graphics, tickCounter)
+        }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "entity_esp_hud")
         ) { graphics, tickCounter ->
