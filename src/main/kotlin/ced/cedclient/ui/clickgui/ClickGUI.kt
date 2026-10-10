@@ -137,6 +137,16 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             // After the popup, so settings shown inside a SettingsPopup get their tooltip on top of it.
             desc.render()
         })
+
+        // Vanilla-drawn popup extras (item icons), on a layer above the NanoVG one. Skipped while the popup is
+        // still popping in (they wouldn't follow its fade/scale) and before NanoVG has laid out a first frame.
+        activePopup?.let { popup ->
+            val popupDone = (System.nanoTime() - popupOpenedAt) / 1_000_000f >= POPUP_ANIM_MS
+            if (popupDone && NVGRenderer.canvasWidth > 0f) {
+                context.nextStratum()
+                popup.extractItems(context, clickGuiScale * context.guiWidth() / NVGRenderer.canvasWidth)
+            }
+        }
         super.extractRenderState(context, mouseX, mouseY, deltaTicks)
     }
 

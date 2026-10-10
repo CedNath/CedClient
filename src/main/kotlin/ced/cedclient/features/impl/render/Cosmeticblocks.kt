@@ -32,6 +32,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.suggestion.SuggestionProvider
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
@@ -90,12 +91,14 @@ object CosmeticBlocks : Module(
     // ---- keybinds ----
     private val editKey = KeybindSetting("Edit Mode Key", description = "Toggles edit mode.")
     private val placeKey = KeybindSetting("Place Mode Key", description = "Toggles Place Mode.")
+    private val fillKey = KeybindSetting("Fill Mode Key", description = "Toggles Fill Mode (R-click flood-fills).")
     private val worldEditKey = KeybindSetting("World Edit Key", description = "Toggles World Edit (region) mode.")
     private val rulerKey = KeybindSetting("Ruler Key", description = "Toggles the ruler.")
     private val selectorKey = KeybindSetting("Block Selector Key", description = "Opens the block picker.")
     private val favoriteKey = KeybindSetting("Cycle Favorite Key", description = "Switches the brush to the next favourite block.")
     private val presetMenuKey = KeybindSetting("Preset Switcher Key", description = "Opens the quick preset switcher.")
     private val nextPresetKey = KeybindSetting("Next Preset Key", description = "Switches to the next preset on this island.")
+    private val undoKey = KeybindSetting("Undo Key", description = "Undoes the last cosmetic block change (up to 50 steps).")
 
     private val selectAction = ActionSetting("Select Block") { openSelectPopup() }
     private val editAction = ActionSetting("Toggle Edit Mode") { toggleEdit() }
@@ -144,7 +147,7 @@ object CosmeticBlocks : Module(
             placeMode, fillMode, fillLimit, shapeSetting, weFillOnClick,
             keepBlockSize, lavaAsWater, customWater, waterColor, onlyInDungeons, roomScanning, remaps, remapKeepShape,
             showReplaced, overlayRange, overlayColor,
-            editKey, placeKey, worldEditKey, rulerKey, selectorKey, favoriteKey, presetMenuKey, nextPresetKey,
+            editKey, placeKey, fillKey, worldEditKey, rulerKey, undoKey, selectorKey, favoriteKey, presetMenuKey, nextPresetKey,
             selectAction, editAction, undoAction, presetsAction, exportAction, copyAction, pasteAction,
             settingsAction
         )
@@ -262,8 +265,14 @@ object CosmeticBlocks : Module(
             CosmeticChat.say("Place mode ${onOff(placeMode.value)}")
             ConfigManager.saveModulesOnly()
         }
+        if (pressedOnce(fillKey, window)) {
+            fillMode.value = !fillMode.value
+            CosmeticChat.say("Fill mode ${onOff(fillMode.value)}" + if (fillMode.value) " - R-click flood-fills (limit ${fillLimit.value.toInt()})" else "")
+            ConfigManager.saveModulesOnly()
+        }
         if (pressedOnce(worldEditKey, window)) toggleWorldEdit()
         if (pressedOnce(rulerKey, window)) CosmeticTools.toggleRuler()
+        if (pressedOnce(undoKey, window)) CosmeticChat.say(undoText(CosmeticStore.undo()))
         if (pressedOnce(selectorKey, window)) openSelectPopup()
         if (pressedOnce(favoriteKey, window)) {
             val next = CosmeticFavorites.next(selectedBlock)
@@ -459,7 +468,7 @@ object CosmeticBlocks : Module(
             ),
             listOf(
                 SettingsPopup.Section("Keybinds", listOf(
-                    editKey, placeKey, worldEditKey, rulerKey, selectorKey, favoriteKey, presetMenuKey, nextPresetKey
+                    editKey, placeKey, fillKey, worldEditKey, rulerKey, undoKey, selectorKey, favoriteKey, presetMenuKey, nextPresetKey
                 )),
             ),
         ),
@@ -532,6 +541,40 @@ object CosmeticBlocks : Module(
     private fun word(ctx: CommandContext<FabricClientCommandSource>, name: String) =
         StringArgumentType.getString(ctx, name)
 
+    // ---- tab completion ----
+
+    private val blockIds: List<String> by lazy {
+        BuiltInRegistries.BLOCK.keySet().filter { it.namespace == "minecraft" }.map { it.path }.sorted()
+    }
+
+    /**
+     * Block ids for the last space-separated word, so weighted lists ("set stone:3 andes") complete too.
+     * Matches ids starting with what you typed, or with a word of it ("concrete" -> white_concrete, ...).
+     */
+    private val blockSuggestions = SuggestionProvider<FabricClientCommandSource> { _, builder ->
+        val remaining = builder.remainingLowerCase
+        val b = remaining.lastIndexOf(' ').let { if (it >= 0) builder.createOffset(builder.start + it + 1) else builder }
+        val token = b.remainingLowerCase.removePrefix("minecraft:")
+        if (':' !in token && '[' !in token) {
+            for (id in blockIds) if (id.startsWith(token) || id.contains("_$token")) b.suggest(id)
+        }
+        b.buildFuture()
+    }
+
+    /** Suggests [values] that start with what was typed. */
+    private fun suggest(values: () -> Collection<String>) = SuggestionProvider<FabricClientCommandSource> { _, b ->
+        val typed = b.remainingLowerCase
+        values().filter { it.lowercase().startsWith(typed) }.forEach(b::suggest)
+        b.buildFuture()
+    }
+
+    private val presetSuggestions = suggest { CosmeticStore.listPresets() }
+    private val shapeSuggestions = suggest { listOf("none") + CosmeticCodec.SHAPES }
+    private val roomSuggestions = suggest { CosmeticRooms.listRooms().map { it.first } }
+    private val remapSuggestions = suggest { CosmeticRemap.sources().map { it.removePrefix("minecraft:") } }
+    private val favSuggestions = suggest { CosmeticFavorites.all().map { it.removePrefix("minecraft:") } }
+    private val exportSuggestions = suggest { CosmeticBackup.listExports() }
+
     private fun lit(name: String) = ClientCommands.literal(name)
     private fun wordArg(name: String) = ClientCommands.argument(name, StringArgumentType.word())
     private fun greedy(name: String) = ClientCommands.argument(name, StringArgumentType.greedyString())
@@ -558,7 +601,7 @@ object CosmeticBlocks : Module(
                     1
                 })
                 .then(lit("select").executes { _ -> openSelectPopup(); 1 })
-                .then(lit("block").then(greedy("block").executes { ctx ->
+                .then(lit("block").then(greedy("block").suggests(blockSuggestions).executes { ctx ->
                     val id = CosmeticCodec.normalizeId(word(ctx, "block"))
                     if (CosmeticCodec.resolve(id) == null) feedback(ctx.source, "Unknown block or state: $id") else selectBrush(id)
                     1
@@ -567,7 +610,7 @@ object CosmeticBlocks : Module(
                 .then(lit("prop").then(wordArg("name").then(wordArg("value").executes { ctx ->
                     setProp(ctx.source, word(ctx, "name"), word(ctx, "value")); 1
                 })))
-                .then(lit("shape").then(wordArg("shape").executes { ctx ->
+                .then(lit("shape").then(wordArg("shape").suggests(shapeSuggestions).executes { ctx ->
                     val s = word(ctx, "shape").lowercase()
                     val opt = shapeSetting.options.firstOrNull { it.equals(s, true) }
                     if (opt == null) feedback(ctx.source, "Shapes: none, fence, wall, pane") else {
@@ -588,20 +631,38 @@ object CosmeticBlocks : Module(
                 .then(lit("clearsel").executes(run { CosmeticTools.clearSelection(); feedback(it, "Selection cleared") }))
                 .then(lit("set")
                     .executes(run { feedback(it, CosmeticTools.fill(selectedBlock, currentShape)) })
-                    .then(greedy("blocks").executes { ctx -> feedback(ctx.source, CosmeticTools.fill(word(ctx, "blocks"))); 1 }))
-                .then(lit("replace").then(wordArg("from").then(greedy("to").executes { ctx ->
+                    .then(greedy("blocks").suggests(blockSuggestions).executes { ctx -> feedback(ctx.source, CosmeticTools.fill(word(ctx, "blocks"))); 1 }))
+                .then(lit("replace").then(wordArg("from").suggests(blockSuggestions).then(greedy("to").suggests(blockSuggestions).executes { ctx ->
                     feedback(ctx.source, CosmeticTools.replace(word(ctx, "from"), word(ctx, "to"))); 1
+                })))
+                // replacenear [radius] <from> <to>: like replace, but around you instead of the selection
+                .then(lit("replacenear").then(wordArg("from").suggests(blockSuggestions).then(greedy("to").suggests(blockSuggestions).executes { ctx ->
+                    var from = word(ctx, "from")
+                    var to = word(ctx, "to").trim()
+                    var radius = CosmeticTools.DEFAULT_NEAR_RADIUS
+                    from.toIntOrNull()?.let { r ->
+                        // "replacenear 12 stone dirt": the first word was the radius
+                        radius = r
+                        from = to.substringBefore(' ')
+                        to = to.substringAfter(' ', "").trim()
+                    }
+                    feedback(
+                        ctx.source,
+                        if (to.isEmpty()) "Usage: /cc cosmetic replacenear [radius] <from> <to>"
+                        else CosmeticTools.replaceNear(radius, from, to)
+                    )
+                    1
                 })))
                 .then(lit("remove")
                     .executes(run { feedback(it, CosmeticTools.removeIn(null)) })
-                    .then(wordArg("filter").executes { ctx -> feedback(ctx.source, CosmeticTools.removeIn(word(ctx, "filter"))); 1 }))
+                    .then(wordArg("filter").suggests(blockSuggestions).executes { ctx -> feedback(ctx.source, CosmeticTools.removeIn(word(ctx, "filter"))); 1 }))
                 // ---- favourites ----
                 .then(lit("fav")
                     .executes(run { listFavs(it) })
                     .then(lit("list").executes(run { listFavs(it) }))
                     .then(lit("add")
                         .executes(run { feedback(it, if (CosmeticFavorites.add(selectedBlock)) "Added ${brushLabel()} to favourites" else "Already a favourite") })
-                        .then(greedy("block").executes { ctx ->
+                        .then(greedy("block").suggests(blockSuggestions).executes { ctx ->
                             val id = CosmeticCodec.normalizeId(word(ctx, "block"))
                             feedback(ctx.source, when {
                                 CosmeticCodec.resolve(id) == null -> "Unknown block: $id"
@@ -610,7 +671,7 @@ object CosmeticBlocks : Module(
                             })
                             1
                         }))
-                    .then(lit("remove").then(greedy("block").executes { ctx ->
+                    .then(lit("remove").then(greedy("block").suggests(favSuggestions).executes { ctx ->
                         val id = CosmeticCodec.normalizeId(word(ctx, "block"))
                         feedback(ctx.source, if (CosmeticFavorites.remove(id)) "Removed $id" else "Not a favourite: $id"); 1
                     })))
@@ -618,12 +679,12 @@ object CosmeticBlocks : Module(
                 .then(lit("remap")
                     .executes(run { listRemaps(it) })
                     .then(lit("list").executes(run { listRemaps(it) }))
-                    .then(lit("add").then(wordArg("source").then(wordArg("target")
+                    .then(lit("add").then(wordArg("source").suggests(blockSuggestions).then(wordArg("target").suggests(blockSuggestions)
                         .executes { ctx -> addRemap(ctx.source, word(ctx, "source"), word(ctx, "target"), 1); 1 }
                         .then(ClientCommands.argument("weight", IntegerArgumentType.integer(1, 999)).executes { ctx ->
                             addRemap(ctx.source, word(ctx, "source"), word(ctx, "target"), IntegerArgumentType.getInteger(ctx, "weight")); 1
                         }))))
-                    .then(lit("remove").then(wordArg("source")
+                    .then(lit("remove").then(wordArg("source").suggests(remapSuggestions)
                         .executes { ctx ->
                             feedback(ctx.source, if (CosmeticRemap.removeSource(word(ctx, "source"))) "Removed remap" else "No remap for that block"); 1
                         }
@@ -648,7 +709,7 @@ object CosmeticBlocks : Module(
                         val r = CosmeticRooms.currentRoom
                         feedback(it, if (r == null) "Not in a scanned room" else "In '${r.data.name}' (${r.rotation.name.lowercase()}, ${r.components.size} tile(s))")
                     }))
-                    .then(lit("clear").then(greedy("name").executes { ctx ->
+                    .then(lit("clear").then(greedy("name").suggests(roomSuggestions).executes { ctx ->
                         val n = CosmeticRooms.clearRoom(word(ctx, "name"))
                         feedback(ctx.source, if (n == 0) "No blocks saved for that room" else "Cleared $n block(s)"); 1
                     }))
@@ -690,7 +751,7 @@ object CosmeticBlocks : Module(
         .then(lit("export")
             .executes(run { feedback(it, exportConfigToFile(null)) })
             .then(wordArg("name").executes { ctx -> feedback(ctx.source, exportConfigToFile(word(ctx, "name"))); 1 }))
-        .then(lit("import").then(wordArg("name")
+        .then(lit("import").then(wordArg("name").suggests(exportSuggestions)
             .executes { ctx -> feedback(ctx.source, importConfigFile(word(ctx, "name"), replace = false)); 1 }
             .then(lit("replace").executes { ctx -> feedback(ctx.source, importConfigFile(word(ctx, "name"), replace = true)); 1 })))
         .then(lit("copy").executes(run { feedback(it, copyConfig()) }))
@@ -726,7 +787,7 @@ object CosmeticBlocks : Module(
             }
             1
         }))
-        .then(lit("use").then(wordArg("name").executes { ctx ->
+        .then(lit("use").then(wordArg("name").suggests(presetSuggestions).executes { ctx ->
             val name = CosmeticStore.sanitize(word(ctx, "name"))
             feedback(
                 ctx.source,
@@ -735,7 +796,7 @@ object CosmeticBlocks : Module(
             )
             1
         }))
-        .then(lit("delete").then(wordArg("name").executes { ctx ->
+        .then(lit("delete").then(wordArg("name").suggests(presetSuggestions).executes { ctx ->
             val name = CosmeticStore.sanitize(word(ctx, "name"))
             feedback(ctx.source, if (CosmeticStore.deletePreset(name)) "Deleted '$name'" else "No preset '$name'")
             1
@@ -770,6 +831,7 @@ object CosmeticBlocks : Module(
             "§e/cc cosmetic§f (opens settings) | status | edit | we | ruler | place | fillmode | select | undo | clear",
             "§ebrush:§f block <id[props]> | props | prop <name> <value> | shape <none|fence|wall|pane>",
             "§eregion:§f pos1 | pos2 | sel | clearsel | set [blocks] | replace <from> <to> | remove [block]",
+            "§e  near you:§f replacenear [radius] <from> <to>  (default radius ${CosmeticTools.DEFAULT_NEAR_RADIUS}, max ${CosmeticTools.MAX_NEAR_RADIUS})",
             "§7  weighted blocks: set stone:3 andesite:1 cobblestone",
             "§efavourites:§f fav [add [id] | remove <id> | list]",
             "§eremaps:§f remap add <from> <to> [weight] | remove <from> [index] | list | clear | export | import",

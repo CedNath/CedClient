@@ -67,18 +67,39 @@ object CosmeticTools {
 
     /** Replaces every block in the selection that currently looks like [from] (real or cosmetic) with [toSpecs]. */
     fun replace(from: String, toSpecs: String): String {
+        val a = pos1 ?: return "§cPos1 not set"
+        val b = pos2 ?: return "§cPos2 not set"
+        return replaceBetween(a, b, from, toSpecs)
+    }
+
+    const val DEFAULT_NEAR_RADIUS = 8
+    const val MAX_NEAR_RADIUS = 30
+
+    /** [replace] in a cube of [radius] blocks around the player instead of the selection. */
+    fun replaceNear(radius: Int, from: String, toSpecs: String): String {
+        val player = mc.player ?: return "§cNot in a world"
+        val r = radius.coerceIn(1, MAX_NEAR_RADIUS)
+        val c = player.blockPosition()
+        val result = replaceBetween(c.offset(-r, -r, -r), c.offset(r, r, r), from, toSpecs)
+        return if (result.startsWith("§a")) "$result within $r blocks" else result
+    }
+
+    private fun replaceBetween(a: BlockPos, b: BlockPos, from: String, toSpecs: String): String {
         val fromState = CosmeticCodec.resolve(CosmeticCodec.normalizeId(from)) ?: return "§cUnknown block: $from"
         val blocks = CosmeticCodec.parseWeighted(toSpecs) ?: return "§cInvalid target block specification"
         val level = mc.level ?: return "§cNot in a world"
+        val vol = (Math.abs(a.x - b.x) + 1L) * (Math.abs(a.y - b.y) + 1L) * (Math.abs(a.z - b.z) + 1L)
+        if (vol > MAX_REGION) return "§cSelection too big ($vol blocks, max $MAX_REGION)"
         val changes = ArrayList<Pair<BlockPos, String?>>()
-        forRegion { p ->
+        for (m in BlockPos.betweenClosed(a, b)) {
+            val p = m.immutable()
             val key = p.asLong()
             val visible = CosmeticStore.cache[key]?.let { CosmeticStore.retexture[key] ?: it } ?: level.getBlockState(p)
             if (visible.block == fromState.block) {
                 val wasPhantom = CosmeticStore.phantom.contains(key)
                 changes += p to CosmeticCodec.buildRaw(CosmeticCodec.serialize(CosmeticCodec.pickWeighted(blocks)), wasPhantom, null)
             }
-        }?.let { return it }
+        }
         CosmeticStore.applyChanges(changes)
         return "§aReplaced ${changes.size} '${fromState.block.let { BuiltInRegistries.BLOCK.getKey(it).path }}' blocks"
     }

@@ -3,10 +3,13 @@ package ced.cedclient.ui.clickgui
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.TextInputHandler
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.level.block.Block
 
 /**
@@ -20,7 +23,13 @@ class BlockPickerPopup(
     private val onPick: (Block) -> Unit,
 ) : Popup(title, WIDTH, HEIGHT) {
 
-    private class Entry(val block: Block, val label: String, val id: String)
+    private class Entry(val block: Block, val label: String, val id: String) {
+        /** The block's item for its icon, or null for blocks without one (water, fire, piston head, ...). */
+        val icon: ItemStack? by lazy { block.asItem().takeIf { it != Items.AIR }?.let(::ItemStack) }
+    }
+
+    /** Row under the mouse last frame (for the large preview). */
+    private var hoveredIndex = -1
 
     private var query = ""
     private var lastQuery = ""
@@ -58,16 +67,18 @@ class BlockPickerPopup(
             }
         }
 
-        // Search box
-        NVGRenderer.rect(x + 12f, inputY, width - 24f, INPUT_HEIGHT, Colors.gray38.rgba, 4f)
+        // Search box (+ a slot on its right for the hovered block's large preview)
+        val fieldW = width - 24f - PREVIEW_SLOT
+        NVGRenderer.rect(x + 12f, inputY, fieldW, INPUT_HEIGHT, Colors.gray38.rgba, 4f)
         if (query.isEmpty()) {
             NVGRenderer.text("Search blocks...", x + 18f, inputY + 5f, 15f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont)
         }
         input.x = x + 12f
         input.y = inputY + 1f
-        input.width = width - 24f
+        input.width = fieldW
         input.height = INPUT_HEIGHT - 2f
         input.draw(mouseX, mouseY)
+        NVGRenderer.rect(previewX, previewY, PREVIEW_SIZE, PREVIEW_SIZE, Colors.gray38.rgba, 4f)
 
         // List (only visible rows are drawn)
         val contentHeight = filtered.size * ROW_HEIGHT
@@ -76,11 +87,16 @@ class BlockPickerPopup(
         NVGRenderer.pushScissor(x, listY, width, listHeight)
         val first = (-scrollOffset / ROW_HEIGHT).toInt().coerceAtLeast(0)
         val last = (first + (listHeight / ROW_HEIGHT).toInt() + 2).coerceAtMost(filtered.size)
+        hoveredIndex = -1
         for (i in first until last) {
             val rowY = listY + scrollOffset + i * ROW_HEIGHT
             val hovered = mouseY in listY..(listY + listHeight) && isAreaHovered(x + 8f, rowY, width - 24f, ROW_HEIGHT - 2f, mouseX, mouseY)
-            if (hovered) NVGRenderer.rect(x + 8f, rowY, width - 24f, ROW_HEIGHT - 2f, Colors.gray38.rgba, 4f)
-            NVGRenderer.text(filtered[i].label, x + 16f, rowY + 4f, 15f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+            if (hovered) {
+                hoveredIndex = i
+                NVGRenderer.rect(x + 8f, rowY, width - 24f, ROW_HEIGHT - 2f, Colors.gray38.rgba, 4f)
+            }
+            // Icons are drawn by extractItems; the text leaves room for them.
+            NVGRenderer.text(filtered[i].label, x + TEXT_X, rowY + 4f, 15f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
         }
         if (filtered.isEmpty()) {
             NVGRenderer.text("No blocks found", x + 16f, listY + 8f, 15f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont)
@@ -98,7 +114,43 @@ class BlockPickerPopup(
         }
     }
 
-    private fun buttonWidth() = (width - 24f - BUTTON_GAP * (buttons.size - 1)) / buttons.size
+    private val previewX get() = x + width - 12f - PREVIEW_SIZE
+    private val previewY get() = inputY + INPUT_HEIGHT / 2f - PREVIEW_SIZE / 2f
+
+    override fun extractItems(g: GuiGraphicsExtractor, toGui: Float) {
+        // Row icons, clipped to the list
+        g.enableScissor(
+            (x * toGui).toInt(), (listY * toGui).toInt(),
+            ((x + width) * toGui).toInt(), ((listY + listHeight) * toGui).toInt()
+        )
+        val first = (-scrollOffset / ROW_HEIGHT).toInt().coerceAtLeast(0)
+        val last = (first + (listHeight / ROW_HEIGHT).toInt() + 2).coerceAtMost(filtered.size)
+        for (i in first until last) {
+            val stack = filtered[i].icon ?: continue
+            val rowY = listY + scrollOffset + i * ROW_HEIGHT
+            icon(g, stack, x + 14f, rowY + (ROW_HEIGHT - 2f - ICON_SIZE) / 2f, ICON_SIZE, toGui)
+        }
+        g.disableScissor()
+
+        // Large preview of the hovered block
+        filtered.getOrNull(hoveredIndex)?.icon?.let { stack ->
+            val pad = 3f
+            icon(g, stack, previewX + pad, previewY + pad, PREVIEW_SIZE - pad * 2, toGui)
+        }
+    }
+
+    /** Draws [stack] as a [size]-unit square at popup position ([px], [py]). */
+    private fun icon(g: GuiGraphicsExtractor, stack: ItemStack, px: Float, py: Float, size: Float, toGui: Float) {
+        val pose = g.pose()
+        pose.pushMatrix()
+        pose.translate(px * toGui, py * toGui)
+        val s = size * toGui / 16f
+        pose.scale(s, s)
+        g.fakeItem(stack, 0, 0)
+        pose.popMatrix()
+    }
+
+    private fun buttonWidth() =(width - 24f - BUTTON_GAP * (buttons.size - 1)) / buttons.size
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (click.button() != 0) return false
@@ -143,6 +195,10 @@ class BlockPickerPopup(
         private const val BUTTON_HEIGHT = 22f
         private const val BUTTON_GAP = 6f
         private const val ROW_HEIGHT = 22f
+        private const val ICON_SIZE = 16f
+        private const val TEXT_X = 38f
+        private const val PREVIEW_SIZE = 34f
+        private const val PREVIEW_SLOT = PREVIEW_SIZE + 6f
 
         /** Every vanilla block, sorted by id. Built on first use (registries are ready by then). */
         private val ALL: List<Entry> by lazy {
