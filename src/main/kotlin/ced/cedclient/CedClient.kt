@@ -38,6 +38,8 @@ import ced.cedclient.features.impl.render.Fullbright
 import ced.cedclient.features.impl.render.HardcodedCosmetics
 import ced.cedclient.features.impl.render.ItemCooldowns
 import ced.cedclient.features.impl.render.TimeHud
+import ced.cedclient.features.impl.render.RenderOptimizer
+import ced.cedclient.features.impl.render.CleanView
 import ced.cedclient.features.impl.render.Zoom
 import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.render.nvg.NVGSpecialRenderer
@@ -136,6 +138,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(StarredMobESP)
         ModuleManager.register(FloorDrops)
         ModuleManager.register(Fullbright)
+        ModuleManager.register(RenderOptimizer)
+        ModuleManager.register(CleanView)
         ModuleManager.register(ScreenshotTweaks)
         ModuleManager.register(HideRecipeBook)
         ModuleManager.register(FishingHelper)

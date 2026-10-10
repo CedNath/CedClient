@@ -17,6 +17,12 @@
     "render.CameraMixin",
     "render.OptionInstanceMixin",
     "render.OptionsMixin",
+    "render.FogRendererMixin",
+    "render.ScreenEffectRendererMixin",
+    "render.GuiOverlayMixin",
+    "render.WeatherEffectRendererMixin",
+    "render.QuadParticleGroupMixin",
+    "render.EntityRenderDispatcherMixin",
 
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
