@@ -16,9 +16,15 @@ public class SoundEngineMixin {
 
     @Inject(method = "play", at = @At("HEAD"), cancellable = true)
     private void cedclient$capF7Sounds(SoundInstance instance, CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
-        if (CustomHypeSound.shouldCancel(instance) || F7SoundCap.shouldCancel(instance)) {
-            cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
-        }
+        if (F7SoundCap.shouldCancel(instance)) cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
+    }
+
+    // After resolve(): before it, the instance has no Sound yet and getVolume() / getPitch() throw.
+    @Inject(method = "play", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
+            target = "Lnet/minecraft/client/resources/sounds/SoundInstance;resolve(Lnet/minecraft/client/sounds/SoundManager;)Lnet/minecraft/client/sounds/WeighedSoundEvents;"),
+            cancellable = true)
+    private void cedclient$hypeSound(SoundInstance instance, CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
+        if (CustomHypeSound.shouldCancel(instance)) cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
     }
 
     // Both start volume and per-tick volume updates of playing sounds go through this overload.
