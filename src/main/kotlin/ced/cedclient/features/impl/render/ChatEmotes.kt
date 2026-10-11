@@ -2,13 +2,14 @@ package ced.cedclient.features.impl.render
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
+import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.Identifier
-import net.minecraft.sounds.SoundEvent
+import net.minecraft.sounds.SoundSource
 import java.util.Optional
 
 /**
@@ -22,7 +23,7 @@ import java.util.Optional
 object ChatEmotes {
 
     private val FONT = FontDescription.Resource(Identifier.fromNamespaceAndPath("cedclient", "emoji"))
-    private val VINE_BOOM = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("cedclient", "vine_boom"))
+    private val VINE_BOOM = Identifier.fromNamespaceAndPath("cedclient", "vine_boom")
     private const val MOYAI = 0x1F5FF
     private const val VARIATION_SELECTOR = 0xFE0F
 
@@ -131,8 +132,13 @@ object ChatEmotes {
         val now = System.currentTimeMillis()
         if (now - lastBoom < 300) return
         lastBoom = now
+        // On the MASTER channel, so only the master slider (and Vine Boom Volume) apply -- not UI / Players.
+        // Non-positional and camera-relative, like a UI sound.
         Minecraft.getInstance().soundManager.play(
-            SimpleSoundInstance.forUI(VINE_BOOM, 1f, HardcodedCosmetics.vineBoomVolume.value.toFloat())
+            SimpleSoundInstance(
+                VINE_BOOM, SoundSource.MASTER, HardcodedCosmetics.vineBoomVolume.value.toFloat(), 1f,
+                SoundInstance.createUnseededRandom(), false, 0, SoundInstance.Attenuation.NONE, 0.0, 0.0, 0.0, true,
+            )
         )
     }
 }
