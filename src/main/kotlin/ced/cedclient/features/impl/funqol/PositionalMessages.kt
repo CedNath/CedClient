@@ -2,7 +2,7 @@ package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
-import ced.cedclient.features.impl.render.BlockESPRenderer
+import ced.cedclient.render.LineBox
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
@@ -237,14 +237,14 @@ object PositionalMessages : Module(
             if (showBoxes.value) {
                 val c = boxColor.value
                 for (a in list) {
-                    BlockESPRenderer.drawLineBox(
+                    LineBox.draw(
                         poseStack, buffer, a.box.move(-cam.x, -cam.y, -cam.z),
                         c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat
                     )
                 }
             }
             // Corners being picked for /cc posmsg addbox: yellow preview.
-            selection?.let { BlockESPRenderer.drawLineBox(poseStack, buffer, it.move(-cam.x, -cam.y, -cam.z), 1f, 0.85f, 0.2f, 1f) }
+            selection?.let { LineBox.draw(poseStack, buffer, it.move(-cam.x, -cam.y, -cam.z), 1f, 0.85f, 0.2f, 1f) }
             bufferSource.endBatch()
         }
 
