@@ -17,7 +17,7 @@ import ced.cedclient.features.impl.funqol.DungeonSplits
  */
 class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
-    private val elements: List<HudElement> = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset, DungeonSplits)
+    private val elements: List<HudElement> = listOf(TimeHud, ChatChannelHud, DailyReset, DungeonSplits)
     private var dragging: HudElement? = null
     private var dragOffsetX = 0
     private var dragOffsetY = 0

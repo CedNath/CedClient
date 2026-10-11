@@ -2,7 +2,6 @@ package ced.cedclient.mixin.network;
 
 import ced.cedclient.data.ClickType;
 import ced.cedclient.events.ItemClickEvent;
-import ced.cedclient.features.impl.funqol.BreakerHelper;
 import ced.cedclient.render.cosmetic.CosmeticHooks;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.BlockPos;
@@ -21,11 +20,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MultiPlayerGameMode.class)
 public class MultiPlayerGameModeMixin {
-
-    @Inject(method = "startDestroyBlock", at = @At("HEAD"))
-    private void cedclient$onBlockHit(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
-        BreakerHelper.onHitBlock(pos);
-    }
 
     // ============================================================
     // ITEM RIGHT-CLICK HANDLER (posts ItemClickEvent)

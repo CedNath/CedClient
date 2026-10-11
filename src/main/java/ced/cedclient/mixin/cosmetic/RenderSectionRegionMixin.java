@@ -1,10 +1,8 @@
 package ced.cedclient.mixin.cosmetic;
 
-import ced.cedclient.features.impl.funqol.SecretHitboxes;
 import ced.cedclient.render.cosmetic.CosmeticHooks;
 import net.minecraft.client.renderer.chunk.RenderSectionRegion;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CrossCollisionBlock;
 import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,10 +26,6 @@ public class RenderSectionRegionMixin {
 
     @Inject(method = "getBlockState", at = @At("RETURN"), cancellable = true)
     private void cedclient$cosmeticBlocks(BlockPos pos, CallbackInfoReturnable<BlockState> cir) {
-        if (SecretHitboxes.isHidden(pos.getX(), pos.getY(), pos.getZ())) {
-            cir.setReturnValue(Blocks.AIR.defaultBlockState());
-            return;
-        }
         if (!CosmeticHooks.anyActive()) return;
 
         try {

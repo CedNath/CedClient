@@ -38,15 +38,11 @@
     "screen.ScreenTooltipMixin",
     "scoreboard.PlayerTeamMixin",
 
-    "input.KeyboardInputMixin",
     "input.MouseScrollMixin",
 
     "accessor.AbstractContainerScreenAccessor",
-    "accessor.CameraAccessor",
-    "accessor.ClientInputAccessor",
     "accessor.PlayerTabOverlayAccessor",
 
-    "client.MinecraftTurnMixin",
 
     "cosmetic.RenderSectionRegionMixin",
     "cosmetic.BlockFaceCullingMixin",
@@ -62,12 +58,7 @@
   "client": [
     "client.MinecraftMixin",
     "client.WindowBorderlessMixin",
-    "accessor.MinecraftAccessor",
-    "hitbox.LeverBlockMixin",
-    "hitbox.ButtonBlockMixin",
-    "hitbox.MushroomBlockMixin",
-    "hitbox.SkullBlockMixin",
-    "hitbox.SkullCollisionMixin"
+    "accessor.MinecraftAccessor"
   ],
 
   "injectors": {

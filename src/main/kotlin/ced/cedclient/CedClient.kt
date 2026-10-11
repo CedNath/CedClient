@@ -3,15 +3,9 @@ package ced.cedclient
 import ced.cedclient.commands.CedClientCommand
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
-import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.DungeonSplits
 import ced.cedclient.features.impl.funqol.PositionalMessages
-import ced.cedclient.features.impl.funqol.SecretHitboxes
-import ced.cedclient.features.impl.funqol.FishingHelper
-import ced.cedclient.features.impl.funqol.LassoHelper
-import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
-import ced.cedclient.features.impl.funqol.TinyDancerHelper
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.AutoSprint
 import ced.cedclient.features.impl.misc.BorderlessFullscreen
@@ -23,18 +17,11 @@ import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.ScreenshotTweaks
 import ced.cedclient.features.impl.misc.WarpShortcuts
-import ced.cedclient.features.impl.render.BlockESP
-import ced.cedclient.features.impl.render.StarredMobESP
-import ced.cedclient.features.impl.render.BlockESPRenderer
 import ced.cedclient.features.impl.render.ChatChannelHud
 import ced.cedclient.features.impl.render.CompactScoreboard
 import ced.cedclient.features.impl.render.CompactTab
-import ced.cedclient.features.impl.render.EntityESP
-import ced.cedclient.features.impl.render.EntityESPHud
-import ced.cedclient.features.impl.render.EntityESPLabels
-import ced.cedclient.features.impl.render.EntityESPRenderer
-import ced.cedclient.features.impl.render.Freecam
 import ced.cedclient.features.impl.render.CosmeticBlocks
+import ced.cedclient.features.impl.render.StarredMobHighlight
 import ced.cedclient.features.impl.render.FloorDrops
 import ced.cedclient.features.impl.render.Fullbright
 import ced.cedclient.features.impl.render.HardcodedCosmetics
@@ -54,7 +41,6 @@ import ced.cedclient.ui.inventory.InventoryButtonManager
 import ced.cedclient.utils.PingTracker
 import ced.cedclient.utils.TabListCache
 import ced.cedclient.utils.UsageStats
-import ced.cedclient.utils.debug.MouseLookDebugger
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
@@ -112,25 +98,18 @@ class CedClient : ClientModInitializer {
             NVGSpecialRenderer(context.bufferSource())
         }
 
-        MouseLookDebugger.register()
     }
 
     private fun registerModules() {
-        EntityESPRenderer.register()
-        EntityESPHud.load()
-        BlockESPRenderer.register()
 
         // Registration order = order inside each ClickGUI panel, so related modules sit together.
 
-        // Render: ESP / highlights, then world visuals, then camera
-        ModuleManager.register(EntityESP)
-        ModuleManager.register(StarredMobESP)
-        ModuleManager.register(BlockESP)
+        // Render: highlights, then world visuals, then camera
+        ModuleManager.register(StarredMobHighlight)
         ModuleManager.register(FloorDrops)
         ModuleManager.register(Fullbright)
         ModuleManager.register(CleanView)
         ModuleManager.register(RenderOptimizer)
-        ModuleManager.register(Freecam)
         ModuleManager.register(Zoom)
 
         // HUD: vanilla UI tweaks, then info overlays
@@ -147,15 +126,9 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(PlayerScale)
 
-        // Skyblock: dungeons, Galatea hunting, fishing, Rift
+        // Skyblock: dungeons
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
-        ModuleManager.register(SecretHitboxes)
-        ModuleManager.register(LassoHelper)
-        ModuleManager.register(PangolinCatcher)
-        ModuleManager.register(CoralotHelper)
-        ModuleManager.register(FishingHelper)
-        ModuleManager.register(TinyDancerHelper)
 
         // Misc: movement / navigation, inventory, chat, screenshots, then client settings
         ModuleManager.register(AutoSprint)
@@ -186,17 +159,6 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "positional_messages")
         ) { graphics, tickCounter ->
             PositionalMessages.render(graphics, tickCounter)
-        }
-        // First, so HUD panels draw over the floating entity labels.
-        HudElementRegistry.addLast(
-            Identifier.fromNamespaceAndPath("cedclient", "entity_esp_labels")
-        ) { graphics, tickCounter ->
-            EntityESPLabels.render(graphics, tickCounter)
-        }
-        HudElementRegistry.addLast(
-            Identifier.fromNamespaceAndPath("cedclient", "entity_esp_hud")
-        ) { graphics, tickCounter ->
-            EntityESPHud.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "time_hud")
@@ -229,22 +191,16 @@ class CedClient : ClientModInitializer {
                 client.setScreen(ClickGUI())
             }
 
-            // Freecam / Zoom keys are KeybindSettings on their modules (rebindable in the ClickGUI), polled here.
+            // The Zoom key is a KeybindSetting on its module (rebindable in the ClickGUI), polled here.
             // Only while no screen is open, so typing in chat doesn't trigger them.
             val window = GLFW.glfwGetCurrentContext()
             fun down(code: Int) = code > 0 && window != 0L && client.screen == null &&
                     GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
 
-            val freecamDown = down(Freecam.toggleKey.value)
-            if (freecamDown && !freecamKeyWasDown) Freecam.toggleFreecam()
-            freecamKeyWasDown = freecamDown
-
             // Zoom is a hold key, not a toggle -- pass the held state every tick.
             Zoom.setHeld(down(Zoom.zoomKey.value))
         }
     }
-
-    private var freecamKeyWasDown = false
 
     private fun loadConfig() {
         // Load module config safely. If something inside loadModulesOnly throws (NPE etc.),
