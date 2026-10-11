@@ -21,7 +21,7 @@ object HardcodedCosmetics : Module(
 
     init {
         addSettings(chatEmotes, vineBoom, vineBoomVolume)
-        ChatEmotes // load the emote table and start listening for 🗿
+        ChatEmotes // load the emote table
     }
 
     /**
