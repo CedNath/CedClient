@@ -205,3 +205,6 @@
 1f37a beer
 2615 coffee
 1f9c2 salt
+f0001 fah
+f0002 sus
+f0003 dictator
