@@ -12,7 +12,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import ced.cedclient.utils.ui.clickGuiScale
 import ced.cedclient.utils.ui.mouseX as cedMouseX
 import ced.cedclient.utils.ui.mouseY as cedMouseY
-import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -243,7 +242,7 @@ class SearchOverlayScreen(
     /** Rarity colour from the item's leading colour code (§6 -> gold), white if none. */
     private fun nameColor(display: String): Int {
         val code = Regex("§([0-9a-f])").find(display)?.groupValues?.get(1)?.first() ?: return Colors.WHITE.rgba
-        return (ChatFormatting.getByCode(code)?.color ?: 0xFFFFFF) or 0xFF000000.toInt()
+        return FORMAT_COLORS[code.digitToInt(16)] or 0xFF000000.toInt()
     }
 
     // ---------------------------------------------------------------- input
@@ -333,6 +332,12 @@ class SearchOverlayScreen(
         private const val ICON = 18f
         private const val FOOTER_H = 32f
         private const val MAX_ROWS = 8
+
+        // Vanilla §0-§f colours; ChatFormatting stopped exposing them in 26.2.
+        private val FORMAT_COLORS = intArrayOf(
+            0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, 0xAA0000, 0xAA00AA, 0xFFAA00, 0xAAAAAA,
+            0x555555, 0x5555FF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF,
+        )
 
         private const val LINE = 15
         private const val MAX_QUERY = LINE * 2
