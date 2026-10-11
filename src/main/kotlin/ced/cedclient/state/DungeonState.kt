@@ -205,6 +205,7 @@ object DungeonState {
         private set
 
     private var lastLevel: ClientLevel? = null
+    private var rejoinCheckTicks = 0
 
     fun init() {
         on<ChatMessageEvent> { event ->
@@ -353,6 +354,17 @@ object DungeonState {
             if (level != null) {
                 playerClassLevel = level
                 if (Debug.enabled) Debug.log("[DungeonState] classLevel -> $playerClassLevel (from tab list: '$roman')", interval = 1)
+            }
+        }
+
+        // Rejoining a run after a kick / disconnect never shows Mort's line again (the level change above
+        // already cleared inDungeon), so pick the run back up from the sidebar's "The Catacombs (F7)" line,
+        // which only shows inside a run. Checked once a second while not in a dungeon.
+        if (!inDungeon && ++rejoinCheckTicks % 20 == 0) {
+            sidebarFloor()?.let { sidebar ->
+                inDungeon = true
+                if (floor == null) floor = sidebar
+                if (Debug.enabled) Debug.log("[DungeonState] inDungeon -> true (sidebar: $sidebar, rejoined run)", interval = 1)
             }
         }
 
