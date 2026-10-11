@@ -2,6 +2,9 @@ package ced.cedclient.mixin.client;
 
 import ced.cedclient.features.impl.funqol.CustomHypeSound;
 import ced.cedclient.features.impl.funqol.F7SoundCap;
+import ced.cedclient.features.impl.render.ChatEmotes;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.sounds.SoundSource;
@@ -25,6 +28,19 @@ public class SoundEngineMixin {
             cancellable = true)
     private void cedclient$hypeSound(SoundInstance instance, CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
         if (CustomHypeSound.shouldCancel(instance)) cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
+    }
+
+    // ChatEmotes meme sounds: at least 75% even with a low Master slider. Start volume (computed inline in play)...
+    @ModifyExpressionValue(method = "play", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/sounds/SoundEngine;calculateVolume(FLnet/minecraft/sounds/SoundSource;)F"))
+    private float cedclient$boostEmoteSoundStart(float volume, @Local(argsOnly = true) SoundInstance instance) {
+        return ChatEmotes.boostVolume(instance, volume);
+    }
+
+    // ...and the per-tick updates of playing sounds.
+    @Inject(method = "calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F", at = @At("RETURN"), cancellable = true)
+    private void cedclient$boostEmoteSoundTick(SoundInstance instance, CallbackInfoReturnable<Float> cir) {
+        cir.setReturnValue(ChatEmotes.boostVolume(instance, cir.getReturnValueF()));
     }
 
     // Both start volume and per-tick volume updates of playing sounds go through this overload.

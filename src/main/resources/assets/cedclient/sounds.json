@@ -1,5 +1,10 @@
 {
-  "vine_boom": {
-    "sounds": ["cedclient:vine_boom"]
-  }
+  "vine_boom": { "sounds": ["cedclient:vine_boom"] },
+  "correct": { "sounds": ["cedclient:correct"] },
+  "wrong": { "sounds": ["cedclient:wrong"] },
+  "spiderman": { "sounds": ["cedclient:spiderman"] },
+  "fah": { "sounds": ["cedclient:fah"] },
+  "sus": { "sounds": ["cedclient:sus"] },
+  "dictator": { "sounds": ["cedclient:dictator"] },
+  "anime_wow": { "sounds": ["cedclient:anime_wow"] }
 }
