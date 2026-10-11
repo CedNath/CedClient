@@ -27,7 +27,9 @@ class Panel(val panelSetting: PanelSetting) {
     private val lastModuleButton by lazy { moduleButtons.lastOrNull() }
 
     private val textWidth = NVGRenderer.textWidth(category.name, 25f, NVGRenderer.defaultFont)
-    private var previousHeight = 0f
+    /** Height drawn last frame; ClickGUI scales / rotates the open animation around it. */
+    var previousHeight = 0f
+        private set
     private var scrollOffset = 0f
     var dragging = false
         private set
