@@ -13,6 +13,7 @@ import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
 import ced.cedclient.features.impl.funqol.F7SoundCap
+import ced.cedclient.features.impl.funqol.TropicalFishHelper
 import ced.cedclient.features.impl.funqol.CustomHypeSound
 import ced.cedclient.features.impl.misc.SearchOverlay
 import ced.cedclient.features.impl.misc.AdvancedMode
@@ -27,7 +28,7 @@ import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.ScreenshotTweaks
 import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.features.impl.render.BlockESP
-import ced.cedclient.features.impl.render.StarredMobESP
+import ced.cedclient.features.impl.render.StarredMobHighlight
 import ced.cedclient.features.impl.render.BlockESPRenderer
 import ced.cedclient.features.impl.render.ChatChannelHud
 import ced.cedclient.features.impl.render.CompactScoreboard
@@ -127,15 +128,12 @@ class CedClient : ClientModInitializer {
 
         // Registration order = order inside each ClickGUI panel, so related modules sit together.
 
-        // Render: ESP / highlights, then world visuals, then camera
-        ModuleManager.register(EntityESP)
-        ModuleManager.register(StarredMobESP)
-        ModuleManager.register(BlockESP)
+        // Render: highlights, then world visuals, then camera
+        ModuleManager.register(StarredMobHighlight)
         ModuleManager.register(FloorDrops)
         ModuleManager.register(Fullbright)
         ModuleManager.register(CleanView)
         ModuleManager.register(RenderOptimizer)
-        ModuleManager.register(Freecam)
         ModuleManager.register(Zoom)
 
         // HUD: vanilla UI tweaks, then info overlays
@@ -152,15 +150,9 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(PlayerScale)
 
-        // Skyblock: dungeons, Galatea hunting, fishing, Rift
+        // Skyblock: dungeons, sounds, menus
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
-        ModuleManager.register(SecretHitboxes)
-        ModuleManager.register(LassoHelper)
-        ModuleManager.register(PangolinCatcher)
-        ModuleManager.register(CoralotHelper)
-        ModuleManager.register(FishingHelper)
-        ModuleManager.register(TinyDancerHelper)
         ModuleManager.register(F7SoundCap)
         ModuleManager.register(CustomHypeSound)
         ModuleManager.register(SearchOverlay)
@@ -175,6 +167,18 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(Theme)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(ResetPanels)
+
+        // Cheats: ESP, camera, then the auto-catch / auto-play helpers (left out of the Legit build)
+        ModuleManager.register(EntityESP)
+        ModuleManager.register(BlockESP)
+        ModuleManager.register(Freecam)
+        ModuleManager.register(SecretHitboxes)
+        ModuleManager.register(LassoHelper)
+        ModuleManager.register(PangolinCatcher)
+        ModuleManager.register(CoralotHelper)
+        ModuleManager.register(TropicalFishHelper)
+        ModuleManager.register(FishingHelper)
+        ModuleManager.register(TinyDancerHelper)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {

@@ -45,7 +45,7 @@ class ColorSetting(
 
     /** True while the inline picker below this row is open. */
     var picking = false
-        private set
+        // Public setter: FilterPopup opens one straight away for a per-entry ESP colour.
 
     private var draggingSatBri = false
     private var draggingHue = false

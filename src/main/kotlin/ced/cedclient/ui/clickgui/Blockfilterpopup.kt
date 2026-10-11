@@ -19,7 +19,9 @@ class BlockFilterPopup : FilterPopup(
     addBlocked = BlockESP::blockName,
     removeBlocked = BlockESP::unblockName,
     addOnly = BlockESP::onlyName,
-    removeOnly = BlockESP::unOnlyName
+    removeOnly = BlockESP::unOnlyName,
+    styleOf = BlockESP::styleOf,
+    onStyleChanged = BlockESP::saveFilters,
 ) {
     override fun candidateNames(): List<String> =
         BuiltInRegistries.BLOCK
