@@ -43,7 +43,7 @@ object CoralotHelper : Module(
     private val stealthPending = ArrayDeque<Long>()
 
     // --- settings ---
-    private val detectRange = NumberSetting("Detect Range (blocks)", 6.0, 1.0, 16.0, 0.5)
+    private val detectRange = NumberSetting("Detect Range (blocks)", 6.0, 1.0, 25.0, 0.5)
     private val smoothnessMs = NumberSetting("Look Smoothness ms", 180.0, 50.0, 500.0, 10.0)
     private val maxTurnSpeed = NumberSetting("Max Turn Speed (deg/s)", 900.0, 100.0, 3000.0, 50.0)
     private val aimJitter = NumberSetting("Aim Jitter (deg)", 0.6, 0.0, 3.0, 0.1)
