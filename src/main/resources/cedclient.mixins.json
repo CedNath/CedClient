@@ -8,6 +8,7 @@
     "chat.ClientPacketListenerMixin",
     "chat.ChatComponentMixin",
     "chat.ClientCommandTreeMixin",
+    "chat.CommandSuggestionsMixin",
 
     "entity.EntityMixin",
 

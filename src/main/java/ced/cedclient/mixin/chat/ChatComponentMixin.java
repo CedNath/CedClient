@@ -58,6 +58,15 @@ public abstract class ChatComponentMixin {
         }
     }
 
+    /**
+     * Vine boom on 🗿 (Cosmetics). Here rather than on ChatMessageEvent so it covers every line the chat shows --
+     * system chat and signed player chat alike -- and, being after the hide hooks, never booms for a hidden line.
+     */
+    @Inject(method = "addMessage", at = @At("HEAD"))
+    private void cedclient$vineBoom(CallbackInfo ci, @Local(argsOnly = true) Component contents) {
+        ChatEmotes.onLineShown(contents);
+    }
+
     @ModifyVariable(method = "addMessage", at = @At("HEAD"), argsOnly = true)
     private Component cedclient$applyCustomNametag(Component contents) {
         return CustomNametagText.INSTANCE.transformChat(contents);
