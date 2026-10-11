@@ -10,7 +10,9 @@ import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundSource
+import java.util.Collections
 import java.util.Optional
+import java.util.WeakHashMap
 
 /**
  * Discord-style emotes in chat (toggled from the Cosmetics module): ":sob:" and the real emoji character
@@ -18,19 +20,34 @@ import java.util.Optional
  * the cedclient:emoji font (assets/cedclient/font/emoji.json), on private-use code points U+E000 onwards in the
  * order of assets/cedclient/emotes.txt ("<codepoint hex> <shortcode> [aliases...]").
  *
- * Also plays the vine boom when any chat line contains 🗿 / :moyai: (system chat, player chat, client messages).
+ * Also plays a meme sound when a chat line contains certain emotes (see [SOUNDS]): 🗿 vine boom, ✅ / ❌, 🕷, 😱,
+ * and the custom :fah: / :sus: / :dictator: emotes (images in textures/emoji, code points f0001+ in emotes.txt).
  */
 object ChatEmotes {
 
     private val FONT = FontDescription.Resource(Identifier.fromNamespaceAndPath("cedclient", "emoji"))
-    private val VINE_BOOM = Identifier.fromNamespaceAndPath("cedclient", "vine_boom")
-    private const val MOYAI = 0x1F5FF
+    /**
+     * Emote shortcode -> sound (assets/cedclient/sounds.json) played when a chat line contains that emote, as the
+     * emoji, its :shortcode: or the already-swapped glyph. Earlier entries win when a line has several.
+     */
+    private val SOUNDS = linkedMapOf(
+        "moyai" to "vine_boom",
+        "white_check_mark" to "correct",
+        "x" to "wrong",
+        "spider" to "spiderman",
+        "fah" to "fah",
+        "sus" to "sus",
+        "dictator" to "dictator",
+        "scream" to "anime_wow",
+    ).mapValues { Identifier.fromNamespaceAndPath("cedclient", it.value) }
     private const val VARIATION_SELECTOR = 0xFE0F
 
     /** Shortcode (without colons) -> glyph. */
     private val byName = HashMap<String, String>()
     /** Emoji code point -> glyph. */
     private val byCodepoint = HashMap<Int, String>()
+    /** Shortcode -> emoji code point (for the sound triggers). */
+    private val codepointOf = HashMap<String, Int>()
 
     private val SHORTCODE = Regex(""":([a-z0-9_+\-]+):""")
 
@@ -38,6 +55,19 @@ object ChatEmotes {
     private val GLYPH_STYLE = Style.EMPTY.withFont(FONT).withColor(TextColor.fromRgb(0xFFFFFF))
 
     private var lastBoom = 0L
+
+    /** Meme sounds still play at least this loud when the Master slider is lower, even at 0. */
+    private const val MIN_MASTER = 0.75f
+    private val boosted: MutableSet<SoundInstance> = Collections.newSetFromMap(WeakHashMap())
+
+    /** SoundEngineMixin: raises one of our meme sounds to [MIN_MASTER] of its own volume if Master is below that. */
+    @JvmStatic
+    fun boostVolume(instance: SoundInstance, volume: Float): Float {
+        if (instance !in boosted) return volume
+        val master = Minecraft.getInstance().options.getSoundSourceVolume(SoundSource.MASTER)
+        if (master >= MIN_MASTER) return volume
+        return maxOf(volume, MIN_MASTER * instance.volume.coerceIn(0f, 1f))
+    }
 
     /**
      * True only while a chat packet from the server is being handled (set by ClientPacketListenerMixin). Chat Patches
@@ -51,8 +81,12 @@ object ChatEmotes {
             lines.filter { it.isNotBlank() }.forEachIndexed { i, line ->
                 val parts = line.trim().split(Regex("\\s+"))
                 val glyph = String(Character.toChars(0xE000 + i))
-                byCodepoint[parts[0].toInt(16)] = glyph
-                parts.drop(1).forEach { byName[it] = glyph }
+                val cp = parts[0].toInt(16)
+                byCodepoint[cp] = glyph
+                parts.drop(1).forEach {
+                    byName[it] = glyph
+                    codepointOf[it] = cp
+                }
             }
         }
     }
@@ -133,20 +167,24 @@ object ChatEmotes {
         // Chat Emotes off turns the sound off too (vine boom has no visible toggle of its own).
         if (!HardcodedCosmetics.chatEmotes.value || !HardcodedCosmetics.vineBoom.value || !liveChat) return
         val text = line.string
-        // The line may already have its emotes swapped in, so also look for the 🗿 glyph.
-        val moyaiGlyph = byCodepoint[MOYAI]
-        if (!text.codePoints().anyMatch { it == MOYAI } && !text.contains(":moyai:") &&
-            (moyaiGlyph == null || !text.contains(moyaiGlyph))) return
+        // The line may already have its emotes swapped in, so also look for the glyph.
+        val sound = SOUNDS.entries.firstOrNull { (name, _) ->
+            val cp = codepointOf[name]
+            val glyph = byName[name]
+            text.contains(":$name:") || (glyph != null && text.contains(glyph)) ||
+                (cp != null && text.codePoints().anyMatch { it == cp })
+        }?.value ?: return
         val now = System.currentTimeMillis()
         if (now - lastBoom < 300) return
         lastBoom = now
-        // On the MASTER channel, so only the master slider (and Vine Boom Volume) apply -- not UI / Players.
+        // On the MASTER channel, so only the master slider (and the hidden Vine Boom Volume) apply -- not UI / Players;
+        // a low Master is raised to MIN_MASTER for these (boostVolume).
         // Non-positional and camera-relative, like a UI sound.
-        Minecraft.getInstance().soundManager.play(
-            SimpleSoundInstance(
-                VINE_BOOM, SoundSource.MASTER, HardcodedCosmetics.vineBoomVolume.value.toFloat(), 1f,
-                SoundInstance.createUnseededRandom(), false, 0, SoundInstance.Attenuation.NONE, 0.0, 0.0, 0.0, true,
-            )
+        val instance = SimpleSoundInstance(
+            sound, SoundSource.MASTER, HardcodedCosmetics.vineBoomVolume.value.toFloat(), 1f,
+            SoundInstance.createUnseededRandom(), false, 0, SoundInstance.Attenuation.NONE, 0.0, 0.0, 0.0, true,
         )
+        boosted.add(instance)
+        Minecraft.getInstance().soundManager.play(instance)
     }
 }
