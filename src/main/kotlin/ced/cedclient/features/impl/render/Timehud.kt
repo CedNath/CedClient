@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -165,7 +166,7 @@ object TimeHud : Module(
     private const val CORNER_RADIUS = 8
     private const val BORDER_THICKNESS = 1
 
-    private val BORDER_COLOR = 0xFF5A4FCF.toInt()
+    private val BORDER_COLOR get() = Theme.hudBorderRgba
     private val BACKGROUND_COLOR = 0xE8161620.toInt()
 
     /**

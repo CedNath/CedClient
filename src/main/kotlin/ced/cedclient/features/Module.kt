@@ -47,6 +47,12 @@ open class Module(
      */
     open val isAction: Boolean = false
 
+    /**
+     * Settings-only modules that are always on (e.g. Theme): can't be turned off, and clicking them in the ClickGUI
+     * opens their settings instead of toggling.
+     */
+    open val alwaysEnabled: Boolean = false
+
     open fun onEnable() {}
     open fun onDisable() {}
     open fun onAction() {}
@@ -57,6 +63,7 @@ open class Module(
 
     fun setEnabled(value: Boolean) {
         if (isAction || enabled == value) return
+        if (alwaysEnabled && !value) return
 
         enabled = value
         println("Set $name → $enabled")

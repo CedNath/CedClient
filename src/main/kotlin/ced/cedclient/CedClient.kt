@@ -13,6 +13,7 @@ import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
 import ced.cedclient.features.impl.misc.AdvancedMode
+import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.features.impl.misc.AutoSprint
 import ced.cedclient.features.impl.misc.BorderlessFullscreen
 import ced.cedclient.chat.PlayerChatManager
@@ -165,6 +166,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ChatFilter)
         ModuleManager.register(ScreenshotTweaks)
         ModuleManager.register(BorderlessFullscreen)
+        ModuleManager.register(Theme)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(ResetPanels)
 

@@ -82,12 +82,12 @@ class ModuleButton(val module: Module, val panel: Panel) {
 
     fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (hover.isHovered) {
-            if (click.button() == 0) {
+            if (click.button() == 0 && !module.alwaysEnabled) {
                 colorAnim.start()
                 if (module.isAction) pressedAt = System.currentTimeMillis()
                 module.toggle()
                 return true
-            } else if (click.button() == 1) {
+            } else if (click.button() == 1 || module.alwaysEnabled) {
                 if (module.settings.isNotEmpty()) {
                     extendAnim.start()
                     extended = !extended

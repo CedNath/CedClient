@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.chat.PrivateMessageChatEvent
 import ced.cedclient.events.core.on
@@ -243,7 +244,7 @@ object ChatChannelHud : Module(
 
         if (showBackground.value) {
             g.fill(0, 0, width, height, 0xCC10101A.toInt())
-            g.outline(0, 0, width, height, 0xFF5A4FCF.toInt())
+            g.outline(0, 0, width, height, Theme.hudBorderRgba)
         }
 
         val textX = (width - textWidth) / 2
