@@ -6,6 +6,8 @@ import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.impl.funqol.DungeonSplits
 import ced.cedclient.features.impl.funqol.PositionalMessages
 import ced.cedclient.features.impl.funqol.F7SoundCap
+import ced.cedclient.features.impl.funqol.CustomHypeSound
+import ced.cedclient.features.impl.misc.SearchOverlay
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.Theme
@@ -133,6 +135,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
         ModuleManager.register(F7SoundCap)
+        ModuleManager.register(CustomHypeSound)
+        ModuleManager.register(SearchOverlay)
 
         // Misc: movement / navigation, inventory, chat, screenshots, then client settings
         ModuleManager.register(AutoSprint)

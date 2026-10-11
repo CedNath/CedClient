@@ -60,6 +60,7 @@
     "client.MinecraftMixin",
     "client.WindowBorderlessMixin",
     "client.SoundEngineMixin",
+    "client.LocalPlayerSignMixin",
     "accessor.MinecraftAccessor"
   ],
 
