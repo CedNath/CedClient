@@ -449,7 +449,7 @@ object DungeonSplits : Module(
     private val diffMode get() = secondColumn.value == "PB Difference"
 
     /** Tick column text for a duration in server ticks (shown as seconds, like the real time). */
-    private fun tickText(ticks: Long): String? = if (ticks < 0) null else fmtSeg(ticks * 50)
+    private fun tickText(ticks: Long): String? = if (ticks < 0) null else fmtSecs(ticks * 50)
 
     /** Real time [t] (ms) minus tick time [tk] (server ticks): what server lag cost the run. */
     private fun lagLost(t: Long, tk: Long) = (t - tk * 50).coerceAtLeast(0)
@@ -509,7 +509,7 @@ object DungeonSplits : Module(
             rows += Row(
                 "Boss Entry", nameColor(0x5555FF), if (entry >= 0) fmtTotal(entry) else pbEntry?.let(::fmtTotal) ?: "-",
                 if (entry >= 0) WHITE else GREY,
-                if (tickMode && bossSeg.endTick >= 0) fmtTotal(bossSeg.endTick * 50) else null, TICK,
+                if (tickMode && bossSeg.endTick >= 0) fmtSecs(bossSeg.endTick * 50) else null, TICK,
             )
         }
         val runColor = when {
@@ -517,7 +517,7 @@ object DungeonSplits : Module(
             finishedAt != 0L -> if (cleared) GREEN else RED
             else -> WHITE
         }
-        if (showRunTime.value) rows += Row("Run Time", WHITE, fmtTotal(t), runColor, if (tickMode) fmtTotal(tk * 50) else null, TICK)
+        if (showRunTime.value) rows += Row("Run Time", WHITE, fmtTotal(t), runColor, if (tickMode) fmtSecs(tk * 50) else null, TICK)
 
         if (showEstimate.value && finishedAt == 0L) {
             // Elapsed + for every unfinished split: max(expected time, what it already took).
@@ -555,6 +555,9 @@ object DungeonSplits : Module(
     }
 
     private fun fmtTotal(ms: Long): String = fmtSeg(ms)
+
+    /** Seconds only, never minutes ("92.45s"): the tick time column. */
+    private fun fmtSecs(ms: Long): String = "%.${places}fs".format(truncated(ms) / 1000.0)
 
     /** Expected duration of a split: median of recent clears (Recent Runs), else the PB run's, else a typical time. */
     private fun expectedTime(floor: String, def: SegDef, pb: PbRun?): Long {

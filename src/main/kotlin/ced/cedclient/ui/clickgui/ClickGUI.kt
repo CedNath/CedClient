@@ -77,6 +77,10 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             val scaledMouseX = cedMouseX / clickGuiScale
             val scaledMouseY = cedMouseY / clickGuiScale
 
+            // Whatever is hovered re-sets the description below while drawing. Clearing it first stops a stale one
+            // (e.g. the GUI was closed while hovering a setting, so its hover state never reset) lingering on reopen.
+            desc.text = ""
+
             NVGRenderer.scale(clickGuiScale, clickGuiScale)
 
             // canvasWidth/canvasHeight (NOT context.guiWidth()/guiHeight()) is the actual
