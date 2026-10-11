@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
@@ -132,7 +133,7 @@ object PositionalMessages : Module(
 
     private var data = SaveData()
     private val gson = GsonBuilder().setPrettyPrinting().create()
-    private val saveFile: File by lazy { FabricLoader.getInstance().configDir.resolve("cedclient/positional_messages.json").toFile() }
+    private val saveFile: File by lazy { CedPaths.file("positional_messages.json") }
 
     // ---- runtime state, keyed by the spot's message + box ----
     private class SpotState(var inside: Boolean = false, var lastSent: Long = 0L, var sentThisRun: Boolean = false)

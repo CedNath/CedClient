@@ -1,5 +1,6 @@
 package ced.cedclient.ui.inventory
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.utils.Debug
 import com.google.gson.Gson
@@ -17,7 +18,7 @@ object InventoryButtonManager {
     private val gson = Gson()
 
     private val configFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/inventory_buttons.json")
+        CedPaths.file("inventory_buttons.json")
     }
 
     private var loadedOnce = false

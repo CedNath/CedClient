@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
@@ -214,7 +215,7 @@ object DungeonSplits : Module(
 
     private var data = SaveData()
     private val gson = GsonBuilder().setPrettyPrinting().create()
-    private val saveFile: File by lazy { FabricLoader.getInstance().configDir.resolve("cedclient/dungeon_splits.json").toFile() }
+    private val saveFile: File by lazy { CedPaths.file("dungeon_splits.json") }
 
     override val label = "Dungeon Splits"
     override var panelX: Int
