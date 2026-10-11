@@ -38,6 +38,11 @@ class ColorSetting(
 
     override var value: Color = default.copy()
 
+    // A copy, like the initial value: editing the colour afterwards must not change the default itself.
+    override fun reset() {
+        value = default.copy()
+    }
+
     /** True while the inline picker below this row is open. */
     var picking = false
         private set
