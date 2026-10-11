@@ -36,6 +36,11 @@ class BlockPickerPopup(
     private var filtered: List<Entry> = ALL
     private var scrollOffset = 0f
 
+    // Dragging the scrollbar thumb (same pattern as FilterPopup: drawContent follows the live mouse while it's true).
+    private var draggingScrollbar = false
+    private var dragStartMouseY = 0f
+    private var dragStartScrollOffset = 0f
+
     private val input = TextInputHandler(
         textProvider = { query },
         textSetter = { query = it.take(32) }
@@ -82,6 +87,13 @@ class BlockPickerPopup(
 
         // List (only visible rows are drawn)
         val contentHeight = filtered.size * ROW_HEIGHT
+        if (draggingScrollbar) {
+            val travel = listHeight - thumbHeight(contentHeight)
+            if (travel > 0f) {
+                // Thumb pixels -> content pixels, so the thumb stays under the mouse.
+                scrollOffset = dragStartScrollOffset + (mouseY - dragStartMouseY) * (-(contentHeight - listHeight) / travel)
+            }
+        }
         scrollOffset = scrollOffset.coerceIn((-contentHeight + listHeight).coerceAtMost(0f), 0f)
 
         NVGRenderer.pushScissor(x, listY, width, listHeight)
@@ -103,16 +115,28 @@ class BlockPickerPopup(
         }
         NVGRenderer.popScissor()
 
-        // Scroll thumb (wheel-driven)
+        // Scrollbar (wheel or drag)
         if (contentHeight > listHeight) {
             val sx = x + width - 9f
             NVGRenderer.rect(sx, listY, 5f, listHeight, Colors.gray26.rgba, 2.5f)
-            val thumb = (listHeight * listHeight / contentHeight).coerceAtLeast(20f)
-            val maxScroll = -(contentHeight - listHeight)
-            val pct = (scrollOffset / maxScroll).coerceIn(0f, 1f)
-            NVGRenderer.rect(sx, listY + (listHeight - thumb) * pct, 5f, thumb, Colors.gray38.rgba, 2.5f)
+            val thumb = thumbHeight(contentHeight)
+            val ty = thumbY(contentHeight)
+            val hovered = isAreaHovered(scrollbarHitX, ty, SCROLLBAR_HIT_W, thumb, mouseX, mouseY)
+            val color = if (draggingScrollbar || hovered) ClickGUI.clickGUIColor else Colors.gray38
+            NVGRenderer.rect(sx, ty, 5f, thumb, color.rgba, 2.5f)
         }
     }
+
+    private fun thumbHeight(contentHeight: Float) = (listHeight * listHeight / contentHeight).coerceAtLeast(20f)
+
+    private fun thumbY(contentHeight: Float): Float {
+        val maxScroll = -(contentHeight - listHeight)
+        val pct = if (maxScroll < 0f) (scrollOffset / maxScroll).coerceIn(0f, 1f) else 0f
+        return listY + (listHeight - thumbHeight(contentHeight)) * pct
+    }
+
+    /** The 5px bar is hard to hit, so clicks a few pixels either side of it count too. */
+    private val scrollbarHitX get() = x + width - 12f
 
     private val previewX get() = x + width - 12f - PREVIEW_SIZE
     private val previewY get() = inputY + INPUT_HEIGHT / 2f - PREVIEW_SIZE / 2f
@@ -167,6 +191,21 @@ class BlockPickerPopup(
         }
         if (input.mouseClicked(mouseX, mouseY, click)) return true
 
+        val contentHeight = filtered.size * ROW_HEIGHT
+        if (contentHeight > listHeight && isAreaHovered(scrollbarHitX, listY, SCROLLBAR_HIT_W, listHeight, mouseX, mouseY)) {
+            // Clicked the track off the thumb: jump so the thumb centres on the mouse, then drag from there.
+            val thumb = thumbHeight(contentHeight)
+            val ty = thumbY(contentHeight)
+            if (mouseY !in ty..(ty + thumb)) {
+                val pct = ((mouseY - listY - thumb / 2f) / (listHeight - thumb)).coerceIn(0f, 1f)
+                scrollOffset = -(contentHeight - listHeight) * pct
+            }
+            draggingScrollbar = true
+            dragStartMouseY = mouseY
+            dragStartScrollOffset = scrollOffset
+            return true
+        }
+
         if (mouseY in listY..(listY + listHeight)) {
             val index = ((mouseY - listY - scrollOffset) / ROW_HEIGHT).toInt()
             val entry = filtered.getOrNull(index) ?: return true
@@ -177,7 +216,10 @@ class BlockPickerPopup(
         return true
     }
 
-    override fun mouseReleased(click: MouseButtonEvent) = input.mouseReleased()
+    override fun mouseReleased(click: MouseButtonEvent) {
+        input.mouseReleased()
+        draggingScrollbar = false
+    }
 
     override fun mouseScrolled(mouseX: Float, mouseY: Float, amount: Int): Boolean {
         if (mouseY !in listY..(listY + listHeight)) return false
@@ -199,6 +241,7 @@ class BlockPickerPopup(
         private const val TEXT_X = 38f
         private const val PREVIEW_SIZE = 34f
         private const val PREVIEW_SLOT = PREVIEW_SIZE + 6f
+        private const val SCROLLBAR_HIT_W = 11f
 
         /** Every vanilla block, sorted by id. Built on first use (registries are ready by then). */
         private val ALL: List<Entry> by lazy {
