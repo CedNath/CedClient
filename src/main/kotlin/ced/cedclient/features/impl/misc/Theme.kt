@@ -5,6 +5,8 @@ import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.ColorSetting
+import ced.cedclient.features.settings.DropdownSetting
+import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.darker
 
@@ -15,6 +17,7 @@ import ced.cedclient.utils.Color.Companion.darker
  *  - GUI Accent: ClickGUI.clickGUIColor -- enabled modules, popups, the search bar, the preset / button editors.
  *  - HUD Accent: the badges, dividers and bullets on the HUD panels (Daily Reset, Entity ESP HUD), plus a darker
  *    shade of it for the panel outlines (Time HUD, Chat Channel HUD).
+ *  - Open / Popup Animation + Animation Speed: how the ClickGUI panels and its popups appear (see ClickGUI).
  */
 object Theme : Module(
     "Theme",
@@ -27,6 +30,23 @@ object Theme : Module(
     val guiAccent = ColorSetting("GUI Accent", Color(110, 50, 200), "Enabled modules, popups and other ClickGUI highlights.")
     val hudAccent = ColorSetting("HUD Accent", Color(0x8A, 0x7F, 0xFF), "Badges, dividers and outlines on the HUD panels.")
 
+    val openAnimation = DropdownSetting(
+        "Open Animation",
+        listOf(
+            "Slide Up", "Slide Down", "Slide Left", "Slide Right", "Fade", "Zoom In", "Zoom Out", "Pop",
+            "Bounce", "Elastic", "Drop", "Flip", "Swing", "Spin", "Cascade", "None",
+        ),
+        "Swing",
+        "How the ClickGUI panels appear when it opens (one after another, left to right)."
+    )
+    val popupAnimation = DropdownSetting(
+        "Popup Animation",
+        listOf("Pop", "Fade", "Zoom", "Slide Up", "Slide Down", "Bounce", "None"),
+        "Pop",
+        "How popups (filters, block picker, settings) appear."
+    )
+    val animationSpeed = NumberSetting("Animation Speed", 0.6, 0.25, 3.0, 0.05, "Higher is faster. Applies to both animations.")
+
     private val resetColors = ActionSetting("Reset Colors", "Back to the default purple.") {
         guiAccent.value = guiAccent.default.copy()
         hudAccent.value = hudAccent.default.copy()
@@ -34,7 +54,7 @@ object Theme : Module(
     }
 
     init {
-        addSettings(guiAccent, hudAccent, resetColors)
+        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed)
     }
 
     /** HUD accent as ARGB. */
