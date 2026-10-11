@@ -64,6 +64,7 @@ object DungeonSplits : Module(
     private val showBossEntry = BooleanSetting("Boss Entry", true, "Time from the start of the run to entering the boss.")
     private val showRunTime = BooleanSetting("Run Time", true, "Total run time.")
     private val showPbRow = BooleanSetting("PB Row", true, "Your personal best for this floor.")
+    private val showLagLost = BooleanSetting("Lag Lost", true, "Real time minus tick time: how much of the run was lost to server lag.")
 
     private val showBackground = BooleanSetting("Background", true)
     private val cornerRadius = NumberSetting("Corner Radius", 5.0, 0.0, 12.0, 1.0)
@@ -87,7 +88,7 @@ object DungeonSplits : Module(
                 "Dungeon Splits HUD",
                 columns = listOf(
                     listOf(SettingsPopup.Section("Rows", listOf(
-                        showHeader, onlyStarted, terminalSplits, showBossEntry, showRunTime, showEstimate, showPbRow,
+                        showHeader, onlyStarted, terminalSplits, showBossEntry, showRunTime, showEstimate, showPbRow, showLagLost,
                     ))),
                     listOf(SettingsPopup.Section("Look", listOf(
                         showBackground, cornerRadius, padding, lineSpacing, decimals, textShadow, coloredNames,
@@ -102,7 +103,7 @@ object DungeonSplits : Module(
 
     /** Settings that only live in the Customize HUD window (not the module's dropdown). */
     private val popupOnly: List<RenderableSetting<*>> = listOf(
-        showHeader, onlyStarted, terminalSplits, showBossEntry, showRunTime, showEstimate, showPbRow,
+        showHeader, onlyStarted, terminalSplits, showBossEntry, showRunTime, showEstimate, showPbRow, showLagLost,
         showBackground, cornerRadius, padding, lineSpacing, decimals, textShadow, coloredNames,
         bgColor, textColor, runningColor, aheadColor, behindColor, upcomingColor, tickColor,
     )
@@ -232,7 +233,9 @@ object DungeonSplits : Module(
         addSettings(*popupOnly.toTypedArray())
         popupOnly.forEach { it.inPopup = true }
         load()
-        on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }
+        // handleSystemChat runs twice per packet (netty thread, then main thread); only take the main-thread
+        // pass, like FishMod, so splits aren't mutated off-thread or triggered twice.
+        on<ChatMessageEvent> { if (mc.isSameThread()) onChat(it.unformattedText.trim()) }
         ClientTickEvents.END_CLIENT_TICK.register { tick() }
     }
 
@@ -350,6 +353,7 @@ object DungeonSplits : Module(
             val delta = if (clear && pb != null) " " + deltaText(t - pb.total, chat = true) else ""
             say("§f$f ${if (clear) "cleared" else "§cfailed§f"} in §e${fmtTotal(t)}$delta" + if (newPb) " §a§lNEW PB!" else "")
             say(segs.filter { it.done }.joinToString(" §8| ") { "${mcColor(it.def.color)}${it.def.name} §f${fmtSeg(it.time(t))}" })
+            say("§7Lag lost: §c${fmtSeg(lagLost(t, atTick))}")
         }
     }
 
@@ -438,6 +442,9 @@ object DungeonSplits : Module(
     /** Tick column text for a duration in server ticks (shown as seconds, like the real time). */
     private fun tickText(ticks: Long): String? = if (ticks < 0) null else fmtSeg(ticks * 50)
 
+    /** Real time [t] (ms) minus tick time [tk] (server ticks): what server lag cost the run. */
+    private fun lagLost(t: Long, tk: Long) = (t - tk * 50).coerceAtLeast(0)
+
     private fun buildRows(list: List<Seg>, t: Long, tk: Long, pb: PbRun?, preview: Boolean): List<Row> {
         val rows = ArrayList<Row>()
         for (seg in list) {
@@ -514,6 +521,7 @@ object DungeonSplits : Module(
             rows += Row("Est. Total", nameColor(0xFFAA00), fmtTotal(est), GREY)
         }
         if (pb != null && showPbRow.value) rows += Row("PB", nameColor(0xFF55FF), fmtTotal(pb.total), GREY)
+        if (showLagLost.value) rows += Row("Lag Lost", nameColor(0xAAAAAA), fmtSeg(lagLost(t, tk)), if (preview) GREY else RED)
         return rows
     }
 
@@ -529,18 +537,14 @@ object DungeonSplits : Module(
         return ms.coerceAtLeast(0) / unit * unit
     }
 
-    /** Segment time: "12.34s", or "1:05.34" past a minute (decimal places from the Decimals setting). */
-    private fun fmtSeg(ms: Long): String =
-        if (ms < 60_000) "%.${places}fs".format(truncated(ms) / 1000.0) else fmtTotal(ms)
-
-    /** "5:42.34" (decimal places from the Decimals setting). */
-    private fun fmtTotal(ms: Long): String {
+    /** "12.34s", or "1m 29.09s" past a minute (decimal places from the Decimals setting). */
+    private fun fmtSeg(ms: Long): String {
         val total = truncated(ms)
-        val minutes = total / 60_000
-        val seconds = (total % 60_000) / 1000.0
-        val secText = "%0${if (places == 0) 2 else places + 3}.${places}f".format(seconds)
-        return "$minutes:$secText"
+        val seconds = "%.${places}fs".format((total % 60_000) / 1000.0)
+        return if (total < 60_000) seconds else "${total / 60_000}m $seconds"
     }
+
+    private fun fmtTotal(ms: Long): String = fmtSeg(ms)
 
     private fun deltaText(d: Long, chat: Boolean): String {
         val sign = if (d <= 0) "-" else "+"
