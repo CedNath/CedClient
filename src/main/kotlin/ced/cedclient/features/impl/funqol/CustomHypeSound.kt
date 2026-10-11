@@ -66,17 +66,20 @@ object CustomHypeSound : Module(
         }
     }
 
-    /** True if this sound should not play. The explosion is swapped for ours. */
+    /**
+     * True if this sound should not play. The explosion is swapped for ours. Must run after
+     * SoundInstance.resolve(): volume / pitch read the resolved sound and throw before that.
+     */
     @JvmStatic
     fun shouldCancel(instance: SoundInstance): Boolean {
         if (!isEnabled || replaying || lastClick == 0L) return false
         // Devonian allows 3 server ticks after the click; the sound also has to travel back, so add the ping.
         if (System.currentTimeMillis() - lastClick > 150 + PingTracker.latest().coerceAtLeast(100)) return false
         val id = instance.identifier.toString()
-        if (instance.volume != 1f) return false
+        if ((id != CURE && id != EXPLODE) || instance.sound == null) return false
         return when {
-            id == CURE && abs(instance.pitch - CURE_PITCH) < 0.001f -> true
-            id == EXPLODE && instance.pitch == 1f -> { play(); true }
+            id == CURE && abs(instance.pitch - CURE_PITCH) < 0.01f -> true
+            id == EXPLODE && abs(instance.pitch - 1f) < 0.01f -> { play(); true }
             else -> false
         }
     }
