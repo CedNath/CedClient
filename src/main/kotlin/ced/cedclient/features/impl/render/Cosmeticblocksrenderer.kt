@@ -11,7 +11,7 @@ import net.minecraft.world.phys.Vec3
 
 /**
  * World overlays for Cosmetic Blocks (same render path as BlockESPRenderer): the World Edit selection,
- * the ruler preview / reach marker, and the optional "Show Replaced Blocks" wireframe.
+ * the ruler preview / reach marker, the optional "Show Replaced Blocks" wireframe, and in Freecam the aimed block.
  */
 object CosmeticBlocksRenderer {
     private const val MAX_WIREFRAMES = 3000
@@ -26,7 +26,9 @@ object CosmeticBlocksRenderer {
             val selection = CosmeticBlocks.worldEditMode && (p1 != null || p2 != null)
             val ruler = CosmeticTools.rulerActive
             val wire = CosmeticBlocks.showReplaced.value && CosmeticStore.cache.isNotEmpty()
-            if (!selection && !ruler && !wire) return@register
+            // Freecam: vanilla's outline is still the player's target, so mark the block the camera aims at.
+            val aim = if (Freecam.isActive && (CosmeticBlocks.editMode || CosmeticBlocks.worldEditMode)) CosmeticTools.aimHit()?.blockPos else null
+            if (!selection && !ruler && !wire && aim == null) return@register
 
             val cam = context.gameRenderer().mainCamera().position()
             val wireKeys = if (wire) CosmeticStore.cache.keys.toList() else emptyList()
@@ -35,6 +37,8 @@ object CosmeticBlocksRenderer {
             val rulerPreview = if (ruler) CosmeticTools.rulerPreview.toList() else emptyList()
 
             context.submitNodeCollector().submitCustomGeometry(context.poseStack(), CustomRenderType.LINES_ESP) { pose, buf ->
+
+            aim?.let { blockBox(pose, buf, cam, it, 1f, 1f, 1f, 1f) }
 
             if (selection) {
                 if (p1 != null && p2 != null) {

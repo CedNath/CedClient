@@ -1,9 +1,11 @@
 package ced.cedclient.render.cosmetic
 
+import ced.cedclient.features.impl.render.Freecam
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
@@ -77,11 +79,11 @@ object CosmeticTools {
     /** Biggest replacenear radius whose cube fits in Max Region Size. */
     fun maxNearRadius(): Int = ((Math.cbrt(maxRegion.toDouble()) - 1) / 2).toInt().coerceAtLeast(1)
 
-    /** [replace] in a cube of [radius] blocks around the player instead of the selection. */
+    /** [replace] in a cube of [radius] blocks around the player (the camera in Freecam) instead of the selection. */
     fun replaceNear(radius: Int, from: String, toSpecs: String): String {
-        val player = mc.player ?: return "§cNot in a world"
+        val eye = aimEye() ?: return "§cNot in a world"
         val r = radius.coerceIn(1, maxNearRadius())
-        val c = player.blockPosition()
+        val c = if (Freecam.isActive) BlockPos.containing(eye) else mc.player?.blockPosition() ?: return "§cNot in a world"
         val result = replaceBetween(c.offset(-r, -r, -r), c.offset(r, r, r), from, toSpecs)
         return if (result.startsWith("§a")) "$result within $r blocks" else result
     }
@@ -152,14 +154,37 @@ object CosmeticTools {
         if (blocks.size == 1) BuiltInRegistries.BLOCK.getKey(blocks[0].first.block).path else "${blocks.size} block types"
 
     // ------------------------------------------------------------------
+    // Aim: the Freecam camera while Freecam is on, else the player's eyes. Vanilla's hitResult always comes
+    // from the player's body, so in Freecam every tool would otherwise target the block in front of you.
+    // ------------------------------------------------------------------
+
+    /** Reach while in Freecam: you fly around to build, so it's much longer than survival reach. */
+    private const val FREECAM_REACH = 64.0
+
+    fun aimEye(): Vec3? = if (Freecam.isActive) Freecam.getInterpolatedPos(1f) else mc.player?.getEyePosition(1f)
+
+    fun aimLook(): Vec3? =
+        if (Freecam.isActive) Vec3.directionFromRotation(Freecam.getPitch(1f), Freecam.getYaw(1f)) else mc.player?.lookAngle
+
+    /** The block under the crosshair: vanilla's target, or in Freecam a fresh ray from the camera. */
+    fun aimHit(): BlockHitResult? {
+        if (!Freecam.isActive) return (mc.hitResult as? BlockHitResult)?.takeIf { it.type == HitResult.Type.BLOCK }
+        val level = mc.level ?: return null
+        val player = mc.player ?: return null
+        val eye = aimEye() ?: return null
+        val end = eye.add((aimLook() ?: return null).scale(FREECAM_REACH))
+        return level.clip(ClipContext(eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player))
+            .takeIf { it.type == HitResult.Type.BLOCK }
+    }
+
+    // ------------------------------------------------------------------
     // Phantom ray cast (phantom blocks have no hitbox, so the crosshair passes through them)
     // ------------------------------------------------------------------
 
     /** First phantom block along the view ray within reach, plus the face the ray entered it through. */
-    fun phantomHit(reach: Double = 5.0): Pair<BlockPos, Direction>? {
-        val player = mc.player ?: return null
-        val eye = player.getEyePosition(1f)
-        val look = player.lookAngle
+    fun phantomHit(reach: Double = if (Freecam.isActive) FREECAM_REACH else 5.0): Pair<BlockPos, Direction>? {
+        val eye = aimEye() ?: return null
+        val look = aimLook() ?: return null
         val checked = HashSet<Long>()
         var dist = 0.0
         while (dist <= reach) {
@@ -230,15 +255,14 @@ object CosmeticTools {
     }
 
     private fun airTarget(): BlockPos? {
-        val player = mc.player ?: return null
-        val t = player.getEyePosition(1f).add(player.lookAngle.scale(airReach))
+        val eye = aimEye() ?: return null
+        val t = eye.add((aimLook() ?: return null).scale(airReach))
         return BlockPos.containing(t)
     }
 
     private fun rulerTarget(): BlockPos? {
-        val hit = mc.hitResult
-        if (hit is BlockHitResult && hit.type == HitResult.Type.BLOCK) {
-            val d = hit.location.distanceTo(mc.player?.getEyePosition(1f) ?: hit.location)
+        aimHit()?.let { hit ->
+            val d = hit.location.distanceTo(aimEye() ?: hit.location)
             if (d <= airReach + 0.5) return hit.blockPos
         }
         return airTarget()
