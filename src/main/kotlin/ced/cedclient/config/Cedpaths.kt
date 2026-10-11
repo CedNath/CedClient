@@ -8,7 +8,7 @@ import java.io.File
  *
  * Older versions wrote to <minecraft>/cedclient/. The first time anything touches this object (it is
  * initialised before any config is read), that legacy folder is migrated into the config folder and then
- * deleted. Files that already exist in the new location win, so a migration never overwrites anything.
+ * deleted. When a file exists in both, the newer one wins.
  * If copying fails part-way, the legacy folder is left in place and retried next launch.
  */
 object CedPaths {
@@ -29,9 +29,11 @@ object CedPaths {
         try {
             legacy.walkTopDown().filter { it.isFile }.forEach { source ->
                 val target = File(dir, source.relativeTo(legacy).path)
-                if (!target.exists()) {
+                // Newer wins: a few features used to write here by mistake (Entity / Block ESP filters, HUD positions,
+                // inventory buttons), so the legacy copy can be the up-to-date one.
+                if (!target.exists() || source.lastModified() > target.lastModified()) {
                     target.parentFile.mkdirs()
-                    source.copyTo(target)
+                    source.copyTo(target, overwrite = true)
                 }
             }
 
