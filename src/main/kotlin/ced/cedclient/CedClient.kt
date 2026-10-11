@@ -5,6 +5,7 @@ import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.impl.funqol.DungeonSplits
 import ced.cedclient.features.impl.funqol.PositionalMessages
+import ced.cedclient.features.impl.funqol.F7SoundCap
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.Theme
@@ -131,6 +132,7 @@ class CedClient : ClientModInitializer {
         // Skyblock: dungeons
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
+        ModuleManager.register(F7SoundCap)
 
         // Misc: movement / navigation, inventory, chat, screenshots, then client settings
         ModuleManager.register(AutoSprint)

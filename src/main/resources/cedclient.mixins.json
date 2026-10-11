@@ -59,6 +59,7 @@
   "client": [
     "client.MinecraftMixin",
     "client.WindowBorderlessMixin",
+    "client.SoundEngineMixin",
     "accessor.MinecraftAccessor"
   ],
 
