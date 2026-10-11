@@ -39,6 +39,13 @@ object ChatEmotes {
 
     private var lastBoom = 0L
 
+    /**
+     * True only while a chat packet from the server is being handled (set by ClientPacketListenerMixin). Chat Patches
+     * replays saved history by calling addMessage directly on join, outside any packet, so those lines don't boom.
+     */
+    @JvmField
+    var liveChat = false
+
     init {
         ChatEmotes::class.java.getResourceAsStream("/assets/cedclient/emotes.txt")?.bufferedReader()?.useLines { lines ->
             lines.filter { it.isNotBlank() }.forEachIndexed { i, line ->
@@ -123,7 +130,8 @@ object ChatEmotes {
     /** Called from ChatComponentMixin for every line the chat shows (any kind of chat). */
     @JvmStatic
     fun onLineShown(line: Component) {
-        if (!HardcodedCosmetics.vineBoom.value) return
+        // Chat Emotes off turns the sound off too (vine boom has no visible toggle of its own).
+        if (!HardcodedCosmetics.chatEmotes.value || !HardcodedCosmetics.vineBoom.value || !liveChat) return
         val text = line.string
         // The line may already have its emotes swapped in, so also look for the 🗿 glyph.
         val moyaiGlyph = byCodepoint[MOYAI]
