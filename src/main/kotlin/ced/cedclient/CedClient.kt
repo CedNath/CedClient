@@ -13,6 +13,8 @@ import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
 import ced.cedclient.features.impl.funqol.F7SoundCap
+import ced.cedclient.features.impl.funqol.CustomHypeSound
+import ced.cedclient.features.impl.misc.SearchOverlay
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.features.impl.misc.AutoSprint
@@ -160,6 +162,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)
         ModuleManager.register(F7SoundCap)
+        ModuleManager.register(CustomHypeSound)
+        ModuleManager.register(SearchOverlay)
 
         // Misc: movement / navigation, inventory, chat, screenshots, then client settings
         ModuleManager.register(AutoSprint)

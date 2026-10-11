@@ -65,6 +65,7 @@
   "client": [
     "client.MinecraftMixin",
     "client.SoundEngineMixin",
+    "client.LocalPlayerSignMixin",
     "accessor.MinecraftAccessor",
     "hitbox.LeverBlockMixin",
     "hitbox.ButtonBlockMixin",
