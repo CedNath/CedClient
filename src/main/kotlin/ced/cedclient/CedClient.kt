@@ -12,6 +12,7 @@ import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
+import ced.cedclient.features.impl.funqol.F7SoundCap
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.features.impl.misc.AutoSprint
@@ -158,6 +159,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CoralotHelper)
         ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)
+        ModuleManager.register(F7SoundCap)
 
         // Misc: movement / navigation, inventory, chat, screenshots, then client settings
         ModuleManager.register(AutoSprint)
