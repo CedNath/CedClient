@@ -17,7 +17,7 @@ object HardcodedCosmetics : Module(
     // Chat extras (ChatEmotes). These work whether or not the cosmetic tags themselves are on.
     val chatEmotes = BooleanSetting("Chat Emotes", true, "Show Discord emotes in chat: :sob: and 😭 become the emote image.")
     val vineBoom = BooleanSetting("Vine Boom on 🗿", true, "Play the vine boom when someone sends 🗿 or :moyai: in chat.")
-    val vineBoomVolume = NumberSetting("Vine Boom Volume", 1.0, 0.1, 2.0, 0.1)
+    val vineBoomVolume = NumberSetting("Vine Boom Volume", 1.0, 0.1, 1.0, 0.05, "Ignores the UI / Players sliders; only Master Volume also applies.")
 
     init {
         addSettings(chatEmotes, vineBoom, vineBoomVolume)
