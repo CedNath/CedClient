@@ -1,7 +1,5 @@
 package ced.cedclient.features.impl.render
 
-import ced.cedclient.events.ChatMessageEvent
-import ced.cedclient.events.core.on
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.network.chat.Component
@@ -19,7 +17,7 @@ import java.util.Optional
  * the cedclient:emoji font (assets/cedclient/font/emoji.json), on private-use code points U+E000 onwards in the
  * order of assets/cedclient/emotes.txt ("<codepoint hex> <shortcode> [aliases...]").
  *
- * Also plays the vine boom when a chat line contains 🗿 / :moyai:.
+ * Also plays the vine boom when any chat line contains 🗿 / :moyai: (system chat, player chat, client messages).
  */
 object ChatEmotes {
 
@@ -49,8 +47,18 @@ object ChatEmotes {
                 parts.drop(1).forEach { byName[it] = glyph }
             }
         }
-        on<ChatMessageEvent> { onChat(it.unformattedText) }
     }
+
+    /** Every shortcode as typed in chat (":sob:"), sorted, for autocomplete. */
+    private val completions: List<String> by lazy { byName.keys.map { ":$it:" }.sorted() }
+
+    /**
+     * Chat autocomplete (CommandSuggestionsMixin): the emotes to offer for the word being typed, or null when
+     * it isn't an emote (not starting with ":") so vanilla's player-name completion is left alone.
+     */
+    @JvmStatic
+    fun completionsFor(word: String): List<String>? =
+        if (HardcodedCosmetics.chatEmotes.value && word.startsWith(":") && word.length >= 2) completions else null
 
     /** Called from ChatComponentMixin for every chat line; returns the line with emotes swapped in (or unchanged). */
     @JvmStatic
@@ -111,9 +119,15 @@ object ChatEmotes {
         return replaced
     }
 
-    private fun onChat(text: String) {
+    /** Called from ChatComponentMixin for every line the chat shows (any kind of chat). */
+    @JvmStatic
+    fun onLineShown(line: Component) {
         if (!HardcodedCosmetics.vineBoom.value) return
-        if (!text.codePoints().anyMatch { it == MOYAI } && !text.contains(":moyai:")) return
+        val text = line.string
+        // The line may already have its emotes swapped in, so also look for the 🗿 glyph.
+        val moyaiGlyph = byCodepoint[MOYAI]
+        if (!text.codePoints().anyMatch { it == MOYAI } && !text.contains(":moyai:") &&
+            (moyaiGlyph == null || !text.contains(moyaiGlyph))) return
         val now = System.currentTimeMillis()
         if (now - lastBoom < 300) return
         lastBoom = now
