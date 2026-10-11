@@ -35,8 +35,8 @@ object BlockESPRenderer {
             for (scanned in BlockESP.scannedBlocks) {
                 val pos = scanned.pos
 
-                if (BlockESP.boxesEnabled) {
-                    val boxColor = BlockESP.boxColorValue
+                if (BlockESP.boxesEnabled && scanned.style.box) {
+                    val boxColor = scanned.style.color ?: BlockESP.boxColorValue
                     val box: AABB = AABB(pos).inflate(0.02).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
                     drawLineBox(
                         poseStack, lineBuffer, box,
@@ -44,8 +44,8 @@ object BlockESPRenderer {
                     )
                 }
 
-                if (BlockESP.tracersEnabled) {
-                    val tracerColor = BlockESP.tracerColorValue
+                if (BlockESP.tracersEnabled && scanned.style.tracer) {
+                    val tracerColor = scanned.style.color ?: BlockESP.tracerColorValue
                     val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
                     val targetPos = Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
                     drawLine(
@@ -57,7 +57,7 @@ object BlockESPRenderer {
                     )
                 }
 
-                if (BlockESP.labelsEnabled) {
+                if (BlockESP.labelsEnabled && scanned.style.label) {
                     submitLabel(poseStack, submitNodeCollector, scanned, cameraPos, cameraRenderState)
                 }
             }
@@ -74,6 +74,7 @@ object BlockESPRenderer {
         cameraRenderState: net.minecraft.client.renderer.state.level.CameraRenderState
     ) {
         val namePart = Component.literal(scanned.name).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+            .let { part -> scanned.style.color?.let { part.withColor(it.rgba and 0xFFFFFF) } ?: part }
         val distPart = Component.literal(" %.0fm".format(scanned.distance)).withStyle(ChatFormatting.YELLOW)
         val label: Component = namePart.append(distPart)
 

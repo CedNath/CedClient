@@ -42,7 +42,7 @@ import net.minecraft.world.phys.Vec3
  *  - the highlight color is a ColorSetting instead of the fixed Skyblocker config color
  *  - "See Through Walls" picks between CustomRenderType.LINES_ESP (no depth test, shows
  *    through blocks) and LINES_DEPTH (normal, hidden behind blocks)
- *  - drawn as an outline box like BlockESP/StarredMobESP, not a filled box
+ *  - drawn as an outline box like BlockESP/StarredMobHighlight, not a filled box
  */
 object FloorDrops : Module(
     "FloorDrops",

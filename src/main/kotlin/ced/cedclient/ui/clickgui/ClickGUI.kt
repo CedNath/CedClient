@@ -311,12 +311,19 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             fun render() {
                 if (text.isEmpty() || hoverHandler.percent() < 100) return
                 val area = NVGRenderer.wrappedTextBounds(text, 300f, 16f, NVGRenderer.defaultFont)
-                NVGRenderer.rect(x, y, area[2] - area[0] + 16f, area[3] - area[1] + 16f, Colors.gray38.rgba, 5f)
+                val w = area[2] - area[0] + 16f
+                val h = area[3] - area[1] + 16f
+                // Callers place it right of the panel; on the rightmost panel that runs off screen, so flip it left.
+                val screenW = NVGRenderer.canvasWidth / clickGuiScale
+                val screenH = NVGRenderer.canvasHeight / clickGuiScale
+                val x = if (x + w > screenW - 4f) x - w - Panel.WIDTH - 20f else x
+                val y = y.coerceAtMost(screenH - h - 4f)
+                NVGRenderer.rect(x, y, w, h, Colors.gray38.rgba, 5f)
                 NVGRenderer.hollowRect(
                     x,
                     y,
-                    area[2] - area[0] + 16f,
-                    area[3] - area[1] + 16f,
+                    w,
+                    h,
                     1.5f,
                     clickGUIColor.rgba,
                     5f

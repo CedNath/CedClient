@@ -7,6 +7,8 @@ import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.Setting.Companion.withDependency
 import ced.cedclient.utils.HumanLook
+import ced.cedclient.utils.isLookingAt
+import ced.cedclient.utils.lookAngles
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
@@ -20,9 +22,6 @@ import net.minecraft.sounds.SoundEvent
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.animal.axolotl.Axolotl
 import net.minecraft.world.entity.decoration.ArmorStand
-import kotlin.math.abs
-import kotlin.math.atan2
-import kotlin.math.sqrt
 import kotlin.random.Random
 import org.lwjgl.glfw.GLFW
 
@@ -31,7 +30,7 @@ private enum class CoralotState { IDLE, CATCH_DELAY, CONFIRMING }
 object CoralotHelper : Module(
     "CoralotHelper(!!!)",
 
-    Category.Skyblock,
+    Category.Cheats,
    description = "Auto-catches Axolotls with a net once the warning icon clears"
 ) {
     private val mc = Minecraft.getInstance()
@@ -43,7 +42,7 @@ object CoralotHelper : Module(
     private val stealthPending = ArrayDeque<Long>()
 
     // --- settings ---
-    private val detectRange = NumberSetting("Detect Range (blocks)", 6.0, 1.0, 25.0, 0.5)
+    private val detectRange = NumberSetting("Detect Range (blocks)", 15.0, 1.0, 25.0, 0.5)
     private val smoothnessMs = NumberSetting("Look Smoothness ms", 180.0, 50.0, 500.0, 10.0)
     private val maxTurnSpeed = NumberSetting("Max Turn Speed (deg/s)", 900.0, 100.0, 3000.0, 50.0)
     private val aimJitter = NumberSetting("Aim Jitter (deg)", 0.6, 0.0, 3.0, 0.1)
@@ -58,7 +57,7 @@ object CoralotHelper : Module(
     private val restorePreviousItem = BooleanSetting("Restore Previous Item", true)
     private val catchMultipleTargets = BooleanSetting("Catch Multiple", true)
     private val requireKeybind = BooleanSetting(
-        "Require Keybind", false,
+        "Require Keybind", true,
         "Off: catches on its own. On: keeps scanning, but only looks / catches while toggled on with the Catch Key."
     )
     private val catchKey = KeybindSetting("Catch Key", description = "Toggles catching on / off (with Require Keybind on).")
@@ -67,7 +66,20 @@ object CoralotHelper : Module(
     /** Toggled by [catchKey]; only matters with [requireKeybind] on. */
     private var armed = false
     private var keyWas = false
-    private val canCatch get() = !requireKeybind.value || armed
+    /** Also read by TropicalFishHelper, which shares this key while both helpers are on. */
+    val canCatch get() = !requireKeybind.value || armed
+
+    /**
+     * TropicalFishHelper waits while this is true: axolotls come first, fish only once none are in range
+     * (with a warning icon or not) and nothing is queued / mid-catch. [range] widens the axolotl check to the fish
+     * helper's own range, so it never throws near an axolotl Coralot can't see yet (one still showing its warning).
+     */
+    fun hasWork(player: LocalPlayer, range: Double): Boolean {
+        if (!isEnabled) return false
+        if (state != CoralotState.IDLE || readyQueue.isNotEmpty() || hologramTracked.isNotEmpty()) return true
+        val r = maxOf(range, detectRange.value)
+        return mc.level?.entitiesForRendering()?.any { it is Axolotl && it.isAlive && player.distanceTo(it) <= r } == true
+    }
 
     // --- customizable via chat commands (see CedClientCommand) ---
     var netItemName: String = "Net"
@@ -204,7 +216,7 @@ object CoralotHelper : Module(
                 val delayElapsed = now >= catchDeadline
                 val forcedByTimeout = now >= aimHardDeadline
 
-                if (forcedByTimeout || (delayElapsed && isAimedAt(player, axo))) {
+                if (forcedByTimeout || (delayElapsed && isLookingAt(player, axo, aimToleranceDeg.value.toFloat()))) {
                     attemptCatch(player, axo)
                 }
             }
@@ -289,34 +301,6 @@ object CoralotHelper : Module(
             .firstOrNull()
     }
 
-    /** The real yaw/pitch (no jitter) the player needs to face to look directly at the axolotl. */
-    private fun targetAngles(player: LocalPlayer, axo: Axolotl): Pair<Float, Float> {
-        val dx = axo.x - player.x
-        val dy = (axo.y + axo.bbHeight / 2.0) - (player.y + player.eyeHeight)
-        val dz = axo.z - player.z
-
-        val dist = sqrt(dx * dx + dz * dz)
-        val targetYaw = Math.toDegrees(atan2(dz, dx)).toFloat() - 90f
-        val targetPitch = -Math.toDegrees(atan2(dy, dist)).toFloat()
-        return targetYaw to targetPitch
-    }
-
-    private fun angleDiff(from: Float, to: Float): Float {
-        var diff = (to - from) % 360f
-        if (diff > 180f) diff -= 360f
-        if (diff < -180f) diff += 360f
-        return diff
-    }
-
-    /** True once the player's actual look direction is within tolerance of the axolotl. */
-    private fun isAimedAt(player: LocalPlayer, axo: Axolotl): Boolean {
-        val (targetYaw, targetPitch) = targetAngles(player, axo)
-        val yawDiff = abs(angleDiff(player.yRot, targetYaw))
-        val pitchDiff = abs(targetPitch - player.xRot)
-        val tolerance = aimToleranceDeg.value.toFloat()
-        return yawDiff <= tolerance && pitchDiff <= tolerance
-    }
-
     /** Runs every rendered frame while CATCH_DELAY, using real elapsed time. */
     private fun smoothLookAtFrame(player: LocalPlayer, axo: Axolotl) {
         val look = humanLook ?: return
@@ -334,7 +318,7 @@ object CoralotHelper : Module(
         // guard against huge deltas from lag spikes / alt-tab so we don't get a giant snap
         if (deltaTime <= 0f || deltaTime > 0.1f) deltaTime = 1f / 60f
 
-        val (targetYaw, targetPitch) = targetAngles(player, axo)
+        val (targetYaw, targetPitch) = lookAngles(player, axo)
 
         val (newYaw, newPitch) = look.step(player.yRot, player.xRot, targetYaw, targetPitch, deltaTime)
         player.yRot = newYaw

@@ -21,7 +21,7 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 
 /**
- * Boxes the dungeon mobs that still need to die for the key to drop -- the ones whose floating
+ * Highlights (boxes) the dungeon mobs that still need to die for the key to drop -- the ones whose floating
  * nametag (an invisible ArmorStand above/on the mob) contains the star character.
  *
  * Why this re-scans instead of reacting to entity-data packets: when a mob's nametag stand first
@@ -34,8 +34,8 @@ import net.minecraft.world.phys.Vec3
  * contains "Shadow Assassin", so they're matched by that name instead of by a star -- the same
  * way Odin's Highlight finds them -- and they keep showing even while their nametag is hidden.
  */
-object StarredMobESP : Module(
-    "StarredMobESP",
+object StarredMobHighlight : Module(
+    "StarredMobHighlight",
     Category.Render,
     "Boxes dungeon mobs with a \u272F in their nametag (the ones that must die for the key)"
 ) {
@@ -53,6 +53,7 @@ object StarredMobESP : Module(
     )
     private val boxColor = ColorSetting("Box Color", Color(255, 255, 255), "Color of the box around starred mobs.")
     private val lineWidth = NumberSetting("Line Width", 2.0, 1.0, 6.0, 0.5)
+    private val throughWalls = BooleanSetting("Through Walls", true, "Show the boxes through walls and terrain. Off: only when the mob is in line of sight.")
     private val showTracers = BooleanSetting("Show Tracers", false, "Draws a line to every starred mob.")
     private val highlightAssassins = BooleanSetting("Highlight Shadow Assassins", true, "Also box Shadow Assassins, even without a star nametag.")
     private val assassinColor = ColorSetting("Shadow Assassin Color", Color(170, 85, 255), "Color of the box around Shadow Assassins.")
@@ -67,7 +68,7 @@ object StarredMobESP : Module(
 
     init {
         scanIntervalTicks.advanced = true
-        addSettings(onlyInDungeon, boxColor, highlightAssassins, assassinColor, lineWidth, showTracers, scanIntervalTicks)
+        addSettings(onlyInDungeon, boxColor, highlightAssassins, assassinColor, lineWidth, throughWalls, showTracers, scanIntervalTicks)
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (!isEnabled) {
@@ -87,7 +88,7 @@ object StarredMobESP : Module(
             val camera = context.gameRenderer().mainCamera
             val cameraPos = camera.position()
             val bufferSource = context.bufferSource()
-            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
+            val lineBuffer = bufferSource.getBuffer(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
 
             val width = lineWidth.value.toFloat()
             val pt = partialTick()

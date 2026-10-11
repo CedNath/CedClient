@@ -1,5 +1,7 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.features.impl.render.EspStyle
+import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.TextInputHandler
@@ -15,6 +17,9 @@ import org.lwjgl.glfw.GLFW
  * whatever's already in the active list (so a manually-typed entry that
  * isn't a live candidate still shows up and can be removed the same way).
  *
+ * Active rows in the Only tab also get Box / Tracer / Label chips when [styleOf] returns a style for them
+ * (EntityESP / BlockESP): what to draw for that entry. [onStyleChanged] persists a click.
+ *
  * Talks to EntityESP purely through the constructor callbacks rather than
  * importing EntityESP itself, so this stays reusable if CedClient ever
  * grows a second name-filterable module.
@@ -26,7 +31,9 @@ abstract class FilterPopup(
     private val addBlocked: (String) -> Unit,
     private val removeBlocked: (String) -> Unit,
     private val addOnly: (String) -> Unit,
-    private val removeOnly: (String) -> Unit
+    private val removeOnly: (String) -> Unit,
+    private val styleOf: (String) -> EspStyle? = { null },
+    private val onStyleChanged: () -> Unit = {},
 ) : Popup(title, WIDTH, HEIGHT) {
 
     /** Names to offer as one-click toggles, e.g. currently-scanned entity names. Empty = free-text only. */
@@ -69,7 +76,25 @@ abstract class FilterPopup(
     private val addButtonX get() = inputX + inputWidth + 8f
 
     private val listY get() = y + 94f
-    private val listHeight get() = height - 104f
+    private val listHeight get() = height - 104f - editorHeight
+
+    /** Colour picker for one entry, docked under the list while open. */
+    private var colorEntry: String? = null
+    private var colorEditor: ColorSetting? = null
+    private val editorHeight get() = colorEditor?.let { it.getHeight() + 10f } ?: 0f
+
+    private fun openColorEditor(name: String, style: EspStyle) {
+        val color = style.color ?: Colors.WHITE.copy().also { style.color = it }
+        // value is the style's own Color object, so dragging in the picker recolours the ESP live.
+        colorEditor = ColorSetting("Colour: $name", color).apply { value = color; picking = true }
+        colorEntry = name
+        onStyleChanged()
+    }
+
+    private fun closeColorEditor() {
+        colorEditor = null
+        colorEntry = null
+    }
 
     private val scrollbarWidth = 5f
     private val scrollbarX get() = x + width - scrollbarWidth - 4f
@@ -158,7 +183,7 @@ abstract class FilterPopup(
         var rowY = listY + scrollOffset
         val active = activeSet()
         for (name in list) {
-            drawRow(name, name in active, rowY, mouseX, mouseY)
+            drawRow(name, name in active, rowY, mouseX, mouseY, rowStyle(name, name in active))
             rowY += ROW_HEIGHT
         }
         if (list.isEmpty()) {
@@ -175,6 +200,18 @@ abstract class FilterPopup(
         NVGRenderer.popScissor()
 
         if (needsScrollbar) drawScrollbar(contentHeight, mouseX, mouseY)
+
+        val editor = colorEditor
+        val entry = colorEntry
+        if (editor != null && entry != null) {
+            if (rowStyle(entry, entry in onlyNames()) == null) {
+                closeColorEditor() // entry removed, or switched to the Blocked tab
+            } else {
+                val ey = y + height - editor.getHeight() - 8f
+                NVGRenderer.rect(x + 8f, ey - 2f, width - 16f, editor.getHeight() + 4f, Colors.gray26.rgba, 4f)
+                editor.render(x + (width - Panel.WIDTH) / 2f, ey, mouseX, mouseY)
+            }
+        }
     }
 
     private fun drawScrollbar(contentHeight: Float, mouseX: Float, mouseY: Float) {
@@ -211,7 +248,20 @@ abstract class FilterPopup(
         )
     }
 
-    private fun drawRow(name: String, active: Boolean, rowY: Float, mouseX: Float, mouseY: Float) {
+    /** Style chips only make sense for entries that are on in the Only tab. */
+    private fun rowStyle(name: String, active: Boolean): EspStyle? =
+        if (mode == FilterMode.ONLY && active) styleOf(name) else null
+
+    private val chipLabels = listOf("Box", "Tracer", "Label")
+
+    /** Left edge of chip [i] (0 = Box, 1 = Tracer, 2 = Label), right-aligned in the row. */
+    private fun chipX(i: Int) = x + width - 16f - (3 - i) * (CHIP_WIDTH + 4f) + 4f
+
+    private val swatchX get() = chipX(0) - 4f - SWATCH
+
+    private fun chipOn(style: EspStyle, i: Int) = when (i) { 0 -> style.box; 1 -> style.tracer; else -> style.label }
+
+    private fun drawRow(name: String, active: Boolean, rowY: Float, mouseX: Float, mouseY: Float, style: EspStyle?) {
         if (rowY + ROW_HEIGHT < listY || rowY > listY + listHeight) return
 
         val hovered = isAreaHovered(x + 12f, rowY, width - 24f, ROW_HEIGHT - 2f, mouseX, mouseY)
@@ -221,7 +271,8 @@ abstract class FilterPopup(
         val boxColor = if (active) ClickGUI.clickGUIColor else Colors.gray38
         NVGRenderer.rect(x + 16f, rowY + (ROW_HEIGHT - 2f) / 2f - boxSize / 2f, boxSize, boxSize, boxColor.rgba, 3f)
 
-        val label = NVGRenderer.truncate(name, width - 24f - boxSize - 16f, 15f, NVGRenderer.defaultFont)
+        val chipsWidth = if (style != null) 3 * (CHIP_WIDTH + 4f) + SWATCH + 4f else 0f
+        val label = NVGRenderer.truncate(name, width - 24f - boxSize - 16f - chipsWidth, 15f, NVGRenderer.defaultFont)
         NVGRenderer.text(
             label,
             x + 16f + boxSize + 8f,
@@ -230,9 +281,59 @@ abstract class FilterPopup(
             Colors.WHITE.rgba,
             NVGRenderer.defaultFont
         )
+
+        if (style == null) return
+        val chipY = rowY + (ROW_HEIGHT - 2f) / 2f - CHIP_HEIGHT / 2f
+
+        // Colour swatch: the entry's own colour, or an empty grey box while it uses the module's default.
+        val sy = rowY + (ROW_HEIGHT - 2f) / 2f - SWATCH / 2f
+        NVGRenderer.rect(swatchX, sy, SWATCH, SWATCH, (style.color ?: Colors.gray26).rgba, 3f)
+        val swatchOutline = if (colorEntry == name) ClickGUI.clickGUIColor else Colors.gray38
+        NVGRenderer.hollowRect(swatchX, sy, SWATCH, SWATCH, 1.5f, swatchOutline.rgba, 3f)
+        for (i in 0..2) {
+            val cx = chipX(i)
+            val on = chipOn(style, i)
+            val chipHovered = isAreaHovered(cx, chipY, CHIP_WIDTH, CHIP_HEIGHT, mouseX, mouseY)
+            val color = when {
+                on -> ClickGUI.clickGUIColor
+                chipHovered -> Colors.gray38
+                else -> Colors.gray26
+            }
+            NVGRenderer.rect(cx, chipY, CHIP_WIDTH, CHIP_HEIGHT, color.rgba, 3f)
+            val text = chipLabels[i]
+            val tw = NVGRenderer.textWidth(text, 12f, NVGRenderer.defaultFont)
+            NVGRenderer.text(
+                text, cx + CHIP_WIDTH / 2f - tw / 2f, chipY + 2f, 12f,
+                (if (on) Colors.WHITE else Colors.MINECRAFT_GRAY).rgba, NVGRenderer.defaultFont
+            )
+        }
     }
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+        colorEditor?.let { editor ->
+            if (editor.mouseClicked(mouseX, mouseY, click)) {
+                if (!editor.picking) closeColorEditor() // its header row toggles it shut
+                return true
+            }
+        }
+
+        // Swatch: left-click edits the entry's colour, right-click resets it to the module's default.
+        if (mouseY in listY..(listY + listHeight) && mouseX in swatchX..(swatchX + SWATCH)) {
+            val name = entries().getOrNull(((mouseY - listY - scrollOffset) / ROW_HEIGHT).toInt())
+            val style = name?.let { rowStyle(it, it in activeSet()) }
+            if (name != null && style != null) {
+                when (click.button()) {
+                    0 -> if (colorEntry == name) closeColorEditor() else openColorEditor(name, style)
+                    1 -> {
+                        style.color = null
+                        if (colorEntry == name) closeColorEditor()
+                        onStyleChanged()
+                    }
+                }
+                return true
+            }
+        }
+
         if (click.button() != 0) return false
 
         if (isAreaHovered(blockedTabX, tabY, tabWidth, TAB_HEIGHT, mouseX, mouseY)) {
@@ -261,7 +362,15 @@ abstract class FilterPopup(
         if (mouseY in listY..(listY + listHeight)) {
             val index = ((mouseY - listY - scrollOffset) / ROW_HEIGHT).toInt()
             list.getOrNull(index)?.let { name ->
-                toggle(name)
+                val style = rowStyle(name, name in activeSet())
+                val chip = if (style == null) -1 else (0..2).firstOrNull { mouseX in chipX(it)..(chipX(it) + CHIP_WIDTH) } ?: -1
+                when (chip) {
+                    -1 -> toggle(name)
+                    0 -> style!!.box = !style.box
+                    1 -> style!!.tracer = !style.tracer
+                    else -> style!!.label = !style.label
+                }
+                if (chip >= 0) onStyleChanged()
                 return true
             }
         }
@@ -271,6 +380,10 @@ abstract class FilterPopup(
     override fun mouseReleased(click: MouseButtonEvent) {
         input.mouseReleased()
         draggingScrollbar = false
+        colorEditor?.let {
+            it.mouseReleased(click)
+            onStyleChanged() // save once the drag ends, not every frame
+        }
     }
 
     override fun mouseScrolled(mouseX: Float, mouseY: Float, amount: Int): Boolean {
@@ -290,11 +403,14 @@ abstract class FilterPopup(
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     companion object {
-        private const val WIDTH = 280f
-        private const val HEIGHT = 320f
+        private const val WIDTH = 340f
+        private const val HEIGHT = 470f
         private const val TAB_HEIGHT = 24f
         private const val INPUT_HEIGHT = 22f
         private const val ROW_HEIGHT = 24f
         private const val MIN_THUMB_HEIGHT = 20f
+        private const val CHIP_WIDTH = 42f
+        private const val CHIP_HEIGHT = 16f
+        private const val SWATCH = 16f
     }
 }

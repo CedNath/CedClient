@@ -26,14 +26,15 @@ object EntityESPRenderer {
 
             for (scanned in EntityESP.scannedEntities) {
                 val entity = scanned.entity
-                val (r, g, b) = colorFor(scanned.category)
+                val custom = scanned.style.color
+                val (r, g, b) = if (custom != null) Triple(custom.redFloat, custom.greenFloat, custom.blueFloat) else colorFor(scanned.category)
 
-                if (EntityESP.boxesEnabled) {
+                if (EntityESP.boxesEnabled && scanned.style.box) {
                     val box: AABB = entity.boundingBox.inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
                     drawLineBox(poseStack, lineBuffer, box, r, g, b)
                 }
 
-                if (EntityESP.tracersEnabled) {
+                if (EntityESP.tracersEnabled && scanned.style.tracer) {
                     val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
                     val targetPos: Vec3 = entity.position().add(0.0, entity.bbHeight / 2.0, 0.0)
                     drawLine(

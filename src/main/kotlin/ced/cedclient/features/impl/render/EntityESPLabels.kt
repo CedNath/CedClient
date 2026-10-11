@@ -44,7 +44,7 @@ object EntityESPLabels {
         val out = ArrayList<Label>(EntityESP.scannedEntities.size)
         for (scanned in EntityESP.scannedEntities) {
             val e = scanned.entity
-            if (e.isRemoved) continue
+            if (e.isRemoved || !scanned.style.label) continue
             val p = e.getPosition(partial)
             clip.set((p.x - cam.x).toFloat(), (p.y + e.bbHeight + 0.35 - cam.y).toFloat(), (p.z - cam.z).toFloat(), 1f)
             viewProj.transform(clip)
@@ -54,7 +54,7 @@ object EntityESPLabels {
             if (nx < -1.2f || nx > 1.2f || ny < -1.2f || ny > 1.2f) continue // well off screen
             out += Label(
                 nx * 0.5f + 0.5f, 0.5f - ny * 0.5f, clip.w,
-                scanned.name, nameColor(scanned.category),
+                scanned.name, scanned.style.color?.rgba ?: nameColor(scanned.category),
                 e.health, e.maxHealth, scanned.distance,
             )
         }

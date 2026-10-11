@@ -16,7 +16,7 @@ import kotlin.math.sqrt
 
 object Freecam : Module(
     "Freecam",
-    Category.Render,
+    Category.Cheats,
     description = "Detaches the camera and lets you fly around without moving your real player"
 ) {
 

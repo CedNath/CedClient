@@ -7,4 +7,5 @@ enum class Category {
     Cosmetic,
     Skyblock,
     Misc,
+    Cheats,
 }

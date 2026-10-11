@@ -28,13 +28,12 @@ data class ScannedEntity(
     val name: String,
     val category: MobCategoryType,
     val distance: Double,
-
-
-    )
+    val style: EspStyle = EspStyle.ALL,
+)
 
 object EntityESP : Module(
     "EntityESP",
-    Category.Render,
+    Category.Cheats,
     "Scans server-loaded mobs and shows their nametags"
 ) {
     private val mc = Minecraft.getInstance()
@@ -107,8 +106,11 @@ object EntityESP : Module(
 
     val blockedNames = mutableSetOf<String>()
     val onlyNames = mutableSetOf<String>()
+    /** Per Only-entry boxes / tracers / labels, keyed by the entry as typed. */
+    private val styles = HashMap<String, EspStyle>()
 
-    private data class NameFilters(val blocked: List<String>, val only: List<String>)
+    // styles is nullable: filter files saved before it existed don't have it.
+    private data class NameFilters(val blocked: List<String>, val only: List<String>, val styles: Map<String, EspStyle>? = null)
     private val filtersGson = Gson()
     private val filtersFile: File by lazy {
         CedPaths.file("entity_esp_filters.json")
@@ -117,7 +119,14 @@ object EntityESP : Module(
     fun blockName(name: String) { blockedNames.add(name); saveFilters() }
     fun unblockName(name: String) { blockedNames.removeAll { it.equals(name, ignoreCase = true) }; saveFilters() }
     fun onlyName(name: String) { onlyNames.add(name); saveFilters() }
-    fun unOnlyName(name: String) { onlyNames.removeAll { it.equals(name, ignoreCase = true) }; saveFilters() }
+    fun unOnlyName(name: String) {
+        onlyNames.removeAll { it.equals(name, ignoreCase = true) }
+        styles.keys.removeAll { it.equals(name, ignoreCase = true) }
+        saveFilters()
+    }
+
+    /** Style of an Only entry (created on first use), or null for names that aren't one. */
+    fun styleOf(name: String): EspStyle? = if (name in onlyNames) styles.getOrPut(name) { EspStyle() } else null
     fun clearOnly() { onlyNames.clear(); saveFilters() }
     fun clearBlocked() { blockedNames.clear(); saveFilters() }
 
@@ -131,6 +140,8 @@ object EntityESP : Module(
                     blockedNames.addAll(loaded.blocked)
                     onlyNames.clear()
                     onlyNames.addAll(loaded.only)
+                    styles.clear()
+                    loaded.styles?.let { styles.putAll(it) }
                 }
             }
         } catch (e: Exception) {
@@ -138,10 +149,10 @@ object EntityESP : Module(
         }
     }
 
-    private fun saveFilters() {
+    fun saveFilters() {
         try {
             filtersFile.parentFile?.mkdirs()
-            filtersFile.writeText(filtersGson.toJson(NameFilters(blockedNames.toList(), onlyNames.toList())))
+            filtersFile.writeText(filtersGson.toJson(NameFilters(blockedNames.toList(), onlyNames.toList(), styles)))
         } catch (e: Exception) {
             println("[EntityESP] Failed to save name filters: ${e.message}")
         }
@@ -192,13 +203,16 @@ object EntityESP : Module(
                 MobCategoryType.PLAYER -> if (!showPlayers.value) continue
             }
             val displayName = entity.name.string
-            if (onlyNames.isNotEmpty() && onlyNames.none { displayName.contains(it, ignoreCase = true) }) continue
+            val onlyMatch = onlyNames.firstOrNull { displayName.contains(it, ignoreCase = true) }
+            if (onlyNames.isNotEmpty() && onlyMatch == null) continue
             if (blockedNames.any { displayName.contains(it, ignoreCase = true) }) continue
 
             val distance = sqrt(player.distanceToSqr(entity))
             if (distance > maxDistance.value) continue
 
-            results.add(ScannedEntity(entity, entity.name.string, category, distance))
+            val style = onlyMatch?.let { styleOf(it) } ?: EspStyle.ALL
+            if (!style.box && !style.tracer && !style.label) continue
+            results.add(ScannedEntity(entity, entity.name.string, category, distance, style))
         }
 
         scannedEntities = results.sortedBy { it.distance }

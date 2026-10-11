@@ -45,6 +45,7 @@ object ConfigManager {
         "Cosmetic" to (715f to 15f),
         "Skyblock" to (1065f to 15f),
         "Misc" to (1415f to 15f),
+        "Cheats" to (1765f to 15f),
     )
 
     /** Panels that existed before the category reshuffle; a saved layout containing them is reset once. */
@@ -189,7 +190,9 @@ object ConfigManager {
                 val entry = panelsJson?.get(panel.category.name)?.asJsonObject
                 val x = entry?.get("x")?.asFloat
                 val y = entry?.get("y")?.asFloat
-                if (x != null && y != null) {
+                // Cheats briefly defaulted to under Skyblock; a panel still at that spot gets the new default.
+                val oldCheatsSpot = panel.category.name == "Cheats" && x == 1065f && y == 300f
+                if (x != null && y != null && !oldCheatsSpot) {
                     panel.x = x
                     panel.y = y
                     panel.extended = entry.get("extended")?.asBoolean ?: true

@@ -36,7 +36,7 @@ private enum class PangolinCatcherState { IDLE, TRACKING, CONFIRMING }
  */
 object PangolinCatcher : Module(
     "PangolinCatcher(!!!)",
-    Category.Skyblock,
+    Category.Cheats,
     description = "Left-click while holding the Lasso to start an auto-catch session. Left-click again to cancel."
 ) {
     private val mc = Minecraft.getInstance()

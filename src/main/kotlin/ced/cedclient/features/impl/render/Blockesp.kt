@@ -25,7 +25,8 @@ import kotlin.math.sqrt
 data class ScannedBlock(
     val pos: BlockPos,
     val name: String,
-    val distance: Double
+    val distance: Double,
+    val style: EspStyle = EspStyle.ALL,
 )
 
 /**
@@ -62,7 +63,7 @@ data class ScannedBlock(
  *  2. Per-position filter matching used to compute a translated display
  *     name string and run two linear contains() scans against the name
  *     lists for EVERY non-air block hit (i.e. most of the volume). That's
- *     now resolved to a plain `Set<Block>` once per scan (registry-sized,
+ *     now resolved to a plain `Map<Block, EspStyle>` once per scan (registry-sized,
  *     a few thousand entries -- trivial) via resolveTargetBlocks(), so the
  *     hot per-position check is a single hash-set lookup.
  *
@@ -74,7 +75,7 @@ data class ScannedBlock(
  */
 object BlockESP : Module(
     "BlockESP",
-    Category.Render,
+    Category.Cheats,
     "Highlights selected block types within range"
 ) {
     private val mc = Minecraft.getInstance()
@@ -124,8 +125,11 @@ object BlockESP : Module(
 
     val blockedNames: MutableSet<String> = CopyOnWriteArraySet()
     val onlyNames: MutableSet<String> = CopyOnWriteArraySet()
+    /** Per Only-entry boxes / tracers / labels, keyed by the entry as typed. Read from the scan thread. */
+    private val styles = java.util.concurrent.ConcurrentHashMap<String, EspStyle>()
 
-    private data class NameFilters(val blocked: List<String>, val only: List<String>)
+    // styles is nullable: filter files saved before it existed don't have it.
+    private data class NameFilters(val blocked: List<String>, val only: List<String>, val styles: Map<String, EspStyle>? = null)
     private val filtersGson = Gson()
     private val filtersFile: File by lazy {
         CedPaths.file("block_esp_filters.json")
@@ -134,7 +138,14 @@ object BlockESP : Module(
     fun blockName(name: String) { blockedNames.add(name); saveFilters() }
     fun unblockName(name: String) { blockedNames.removeIf { it.equals(name, ignoreCase = true) }; saveFilters() }
     fun onlyName(name: String) { onlyNames.add(name); saveFilters() }
-    fun unOnlyName(name: String) { onlyNames.removeIf { it.equals(name, ignoreCase = true) }; saveFilters() }
+    fun unOnlyName(name: String) {
+        onlyNames.removeIf { it.equals(name, ignoreCase = true) }
+        styles.keys.removeIf { it.equals(name, ignoreCase = true) }
+        saveFilters()
+    }
+
+    /** Style of an Only entry (created on first use), or null for names that aren't one. */
+    fun styleOf(name: String): EspStyle? = if (name in onlyNames) styles.getOrPut(name) { EspStyle() } else null
     fun clearOnly() { onlyNames.clear(); saveFilters() }
     fun clearBlocked() { blockedNames.clear(); saveFilters() }
 
@@ -148,6 +159,8 @@ object BlockESP : Module(
                     blockedNames.addAll(loaded.blocked)
                     onlyNames.clear()
                     onlyNames.addAll(loaded.only)
+                    styles.clear()
+                    loaded.styles?.let { styles.putAll(it) }
                 }
             }
         } catch (e: Exception) {
@@ -155,10 +168,10 @@ object BlockESP : Module(
         }
     }
 
-    private fun saveFilters() {
+    fun saveFilters() {
         try {
             filtersFile.parentFile?.mkdirs()
-            filtersFile.writeText(filtersGson.toJson(NameFilters(blockedNames.toList(), onlyNames.toList())))
+            filtersFile.writeText(filtersGson.toJson(NameFilters(blockedNames.toList(), onlyNames.toList(), HashMap(styles))))
         } catch (e: Exception) {
             println("[BlockESP] Failed to save name filters: ${e.message}")
         }
@@ -220,23 +233,24 @@ object BlockESP : Module(
     /**
      * Resolves the active Blocked/Only name filters (which are plain
      * substring-of-display-name patterns, same as the popup UI) down to a
-     * concrete Set<Block> ONCE per scan, by walking the registry (a few
+     * concrete Map<Block, EspStyle> ONCE per scan, by walking the registry (a few
      * thousand entries) instead of the scanned volume (potentially tens of
      * millions of positions). The per-position hot loop in scan() then does
      * a single hash-set lookup instead of a translated-string contains()
      * check against every name pattern.
      */
-    private fun resolveTargetBlocks(): Set<Block> {
-        if (onlyNames.isEmpty()) return emptySet()
+    private fun resolveTargetBlocks(): Map<Block, EspStyle> {
+        if (onlyNames.isEmpty()) return emptyMap()
         val only = onlyNames.toList()
         val blocked = blockedNames.toList()
 
-        val result = mutableSetOf<Block>()
+        val result = HashMap<Block, EspStyle>()
         for (block in BuiltInRegistries.BLOCK) {
             val displayName = block.name.string
             if (blocked.any { displayName.contains(it, ignoreCase = true) }) continue
-            if (only.none { displayName.contains(it, ignoreCase = true) }) continue
-            result.add(block)
+            val match = only.firstOrNull { displayName.contains(it, ignoreCase = true) } ?: continue
+            val style = styleOf(match) ?: EspStyle.ALL
+            if (style.box || style.tracer || style.label) result[block] = style
         }
         return result
     }
@@ -268,12 +282,12 @@ object BlockESP : Module(
             if (center.distSqr(pos) > radiusSq) continue
 
             val block = level.getBlockState(pos).block
-            if (block !in targetBlocks) continue
+            val style = targetBlocks[block] ?: continue
 
             val distance = sqrt(player.distanceToSqr(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5))
             if (distance > maxDistance.value) continue
 
-            results.add(ScannedBlock(pos.immutable(), block.name.string, distance))
+            results.add(ScannedBlock(pos.immutable(), block.name.string, distance, style))
             if (results.size >= MAX_RESULTS) break
         }
 

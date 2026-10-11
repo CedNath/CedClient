@@ -30,7 +30,7 @@ import net.minecraft.world.phys.shapes.VoxelShape
  */
 object SecretHitboxes : Module(
     "Secret Hitboxes",
-    Category.Skyblock,
+    Category.Cheats,
     "Bigger lever / button / skull / mushroom hitboxes. Hides the unused levers on the F7 second device."
 ) {
 

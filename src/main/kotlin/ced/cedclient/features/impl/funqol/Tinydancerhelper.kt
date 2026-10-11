@@ -35,7 +35,7 @@ import kotlin.math.floor
  */
 object TinyDancerHelper : Module(
     "TinyDancerHelper",
-    Category.Skyblock,
+    Category.Cheats,
     "Completes the Rift Dance Room (Tiny Dancer). Stand on the green block and wait for \"Move!\""
 ) {
     private val mc: Minecraft = Minecraft.getInstance()

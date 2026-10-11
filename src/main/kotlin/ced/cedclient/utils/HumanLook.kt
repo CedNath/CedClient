@@ -104,3 +104,23 @@ class HumanLook(
         return output
     }
 }
+
+/** Yaw / pitch (no jitter) the player needs to face to look at the middle of [target]. */
+fun lookAngles(player: net.minecraft.world.entity.player.Player, target: net.minecraft.world.entity.Entity): Pair<Float, Float> {
+    val dx = target.x - player.x
+    val dy = (target.y + target.bbHeight / 2.0) - (player.y + player.eyeHeight)
+    val dz = target.z - player.z
+    val dist = kotlin.math.sqrt(dx * dx + dz * dz)
+    val yaw = Math.toDegrees(kotlin.math.atan2(dz, dx)).toFloat() - 90f
+    val pitch = -Math.toDegrees(kotlin.math.atan2(dy, dist)).toFloat()
+    return yaw to pitch
+}
+
+/** True once the player's actual look direction is within [toleranceDeg] of [target]. */
+fun isLookingAt(player: net.minecraft.world.entity.player.Player, target: net.minecraft.world.entity.Entity, toleranceDeg: Float): Boolean {
+    val (yaw, pitch) = lookAngles(player, target)
+    var yawDiff = (yaw - player.yRot) % 360f
+    if (yawDiff > 180f) yawDiff -= 360f
+    if (yawDiff < -180f) yawDiff += 360f
+    return abs(yawDiff) <= toleranceDeg && abs(pitch - player.xRot) <= toleranceDeg
+}

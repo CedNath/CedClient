@@ -20,7 +20,9 @@ class PlayerFilterPopup : FilterPopup(
     addBlocked = EntityESP::blockName,
     removeBlocked = EntityESP::unblockName,
     addOnly = EntityESP::onlyName,
-    removeOnly = EntityESP::unOnlyName
+    removeOnly = EntityESP::unOnlyName,
+    styleOf = EntityESP::styleOf,
+    onStyleChanged = EntityESP::saveFilters,
 ) {
     override fun candidateNames(): List<String> {
         val mc = Minecraft.getInstance()
