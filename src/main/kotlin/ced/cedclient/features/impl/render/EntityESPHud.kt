@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
@@ -49,7 +50,7 @@ object EntityESPHud : HudElement {
 
     private val gson = Gson()
     private val saveFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/entity_esp_hud.json")
+        CedPaths.file("entity_esp_hud.json")
     }
 
     // mirrors InventoryButtonManager's ensureLoaded() pattern: load once, lazily,

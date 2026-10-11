@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.ActionSetting
@@ -127,7 +128,7 @@ object BlockESP : Module(
     private data class NameFilters(val blocked: List<String>, val only: List<String>)
     private val filtersGson = Gson()
     private val filtersFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/block_esp_filters.json")
+        CedPaths.file("block_esp_filters.json")
     }
 
     fun blockName(name: String) { blockedNames.add(name); saveFilters() }

@@ -57,6 +57,7 @@ import ced.cedclient.utils.TabListCache
 import ced.cedclient.utils.UsageStats
 import ced.cedclient.utils.debug.MouseLookDebugger
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegistry
@@ -253,6 +254,10 @@ class CedClient : ClientModInitializer {
         // catch it and log the stacktrace instead of crashing the client.
         try {
             ConfigManager.loadModulesOnly()
+            // Settings changed outside the ClickGUI (commands, HUD editors...) are otherwise only written the next
+            // time a module is toggled or the GUI closes. Only after a good load, so a broken config file never
+            // gets overwritten with defaults on the way out.
+            ClientLifecycleEvents.CLIENT_STOPPING.register { ConfigManager.saveModulesOnly() }
         } catch (t: Throwable) {
             t.printStackTrace()
             println("Warning: ConfigManager.loadModulesOnly() failed during startup. Continuing without module config load.")
