@@ -90,7 +90,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             val canvasHeight = NVGRenderer.canvasHeight / clickGuiScale
 
             // Our own background dim instead of vanilla's menu blur (see extractBackground).
-            val elapsed = (System.nanoTime() - openedAt) / 1_000_000f
+            // Theme > Animation Speed scales every open / popup timing.
+            val elapsed = (System.nanoTime() - openedAt) / 1_000_000f * Theme.animationSpeed.value.toFloat()
             val dim = easeOutCubic(elapsed / DIM_FADE_MS)
             NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(BACKGROUND_DIM * dim).rgba)
 
@@ -105,15 +106,15 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             )
             NVGRenderer.pop()
 
-            // Opening: each panel slides up and fades in, left to right, slightly after the one before it.
+            // Opening: each panel animates in (Theme > Open Animation), left to right, slightly after the one before it.
             val draggedPanel = panels.firstOrNull { it.dragging }
+            val openStyle = Theme.openAnimation.value
             panels.forEachIndexed { i, panel ->
                 if (panel == draggedPanel) return@forEachIndexed
-                val t = easeOutCubic((elapsed - i * PANEL_STAGGER_MS) / PANEL_ANIM_MS)
-                if (t <= 0f) return@forEachIndexed
+                val raw = if (openStyle == "None") 1f else ((elapsed - i * PANEL_STAGGER_MS) / PANEL_ANIM_MS).coerceIn(0f, 1f)
+                if (raw <= 0f) return@forEachIndexed
                 NVGRenderer.push()
-                NVGRenderer.globalAlpha(t)
-                NVGRenderer.translate(0f, (1f - t) * PANEL_SLIDE)
+                panelOpenTransform(openStyle, raw, panel)
                 panel.draw(scaledMouseX, scaledMouseY)
                 NVGRenderer.pop()
             }
@@ -124,17 +125,11 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
                 popup.x = (canvasWidth - popup.width) / 2f
                 popup.y = (canvasHeight - popup.height) / 2f
 
-                // Popup: its own quick fade + small pop from 96% around its centre.
-                val p = easeOutCubic((System.nanoTime() - popupOpenedAt) / 1_000_000f / POPUP_ANIM_MS)
-                NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(0.55f * p).rgba)
+                // Popup: its own quick animation (Theme > Popup Animation) around its centre.
+                val raw = popupProgress()
+                NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(0.55f * easeOutCubic(raw)).rgba)
                 NVGRenderer.push()
-                NVGRenderer.globalAlpha(p)
-                val s = 0.96f + 0.04f * p
-                val cx = popup.x + popup.width / 2f
-                val cy = popup.y + popup.height / 2f
-                NVGRenderer.translate(cx, cy)
-                NVGRenderer.scale(s, s)
-                NVGRenderer.translate(-cx, -cy)
+                popupTransform(Theme.popupAnimation.value, raw, popup)
                 popup.draw(scaledMouseX, scaledMouseY)
                 NVGRenderer.pop()
             }
@@ -146,7 +141,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         // Vanilla-drawn popup extras (item icons), on a layer above the NanoVG one. Skipped while the popup is
         // still popping in (they wouldn't follow its fade/scale) and before NanoVG has laid out a first frame.
         activePopup?.let { popup ->
-            val popupDone = (System.nanoTime() - popupOpenedAt) / 1_000_000f >= POPUP_ANIM_MS
+            val popupDone = popupProgress() >= 1f
             if (popupDone && NVGRenderer.canvasWidth > 0f) {
                 context.nextStratum()
                 popup.extractItems(context, clickGuiScale * context.guiWidth() / NVGRenderer.canvasWidth)
@@ -253,10 +248,116 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         super.init()
     }
 
+    private fun popupProgress(): Float =
+        if (Theme.popupAnimation.value == "None") 1f
+        else ((System.nanoTime() - popupOpenedAt) / 1_000_000f * Theme.animationSpeed.value.toFloat() / POPUP_ANIM_MS).coerceIn(0f, 1f)
+
+    /** Sets alpha + transform for one panel at open-animation progress [raw] (0..1, linear). */
+    private fun panelOpenTransform(style: String, raw: Float, panel: Panel) {
+        val e = easeOutCubic(raw)
+        val x = panel.panelSetting.x
+        val y = panel.panelSetting.y
+        val cx = x + Panel.WIDTH / 2f
+        val cy = y + panel.previousHeight.coerceAtLeast(Panel.HEIGHT) / 2f
+        var alpha = e
+        when (style) {
+            "Slide Up" -> NVGRenderer.translate(0f, (1f - e) * PANEL_SLIDE)
+            "Slide Down" -> NVGRenderer.translate(0f, -(1f - e) * PANEL_SLIDE)
+            "Slide Left" -> NVGRenderer.translate((1f - e) * PANEL_SLIDE * 2f, 0f)
+            "Slide Right" -> NVGRenderer.translate(-(1f - e) * PANEL_SLIDE * 2f, 0f)
+            "Zoom In" -> (0.85f + 0.15f * e).let { scaleAround(cx, cy, it, it) }
+            "Zoom Out" -> (1.15f - 0.15f * e).let { scaleAround(cx, cy, it, it) }
+            "Pop" -> easeOutBack(raw).let { scaleAround(cx, cy, it, it) }
+            "Bounce" -> {
+                NVGRenderer.translate(0f, (1f - easeOutBounce(raw)) * -PANEL_SLIDE * 3f)
+                alpha = (raw * 4f).coerceAtMost(1f)
+            }
+            "Elastic" -> {
+                NVGRenderer.translate(0f, (1f - easeOutElastic(raw)) * PANEL_SLIDE * 2f)
+                alpha = (raw * 4f).coerceAtMost(1f)
+            }
+            // Falls in from above the screen and lands with a bounce.
+            "Drop" -> {
+                NVGRenderer.translate(0f, (1f - easeOutBounce(raw)) * -(y + panel.previousHeight + 40f))
+                alpha = 1f
+            }
+            // Unfolds downwards from its header.
+            "Flip" -> scaleAround(cx, y, 1f, e)
+            // Swings down around its top-left corner.
+            "Swing" -> {
+                NVGRenderer.translate(x, y)
+                NVGRenderer.rotate((1f - easeOutBack(raw)) * -0.6f)
+                NVGRenderer.translate(-x, -y)
+            }
+            "Spin" -> {
+                NVGRenderer.translate(cx, cy)
+                NVGRenderer.rotate((1f - e) * -1.2f)
+                NVGRenderer.scale(0.6f + 0.4f * e, 0.6f + 0.4f * e)
+                NVGRenderer.translate(-cx, -cy)
+            }
+            "Cascade" -> NVGRenderer.translate(-(1f - e) * PANEL_SLIDE * 1.5f, -(1f - e) * PANEL_SLIDE * 1.5f)
+            "None" -> alpha = 1f
+            else -> {} // Fade: alpha only
+        }
+        NVGRenderer.globalAlpha(alpha)
+    }
+
+    /** Same idea for the popup, around its centre. */
+    private fun popupTransform(style: String, raw: Float, popup: Popup) {
+        val e = easeOutCubic(raw)
+        val cx = popup.x + popup.width / 2f
+        val cy = popup.y + popup.height / 2f
+        var alpha = e
+        when (style) {
+            "Pop" -> (0.96f + 0.04f * e).let { scaleAround(cx, cy, it, it) }
+            "Zoom" -> (0.5f + 0.5f * easeOutBack(raw)).let { scaleAround(cx, cy, it, it) }
+            "Slide Up" -> NVGRenderer.translate(0f, (1f - e) * 40f)
+            "Slide Down" -> NVGRenderer.translate(0f, -(1f - e) * 40f)
+            "Bounce" -> {
+                NVGRenderer.translate(0f, (1f - easeOutBounce(raw)) * -80f)
+                alpha = (raw * 4f).coerceAtMost(1f)
+            }
+            "None" -> alpha = 1f
+            else -> {} // Fade
+        }
+        NVGRenderer.globalAlpha(alpha)
+    }
+
+    private fun scaleAround(cx: Float, cy: Float, sx: Float, sy: Float) {
+        NVGRenderer.translate(cx, cy)
+        NVGRenderer.scale(sx, sy.coerceAtLeast(0.001f))
+        NVGRenderer.translate(-cx, -cy)
+    }
+
     private fun easeOutCubic(x: Float): Float {
         val t = x.coerceIn(0f, 1f)
         val inv = 1f - t
         return 1f - inv * inv * inv
+    }
+
+    /** Overshoots to about 110% then settles. */
+    private fun easeOutBack(x: Float): Float {
+        val t = x.coerceIn(0f, 1f) - 1f
+        val c = 1.70158f
+        return 1f + (c + 1f) * t * t * t + c * t * t
+    }
+
+    private fun easeOutBounce(x: Float): Float {
+        var t = x.coerceIn(0f, 1f)
+        val n = 7.5625f
+        val d = 2.75f
+        return when {
+            t < 1f / d -> n * t * t
+            t < 2f / d -> { t -= 1.5f / d; n * t * t + 0.75f }
+            t < 2.5f / d -> { t -= 2.25f / d; n * t * t + 0.9375f }
+            else -> { t -= 2.625f / d; n * t * t + 0.984375f }
+        }
+    }
+
+    private fun easeOutElastic(x: Float): Float {
+        val t = x.coerceIn(0f, 1f)
+        if (t == 0f || t == 1f) return t
+        return (Math.pow(2.0, -10.0 * t) * Math.sin((t * 10.0 - 0.75) * (2.0 * Math.PI / 3.0))).toFloat() + 1f
     }
 
     /**
