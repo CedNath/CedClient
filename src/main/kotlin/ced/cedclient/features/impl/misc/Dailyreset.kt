@@ -737,8 +737,12 @@ object DailyReset : Module(
         }
     }
 
-    // HudElement.save() -- fired by MasterHudEditScreen after a drag/scale.
-    override fun save() = persist()
+    // HudElement.save() -- fired by MasterHudEditScreen after a drag/scale. Never before the saved state is
+    // loaded, or the defaults (position *and* task list) would overwrite the file.
+    override fun save() {
+        ensureLoaded()
+        persist()
+    }
 
     override fun adjustScale(delta: Float) {
         panelScale = (panelScale + delta).coerceIn(MIN_SCALE, MAX_SCALE)
@@ -1053,5 +1057,8 @@ object DailyReset : Module(
                 persist()
             }
         )
+        // Load now, like the other HUD panels: otherwise the HUD editor shows (and then saves) the default
+        // position until the first chat message or render happens to load it.
+        ensureLoaded()
     }
 }
