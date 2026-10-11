@@ -50,11 +50,16 @@ object DungeonSplits : Module(
         "Tick Time: the split timed in server ticks (lag-free, like FishMod). PB Difference: +/- against your PB run."
     )
     private val onlyStarted = BooleanSetting("Only Show Started Splits", false, "Hide each split until its phase has started.")
-    private val showEstimate = BooleanSetting("Est. Total", true, "Estimated final time: elapsed + your PB (or a typical time) for each split still to come.")
+    private val showEstimate = BooleanSetting("Est. Total", true, "Estimated final time: elapsed + the expected time of each split still to come.")
+    private val estimateFrom = DropdownSetting(
+        "Estimate From", listOf("Recent Runs", "PB"), "Recent Runs",
+        "Recent Runs: each split's median over your last $HISTORY_SIZE clears on that floor (how your party usually plays). PB: your PB run's splits."
+    )
     private val terminalSplits = BooleanSetting("Terminal Splits", true, "F7 / M7: time each terminal section (1st-4th) during the Terminals split.")
     private val chatSummary = BooleanSetting("Chat Summary", true, "Post the run's splits (and a new PB) to chat when it ends.")
-    private val resetPbs = ActionSetting("Reset All PBs", "Forget every saved personal best.") {
+    private val resetPbs = ActionSetting("Reset All PBs", "Forget every saved personal best and the recent-run history.") {
         data.pbs.clear()
+        data.history.clear()
         persist()
         say("Personal bests reset")
     }.also { it.advanced = true }
@@ -202,6 +207,8 @@ object DungeonSplits : Module(
     private class PbRun(val total: Long, val segments: Map<String, Long>)
     private class SaveData(
         val pbs: MutableMap<String, PbRun> = mutableMapOf(),
+        /** Split durations of the last [HISTORY_SIZE] clears per floor, oldest first (for Est. Total). */
+        var history: MutableMap<String, MutableList<Map<String, Long>>> = mutableMapOf(),
         var x: Int = 6, var y: Int = 150, var scale: Float = 1f,
     )
 
@@ -229,13 +236,11 @@ object DungeonSplits : Module(
     private fun nowTick() = TpsTracker.serverTicks - runStartTick
 
     init {
-        addSettings(showDeltas, secondColumn, chatSummary, customizeHud, resetPbs)
+        addSettings(showDeltas, secondColumn, estimateFrom, chatSummary, customizeHud, resetPbs)
         addSettings(*popupOnly.toTypedArray())
         popupOnly.forEach { it.inPopup = true }
         load()
-        // handleSystemChat runs twice per packet (netty thread, then main thread); only take the main-thread
-        // pass, like FishMod, so splits aren't mutated off-thread or triggered twice.
-        on<ChatMessageEvent> { if (mc.isSameThread()) onChat(it.unformattedText.trim()) }
+        on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }
         ClientTickEvents.END_CLIENT_TICK.register { tick() }
     }
 
@@ -344,11 +349,14 @@ object DungeonSplits : Module(
         cleared = clear
         val f = floor ?: return
         val pb = data.pbs[f]
-        val newPb = clear && (pb == null || t < pb.total)
-        if (newPb) {
-            data.pbs[f] = PbRun(t, segs.filter { it.done }.associate { it.def.name to it.time(t) })
-            persist()
+        if (clear) {
+            val runs = data.history.getOrPut(f) { mutableListOf() }
+            runs += segs.filter { it.done }.associate { it.def.name to it.time(t) }
+            while (runs.size > HISTORY_SIZE) runs.removeAt(0)
         }
+        val newPb = clear && (pb == null || t < pb.total)
+        if (newPb) data.pbs[f] = PbRun(t, segs.filter { it.done }.associate { it.def.name to it.time(t) })
+        if (clear) persist()
         if (isEnabled && chatSummary.value) {
             val delta = if (clear && pb != null) " " + deltaText(t - pb.total, chat = true) else ""
             say("§f$f ${if (clear) "cleared" else "§cfailed§f"} in §e${fmtTotal(t)}$delta" + if (newPb) " §a§lNEW PB!" else "")
@@ -511,11 +519,12 @@ object DungeonSplits : Module(
         if (showRunTime.value) rows += Row("Run Time", WHITE, fmtTotal(t), runColor, if (tickMode) fmtTotal(tk * 50) else null, TICK)
 
         if (showEstimate.value && finishedAt == 0L) {
-            // Elapsed + for every unfinished split: max(PB / typical time, what it already took).
+            // Elapsed + for every unfinished split: max(expected time, what it already took).
+            val f = if (preview) "F7" else floor ?: "?"
             var est = t
             for (seg in list) {
                 if (seg.done) continue
-                val expected = (pb?.segments?.get(seg.def.name) ?: (seg.def.estimate * 1000).toLong())
+                val expected = expectedTime(f, seg.def, pb)
                 est += (expected - seg.time(t).coerceAtLeast(0)).coerceAtLeast(0)
             }
             rows += Row("Est. Total", nameColor(0xFFAA00), fmtTotal(est), GREY)
@@ -546,6 +555,15 @@ object DungeonSplits : Module(
 
     private fun fmtTotal(ms: Long): String = fmtSeg(ms)
 
+    /** Expected duration of a split: median of recent clears (Recent Runs), else the PB run's, else a typical time. */
+    private fun expectedTime(floor: String, def: SegDef, pb: PbRun?): Long {
+        if (estimateFrom.value == "Recent Runs") {
+            val times = data.history[floor]?.mapNotNull { it[def.name] }?.sorted()
+            if (!times.isNullOrEmpty()) return times[times.size / 2]
+        }
+        return pb?.segments?.get(def.name) ?: (def.estimate * 1000).toLong()
+    }
+
     private fun deltaText(d: Long, chat: Boolean): String {
         val sign = if (d <= 0) "-" else "+"
         val text = "$sign%.1f".format(abs(d) / 1000.0)
@@ -574,6 +592,8 @@ object DungeonSplits : Module(
         } catch (e: Exception) {
             println("[DungeonSplits] Failed to load: ${e.message}")
         }
+        @Suppress("SENSELESS_COMPARISON")
+        if (data.history == null) data.history = mutableMapOf() // saves from before run history existed
         // Saves from the first version of this module had no "segments"; drop those PBs.
         @Suppress("SENSELESS_COMPARISON")
         data.pbs.entries.removeIf { it.value.segments == null }
@@ -596,6 +616,7 @@ object DungeonSplits : Module(
     }
 
     private val ORDINALS = listOf("1st", "2nd", "3rd", "4th")
+    private const val HISTORY_SIZE = 10
     private const val LINGER_MS = 60_000L
     private const val DEFEATED_GRACE_MS = 4_000L
     private const val MIN_SCALE = 0.5f

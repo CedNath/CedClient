@@ -103,19 +103,12 @@ object TinyDancerHelper : Module(
         listOf(jumpDelayMs, punchDelayMs, debugLog, testBeatTicks, lookSmoothnessMs).forEach { it.advanced = true }
         addSettings(beatMessages, lookSmoothnessMs, jumpDelayMs, punchDelayMs, debugLog, testBeatTicks)
 
-        // IMPORTANT: ClientPacketListenerMixin injects at the HEAD of the packet handlers, which
-        // runs once on the network (netty) thread and then AGAIN on the main thread (vanilla
-        // re-queues the packet). Without this guard every beat would count twice, and anything
-        // that touches the GUI (like chat) from the netty thread throws "Rendersystem called
-        // from wrong thread" and kicks you from the server. Only the main-thread pass is used.
         on<SubtitleEvent> { event ->
-            if (!mc.isSameThread()) return@on
             if (!isEnabled || active) return@on
             if (event.unformattedText.trim() == "Move!" && nearDanceFloor()) activate()
         }
 
         on<PlaySoundEvent> { event ->
-            if (!mc.isSameThread()) return@on
             handleSound(event.soundName, event.pitch, event.volume)
         }
 

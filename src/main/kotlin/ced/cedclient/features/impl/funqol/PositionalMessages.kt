@@ -1,5 +1,7 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.events.ChatMessageEvent
+import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.render.LineBox
@@ -62,6 +64,10 @@ object PositionalMessages : Module(
         "Every Time I Enter: each time you walk into a spot (with the cooldown below). Once Per Run: each spot only once per run."
     )
     private val cooldown = NumberSetting("Cooldown", 5.0, 1.0, 30.0, 1.0, "Seconds before the same spot can send again (Every Time I Enter).")
+    private val skipIfTeammate = BooleanSetting(
+        "Skip If Teammate Said It", true,
+        "Don't send a message a party member already sent (within the cooldown, or this run with Once Per Run)."
+    )
     private val onlyDungeons = BooleanSetting("Only In Dungeons", true, "Custom spots only work inside a dungeon.")
     private val testMode = BooleanSetting(
         "Test Mode", false,
@@ -133,6 +139,10 @@ object PositionalMessages : Module(
 
     private val states = HashMap<Any, SpotState>()
 
+    /** When a party member (not you) last sent each message, keyed by the lowercased message. */
+    private val saidByTeammate = HashMap<String, Long>()
+    private val PARTY_LINE = Regex("""^Party > (?:\[[^\]]+] )?(\w+)(?: [^:]*)?: (.+)$""")
+
     /** A spot that can fire right now. */
     private class Active(val key: Any, val message: String, val box: AABB)
 
@@ -146,11 +156,12 @@ object PositionalMessages : Module(
     @Volatile private var pos2: BlockPos? = null
 
     init {
-        addSettings(sendMode, cooldown, onlyDungeons, testMode, customize)
+        addSettings(sendMode, cooldown, skipIfTeammate, onlyDungeons, testMode, customize)
         addSettings(*popupOnly.toTypedArray())
         popupOnly.forEach { it.inPopup = true }
         load()
         ClientTickEvents.END_CLIENT_TICK.register { tick() }
+        on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
             renderWorld(context.poseStack(), context.bufferSource(), context.levelState().cameraRenderState)
         })
@@ -179,10 +190,24 @@ object PositionalMessages : Module(
         return out
     }
 
+    /** "Party > [MVP+] Name: At SS!" from someone else: remember it so we don't repeat it. */
+    private fun onChat(text: String) {
+        val m = PARTY_LINE.find(text) ?: return
+        if (m.groupValues[1].equals(mc.player?.name?.string, ignoreCase = true)) return
+        saidByTeammate[m.groupValues[2].trim().lowercase()] = System.currentTimeMillis()
+    }
+
+    private fun teammateAlreadySaid(message: String, now: Long): Boolean {
+        if (!skipIfTeammate.value) return false
+        val at = saidByTeammate[message.trim().lowercase()] ?: return false
+        return sendMode.value == "Once Per Run" || now - at < (cooldown.value * 1000).toLong()
+    }
+
     private fun tick() {
         if (!DungeonState.inDungeon && !testMode.value) {
             // Out of the run: "Once Per Run" starts over next time.
             if (states.isNotEmpty()) states.clear()
+            if (saidByTeammate.isNotEmpty()) saidByTeammate.clear()
         }
         val player = mc.player
         if (!isEnabled || player == null) {
@@ -204,7 +229,7 @@ object PositionalMessages : Module(
                 "Once Per Run" -> !st.sentThisRun
                 else -> now - st.lastSent >= (cooldown.value * 1000).toLong()
             }
-            if (!canSend) continue
+            if (!canSend || teammateAlreadySaid(a.message, now)) continue
             st.sentThisRun = true
             st.lastSent = now
             if (testMode.value) player.sendSystemMessage(Component.literal("§b[CC] §7(test) §9Party > §f${player.name.string}: ${a.message}"))
