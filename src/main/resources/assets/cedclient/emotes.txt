@@ -1,0 +1,207 @@
+1f600 grinning
+1f603 smiley
+1f604 smile
+1f601 grin
+1f606 laughing satisfied
+1f605 sweat_smile
+1f602 joy
+1f923 rofl rolling_on_the_floor_laughing
+1f642 slight_smile slightly_smiling_face
+1f643 upside_down upside_down_face
+1f609 wink
+1f60a blush
+1f607 innocent
+1f60d heart_eyes
+1f929 star_struck
+1f618 kissing_heart
+1f60b yum
+1f61b stuck_out_tongue
+1f61c stuck_out_tongue_winking_eye
+1f92a zany_face
+1f911 money_mouth money_mouth_face
+1f917 hugging hugging_face
+1f914 thinking thinking_face
+1f92b shushing_face
+1f910 zipper_mouth
+1f928 raised_eyebrow face_with_raised_eyebrow
+1f610 neutral_face
+1f611 expressionless
+1f636 no_mouth
+1f60f smirk
+1f612 unamused
+1f644 rolling_eyes face_with_rolling_eyes
+1f62c grimacing
+1f60c relieved
+1f614 pensive
+1f62a sleepy
+1f634 sleeping
+1f637 mask
+1f922 nauseated_face sick
+1f92e face_vomiting
+1f975 hot_face
+1f976 cold_face
+1f974 woozy_face
+1f635 dizzy_face
+1f92f exploding_head
+1f920 cowboy
+1f973 partying_face
+1f60e sunglasses
+1f913 nerd nerd_face
+1f9d0 monocle_face
+1f615 confused
+1f61f worried
+1f641 slight_frown slightly_frowning_face
+2639 frowning2 white_frowning_face
+1f62e open_mouth
+1f62f hushed
+1f632 astonished
+1f633 flushed
+1f97a pleading_face
+1f626 frowning
+1f627 anguished
+1f628 fearful
+1f630 cold_sweat
+1f625 disappointed_relieved
+1f622 cry
+1f62d sob
+1f631 scream
+1f616 confounded
+1f623 persevere
+1f61e disappointed
+1f613 sweat
+1f629 weary
+1f62b tired_face
+1f971 yawning_face
+1f624 triumph
+1f621 rage
+1f620 angry
+1f92c face_with_symbols_over_mouth
+1f608 smiling_imp
+1f47f imp
+1f480 skull
+2620 skull_crossbones
+1f4a9 poop hankey shit
+1f921 clown
+1f47b ghost
+1f47d alien
+1f916 robot
+1f63a smiley_cat
+1f648 see_no_evil
+1f649 hear_no_evil
+1f64a speak_no_evil
+2764 heart
+1f9e1 orange_heart
+1f49b yellow_heart
+1f49a green_heart
+1f499 blue_heart
+1f49c purple_heart
+1f5a4 black_heart
+1f90d white_heart
+1f494 broken_heart
+1f495 two_hearts
+1f496 sparkling_heart
+1f4af 100
+1f4a2 anger
+1f4a5 boom collision
+1f4ab dizzy
+1f4a6 sweat_drops
+1f4a4 zzz
+1f44b wave
+1f44c ok_hand
+1f90f pinching_hand
+270c v
+1f91e crossed_fingers
+1f918 metal
+1f919 call_me
+1f448 point_left
+1f449 point_right
+1f446 point_up_2
+1f447 point_down
+1f595 middle_finger
+1f44d thumbsup +1
+1f44e thumbsdown -1
+270a fist
+1f44a punch
+1f44f clap
+1f64c raised_hands
+1f450 open_hands
+1f91d handshake
+1f64f pray
+1f4aa muscle
+1f440 eyes
+1f441 eye
+1f9e0 brain
+1f445 tongue
+1f444 lips
+1f476 baby
+1f926 person_facepalming facepalm
+1f937 person_shrugging shrug
+1f5ff moyai
+1f525 fire
+2728 sparkles
+2b50 star
+1f31f star2
+26a1 zap
+1f308 rainbow
+2600 sunny
+2744 snowflake
+1f4a7 droplet
+1f30a ocean
+1f389 tada
+1f38a confetti_ball
+1f381 gift
+1f3c6 trophy
+1f3c5 medal
+1f947 first_place
+1f451 crown
+1f48e gem
+1f4b0 moneybag
+1f4b5 dollar
+1f4b8 money_with_wings
+1f4c8 chart_with_upwards_trend
+1f4c9 chart_with_downwards_trend
+1f514 bell
+1f4e3 mega
+26a0 warning
+26d4 no_entry
+274c x
+2705 white_check_mark
+2714 heavy_check_mark
+2753 question
+2757 exclamation
+203c bangbang
+1f534 red_circle
+1f7e2 green_circle
+231b hourglass
+1f680 rocket
+1f4a3 bomb
+1f52a knife
+2694 crossed_swords
+1f6e1 shield
+1f3f9 bow_and_arrow
+26cf pick
+1f3a3 fishing_pole_and_fish
+1f409 dragon
+1f432 dragon_face
+1f43a wolf
+1f98a fox
+1f431 cat
+1f436 dog
+1f437 pig
+1f42e cow
+1f411 sheep
+1f430 rabbit
+1f41d bee
+1f577 spider
+1f40d snake
+1f422 turtle
+1f41f fish
+1f988 shark
+1f410 goat
+1f34e apple
+1f355 pizza
+1f36a cookie
+1f370 cake
+1f37a beer
+2615 coffee
+1f9c2 salt
