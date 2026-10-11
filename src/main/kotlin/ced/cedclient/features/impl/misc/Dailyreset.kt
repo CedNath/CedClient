@@ -811,7 +811,7 @@ object DailyReset : Module(
 
     private val BORDER_COLOR = 0xFF5A4FCF.toInt()
     private val BACKGROUND_COLOR = 0xE8161620.toInt()
-    private val ACCENT_COLOR = 0xFF8A7FFF.toInt()
+    private val ACCENT_COLOR get() = Theme.hudAccentRgba
     private val PROGRESS_COLOR = 0xFFE8B85C.toInt() // warm amber, for multi-count "(x/y)" lines
     private val DONE_BADGE_COLOR = 0xFF7BD88F.toInt() // soft green, edit-screen-preview "DONE" badge
     private val BADGE_TEXT_COLOR = 0xFF1A1A24.toInt()

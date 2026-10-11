@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Colors
@@ -106,7 +107,7 @@ object EntityESPHud : HudElement {
 
     private val BORDER_COLOR = 0xFF5A4FCF.toInt()
     private val BACKGROUND_COLOR = 0xE8161620.toInt()
-    private val ACCENT_COLOR = 0xFF8A7FFF.toInt()
+    private val ACCENT_COLOR get() = Theme.hudAccentRgba
     private val IDLE_BADGE_COLOR = 0xFF7BD88F.toInt() // soft green -- "nothing nearby"
     private val BADGE_TEXT_COLOR = 0xFF1A1A24.toInt()
     private val DIVIDER_HIGHLIGHT = 0x30FFFFFF

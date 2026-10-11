@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.render.nvg.NVGRenderer
@@ -278,7 +279,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
     companion object {
 
         const val roundedPanelBottom = true
-        val clickGUIColor: Color = Color(110, 50, 200)
+        /** The GUI accent -- set in the Theme module. */
+        val clickGUIColor: Color get() = Theme.guiAccent.value
 
         // Open animation timings (ms) and sizes.
         private const val BACKGROUND_DIM = 0.35f
