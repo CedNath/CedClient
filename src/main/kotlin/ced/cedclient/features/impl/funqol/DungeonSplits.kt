@@ -456,6 +456,20 @@ object DungeonSplits : Module(
 
     private fun buildRows(list: List<Seg>, t: Long, tk: Long, pb: PbRun?, preview: Boolean): List<Row> {
         val rows = ArrayList<Row>()
+
+        // Boss Entry (cumulative time to the boss) sits right under Portal, the split that ends on entering it.
+        val bossIdx = list.indexOfFirst { it.def === portal }
+        val bossEntryRow = if (showBossEntry.value && bossIdx >= 0 && !(onlyStarted.value && !preview && list[bossIdx].end < 0)) {
+            val bossSeg = list[bossIdx]
+            val entry = bossSeg.end
+            val pbEntry = pb?.let { p -> list.take(bossIdx + 1).sumOf { p.segments[it.def.name] ?: return@let null } }
+            Row(
+                "Boss Entry", nameColor(0x5555FF), if (entry >= 0) fmtTotal(entry) else pbEntry?.let(::fmtTotal) ?: "-",
+                if (entry >= 0) WHITE else GREY,
+                if (tickMode && bossSeg.endTick >= 0) fmtSecs(bossSeg.endTick * 50) else null, TICK,
+            )
+        } else null
+
         for (seg in list) {
             if (onlyStarted.value && !preview && seg.start < 0) continue
             val time = seg.time(t)
@@ -472,6 +486,7 @@ object DungeonSplits : Module(
                 else -> null to 0
             }
             rows += Row(seg.def.name, nameColor(seg.def.color), timeText, timeColor, second, secondColor)
+            if (seg.def === portal) bossEntryRow?.let { rows += it }
 
             // Terminal sections under Terminals, once it has started.
             if (seg.def.name == "Terminals" && terminalSplits.value && (seg.start >= 0 || preview)) {
@@ -501,17 +516,6 @@ object DungeonSplits : Module(
         }
 
         // Cumulative rows
-        val bossIdx = list.indexOfFirst { it.def === portal }
-        if (showBossEntry.value && bossIdx >= 0 && !(onlyStarted.value && !preview && list[bossIdx].end < 0)) {
-            val bossSeg = list[bossIdx]
-            val entry = bossSeg.end
-            val pbEntry = pb?.let { p -> list.take(bossIdx + 1).sumOf { p.segments[it.def.name] ?: return@let null } }
-            rows += Row(
-                "Boss Entry", nameColor(0x5555FF), if (entry >= 0) fmtTotal(entry) else pbEntry?.let(::fmtTotal) ?: "-",
-                if (entry >= 0) WHITE else GREY,
-                if (tickMode && bossSeg.endTick >= 0) fmtSecs(bossSeg.endTick * 50) else null, TICK,
-            )
-        }
         val runColor = when {
             preview -> GREY
             finishedAt != 0L -> if (cleared) GREEN else RED
