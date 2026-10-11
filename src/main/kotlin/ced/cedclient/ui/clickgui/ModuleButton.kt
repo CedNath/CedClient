@@ -2,6 +2,7 @@ package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.RenderableSetting
+import ced.cedclient.features.settings.ResetDefaultsSetting
 import ced.cedclient.ui.animations.ColorAnimation
 import ced.cedclient.ui.animations.EaseInOutAnimation
 import ced.cedclient.render.nvg.NVGRenderer
@@ -24,7 +25,8 @@ import kotlin.math.floor
  */
 class ModuleButton(val module: Module, val panel: Panel) {
 
-    val representableSettings = module.settings.values.filterIsInstance<RenderableSetting<*>>().filter { !it.inPopup }
+    val representableSettings = module.settings.values.filterIsInstance<RenderableSetting<*>>().filter { !it.inPopup } +
+            listOfNotNull(ResetDefaultsSetting(module).takeIf { ResetDefaultsSetting.hasResettable(module) })
     private val colorAnim = ColorAnimation(150)
 
     private val color: Color
