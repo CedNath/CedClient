@@ -7,6 +7,7 @@ import ced.cedclient.events.PlaySoundEvent;
 import ced.cedclient.events.SubtitleEvent;
 import ced.cedclient.events.TitleEvent;
 import ced.cedclient.features.impl.misc.ChatFilter;
+import ced.cedclient.features.impl.render.ChatEmotes;
 import ced.cedclient.state.IslandState;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
@@ -78,6 +79,7 @@ public class ClientPacketListenerMixin {
     @Inject(method = "handleSystemChat", at = @At("HEAD"), cancellable = true)
     private void cedclient$onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
         if (cedclient$offThread()) return;
+        ChatEmotes.liveChat = true;
         ChatHide.pending = false;
         Component content = packet.content();
         if (content == null) return;
@@ -93,6 +95,7 @@ public class ClientPacketListenerMixin {
         // through and reaches chat/log normally like any other command.
         if (LOCRAW_RESPONSE.matcher(content.getString().trim()).matches()
                 && IslandState.INSTANCE.consumeExpectedLocrawResponse()) {
+            ChatEmotes.liveChat = false; // TAIL below won't run for a cancelled line
             ci.cancel();
             return;
         }
@@ -110,6 +113,7 @@ public class ClientPacketListenerMixin {
             if (packet.overlay()) {
                 // Action-bar text never goes through ChatComponent.addMessage, so the
                 // display-time hide below can't catch it -- cancel it the old way.
+                ChatEmotes.liveChat = false; // TAIL below won't run for a cancelled line
                 ci.cancel();
             } else {
                 ChatHide.pending = true;
@@ -117,9 +121,21 @@ public class ClientPacketListenerMixin {
         }
     }
 
+    // Player / disguised chat reach ChatComponent.addMessage inside these handlers too: mark them live for the vine boom.
+    @Inject(method = {"handlePlayerChat", "handleDisguisedChat"}, at = @At("HEAD"))
+    private void cedclient$liveChatStart(CallbackInfo ci) {
+        if (!cedclient$offThread()) ChatEmotes.liveChat = true;
+    }
+
+    @Inject(method = {"handlePlayerChat", "handleDisguisedChat"}, at = @At("TAIL"))
+    private void cedclient$liveChatEnd(CallbackInfo ci) {
+        ChatEmotes.liveChat = false;
+    }
+
     @Inject(method = "handleSystemChat", at = @At("TAIL"))
     private void cedclient$clearChatHide(ClientboundSystemChatPacket packet, CallbackInfo ci) {
         ChatHide.pending = false;
+        ChatEmotes.liveChat = false;
     }
 
     // ============================================================
