@@ -1,6 +1,7 @@
 package ced.cedclient.mixin.chat;
 
 import ced.cedclient.features.impl.misc.ScreenshotTweaks;
+import ced.cedclient.features.impl.render.ChatEmotes;
 import ced.cedclient.features.impl.render.nametag.CustomNametagText;
 import ced.cedclient.utils.ChatHide;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -60,5 +61,11 @@ public abstract class ChatComponentMixin {
     @ModifyVariable(method = "addMessage", at = @At("HEAD"), argsOnly = true)
     private Component cedclient$applyCustomNametag(Component contents) {
         return CustomNametagText.INSTANCE.transformChat(contents);
+    }
+
+    // Discord emotes (Cosmetics > Chat Emotes): ":sob:" / 😭 drawn as the emote image.
+    @ModifyVariable(method = "addMessage", at = @At("HEAD"), argsOnly = true)
+    private Component cedclient$applyChatEmotes(Component contents) {
+        return ChatEmotes.transform(contents);
     }
 }
