@@ -3,7 +3,9 @@ package ced.cedclient.features.impl.funqol
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
+import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.features.settings.NumberSetting
+import ced.cedclient.features.settings.Setting.Companion.withDependency
 import ced.cedclient.utils.HumanLook
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
@@ -22,6 +24,7 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.sqrt
 import kotlin.random.Random
+import org.lwjgl.glfw.GLFW
 
 private enum class CoralotState { IDLE, CATCH_DELAY, CONFIRMING }
 
@@ -54,6 +57,17 @@ object CoralotHelper : Module(
     private val maxAimWaitMs = NumberSetting("Max Aim Wait (ms)", 1500.0, 200.0, 5000.0, 100.0)
     private val restorePreviousItem = BooleanSetting("Restore Previous Item", true)
     private val catchMultipleTargets = BooleanSetting("Catch Multiple", true)
+    private val requireKeybind = BooleanSetting(
+        "Require Keybind", false,
+        "Off: catches on its own. On: keeps scanning, but only looks / catches while toggled on with the Catch Key."
+    )
+    private val catchKey = KeybindSetting("Catch Key", description = "Toggles catching on / off (with Require Keybind on).")
+        .withDependency { requireKeybind.value }
+
+    /** Toggled by [catchKey]; only matters with [requireKeybind] on. */
+    private var armed = false
+    private var keyWas = false
+    private val canCatch get() = !requireKeybind.value || armed
 
     // --- customizable via chat commands (see CedClientCommand) ---
     var netItemName: String = "Net"
@@ -101,7 +115,9 @@ object CoralotHelper : Module(
             aimToleranceDeg,
             maxAimWaitMs,
             restorePreviousItem,
-            catchMultipleTargets
+            catchMultipleTargets,
+            requireKeybind,
+            catchKey
         )
         // State machine / timers / hologram scanning: doesn't need frame-rate precision, tick rate is fine.
         ClientTickEvents.END_CLIENT_TICK.register {
@@ -149,8 +165,11 @@ object CoralotHelper : Module(
     private fun tick() {
         val player = mc.player ?: return
 
+        pollCatchKey()
+        // Scanning always runs, so with the key off the queue is still up to date the moment it's pressed.
         updateHologramTracking(player)
-        readyQueue.removeAll { !it.isAlive }
+        // Queued while not catching: drop ones that got their warning icon back or swam out of range.
+        readyQueue.removeAll { !it.isAlive || player.distanceTo(it) > detectRange.value || findHologramNear(it) != null }
         while (stealthPending.isNotEmpty() && System.currentTimeMillis() >= stealthPending.first()) {
             stealthPending.removeFirst()
             queueStealthTarget(player)
@@ -163,6 +182,7 @@ object CoralotHelper : Module(
 
         when (state) {
             CoralotState.IDLE -> {
+                if (!canCatch) return
                 val next = readyQueue.removeFirstOrNull() ?: return
                 if (!next.isAlive) return
 
@@ -191,6 +211,20 @@ object CoralotHelper : Module(
 
             CoralotState.CONFIRMING -> { /* waiting on chat */ }
         }
+    }
+
+    /** Catch Key: toggles catching (only outside menus). Turning it off mid-aim lets go of the camera right away. */
+    private fun pollCatchKey() {
+        val code = catchKey.value
+        val window = GLFW.glfwGetCurrentContext()
+        val down = requireKeybind.value && code > 0 && window != 0L && mc.screen == null &&
+                GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
+        if (down && !keyWas) {
+            armed = !armed
+            if (!armed && state == CoralotState.CATCH_DELAY) reset()
+            mc.gui.setOverlayMessage(Component.literal(if (armed) "§aCoralot catching ON" else "§cCoralot catching OFF"), false)
+        }
+        keyWas = down
     }
 
     /**
