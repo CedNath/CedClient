@@ -324,7 +324,7 @@ object CosmeticBlocks : Module(
         val right = GLFW.glfwGetMouseButton(window, 1) == 1
         val middle = GLFW.glfwGetMouseButton(window, 2) == 1
         try {
-            val hit = (mc.hitResult as? BlockHitResult)?.takeIf { it.type == HitResult.Type.BLOCK }
+            val hit = CosmeticTools.aimHit()
             when {
                 CosmeticTools.rulerActive -> {
                     if (right && !rightWas) CosmeticTools.rulerClick(brushRaw(), placeMode.value)
@@ -819,7 +819,7 @@ object CosmeticBlocks : Module(
             1
         }))))
 
-    private fun lookPos(): BlockPos? = (mc.hitResult as? BlockHitResult)?.takeIf { it.type == HitResult.Type.BLOCK }?.blockPos
+    private fun lookPos(): BlockPos? = CosmeticTools.aimHit()?.blockPos
 
     private fun status(src: FabricClientCommandSource) {
         val room = CosmeticRooms.currentRoom?.data?.name
