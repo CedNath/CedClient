@@ -41,15 +41,22 @@ open class Module(
 
     fun getSettings(): List<Setting<*>> = settings.values.toList()
 
+    /**
+     * Action modules are one-shot buttons, not toggles: clicking runs [onAction] and they never turn on
+     * (so no saved "enabled" state either).
+     */
+    open val isAction: Boolean = false
+
     open fun onEnable() {}
     open fun onDisable() {}
+    open fun onAction() {}
 
     fun toggle() {
-        setEnabled(!enabled)
+        if (isAction) onAction() else setEnabled(!enabled)
     }
 
     fun setEnabled(value: Boolean) {
-        if (enabled == value) return
+        if (isAction || enabled == value) return
 
         enabled = value
         println("Set $name → $enabled")

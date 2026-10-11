@@ -6,7 +6,6 @@ import ced.cedclient.events.EntityMetadataEvent;
 import ced.cedclient.events.PlaySoundEvent;
 import ced.cedclient.events.SubtitleEvent;
 import ced.cedclient.events.TitleEvent;
-import ced.cedclient.features.impl.loot.LootTracker;
 import ced.cedclient.features.impl.misc.ChatFilter;
 import ced.cedclient.state.IslandState;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -25,7 +24,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
@@ -34,19 +32,6 @@ public class ClientPacketListenerMixin {
 
     @Shadow
     private ClientLevel level;
-
-    // ============================================================
-    // KUUDRA/DUNGEON REWARD SPAM SUPPRESSION (feeds LootTracker instead)
-    // ============================================================
-    // Folded directly into the existing chat handler below rather than a
-    // second mixin on the same method -- two separate @Inject(HEAD,
-    // cancellable=true) mixins racing to cancel handleSystemChat is fragile
-    // (their relative order isn't something we control), and it would also
-    // make Kuudra reward lines silently skip ChatMessageEvent below.
-    private static final Pattern REWARD_HEADER = Pattern.compile("^PAID CHEST REWARDS$");
-    private static final Pattern RARE_REWARD =
-            Pattern.compile("^RARE REWARD! (.+) found a (.+) in their (.+) Chest!$");
-    private static final Pattern CHEST_TRACKER = Pattern.compile(".*Chest tracker: (\\d+)/(\\d+).*");
 
     // ============================================================
     // /locraw RESPONSE SUPPRESSION (IslandState's own request/response)
@@ -69,50 +54,6 @@ public class ClientPacketListenerMixin {
     // cancelled here; a manually-typed /locraw falls outside the window
     // and is left alone.
     private static final Pattern LOCRAW_RESPONSE = Pattern.compile("^\\{\"server\":.*}$");
-
-    // true while we're inside a "PAID CHEST REWARDS" ... blank-line block
-    private boolean cedclient$inRewardBlock = false;
-
-    /**
-     * @return true if this line was reward spam and has been fully handled
-     *         (caller should cancel the packet and stop processing it).
-     */
-    private boolean cedclient$handleRewardSpam(String clean) {
-        if (!LootTracker.INSTANCE.isEnabled()) {
-            return false;
-        }
-
-        if (CHEST_TRACKER.matcher(clean).matches()) {
-            return true;
-        }
-
-        Matcher rare = RARE_REWARD.matcher(clean);
-        if (rare.matches()) {
-            LootTracker.INSTANCE.recordRareReward(rare.group(1), rare.group(2), rare.group(3));
-            return true;
-        }
-
-        if (REWARD_HEADER.matcher(clean).matches()) {
-            cedclient$inRewardBlock = true;
-            LootTracker.INSTANCE.recordChestOpened();
-            return true;
-        }
-
-        if (cedclient$inRewardBlock) {
-            if (clean.isEmpty()) {
-                cedclient$inRewardBlock = false; // blank line closes the block
-            } else {
-                LootTracker.INSTANCE.recordDrop(clean);
-            }
-            return true;
-        }
-
-        // Standalone blank line (spacer before a block starts). NOTE: this
-        // suppresses every blank system-chat line, since Hypixel only seems
-        // to use them as spacers around these blocks and there's no way to
-        // tell in advance that a blank line is about to start one.
-        return clean.isEmpty();
-    }
 
     // ============================================================
     // ENTITY METADATA HANDLER (existing CedClient logic)
@@ -153,15 +94,9 @@ public class ClientPacketListenerMixin {
             return;
         }
 
-        String stripped = content.getString().replaceAll("§.", "").trim();
-        // NOTE: reward-spam and ChatFilter hiding no longer call ci.cancel() -- they set
-        // ChatHide.pending and ChatComponentMixin drops the line at display time instead, so
-        // other mods hooking handleSystemChat (NoammAddons' key/door detection) still see it.
-        if (cedclient$handleRewardSpam(stripped)) {
-            ChatHide.pending = true;
-            return;
-        }
-
+        // NOTE: ChatFilter hiding doesn't call ci.cancel() -- it sets ChatHide.pending and
+        // ChatComponentMixin drops the line at display time instead, so other mods hooking
+        // handleSystemChat (NoammAddons' key/door detection) still see it.
         if (ChatFilter.INSTANCE.shouldHide(content.getString())) {
             // Hiding the line skips vanilla's own chat-log call inside
             // ChatComponent.addMessage() (that's where the "[CHAT] ..." log

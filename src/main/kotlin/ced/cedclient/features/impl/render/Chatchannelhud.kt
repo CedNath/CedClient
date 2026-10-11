@@ -25,9 +25,9 @@ private data class ChatChannelHudPosition(val x: Int, val y: Int, val scale: Flo
 
 object ChatChannelHud : Module(
     "Chat Channel HUD",
-    Category.Render,
+    Category.HUD,
     "Shows which Hypixel chat channel you're currently in (All/Party/Guild/Officer/Co-op/DM).",
-    defaultEnabled = true
+    defaultEnabled = false
 ), HudElement {
 
     private enum class Channel(val label: String, val color: ChatFormatting) {

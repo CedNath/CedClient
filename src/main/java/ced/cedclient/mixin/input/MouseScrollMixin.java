@@ -1,6 +1,7 @@
 package ced.cedclient.mixin.input;
 
 import ced.cedclient.features.impl.render.Zoom;
+import ced.cedclient.render.cosmetic.CosmeticTools;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,6 +25,12 @@ public abstract class MouseScrollMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void ced$onScroll(long windowHandle, double horizontal, double vertical, CallbackInfo ci) {
+        // Cosmetic Blocks ruler: scroll changes how far it reaches into the air.
+        if (CosmeticTools.INSTANCE.onScroll(vertical)) {
+            ci.cancel();
+            return;
+        }
+
         if (!Zoom.INSTANCE.isZooming()) return;
 
         Zoom.INSTANCE.adjustZoom(vertical);

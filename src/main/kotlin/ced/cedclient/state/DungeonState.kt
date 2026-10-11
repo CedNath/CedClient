@@ -53,6 +53,15 @@ object DungeonState {
     // ever missed.
     private val floorLineRegex = Regex("""Floor:?\s*(?<floor>M?\d{1,2})""")
 
+    // Sidebar's location line: " ⏣ The Catacombs (F7)" / "(M7)" / "(E)".
+    private val catacombsLineRegex = Regex("""The Catacombs \((?<floor>[FM]\d{1,2})\)""")
+
+    // The floor announcement can arrive while still in the previous run's instance (requeueing from inside a
+    // run), and the level-change reset in tick() then wipes floor. Kept here so Mort's line can restore it.
+    private var announcedFloor: String? = null
+    private var announcedAt = 0L
+    private const val ANNOUNCE_VALID_MS = 120_000L
+
     // Confirmed via live log: "You have selected the Mage Dungeon Class!" /
     // "...the Healer Dungeon Class!" -- sent the moment you pick your class in
     // the dungeon queue/hub, which is BEFORE inDungeon flips true (that only
@@ -138,6 +147,12 @@ object DungeonState {
         AABB(91.0, 158.0, 50.0, -3.0, 106.0, 30.0),
     )
 
+    /**
+     * Boss room bounding box for a floor number (1..7; Master Mode shares the same bounds), or null if out of range.
+     * Used by Cosmetic Blocks to know which region to re-skin / re-mesh.
+     */
+    fun bossRoomBox(floorNum: Int): AABB? = bossRoomBounds.getOrNull(floorNum - 1)
+
     var inDungeon: Boolean = false
         private set
 
@@ -207,6 +222,10 @@ object DungeonState {
                 inBoss = false
                 f7Phase = null
                 f7P3Section = null
+                if (floor == null && announcedFloor != null && System.currentTimeMillis() - announcedAt < ANNOUNCE_VALID_MS) {
+                    floor = announcedFloor
+                    if (Debug.enabled) Debug.log("[DungeonState] floor -> $floor (restored from announcement)", interval = 1)
+                }
                 if (Debug.enabled) Debug.log("[DungeonState] inDungeon -> true (matched Mort's line)", interval = 1)
             }
 
@@ -226,6 +245,10 @@ object DungeonState {
             if (floorMatch != null) {
                 val label = floorMatch.groups["label"]!!.value
                 val parsed = parseFloorLabel(label)
+                if (parsed != null) {
+                    announcedFloor = parsed
+                    announcedAt = System.currentTimeMillis()
+                }
                 if (parsed != null && parsed != floor) {
                     floor = parsed
                     if (Debug.enabled) Debug.log("[DungeonState] floor -> $floor (from chat: '$label')", interval = 1)
@@ -338,8 +361,10 @@ object DungeonState {
         if (floor == null) {
             // Fallback path only -- the chat announcement above should have
             // already set floor well before this would ever run.
-            val line = readSidebarLines().firstNotNullOfOrNull { floorLineRegex.find(it) }
-            val newFloor = line?.groups?.get("floor")?.value
+            val lines = readSidebarLines()
+            val newFloor = lines.firstNotNullOfOrNull { catacombsLineRegex.find(it) }?.groups?.get("floor")?.value
+                ?: lines.firstNotNullOfOrNull { floorLineRegex.find(it) }?.groups?.get("floor")?.value
+                    ?.let { if (it.startsWith("M")) it else "F$it" }
             if (newFloor != null) {
                 floor = newFloor
                 if (Debug.enabled) Debug.log("[DungeonState] floor -> $floor (scoreboard fallback)", interval = 1)
@@ -438,6 +463,10 @@ object DungeonState {
      * 1.21.11. If this doesn't compile as-is, Navigate > Declaration on
      * Scoreboard from here and adjust the method names below.
      */
+    /** "F7" / "M7" from the sidebar's " ⏣ The Catacombs (F7)" line, or null. Works without Mort (copied maps). */
+    fun sidebarFloor(): String? =
+        readSidebarLines().firstNotNullOfOrNull { catacombsLineRegex.find(it) }?.groups?.get("floor")?.value
+
     private fun readSidebarLines(): List<String> {
         val scoreboard = mc.level?.scoreboard ?: return emptyList()
         val objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return emptyList()

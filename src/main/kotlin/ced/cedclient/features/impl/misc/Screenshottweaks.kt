@@ -36,7 +36,7 @@ object ScreenshotTweaks : Module(
     "ScreenshotTweaks",
     Category.Misc,
     "Hides the screenshot chat message and copies screenshots to your clipboard",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private const val SUCCESS_KEY = "screenshot.success"
 
@@ -53,8 +53,16 @@ object ScreenshotTweaks : Module(
     // addMessage more than once).
     private var lastHandledAt = 0L
 
+    private val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
+    private val isMac = System.getProperty("os.name").orEmpty().contains("Mac", ignoreCase = true)
+
     init {
         addSettings(hideMessage, copyToClipboard, showConfirmation)
+        // The game runs with java.awt.headless=true, which locks AWT out of the system clipboard.
+        // AWT reads the flag lazily the first time it's used, so clearing it here (at mod init,
+        // before anything touches AWT) is enough. Not on macOS: AWT and GLFW both want the main
+        // thread there, which is exactly why the flag gets set.
+        if (!isMac) System.setProperty("java.awt.headless", "false")
     }
 
     /**
@@ -63,8 +71,7 @@ object ScreenshotTweaks : Module(
      */
     fun handleChatMessage(message: Component): Boolean {
         if (!isEnabled) return false
-        val contents = message.contents as? TranslatableContents ?: return false
-        if (contents.key != SUCCESS_KEY) return false
+        if (!containsKey(message, SUCCESS_KEY)) return false
 
         val now = System.currentTimeMillis()
         if (copyToClipboard.value && now - lastHandledAt > 1000L) {
@@ -74,27 +81,45 @@ object ScreenshotTweaks : Module(
         return hideMessage.value
     }
 
+    /**
+     * Whether [key] is anywhere in the component tree, not just at the root: chat mods (Chat Patches'
+     * timestamps etc.) wrap the line in a literal parent before it reaches addMessage.
+     */
+    private fun containsKey(component: Component, key: String, depth: Int = 0): Boolean {
+        if (depth > 8) return false
+        val contents = component.contents
+        if (contents is TranslatableContents) {
+            if (contents.key == key) return true
+            if (contents.args.any { it is Component && containsKey(it, key, depth + 1) }) return true
+        }
+        return component.siblings.any { containsKey(it, key, depth + 1) }
+    }
+
     private fun copyNewestScreenshot() {
         val dir = File(Minecraft.getInstance().gameDirectory, "screenshots")
         // Off the main thread: decoding a PNG and talking to the OS clipboard shouldn't hitch a frame.
         Thread({
             try {
-                if (GraphicsEnvironment.isHeadless()) {
-                    println("[ScreenshotTweaks] AWT is headless, can't access the clipboard")
-                    return@Thread
-                }
                 val file = dir.listFiles { f -> f.isFile && f.name.endsWith(".png", ignoreCase = true) }
                     ?.maxByOrNull { it.lastModified() }
                     ?: return@Thread
 
-                val source = ImageIO.read(file) ?: return@Thread
-                // Screenshots are opaque; flatten to plain RGB so every app pastes it correctly.
-                val image = BufferedImage(source.width, source.height, BufferedImage.TYPE_INT_RGB)
-                val g = image.createGraphics()
-                g.drawImage(source, 0, 0, null)
-                g.dispose()
+                if (GraphicsEnvironment.isHeadless()) {
+                    // AWT got initialized headless before our init could clear the flag.
+                    if (!isWindows || !copyViaPowerShell(file)) {
+                        println("[ScreenshotTweaks] AWT is headless, can't access the clipboard")
+                        return@Thread
+                    }
+                } else {
+                    val source = ImageIO.read(file) ?: return@Thread
+                    // Screenshots are opaque; flatten to plain RGB so every app pastes it correctly.
+                    val image = BufferedImage(source.width, source.height, BufferedImage.TYPE_INT_RGB)
+                    val g = image.createGraphics()
+                    g.drawImage(source, 0, 0, null)
+                    g.dispose()
 
-                Toolkit.getDefaultToolkit().systemClipboard.setContents(ImageSelection(image), null)
+                    Toolkit.getDefaultToolkit().systemClipboard.setContents(ImageSelection(image), null)
+                }
 
                 // Only announce once the copy has really gone through; chat must be touched on the main thread.
                 if (showConfirmation.value) {
@@ -104,6 +129,28 @@ object ScreenshotTweaks : Module(
                 println("[ScreenshotTweaks] Failed to copy screenshot: ${t.message}")
             }
         }, "CedClient-ScreenshotCopy").apply { isDaemon = true }.start()
+    }
+
+    /**
+     * Windows fallback that doesn't need AWT: let .NET put the image on the clipboard.
+     * The path goes in through an env var so no quoting/escaping of the filename is needed.
+     */
+    private fun copyViaPowerShell(file: File): Boolean {
+        val script = "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; " +
+            "\$img = [System.Drawing.Image]::FromFile(\$env:CED_SCREENSHOT); " +
+            "[System.Windows.Forms.Clipboard]::SetImage(\$img); \$img.Dispose()"
+        // Full path: the game's PATH isn't guaranteed to include PowerShell.
+        val systemRoot = System.getenv("SystemRoot") ?: "C:\\Windows"
+        val powershell = File(systemRoot, "System32\\WindowsPowerShell\\v1.0\\powershell.exe")
+            .takeIf { it.isFile }?.path ?: "powershell"
+        val process = ProcessBuilder(powershell,"-NoProfile", "-NonInteractive", "-STA", "-Command", script)
+            .redirectErrorStream(true)
+            .apply { environment()["CED_SCREENSHOT"] = file.absolutePath }
+            .start()
+        val output = process.inputStream.bufferedReader().readText()
+        val ok = process.waitFor() == 0
+        if (!ok) println("[ScreenshotTweaks] PowerShell clipboard copy failed: $output")
+        return ok
     }
 
     private fun announceCopied() {

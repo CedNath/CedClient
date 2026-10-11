@@ -1,5 +1,6 @@
 package ced.cedclient.state
 
+import ced.cedclient.config.CedPaths
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -96,7 +97,7 @@ object CosmeticsSync {
     private var overridesMap: Map<String, CosmeticOverride> = emptyMap()
 
     private val configDir: File
-        get() = File(Minecraft.getInstance().gameDirectory, "cedclient")
+        get() = CedPaths.dir
 
     private val cacheFile: File
         get() = File(configDir, "cosmetics_cache.json")

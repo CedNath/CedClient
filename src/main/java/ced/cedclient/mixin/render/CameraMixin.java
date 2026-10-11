@@ -3,7 +3,7 @@ package ced.cedclient.mixin.render;
 import ced.cedclient.features.impl.render.Freecam;
 import ced.cedclient.features.impl.render.Zoom;
 import ced.cedclient.mixin.accessor.CameraAccessor;
-import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import org.spongepowered.asm.mixin.Mixin;
@@ -46,11 +46,11 @@ public abstract class CameraMixin {
     // is true, so the FOV eases back out to normal over the last few ticks
     // instead of snapping the instant the key is released.
     //
-    // NOTE: "calculateFov(F)F" is the mapped signature I'd expect for your
-    // MC version (takes the already-computed base FOV, returns the final
-    // one) -- confirm the exact name against your mappings before building,
-    // same as the other mixins in this file already ask you to.
-    @ModifyReturnValue(method = "calculateFov", at = @At("RETURN"))
+    // Hooked at the call site in update() (where the result is stored into
+    // the fov field), not at calculateFov's own RETURN: other mods (FishMod,
+    // NoammAddons, Skysoft, Devonian, rfu...) inject into calculateFov, and
+    // one cancelling it at HEAD returns early and skips a RETURN hook.
+    @ModifyExpressionValue(method = "update", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;calculateFov(F)F"))
     private float ced$applyZoomFov(float original) {
         double divisor = Zoom.INSTANCE.getZoomDivisor(ced$lastPartialTick);
         if (divisor <= 1.0) return original;
@@ -59,7 +59,7 @@ public abstract class CameraMixin {
 
     // Same divisor applied to the HUD/held-item FOV so the hand doesn't
     // stay huge relative to a heavily zoomed-in view.
-    @ModifyReturnValue(method = "calculateHudFov", at = @At("RETURN"))
+    @ModifyExpressionValue(method = "update", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;calculateHudFov(F)F"))
     private float ced$applyZoomHudFov(float original) {
         double divisor = Zoom.INSTANCE.getZoomDivisor(ced$lastPartialTick);
         if (divisor <= 1.0) return original;

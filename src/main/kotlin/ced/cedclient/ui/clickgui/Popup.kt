@@ -2,6 +2,7 @@ package ced.cedclient.ui.clickgui
 
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
@@ -71,6 +72,13 @@ abstract class Popup(val title: String, val width: Float, val height: Float) {
     /** ClickGUI checks this on click to dismiss the popup when the click lands outside it entirely. */
     fun isInside(mouseX: Float, mouseY: Float): Boolean =
         mouseX in x..(x + width) && mouseY in y..(y + height)
+
+    /**
+     * Vanilla-drawn extras (item icons) on top of the NanoVG popup. NanoVG content is drawn later in the frame,
+     * so this is called from ClickGUI.extractRenderState with the popup's layout from the last drawn frame.
+     * [toGui] converts popup units into GUI pixels.
+     */
+    open fun extractItems(g: GuiGraphicsExtractor, toGui: Float) {}
 
     open fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean = false
     open fun mouseReleased(click: MouseButtonEvent) {}

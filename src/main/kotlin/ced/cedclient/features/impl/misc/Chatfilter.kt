@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.ActionSetting
@@ -310,7 +311,7 @@ object ChatFilter : Module(
 
     private val gson = Gson()
     private val filtersFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/chat_filters.json")
+        CedPaths.file("chat_filters.json")
     }
 
     private fun save() {

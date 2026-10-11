@@ -7,6 +7,7 @@
   "mixins": [
     "chat.ClientPacketListenerMixin",
     "chat.ChatComponentMixin",
+    "chat.ClientCommandTreeMixin",
 
     "entity.EntityMixin",
 
@@ -16,6 +17,13 @@
     "render.CameraMixin",
     "render.OptionInstanceMixin",
     "render.OptionsMixin",
+    "render.FogRendererMixin",
+    "render.ScreenEffectRendererMixin",
+    "render.GuiOverlayMixin",
+    "render.WeatherEffectRendererMixin",
+    "render.ClientLevelWeatherMixin",
+    "render.QuadParticleGroupMixin",
+    "render.EntityRenderDispatcherMixin",
 
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
@@ -40,12 +48,27 @@
     "accessor.ClientInputAccessor",
     "accessor.PlayerTabOverlayAccessor",
 
-    "client.MinecraftTurnMixin"
+    "client.MinecraftTurnMixin",
+
+    "cosmetic.RenderSectionRegionMixin",
+    "cosmetic.BlockFaceCullingMixin",
+    "cosmetic.BlockStateModelSetMixin",
+    "cosmetic.BiomeColorsMixin",
+    "cosmetic.ClientLevelEffectsMixin",
+    "cosmetic.EntityStepSoundMixin",
+    "cosmetic.LevelEventHandlerMixin",
+    "cosmetic.MinecraftPickBlockMixin",
+    "cosmetic.SodiumLevelSliceMixin"
   ],
 
   "client": [
     "client.MinecraftMixin",
-    "accessor.MinecraftAccessor"
+    "accessor.MinecraftAccessor",
+    "hitbox.LeverBlockMixin",
+    "hitbox.ButtonBlockMixin",
+    "hitbox.MushroomBlockMixin",
+    "hitbox.SkullBlockMixin",
+    "hitbox.SkullCollisionMixin"
   ],
 
   "injectors": {

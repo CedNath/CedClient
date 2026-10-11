@@ -7,11 +7,10 @@ import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.features.impl.misc.WarpShortcuts
-import ced.cedclient.features.impl.misc.ProfileViewer
 import ced.cedclient.ui.clickgui.ClickGUI
-import ced.cedclient.ui.pv.PvScreen
 import ced.cedclient.utils.Debug
 import ced.cedclient.features.impl.render.nametag.NametagFormatting
+import ced.cedclient.features.impl.funqol.PositionalMessages
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
@@ -28,9 +27,6 @@ object CedClientCommand {
     @Volatile
     private var pendingOpenHudEdit = false
 
-    @Volatile
-    private var pendingOpenPv = false
-
     fun register() {
         // One persistent listener, registered once — checks the flags every
         // tick and opens the relevant screen on the tick after the command
@@ -44,10 +40,6 @@ object CedClientCommand {
             if (pendingOpenHudEdit) {
                 pendingOpenHudEdit = false
                 client.gui.setScreen(MasterHudEditScreen())
-            }
-            if (pendingOpenPv) {
-                pendingOpenPv = false
-                client.gui.setScreen(PvScreen())
             }
         }
 
@@ -67,6 +59,7 @@ object CedClientCommand {
 
         return ClientCommands.literal(rootName)
             .executes(openGuiExecutes)   // bare /cedclient or /cc opens GUI
+            .then(PositionalMessages.commandTree())
 
             .then(
                 ClientCommands.literal("hud")
@@ -399,29 +392,6 @@ object CedClientCommand {
                             )
                     )
             )
-            .then(
-                // Kicks off the fetch chain (chat feedback + JsonObject caching, see
-                // ProfileViewer.fetch()) and opens PvScreen on the next tick -- the
-                // screen reads ProfileViewer's volatile fields live, so it's fine for
-                // it to already be open while the fetch is still in flight.
-                // Bare "pv" -> self, "pv <username>" -> that player.
-                ClientCommands.literal("pv")
-                    .executes { ctx ->
-                        ProfileViewer.fetch(null, ctx.source)
-                        pendingOpenPv = true
-                        1
-                    }
-                    .then(
-                        ClientCommands.argument("username", StringArgumentType.word())
-                            .executes { ctx ->
-                                val username = StringArgumentType.getString(ctx, "username")
-                                ProfileViewer.fetch(username, ctx.source)
-                                pendingOpenPv = true
-                                1
-                            }
-                    )
-            )
-
             .then(
                 // Management for WarpShortcuts (the "/dh" -> "/warp dh"
                 // module). The shortcuts themselves take effect the moment

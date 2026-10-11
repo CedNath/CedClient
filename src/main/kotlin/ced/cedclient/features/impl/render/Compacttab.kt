@@ -38,9 +38,9 @@ import kotlin.math.roundToInt
  */
 object CompactTab : Module(
     "Compact Tab",
-    Category.Render,
+    Category.HUD,
     "Reorganizes Hypixel's tab list into a compact panel with a stat bar",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
 
     private val opacity = registerSetting(NumberSetting("Panel Opacity", 65.0, 0.0, 100.0, 1.0))

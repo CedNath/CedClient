@@ -28,10 +28,16 @@ private enum class CoralotState { IDLE, CATCH_DELAY, CONFIRMING }
 object CoralotHelper : Module(
     "CoralotHelper(!!!)",
 
-    Category.Funqol,
+    Category.Skyblock,
    description = "Auto-catches Axolotls with a net once the warning icon clears"
 ) {
     private val mc = Minecraft.getInstance()
+
+    /** "The Sepialot didn't notice your presence thanks to your Stealth enchantment!" -- any creature name. */
+    private val STEALTH_MESSAGE = Regex("^The (.+?) didn't notice your presence thanks to your Stealth enchantment!$")
+    private const val STEALTH_RESOLVE_MS = 400L
+    /** When each received Stealth message should be resolved to a creature. */
+    private val stealthPending = ArrayDeque<Long>()
 
     // --- settings ---
     private val detectRange = NumberSetting("Detect Range (blocks)", 6.0, 1.0, 16.0, 0.5)
@@ -119,6 +125,18 @@ object CoralotHelper : Module(
 
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             if (!isEnabled) return@register
+
+            // Stealth enchant: the creature never shows its warning icon, so the icon-cleared trigger below never
+            // fires -- this message (any mob name) means it can be caught right away. Anchored to the start of
+            // the line so the same text pasted in party/guild chat doesn't trigger it.
+            val plain = message.string.replace(Regex("§."), "").trim()
+            STEALTH_MESSAGE.matchEntire(plain)?.let {
+                // Resolved a moment later (see tick): Stealth procs per creature, so the ones that DID notice you
+                // need a few ticks to get their warning icon -- only then can we tell which one is the stealthed one.
+                stealthPending.addLast(System.currentTimeMillis() + STEALTH_RESOLVE_MS)
+                return@register
+            }
+
             if (state != CoralotState.CONFIRMING) return@register
 
             val msg = message.string.lowercase()
@@ -133,6 +151,10 @@ object CoralotHelper : Module(
 
         updateHologramTracking(player)
         readyQueue.removeAll { !it.isAlive }
+        while (stealthPending.isNotEmpty() && System.currentTimeMillis() >= stealthPending.first()) {
+            stealthPending.removeFirst()
+            queueStealthTarget(player)
+        }
 
         if (state == CoralotState.CONFIRMING && System.currentTimeMillis() > confirmDeadline) {
             // never heard a confirmation message back — bail out safely rather than getting stuck
@@ -205,6 +227,24 @@ object CoralotHelper : Module(
                 }
             }
         }
+    }
+
+    /**
+     * Picks the creature the Stealth message was about: one in range that has NOT got a warning icon (the others
+     * noticed you, so they show one and are on cooldown), isn't already being caught, preferring the closest.
+     */
+    private fun queueStealthTarget(player: LocalPlayer) {
+        val level = mc.level ?: return
+        val busy = target != null || readyQueue.isNotEmpty()
+        if (busy && !catchMultipleTargets.value) return
+        val axo = level.entitiesForRendering()
+            .filterIsInstance<Axolotl>()
+            .filter {
+                it.isAlive && it !== target && it !in readyQueue && player.distanceTo(it) <= detectRange.value &&
+                        hologramTracked[it] != true && findHologramNear(it) == null
+            }
+            .minByOrNull { player.distanceTo(it) } ?: return
+        readyQueue.addLast(axo)
     }
 
     private fun findHologramNear(axo: Axolotl): ArmorStand? {

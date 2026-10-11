@@ -4,13 +4,14 @@ import ced.cedclient.commands.CedClientCommand
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.impl.funqol.CoralotHelper
+import ced.cedclient.features.impl.funqol.DungeonSplits
+import ced.cedclient.features.impl.funqol.PositionalMessages
+import ced.cedclient.features.impl.funqol.SecretHitboxes
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
-import ced.cedclient.features.impl.loot.LootSummaryCommand
-import ced.cedclient.features.impl.loot.LootTracker
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.AutoSprint
 import ced.cedclient.chat.PlayerChatManager
@@ -18,7 +19,6 @@ import ced.cedclient.features.impl.misc.ChatFilter
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.misc.HideRecipeBook
 import ced.cedclient.features.impl.misc.InventoryButtons
-import ced.cedclient.features.impl.misc.ProfileViewer
 import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.ScreenshotTweaks
 import ced.cedclient.features.impl.misc.WarpShortcuts
@@ -30,13 +30,17 @@ import ced.cedclient.features.impl.render.CompactScoreboard
 import ced.cedclient.features.impl.render.CompactTab
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
+import ced.cedclient.features.impl.render.EntityESPLabels
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
+import ced.cedclient.features.impl.render.CosmeticBlocks
 import ced.cedclient.features.impl.render.FloorDrops
 import ced.cedclient.features.impl.render.Fullbright
 import ced.cedclient.features.impl.render.HardcodedCosmetics
 import ced.cedclient.features.impl.render.ItemCooldowns
 import ced.cedclient.features.impl.render.TimeHud
+import ced.cedclient.features.impl.render.RenderOptimizer
+import ced.cedclient.features.impl.render.CleanView
 import ced.cedclient.features.impl.render.Zoom
 import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.render.nvg.NVGSpecialRenderer
@@ -62,8 +66,6 @@ import org.lwjgl.glfw.GLFW
 class CedClient : ClientModInitializer {
 
     private lateinit var openGuiKey: KeyMapping
-    private lateinit var freecamToggleKey: KeyMapping
-    private lateinit var zoomKey: KeyMapping
 
     private val cedclientCategory: KeyMapping.Category by lazy {
         KeyMapping.Category.register(Identifier.fromNamespaceAndPath("cedclient", "cedclient"))
@@ -79,7 +81,6 @@ class CedClient : ClientModInitializer {
         loadConfig()
 
         CedClientCommand.register()
-        LootSummaryCommand.register()
         TabListCache.register()
 
         // One small launch ping (username, UUID, mod + MC version) so the dev can see
@@ -90,14 +91,13 @@ class CedClient : ClientModInitializer {
 
     /**
      * State trackers that run regardless of any Module's enabled state --
-     * DungeonState needs to track floor/in-dungeon status, CosmeticsSync and
-     * LootTracker need to keep listening, and InventoryButtonManager needs
+     * DungeonState needs to track floor/in-dungeon status, CosmeticsSync needs
+     * to keep listening, and InventoryButtonManager needs
      * its buttons loaded, no matter what's toggled on in the ClickGUI.
      */
     private fun registerAlwaysOnState() {
         DungeonState.init()
         CosmeticsSync.init()
-        LootTracker.init()
         IslandState.init()
         PlayerChatManager.init()
         PartyApi.init()
@@ -120,36 +120,52 @@ class CedClient : ClientModInitializer {
         EntityESPHud.load()
         BlockESPRenderer.register()
 
-        ModuleManager.register(PangolinCatcher)
-        ModuleManager.register(LassoHelper)
-        ModuleManager.register(ChatChannelHud)
-        ModuleManager.register(CustomNametag)
-        ModuleManager.register(HardcodedCosmetics)
-        ModuleManager.register(ResetPanels)
-        ModuleManager.register(DailyReset)
-        ModuleManager.register(AdvancedMode)
-        ModuleManager.register(TimeHud)
-        ModuleManager.register(ChatFilter)
-        ModuleManager.register(Freecam)
-        ModuleManager.register(AutoSprint)
-        ModuleManager.register(CoralotHelper)
+        // Registration order = order inside each ClickGUI panel, so related modules sit together.
+
+        // Render: ESP / highlights, then world visuals, then camera
         ModuleManager.register(EntityESP)
-        ModuleManager.register(BlockESP)
         ModuleManager.register(StarredMobESP)
+        ModuleManager.register(BlockESP)
         ModuleManager.register(FloorDrops)
         ModuleManager.register(Fullbright)
-        ModuleManager.register(ScreenshotTweaks)
-        ModuleManager.register(HideRecipeBook)
-        ModuleManager.register(FishingHelper)
-        ModuleManager.register(InventoryButtons)
-        ModuleManager.register(ItemCooldowns)
-        ModuleManager.register(PlayerScale)
-        ModuleManager.register(WarpShortcuts)
+        ModuleManager.register(CleanView)
+        ModuleManager.register(RenderOptimizer)
+        ModuleManager.register(Freecam)
         ModuleManager.register(Zoom)
-        ModuleManager.register(CompactTab)
+
+        // HUD: vanilla UI tweaks, then info overlays
         ModuleManager.register(CompactScoreboard)
-        ModuleManager.register(ProfileViewer)
+        ModuleManager.register(CompactTab)
+        ModuleManager.register(ChatChannelHud)
+        ModuleManager.register(TimeHud)
+        ModuleManager.register(ItemCooldowns)
+        ModuleManager.register(DailyReset)
+
+        // Cosmetic: world, then player
+        ModuleManager.register(CosmeticBlocks)
+        ModuleManager.register(CustomNametag)
+        ModuleManager.register(HardcodedCosmetics)
+        ModuleManager.register(PlayerScale)
+
+        // Skyblock: dungeons, Galatea hunting, fishing, Rift
+        ModuleManager.register(DungeonSplits)
+        ModuleManager.register(PositionalMessages)
+        ModuleManager.register(SecretHitboxes)
+        ModuleManager.register(LassoHelper)
+        ModuleManager.register(PangolinCatcher)
+        ModuleManager.register(CoralotHelper)
+        ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)
+
+        // Misc: movement / navigation, inventory, chat, screenshots, then client settings
+        ModuleManager.register(AutoSprint)
+        ModuleManager.register(WarpShortcuts)
+        ModuleManager.register(InventoryButtons)
+        ModuleManager.register(HideRecipeBook)
+        ModuleManager.register(ChatFilter)
+        ModuleManager.register(ScreenshotTweaks)
+        ModuleManager.register(AdvancedMode)
+        ModuleManager.register(ResetPanels)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {
@@ -160,6 +176,22 @@ class CedClient : ClientModInitializer {
     }
 
     private fun registerHudElements() {
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")
+        ) { graphics, tickCounter ->
+            DungeonSplits.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "positional_messages")
+        ) { graphics, tickCounter ->
+            PositionalMessages.render(graphics, tickCounter)
+        }
+        // First, so HUD panels draw over the floating entity labels.
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "entity_esp_labels")
+        ) { graphics, tickCounter ->
+            EntityESPLabels.render(graphics, tickCounter)
+        }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "entity_esp_hud")
         ) { graphics, tickCounter ->
@@ -191,29 +223,27 @@ class CedClient : ClientModInitializer {
         openGuiKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping("CedClient Gui", GLFW.GLFW_KEY_P, cedclientCategory)
         )
-        freecamToggleKey = KeyMappingHelper.registerKeyMapping(
-            KeyMapping("key.cedclient.freecam_toggle", GLFW.GLFW_KEY_B, cedclientCategory)
-        )
-        zoomKey = KeyMappingHelper.registerKeyMapping(
-            KeyMapping("key.cedclient.zoom", GLFW.GLFW_KEY_C, cedclientCategory)
-        )
-
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (openGuiKey.consumeClick()) {
                 client.gui.setScreen(ClickGUI())
             }
-            if (freecamToggleKey.consumeClick()) {
-                Freecam.toggleFreecam()
-            }
 
-            // Zoom is a hold key, not a toggle -- use isDown (the raw
-            // "currently pressed" state) every tick rather than
-            // consumeClick() (which only fires once per press and would
-            // make Zoom.setHeld() see a single true tick instead of a
-            // sustained hold).
-            Zoom.setHeld(zoomKey.isDown)
+            // Freecam / Zoom keys are KeybindSettings on their modules (rebindable in the ClickGUI), polled here.
+            // Only while no screen is open, so typing in chat doesn't trigger them.
+            val window = GLFW.glfwGetCurrentContext()
+            fun down(code: Int) = code > 0 && window != 0L && client.gui.screen() == null &&
+                    GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
+
+            val freecamDown = down(Freecam.toggleKey.value)
+            if (freecamDown && !freecamKeyWasDown) Freecam.toggleFreecam()
+            freecamKeyWasDown = freecamDown
+
+            // Zoom is a hold key, not a toggle -- pass the held state every tick.
+            Zoom.setHeld(down(Zoom.zoomKey.value))
         }
     }
+
+    private var freecamKeyWasDown = false
 
     private fun loadConfig() {
         // Load module config safely. If something inside loadModulesOnly throws (NPE etc.),

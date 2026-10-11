@@ -10,8 +10,15 @@ object TpsTracker {
     private var tickIdx = 0
     private var lastTickMs = -1L
 
+    /** Server ticks seen since launch (one per server ping packet); never reset, so differences time things in ticks. */
+    @Volatile
+    @JvmStatic
+    var serverTicks = 0L
+        private set
+
     @JvmStatic
     fun recordTick() {
+        serverTicks++
         val now = System.currentTimeMillis()
         if (lastTickMs > 0) {
             TICK_TIMES[tickIdx % TICK_TIMES.size] = now - lastTickMs

@@ -24,7 +24,7 @@ object ConfigManager {
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
     private val configDir: File
-        get() = File(Minecraft.getInstance().gameDirectory, "cedclient")
+        get() = CedPaths.dir
 
     private val configFile: File
         get() = File(configDir, "config.json")
@@ -40,11 +40,15 @@ object ConfigManager {
     // 30px gutter between panels: 15, 15+320+30=365, 365+320+30=715,
     // 715+320+30=1065.
     private val defaultPanelPositions: Map<String, Pair<Float, Float>> = mapOf(
-        "Render" to (365f to 15f),
-        "Funqol" to (15f to 15f),
-        "Misc" to (715f to 15f),
-        "CedClient" to (1065f to 15f)
+        "Render" to (15f to 15f),
+        "HUD" to (365f to 15f),
+        "Cosmetic" to (715f to 15f),
+        "Skyblock" to (1065f to 15f),
+        "Misc" to (1415f to 15f),
     )
+
+    /** Panels that existed before the category reshuffle; a saved layout containing them is reset once. */
+    private val legacyPanels = setOf("Funqol", "CedClient")
 
     private fun readRoot(): JsonObject? {
         if (!configFile.exists()) return null
@@ -164,7 +168,12 @@ object ConfigManager {
         writeRoot(root)
     }
 
-    fun load(panels: List<PanelSetting>) {
+    /**
+     * Panel layout only, for the ClickGUI as it opens. Module settings are NOT re-read here: they are loaded once at
+     * startup (loadModulesOnly) and saved on every change, so the in-memory state is already current -- re-applying
+     * them on every GUI open was a wasted disk read plus a re-apply of every setting, a hitch on the opening frame.
+     */
+    fun loadPanels(panels: List<PanelSetting>) {
         try {
             val root = readRoot()
 
@@ -172,7 +181,10 @@ object ConfigManager {
             // LOAD PANEL POSITIONS (with defaults) -- runs even if config.json
             // doesn't exist yet, so first launch still gets the right layout
             // -------------------------
+            // Old layout (pre HUD/Cosmetic/Skyblock split): its Render/Misc positions would overlap the new
+            // panels, so start from the defaults instead.
             val panelsJson = root?.get("panels")?.asJsonObject
+                ?.takeUnless { saved -> saved.keySet().any { it in legacyPanels } }
             for (panel in panels) {
                 val entry = panelsJson?.get(panel.category.name)?.asJsonObject
                 val x = entry?.get("x")?.asFloat
@@ -185,24 +197,10 @@ object ConfigManager {
                     applyDefaultPosition(panel)
                 }
             }
-
-            if (root == null) return
-
-            // -------------------------
-            // LOAD MODULES + SETTINGS
-            // -------------------------
-            val modulesJson = root.get("modules")?.asJsonObject ?: return
-
-            suppressAutoSave = true
-            try {
-                applyModulesJson(modulesJson)
-            } finally {
-                suppressAutoSave = false
-            }
         } catch (t: Throwable) {
             // Catch any unexpected parsing/runtime errors and log them instead of crashing
             t.printStackTrace()
-            println("Warning: ConfigManager.load encountered an error; continuing with defaults where possible.")
+            println("Warning: ConfigManager.loadPanels encountered an error; using default panel positions.")
         }
     }
 }

@@ -2,7 +2,9 @@ package ced.cedclient.features.impl.render
 
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.features.settings.NumberSetting
+import org.lwjgl.glfw.GLFW
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
@@ -30,6 +32,9 @@ object Freecam : Module(
 
     private val mc = Minecraft.getInstance()
 
+    /** Engages / disengages the detached camera while the module is on (polled in CedClient). */
+    val toggleKey = KeybindSetting("Toggle Key", GLFW.GLFW_KEY_B, "Press to start / stop freecam (module must be on).")
+
     private val flySpeed = NumberSetting("Fly Speed", 1.0, 0.5, 5.0, 0.5)
     private val sprintMultiplier = NumberSetting("Sprint Multiplier", 2.0, 1.0, 10.0, 0.5)
 
@@ -50,7 +55,7 @@ object Freecam : Module(
     var lastPitch = 0f
 
     init {
-        addSettings(flySpeed, sprintMultiplier, freecamMouseSensitivity)
+        addSettings(toggleKey, flySpeed, sprintMultiplier, freecamMouseSensitivity)
 
         // Main tick handler for freecam movement and safety checks
         ClientTickEvents.END_CLIENT_TICK.register {

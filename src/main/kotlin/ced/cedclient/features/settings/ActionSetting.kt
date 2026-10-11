@@ -29,6 +29,9 @@ class ActionSetting(
         return height
     }
 
+    /** Runs the action directly (e.g. from a popup's button bar). */
+    fun press() = action()
+
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (!isHovered) return false
         action()

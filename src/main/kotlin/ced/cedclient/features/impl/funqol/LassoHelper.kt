@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 object LassoHelper : Module(
     "LassoHelper",
-    Category.Funqol,
+    Category.Skyblock,
     "Auto-reels lassoed mobs when the REEL prompt appears"
 ) {
     private val mc: Minecraft = Minecraft.getInstance()

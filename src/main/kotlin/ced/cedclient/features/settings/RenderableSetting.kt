@@ -37,6 +37,12 @@ abstract class RenderableSetting<T>(
     var advanced: Boolean = false
 
     /**
+     * Shown in a module's settings popup (see ced.cedclient.ui.clickgui.SettingsPopup) instead of under the module
+     * in its panel. Still saved like any other setting.
+     */
+    var inPopup: Boolean = false
+
+    /**
      * On top of Setting's own hidden/visibilityDependency gate, an advanced
      * setting also requires AdvancedMode to be enabled. Non-advanced
      * settings are unaffected either way.

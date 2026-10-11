@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -50,7 +51,7 @@ private data class TimeHudPosition(val x: Int, val y: Int, val scale: Float = 1.
  */
 object TimeHud : Module(
     "Time HUD",
-    Category.Render,
+    Category.HUD,
     "Shows your real-world clock time on screen"
 ), HudElement {
 
@@ -99,7 +100,7 @@ object TimeHud : Module(
 
     private val gson = Gson()
     private val saveFile: File by lazy {
-        File(Minecraft.getInstance().gameDirectory, "cedclient/time_hud.json")
+        CedPaths.file("time_hud.json")
     }
 
     // mirrors EntityESPHud's ensureLoaded() pattern: load once, lazily, the
