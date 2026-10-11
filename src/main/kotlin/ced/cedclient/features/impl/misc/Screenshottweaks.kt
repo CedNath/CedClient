@@ -71,8 +71,7 @@ object ScreenshotTweaks : Module(
      */
     fun handleChatMessage(message: Component): Boolean {
         if (!isEnabled) return false
-        val contents = message.contents as? TranslatableContents ?: return false
-        if (contents.key != SUCCESS_KEY) return false
+        if (!containsKey(message, SUCCESS_KEY)) return false
 
         val now = System.currentTimeMillis()
         if (copyToClipboard.value && now - lastHandledAt > 1000L) {
@@ -80,6 +79,20 @@ object ScreenshotTweaks : Module(
             copyNewestScreenshot()
         }
         return hideMessage.value
+    }
+
+    /**
+     * Whether [key] is anywhere in the component tree, not just at the root: chat mods (Chat Patches'
+     * timestamps etc.) wrap the line in a literal parent before it reaches addMessage.
+     */
+    private fun containsKey(component: Component, key: String, depth: Int = 0): Boolean {
+        if (depth > 8) return false
+        val contents = component.contents
+        if (contents is TranslatableContents) {
+            if (contents.key == key) return true
+            if (contents.args.any { it is Component && containsKey(it, key, depth + 1) }) return true
+        }
+        return component.siblings.any { containsKey(it, key, depth + 1) }
     }
 
     private fun copyNewestScreenshot() {

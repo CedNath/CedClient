@@ -1,8 +1,10 @@
 package ced.cedclient.mixin.cosmetic;
 
+import ced.cedclient.features.impl.funqol.SecretHitboxes;
 import ced.cedclient.render.cosmetic.CosmeticHooks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CrossCollisionBlock;
 import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,7 +38,8 @@ public class SodiumLevelSliceMixin {
             at = @At("RETURN"), cancellable = true, require = 0, remap = false)
     private void cedclient$cosmeticBlocks(int x, int y, int z, CallbackInfoReturnable<BlockState> cir) {
         try {
-            if (CosmeticHooks.anyActive()) cedclient$swap(x, y, z, cir);
+            if (SecretHitboxes.isHidden(x, y, z)) cir.setReturnValue(Blocks.AIR.defaultBlockState());
+            else if (CosmeticHooks.anyActive()) cedclient$swap(x, y, z, cir);
         } finally {
             cedclient$handled.set(true);
         }
@@ -49,7 +52,8 @@ public class SodiumLevelSliceMixin {
             cedclient$handled.set(false);
             return;
         }
-        if (CosmeticHooks.anyActive()) cedclient$swap(pos.getX(), pos.getY(), pos.getZ(), cir);
+        if (SecretHitboxes.isHidden(pos.getX(), pos.getY(), pos.getZ())) cir.setReturnValue(Blocks.AIR.defaultBlockState());
+        else if (CosmeticHooks.anyActive()) cedclient$swap(pos.getX(), pos.getY(), pos.getZ(), cir);
     }
 
     /** Mirrors RenderSectionRegionMixin: replacement / remap (+ Keep Block Size + connections), neighbour connections, Lava as Water. */

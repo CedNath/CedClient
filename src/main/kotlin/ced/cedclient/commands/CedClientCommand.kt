@@ -10,6 +10,7 @@ import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
 import ced.cedclient.features.impl.render.nametag.NametagFormatting
+import ced.cedclient.features.impl.funqol.PositionalMessages
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
@@ -58,6 +59,7 @@ object CedClientCommand {
 
         return ClientCommands.literal(rootName)
             .executes(openGuiExecutes)   // bare /cedclient or /cc opens GUI
+            .then(PositionalMessages.commandTree())
 
             .then(
                 ClientCommands.literal("hud")

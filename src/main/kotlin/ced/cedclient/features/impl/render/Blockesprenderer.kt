@@ -104,7 +104,7 @@ object BlockESPRenderer {
     }
 
     /** Same manual AABB-edge-drawing approach as EntityESPRenderer.drawLineBox. */
-    private fun drawLineBox(
+    fun drawLineBox(
         poseStack: PoseStack,
         buffer: VertexConsumer,
         box: AABB,

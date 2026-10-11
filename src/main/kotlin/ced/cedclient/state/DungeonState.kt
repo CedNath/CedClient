@@ -463,6 +463,10 @@ object DungeonState {
      * 1.21.11. If this doesn't compile as-is, Navigate > Declaration on
      * Scoreboard from here and adjust the method names below.
      */
+    /** "F7" / "M7" from the sidebar's " ⏣ The Catacombs (F7)" line, or null. Works without Mort (copied maps). */
+    fun sidebarFloor(): String? =
+        readSidebarLines().firstNotNullOfOrNull { catacombsLineRegex.find(it) }?.groups?.get("floor")?.value
+
     private fun readSidebarLines(): List<String> {
         val scoreboard = mc.level?.scoreboard ?: return emptyList()
         val objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return emptyList()

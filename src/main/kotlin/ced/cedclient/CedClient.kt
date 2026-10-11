@@ -5,6 +5,8 @@ import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.DungeonSplits
+import ced.cedclient.features.impl.funqol.PositionalMessages
+import ced.cedclient.features.impl.funqol.SecretHitboxes
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
@@ -147,6 +149,8 @@ class CedClient : ClientModInitializer {
 
         // Skyblock: dungeons, Galatea hunting, fishing, Rift
         ModuleManager.register(DungeonSplits)
+        ModuleManager.register(PositionalMessages)
+        ModuleManager.register(SecretHitboxes)
         ModuleManager.register(LassoHelper)
         ModuleManager.register(PangolinCatcher)
         ModuleManager.register(CoralotHelper)
@@ -177,6 +181,11 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")
         ) { graphics, tickCounter ->
             DungeonSplits.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "positional_messages")
+        ) { graphics, tickCounter ->
+            PositionalMessages.render(graphics, tickCounter)
         }
         // First, so HUD panels draw over the floating entity labels.
         HudElementRegistry.addLast(

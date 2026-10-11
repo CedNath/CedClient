@@ -62,7 +62,12 @@
   "client": [
     "client.MinecraftMixin",
     "client.WindowBorderlessMixin",
-    "accessor.MinecraftAccessor"
+    "accessor.MinecraftAccessor",
+    "hitbox.LeverBlockMixin",
+    "hitbox.ButtonBlockMixin",
+    "hitbox.MushroomBlockMixin",
+    "hitbox.SkullBlockMixin",
+    "hitbox.SkullCollisionMixin"
   ],
 
   "injectors": {
