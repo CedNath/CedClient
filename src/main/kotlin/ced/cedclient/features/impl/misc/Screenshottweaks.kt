@@ -53,6 +53,10 @@ object ScreenshotTweaks : Module(
     // addMessage more than once).
     private var lastHandledAt = 0L
 
+    /** The last screenshot copied, and how old (ms) the newest file may be to still count as just taken. */
+    @Volatile private var lastCopiedPath: String? = null
+    private const val FRESH_MS = 10_000L
+
     private val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
     private val isMac = System.getProperty("os.name").orEmpty().contains("Mac", ignoreCase = true)
 
@@ -103,6 +107,10 @@ object ScreenshotTweaks : Module(
                 val file = dir.listFiles { f -> f.isFile && f.name.endsWith(".png", ignoreCase = true) }
                     ?.maxByOrNull { it.lastModified() }
                     ?: return@Thread
+                // Chat Patches replays saved chat history (old "Saved screenshot" lines included) through addMessage
+                // on join: only a screenshot that was just written, and not already copied, is a real new one.
+                if (System.currentTimeMillis() - file.lastModified() > FRESH_MS || file.path == lastCopiedPath) return@Thread
+                lastCopiedPath = file.path
 
                 if (GraphicsEnvironment.isHeadless()) {
                     // AWT got initialized headless before our init could clear the flag.
