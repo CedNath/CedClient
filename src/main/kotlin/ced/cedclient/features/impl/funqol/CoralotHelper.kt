@@ -217,12 +217,12 @@ object CoralotHelper : Module(
     private fun pollCatchKey() {
         val code = catchKey.value
         val window = GLFW.glfwGetCurrentContext()
-        val down = requireKeybind.value && code > 0 && window != 0L && mc.screen == null &&
+        val down = requireKeybind.value && code > 0 && window != 0L && mc.gui.screen() == null &&
                 GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
         if (down && !keyWas) {
             armed = !armed
             if (!armed && state == CoralotState.CATCH_DELAY) reset()
-            mc.gui.setOverlayMessage(Component.literal(if (armed) "§aCoralot catching ON" else "§cCoralot catching OFF"), false)
+            mc.gui.hud.setOverlayMessage(Component.literal(if (armed) "§aCoralot catching ON" else "§cCoralot catching OFF"), false)
         }
         keyWas = down
     }
