@@ -9,6 +9,7 @@ import ced.cedclient.events.TitleEvent;
 import ced.cedclient.features.impl.misc.ChatFilter;
 import ced.cedclient.state.IslandState;
 import com.llamalad7.mixinextras.sugar.Local;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
@@ -20,6 +21,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -75,6 +77,7 @@ public class ClientPacketListenerMixin {
     // ============================================================
     @Inject(method = "handleSystemChat", at = @At("HEAD"), cancellable = true)
     private void cedclient$onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        if (cedclient$offThread()) return;
         ChatHide.pending = false;
         Component content = packet.content();
         if (content == null) return;
@@ -139,6 +142,7 @@ public class ClientPacketListenerMixin {
     // and use whatever it actually exposes.
     @Inject(method = "handleSoundEvent", at = @At("HEAD"))
     private void cedclient$onHandleSoundEvent(ClientboundSoundPacket packet, CallbackInfo ci) {
+        if (cedclient$offThread()) return;
         String soundName = packet.getSound().value().location().toString();
         new PlaySoundEvent(soundName, packet.getPitch(), packet.getVolume()).post();
     }
@@ -151,6 +155,7 @@ public class ClientPacketListenerMixin {
     // Navigate > Declaration on the packet / ClientPacketListener in IntelliJ.
     @Inject(method = "setSubtitleText", at = @At("HEAD"))
     private void cedclient$onSetSubtitleText(ClientboundSetSubtitleTextPacket packet, CallbackInfo ci) {
+        if (cedclient$offThread()) return;
         new SubtitleEvent(packet.text().getString()).post();
     }
 
@@ -159,6 +164,18 @@ public class ClientPacketListenerMixin {
     // ============================================================
     @Inject(method = "setTitleText", at = @At("HEAD"))
     private void cedclient$onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
+        if (cedclient$offThread()) return;
         new TitleEvent(packet.text().getString()).post();
+    }
+
+    /**
+     * The HEAD hooks above run twice per packet: vanilla first calls the handler on the netty thread,
+     * where ensureRunningOnSameThread re-queues it and bails, then again on the main thread. Only the
+     * main-thread pass posts events (and hides / cancels), so every listener sees each packet once and
+     * nothing touches game state off-thread. Cancelling only on the main pass still hides the line.
+     */
+    @Unique
+    private static boolean cedclient$offThread() {
+        return !Minecraft.getInstance().isSameThread();
     }
 }
