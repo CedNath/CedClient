@@ -3,7 +3,7 @@
   "correct": { "sounds": ["cedclient:correct"] },
   "wrong": { "sounds": ["cedclient:wrong"] },
   "spiderman": { "sounds": ["cedclient:spiderman"] },
-  "fah": { "sounds": ["cedclient:fah"] },
+  "fah": { "sounds": [{ "name": "cedclient:fah", "volume": 0.35 }] },
   "sus": { "sounds": ["cedclient:sus"] },
   "dictator": { "sounds": ["cedclient:dictator"] },
   "anime_wow": { "sounds": ["cedclient:anime_wow"] }
