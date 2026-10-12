@@ -245,18 +245,23 @@ class CedClient : ClientModInitializer {
 
     /** One chat line the first time a world / server is joined after launch. */
     private fun registerWelcome() {
+        val welcomeDelayTicks = 100 // 5 s
         var welcomed = false
-        ClientPlayConnectionEvents.JOIN.register { _, _, client ->
-            if (welcomed) return@register
+        var ticksLeft = -1
+        ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
+            if (!welcomed) ticksLeft = welcomeDelayTicks
+        }
+        // Delayed: Hypixel moves you into a lobby a few seconds after connecting, and chat sent before that is lost.
+        ClientTickEvents.END_CLIENT_TICK.register { client ->
+            if (ticksLeft < 0 || --ticksLeft > 0) return@register
+            val player = client.player ?: return@register
+            ticksLeft = -1
             welcomed = true
             val version = FabricLoader.getInstance().getModContainer("cedclient")
                 .map { it.metadata.version.friendlyString.substringBefore("-") }.orElse("")
-            // Next tick, so the player exists and the line lands after the join messages.
-            client.execute {
-                client.player?.sendSystemMessage(ChatPrefix.msg(
-                    "§fWelcome to §lCedClient§f $version! Press §e${openGuiKey.translatedKeyMessage.string}§f or type §e/cc§f to open the menu."
-                ))
-            }
+            player.sendSystemMessage(ChatPrefix.msg(
+                "§fWelcome to §lCedClient§f $version! Press §e${openGuiKey.translatedKeyMessage.string}§f or type §e/cc§f to open the menu."
+            ))
         }
     }
 
