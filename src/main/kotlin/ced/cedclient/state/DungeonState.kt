@@ -46,7 +46,8 @@ object DungeonState {
     // Catacombs, Floor VII!". Captures whatever's between "Floor " and "!"
     // so parseFloorLabel() can handle both roman-numeral normal floors and
     // (once confirmed) whatever Master Mode's format turns out to be.
-    private val floorAnnounceRegex = Regex("""entered The Catacombs, Floor (?<label>[^!]+)!""")
+    // Master Mode (live log): "<player> entered MM The Catacombs, Floor I!".
+    private val floorAnnounceRegex = Regex("""entered (?<mm>MM )?The Catacombs, Floor (?<label>[^!]+)!""")
 
     // Fallback only -- NOT verified against a live server. See
     // readSidebarLines() below; only used if the chat announcement above is
@@ -246,6 +247,7 @@ object DungeonState {
             if (floorMatch != null) {
                 val label = floorMatch.groups["label"]!!.value
                 val parsed = parseFloorLabel(label)
+                    ?.let { if (floorMatch.groups["mm"] != null) "M" + it.drop(1) else it }
                 if (parsed != null) {
                     announcedFloor = parsed
                     announcedAt = System.currentTimeMillis()
@@ -491,7 +493,8 @@ object DungeonState {
                 val team = scoreboard.getPlayersTeam(entry.owner())
                 val prefix = team?.playerPrefix?.string ?: ""
                 val suffix = team?.playerSuffix?.string ?: ""
-                (prefix + suffix).ifBlank { null }
+                // Hypixel slips emoji (surrogate pairs) into sidebar lines, which would break the regexes.
+                (prefix + suffix).filterNot { it.isSurrogate() }.ifBlank { null }
             }
 
         if (Debug.enabled) Debug.log("[DungeonState] sidebar: $lines", interval = 20)
