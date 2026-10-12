@@ -83,7 +83,7 @@ object Theme : Module(
             if (!module.isAction) module.setEnabled(module.defaultEnabled)
         }
         HudElement.all.forEach { it.resetPosition(); it.save() }
-        (Minecraft.getInstance().screen as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
         ConfigManager.saveModulesOnly()
         Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§b[CC] §fEverything reset to defaults"))
     }
