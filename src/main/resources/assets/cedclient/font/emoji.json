@@ -209,6 +209,8 @@
     { "type": "bitmap", "file": "cedclient:emoji/1f9c2.png", "height": 8, "ascent": 7, "chars": ["\uE0CE"] },
     { "type": "bitmap", "file": "cedclient:emoji/fah.png", "height": 8, "ascent": 7, "chars": ["\uE0CF"] },
     { "type": "bitmap", "file": "cedclient:emoji/sus.png", "height": 8, "ascent": 7, "chars": ["\uE0D0"] },
-    { "type": "bitmap", "file": "cedclient:emoji/dictator.png", "height": 8, "ascent": 7, "chars": ["\uE0D1"] }
+    { "type": "bitmap", "file": "cedclient:emoji/dictator.png", "height": 8, "ascent": 7, "chars": ["\uE0D1"] },
+    { "type": "bitmap", "file": "cedclient:emoji/bucket.png", "height": 8, "ascent": 7, "chars": ["\uE0D2"] },
+    { "type": "bitmap", "file": "cedclient:emoji/bucket_anim.png", "height": 8, "ascent": 7, "chars": ["\uF000\uF001\uF002\uF003\uF004\uF005\uF006\uF007\uF008\uF009"] }
   ]
 }
