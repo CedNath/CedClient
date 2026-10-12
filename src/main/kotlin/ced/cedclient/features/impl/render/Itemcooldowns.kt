@@ -199,7 +199,7 @@ object ItemCooldowns : Module(
     )
     private val cooldownColor = ColorSetting(
         "Cooldown Color",
-        Color(110, 50, 200), // same purple as ClickGUI.clickGUIColor, just a separate customizable copy now
+        Color(255, 85, 85),
         "Color of the countdown number shown on ability items that are on cooldown."
     )
     private val logUnmatched = BooleanSetting(

@@ -30,8 +30,8 @@ object Fullbright : Module(
     "Adjustable fullbright with a brightness slider, minimum light level and smooth fade",
     defaultEnabled = true
 ) {
-    private val brightness = NumberSetting("Brightness %", 40.0, 0.0, 100.0, 5.0)
-    private val minLight = NumberSetting("Minimum Light Level", 5.0, 0.0, 15.0, 1.0)
+    private val brightness = NumberSetting("Brightness %", 100.0, 0.0, 100.0, 5.0)
+    private val minLight = NumberSetting("Minimum Light Level", 15.0, 0.0, 15.0, 1.0)
     private val fadeSeconds = NumberSetting("Fade Time (s)", 1.0, 0.0, 5.0, 0.25)
 
     /** Set by OptionsMixin while options.txt is being saved, so the boosted value never gets written. */

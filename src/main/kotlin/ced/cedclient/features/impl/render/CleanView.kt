@@ -28,7 +28,7 @@ object CleanView : Module(
     private val particles = BooleanSetting("Particles", true, "Hide particles close to your face.")
     private val projectiles = BooleanSetting("Projectiles", true, "Hide arrows, fireballs, snowballs etc. close to your face.")
     private val players = BooleanSetting("Players", false, "Hide other players standing in your face.")
-    private val armorStands = BooleanSetting("Armor Stands", true, "Hide armor stands / holograms close to your face.")
+    private val armorStands = BooleanSetting("Armor Stands", false, "Hide armor stands / holograms close to your face.")
     private val items = BooleanSetting("Dropped Items", false, "Hide dropped items close to your face.")
     private val otherEntities = BooleanSetting("Other Entities", false, "Hide mobs and anything else close to your face.")
 
