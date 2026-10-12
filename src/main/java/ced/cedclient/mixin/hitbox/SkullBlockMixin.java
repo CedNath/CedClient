@@ -21,7 +21,7 @@ public class SkullBlockMixin {
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void cedclient$secretHitbox(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context,
                                         CallbackInfoReturnable<VoxelShape> cir) {
-        if (SecretHitboxes.SKULL_COLLISION.get()) return;
+        if (SecretHitboxes.SKULL_COLLISION.get() || !SecretHitboxes.isEntityQuery(context)) return;
         VoxelShape shape = SecretHitboxes.skullShape(state);
         if (shape != null) cir.setReturnValue(shape);
     }

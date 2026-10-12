@@ -18,6 +18,7 @@ public class LeverBlockMixin {
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void cedclient$secretHitbox(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context,
                                         CallbackInfoReturnable<VoxelShape> cir) {
+        if (!SecretHitboxes.isEntityQuery(context)) return;
         VoxelShape shape = SecretHitboxes.leverShape(state, pos);
         if (shape != null) cir.setReturnValue(shape);
     }
