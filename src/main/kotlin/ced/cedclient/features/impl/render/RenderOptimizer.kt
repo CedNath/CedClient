@@ -52,7 +52,7 @@ object RenderOptimizer : Module(
     private val noPortal = BooleanSetting("No Portal Overlay", false, "Purple swirl while standing in a Nether portal.")
     private val noNausea = BooleanSetting("No Nausea Overlay", false, "Wobble overlay from nausea.")
     private val noWeather = BooleanSetting("No Weather", true, "Hide rain and snow (and their splash particles / sounds).")
-    private val noBlockBreaking = BooleanSetting("No Block Breaking Particles", false, "Hide the particles from breaking and mining blocks, cosmetic blocks included.")
+    private val noBlockBreaking = BooleanSetting("No Block Breaking Particles", true, "Hide the particles from breaking and mining blocks, cosmetic blocks included.")
     private val noExplosions = BooleanSetting("No Explosion Particles", true, "Hide explosion particles, like your Hyperion's Wither Impact.")
 
     private val fogSettings = listOf(
