@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
@@ -600,7 +601,7 @@ object DungeonSplits : Module(
     }
 
     private fun say(text: String) {
-        mc.player?.sendSystemMessage(Component.literal("§b[CC] $text"))
+        mc.player?.sendSystemMessage(ChatPrefix.msg("$text"))
     }
 
     private fun load() {

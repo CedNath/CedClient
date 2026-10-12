@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -66,7 +67,7 @@ object Theme : Module(
     ) {
         if (System.currentTimeMillis() - resetArmedAt > 3000L) {
             resetArmedAt = System.currentTimeMillis()
-            Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§b[CC] §cClick Reset Everything again to reset all of CedClient"))
+            Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§cClick Reset Everything again to reset all of CedClient"))
             return@ActionSetting
         }
         resetArmedAt = 0L
@@ -85,7 +86,7 @@ object Theme : Module(
         HudElement.all.forEach { it.resetPosition(); it.save() }
         (Minecraft.getInstance().gui.screen() as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
         ConfigManager.saveModulesOnly()
-        Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§b[CC] §fEverything reset to defaults"))
+        Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§fEverything reset to defaults"))
     }
 
     /** HUD accent as ARGB. */

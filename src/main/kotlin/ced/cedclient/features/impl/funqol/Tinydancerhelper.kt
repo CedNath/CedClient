@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.events.PlaySoundEvent
 import ced.cedclient.events.SubtitleEvent
 import ced.cedclient.events.core.TickEvent
@@ -438,7 +439,7 @@ object TinyDancerHelper : Module(
         // Local-only chat line (never sent to the server), same approach as DailyReset.
         // Always hop to the main thread: touching chat/GUI from any other thread crashes the connection.
         mc.execute {
-            mc.gui?.hud?.chat?.addClientSystemMessage(Component.literal("§b§l[CC] TinyDancer §7» $message"))
+            mc.gui?.hud?.chat?.addClientSystemMessage(ChatPrefix.msg("TinyDancer §7» $message"))
         }
     }
 }

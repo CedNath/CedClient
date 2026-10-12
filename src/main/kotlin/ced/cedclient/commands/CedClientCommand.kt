@@ -1,5 +1,6 @@
 package ced.cedclient.commands
 
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
 import ced.cedclient.features.impl.misc.DailyReset
@@ -61,7 +62,7 @@ object CedClientCommand {
         ClientCommands.literal("emotevolume")
             .executes { ctx ->
                 val pct = (HardcodedCosmetics.emoteVolume.value * 100).roundToInt()
-                ctx.source.sendFeedback(Component.literal("§b[CC] §fEmote sound volume: §e$pct% §7(ignores the Master slider)"))
+                ctx.source.sendFeedback(ChatPrefix.msg("§fEmote sound volume: §e$pct% §7(ignores the Master slider)"))
                 ctx.source.sendFeedback(Component.literal("§7Emotes with sounds: " + ChatEmotes.soundEmotes.joinToString(" ") { ":$it:" }))
                 ctx.source.sendFeedback(Component.literal("§7Set with /emotevolume <0-100>"))
                 1
@@ -72,7 +73,7 @@ object CedClientCommand {
                         val pct = IntegerArgumentType.getInteger(ctx, "percent")
                         HardcodedCosmetics.emoteVolume.value = pct / 100.0
                         ConfigManager.saveModulesOnly()
-                        ctx.source.sendFeedback(Component.literal("§b[CC] §fEmote sound volume set to §e$pct%"))
+                        ctx.source.sendFeedback(ChatPrefix.msg("§fEmote sound volume set to §e$pct%"))
                         1
                     }
             )
@@ -294,7 +295,7 @@ object CedClientCommand {
                 ClientCommands.literal("daily")
                     .executes { ctx ->
                         val remaining = DailyReset.remaining()
-                        ctx.source.sendFeedback(Component.literal("[CC] Daily tasks remaining:"))
+                        ctx.source.sendFeedback(ChatPrefix.msg("Daily tasks remaining:"))
                         if (remaining.isEmpty()) {
                             ctx.source.sendFeedback(Component.literal("  All done for today!"))
                         } else {
@@ -307,7 +308,7 @@ object CedClientCommand {
                     .then(
                         ClientCommands.literal("list")
                             .executes { ctx ->
-                                ctx.source.sendFeedback(Component.literal("[CC] Daily tasks:"))
+                                ctx.source.sendFeedback(ChatPrefix.msg("Daily tasks:"))
                                 for ((name, completed) in DailyReset.allTasks()) {
                                     val mark = if (completed) "\u00a7a[done]" else "\u00a77[ ]"
                                     ctx.source.sendFeedback(Component.literal("  $mark \u00a7f$name"))
@@ -322,7 +323,7 @@ object CedClientCommand {
                         // which ones still need a Regex added.
                         ClientCommands.literal("entries")
                             .executes { ctx ->
-                                ctx.source.sendFeedback(Component.literal("[CC] Auto-tracked dailies:"))
+                                ctx.source.sendFeedback(ChatPrefix.msg("Auto-tracked dailies:"))
                                 for ((name, cooldown, completed) in DailyReset.autoEntries()) {
                                     val mark = if (completed) "\u00a7a[done]" else "\u00a77[ ]"
                                     ctx.source.sendFeedback(Component.literal("  $mark \u00a7f$name \u00a78($cooldown)"))
@@ -337,9 +338,9 @@ object CedClientCommand {
                                     .executes { ctx ->
                                         val name = StringArgumentType.getString(ctx, "name")
                                         if (DailyReset.add(name)) {
-                                            ctx.source.sendFeedback(Component.literal("[CC] Added daily: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("Added daily: $name"))
                                         } else {
-                                            ctx.source.sendFeedback(Component.literal("[CC] Already tracking: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("Already tracking: $name"))
                                         }
                                         1
                                     }
@@ -352,9 +353,9 @@ object CedClientCommand {
                                     .executes { ctx ->
                                         val name = StringArgumentType.getString(ctx, "name")
                                         if (DailyReset.remove(name)) {
-                                            ctx.source.sendFeedback(Component.literal("[CC] Removed daily: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("Removed daily: $name"))
                                         } else {
-                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("No daily named: $name"))
                                         }
                                         1
                                     }
@@ -367,9 +368,9 @@ object CedClientCommand {
                                     .executes { ctx ->
                                         val name = StringArgumentType.getString(ctx, "name")
                                         if (DailyReset.setCompleted(name, true)) {
-                                            ctx.source.sendFeedback(Component.literal("[CC] Marked done: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("Marked done: $name"))
                                         } else {
-                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("No daily named: $name"))
                                         }
                                         1
                                     }
@@ -382,9 +383,9 @@ object CedClientCommand {
                                     .executes { ctx ->
                                         val name = StringArgumentType.getString(ctx, "name")
                                         if (DailyReset.setCompleted(name, false)) {
-                                            ctx.source.sendFeedback(Component.literal("[CC] Marked not done: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("Marked not done: $name"))
                                         } else {
-                                            ctx.source.sendFeedback(Component.literal("[CC] No daily named: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("No daily named: $name"))
                                         }
                                         1
                                     }
@@ -404,14 +405,14 @@ object CedClientCommand {
                                         val currentlyOn = DailyReset.autoEntries()
                                             .any { (n, _, _) -> n.equals(name, ignoreCase = true) }
                                         if (!currentlyOn) {
-                                            ctx.source.sendFeedback(Component.literal("[CC] No auto-tracked daily named: $name"))
+                                            ctx.source.sendFeedback(ChatPrefix.msg("No auto-tracked daily named: $name"))
                                         } else {
                                             // autoEntries() doesn't expose current enabled state directly
                                             // (it only lists enabled ones), so just flip based on presence.
                                             val nowEnabled = !DailyReset.autoEntries().any { (n, _, _) -> n.equals(name, ignoreCase = true) }
                                             DailyReset.setEntryEnabled(name, nowEnabled)
                                             ctx.source.sendFeedback(
-                                                Component.literal("[CC] $name -> ${if (nowEnabled) "enabled" else "disabled"}")
+                                                ChatPrefix.msg("$name -> ${if (nowEnabled) "enabled" else "disabled"}")
                                             )
                                         }
                                         1
