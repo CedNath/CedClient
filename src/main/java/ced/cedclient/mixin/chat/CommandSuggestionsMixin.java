@@ -1,8 +1,6 @@
 package ced.cedclient.mixin.chat;
 
 import ced.cedclient.features.impl.render.ChatEmotes;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.client.gui.components.CommandSuggestions;
@@ -21,9 +19,9 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Emote autocomplete in chat (Cosmetics > Chat Emotes). For plain chat (not a command) vanilla suggests the server's
  * custom completions / player names for the word at the cursor, but only when Tab is pressed. When that word starts
- * with ":" we offer the emote shortcodes instead, and open the list straight away like Discord does.
+ * with ":" we offer the emote shortcodes too, and open the list straight away like Discord does.
  */
-@Mixin(CommandSuggestions.class)
+@Mixin(value = CommandSuggestions.class, priority = 1100) // after other mods' TAIL hooks (RFU's EmojiAutocomplete)
 public abstract class CommandSuggestionsMixin {
 
     @Shadow @Final private EditBox input;
@@ -32,23 +30,22 @@ public abstract class CommandSuggestionsMixin {
 
     @Shadow public abstract void showSuggestions(boolean narrateFirstSuggestion);
 
-    @WrapOperation(method = "updateCommandInfo", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/commands/SharedSuggestionProvider;suggest(Ljava/lang/Iterable;Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;)Ljava/util/concurrent/CompletableFuture;"))
-    private CompletableFuture<Suggestions> cedclient$emoteSuggestions(Iterable<String> values, SuggestionsBuilder builder,
-                                                                      Operation<CompletableFuture<Suggestions>> original) {
-        List<String> emotes = ChatEmotes.completionsFor(builder.getRemaining());
-        return original.call(emotes != null ? emotes : values, builder);
-    }
-
+    // Runs last, so another mod that swaps in its own emoji list for ":" words (RFU) doesn't hide ours: both are merged.
     @Inject(method = "updateCommandInfo", at = @At("TAIL"))
-    private void cedclient$autoShowEmotes(CallbackInfo ci) {
-        if (this.currentParseIsCommand || this.pendingSuggestions == null || !this.pendingSuggestions.isDone()) return;
+    private void cedclient$emoteSuggestions(CallbackInfo ci) {
+        if (this.currentParseIsCommand) return;
         String text = this.input.getValue();
-        int cursor = Math.min(this.input.getCursorPosition(), text.length());
         if (text.startsWith("/")) return;
-        String beforeCursor = text.substring(0, cursor);
-        String word = beforeCursor.substring(beforeCursor.lastIndexOf(' ') + 1);
-        if (ChatEmotes.completionsFor(word) == null) return;
-        if (!this.pendingSuggestions.join().isEmpty()) this.showSuggestions(false);
+        String beforeCursor = text.substring(0, Math.min(this.input.getCursorPosition(), text.length()));
+        int wordStart = beforeCursor.lastIndexOf(' ') + 1;
+        List<String> emotes = ChatEmotes.completionsFor(beforeCursor.substring(wordStart));
+        if (emotes == null) return;
+
+        Suggestions ours = SharedSuggestionProvider.suggest(emotes, new SuggestionsBuilder(beforeCursor, wordStart)).join();
+        CompletableFuture<Suggestions> other = this.pendingSuggestions;
+        Suggestions merged = other != null && other.isDone() && !other.isCompletedExceptionally()
+                ? Suggestions.merge(text, List.of(other.join(), ours)) : ours;
+        this.pendingSuggestions = CompletableFuture.completedFuture(merged);
+        if (!merged.isEmpty()) this.showSuggestions(false);
     }
 }
