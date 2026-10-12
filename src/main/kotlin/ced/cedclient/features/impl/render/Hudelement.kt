@@ -31,6 +31,16 @@ interface HudElement {
     /** Back to the default spot and size (Client Settings' "Reset Everything"). */
     fun resetPosition()
 
+    /**
+     * Pulls the panel back inside a [screenW] x [screenH] GUI. Defaults are placed for a 1280x720 GUI, so on a
+     * smaller screen the right / bottom ones end up hugging that edge instead of off-screen.
+     */
+    fun keepOnScreen(screenW: Int, screenH: Int) {
+        if (lastWidth <= 0 || lastHeight <= 0) return
+        panelX = panelX.coerceIn(0, maxOf(0, screenW - (lastWidth * panelScale).toInt()))
+        panelY = panelY.coerceIn(0, maxOf(0, screenH - (lastHeight * panelScale).toInt()))
+    }
+
     companion object {
         /** Every HUD panel, for MasterHudEditScreen and "Reset Everything". */
         val all: List<HudElement> get() = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset, DungeonSplits)
