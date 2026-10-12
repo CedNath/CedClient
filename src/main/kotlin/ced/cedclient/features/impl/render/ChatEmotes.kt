@@ -56,17 +56,16 @@ object ChatEmotes {
 
     private var lastBoom = 0L
 
-    /** Meme sounds still play at least this loud when the Master slider is lower, even at 0. */
-    private const val MIN_MASTER = 0.75f
     private val boosted: MutableSet<SoundInstance> = Collections.newSetFromMap(WeakHashMap())
 
-    /** SoundEngineMixin: raises one of our meme sounds to [MIN_MASTER] of its own volume if Master is below that. */
+    /** Emote shortcodes that play a sound, for /emotevolume. */
+    val soundEmotes: Set<String> get() = SOUNDS.keys
+
+    /** SoundEngineMixin: our meme sounds play at the /emotevolume level, whatever the Master slider says (even 0). */
     @JvmStatic
     fun boostVolume(instance: SoundInstance, volume: Float): Float {
         if (instance !in boosted) return volume
-        val master = Minecraft.getInstance().options.getSoundSourceVolume(SoundSource.MASTER)
-        if (master >= MIN_MASTER) return volume
-        return maxOf(volume, MIN_MASTER * instance.volume.coerceIn(0f, 1f))
+        return HardcodedCosmetics.emoteVolume.value.toFloat() * instance.volume.coerceIn(0f, 1f)
     }
 
     /**
@@ -177,8 +176,7 @@ object ChatEmotes {
         val now = System.currentTimeMillis()
         if (now - lastBoom < 300) return
         lastBoom = now
-        // On the MASTER channel, so only the master slider (and the hidden Vine Boom Volume) apply -- not UI / Players;
-        // a low Master is raised to MIN_MASTER for these (boostVolume).
+        // On the MASTER channel, not UI / Players; boostVolume then swaps the Master slider for /emotevolume.
         // Non-positional and camera-relative, like a UI sound.
         val instance = SimpleSoundInstance(
             sound, SoundSource.MASTER, HardcodedCosmetics.vineBoomVolume.value.toFloat(), 1f,
