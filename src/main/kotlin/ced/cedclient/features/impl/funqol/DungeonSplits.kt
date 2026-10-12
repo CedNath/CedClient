@@ -192,6 +192,9 @@ object DungeonSplits : Module(
     private var summaryAt = -1L
     private var summarySeenAtMillis = 0L
     private var summaryTick = -1L
+    /** End-of-run chat summary, posted at [summarySayAt]. */
+    private val pendingSummary = ArrayList<String>()
+    private var summarySayAt = 0L
 
     // F7 / M7 terminal sections
     private val sections = LongArray(5) { -1L } // end time of section 1..4 (index 1..4), relative to run start
@@ -288,6 +291,10 @@ object DungeonSplits : Module(
     }
 
     private fun tick() {
+        if (pendingSummary.isNotEmpty() && System.currentTimeMillis() >= summarySayAt) {
+            pendingSummary.forEach(::say)
+            pendingSummary.clear()
+        }
         if (runStart == 0L || finishedAt != 0L) {
             lastRunEnded = DungeonState.runEnded
             return
@@ -360,9 +367,11 @@ object DungeonSplits : Module(
         if (clear) persist()
         if (isEnabled && chatSummary.value) {
             val delta = if (clear && pb != null) " " + deltaText(t - pb.total, chat = true) else ""
-            say("§f$f ${if (clear) "cleared" else "§cfailed§f"} in §e${fmtTotal(t)}$delta" + if (newPb) " §a§lNEW PB!" else "")
-            say(segs.filter { it.done }.joinToString(" §8| ") { "${mcColor(it.def.color)}${it.def.name} §f${fmtSeg(it.time(t))}" })
-            say("§7Lag lost: §c${fmtSeg(lagLost(t, atTick))}")
+            // Held back until Hypixel's end-of-run block has finished printing, so it isn't split in the middle.
+            pendingSummary += "§f$f ${if (clear) "cleared" else "§cfailed§f"} in §e${fmtTotal(t)}$delta" + if (newPb) " §a§lNEW PB!" else ""
+            pendingSummary += segs.filter { it.done }.joinToString(" §8| ") { "${mcColor(it.def.color)}${it.def.name} §f${fmtSeg(it.time(t))}" }
+            pendingSummary += "§7Lag lost: §c${fmtSeg(lagLost(t, atTick))}"
+            summarySayAt = System.currentTimeMillis() + SUMMARY_DELAY_MS
         }
     }
 
@@ -627,6 +636,7 @@ object DungeonSplits : Module(
     private const val HISTORY_SIZE = 10
     private const val LINGER_MS = 60_000L
     private const val DEFEATED_GRACE_MS = 4_000L
+    private const val SUMMARY_DELAY_MS = 1_500L
     private const val MIN_SCALE = 0.5f
     private const val MAX_SCALE = 3.0f
 
