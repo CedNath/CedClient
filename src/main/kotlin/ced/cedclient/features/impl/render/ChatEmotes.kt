@@ -75,6 +75,11 @@ object ChatEmotes {
     @JvmField
     var liveChat = false
 
+    /** An animated emote (assets/cedclient/animated_emotes.txt): its frames sit on consecutive code points. */
+    private class Anim(val firstFrame: Int, val frames: Int, val frameMs: Int)
+    /** Emote glyph code point -> its animation. */
+    private val animByGlyph = HashMap<Int, Anim>()
+
     init {
         ChatEmotes::class.java.getResourceAsStream("/assets/cedclient/emotes.txt")?.bufferedReader()?.useLines { lines ->
             lines.filter { it.isNotBlank() }.forEachIndexed { i, line ->
@@ -88,6 +93,24 @@ object ChatEmotes {
                 }
             }
         }
+        ChatEmotes::class.java.getResourceAsStream("/assets/cedclient/animated_emotes.txt")?.bufferedReader()?.useLines { lines ->
+            lines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.forEach { line ->
+                val p = line.split(Regex("\\s+"))
+                val glyph = byName[p[0]] ?: return@forEach
+                animByGlyph[glyph.codePointAt(0)] = Anim(p[1].toInt(16), p[2].toInt(), p[3].toInt())
+            }
+        }
+    }
+
+    /**
+     * FontSetMixin, for every glyph the game looks up: an animated emote's glyph becomes the frame for the current
+     * time (chat is redrawn every frame, so it plays). Anything outside the private-use block returns straight away.
+     */
+    @JvmStatic
+    fun animatedGlyph(cp: Int): Int {
+        if (cp < 0xE000 || cp > 0xF8FF) return cp
+        val anim = animByGlyph[cp] ?: return cp
+        return anim.firstFrame + ((System.currentTimeMillis() / anim.frameMs) % anim.frames).toInt()
     }
 
     /** Every shortcode as typed in chat (":sob:"), sorted, for autocomplete. */
