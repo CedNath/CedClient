@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import org.lwjgl.glfw.GLFW
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.TextInputHandler
@@ -45,6 +46,9 @@ class BlockPickerPopup(
         textProvider = { query },
         textSetter = { query = it.take(32) }
     )
+
+    // Type straight away, no click on the search box needed.
+    init { input.focus() }
 
     private val buttonsY get() = y + 36f
     private val inputY get() = y + 64f
@@ -227,7 +231,9 @@ class BlockPickerPopup(
         return true
     }
 
-    override fun keyPressed(input: KeyEvent): Boolean = this.input.keyPressed(input)
+    // Escape closes the popup (ClickGUI) instead of just leaving the always-focused search box.
+    override fun keyPressed(input: KeyEvent): Boolean =
+        input.key != GLFW.GLFW_KEY_ESCAPE && this.input.keyPressed(input)
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     companion object {
