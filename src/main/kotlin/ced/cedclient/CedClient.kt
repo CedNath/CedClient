@@ -28,6 +28,7 @@ import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.ScreenshotTweaks
 import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.features.impl.render.BlockESP
+import ced.cedclient.features.impl.render.HudElement
 import ced.cedclient.features.impl.render.StarredMobHighlight
 import ced.cedclient.features.impl.render.BlockESPRenderer
 import ced.cedclient.features.impl.render.ChatChannelHud
@@ -189,6 +190,12 @@ class CedClient : ClientModInitializer {
     }
 
     private fun registerHudElements() {
+        // First, so every panel is back on-screen before it draws.
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "hud_keep_on_screen")
+        ) { graphics, _ ->
+            HudElement.all.forEach { it.keepOnScreen(graphics.guiWidth(), graphics.guiHeight()) }
+        }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")
         ) { graphics, tickCounter ->

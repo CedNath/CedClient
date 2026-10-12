@@ -11,7 +11,8 @@ object ModuleManager {
      * registered next to each other (CedClient.registerModules) stay grouped.
      */
     val modulesByCategory: Map<Category, List<Module>>
-        get() = modules.groupBy { it.category }
+        // Always-on settings modules (Client Settings) first in their panel.
+        get() = modules.sortedByDescending { it.alwaysEnabled }.groupBy { it.category }
 
     fun register(module: Module) {
         modules += module

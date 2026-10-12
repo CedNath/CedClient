@@ -26,7 +26,7 @@ class Panel(val panelSetting: PanelSetting) {
         ?.map { ModuleButton(it, this@Panel) } ?: listOf()
     private val lastModuleButton by lazy { moduleButtons.lastOrNull() }
 
-    private val textWidth = NVGRenderer.textWidth(category.name, 25f, NVGRenderer.defaultFont)
+    private val textWidth = NVGRenderer.textWidth(category.displayName, 25f, NVGRenderer.defaultFont)
     /** Height drawn last frame; ClickGUI scales / rotates the open animation around it. */
     var previousHeight = 0f
         private set
@@ -54,7 +54,7 @@ class Panel(val panelSetting: PanelSetting) {
 
         NVGRenderer.drawHalfRoundedRect(panelSetting.x, panelSetting.y, WIDTH, HEIGHT, Colors.gray26.rgba, 5f, true)
         NVGRenderer.text(
-            category.name,
+            category.displayName,
             panelSetting.x + WIDTH / 2f - textWidth / 2,
             panelSetting.y + HEIGHT / 2f - 12.5f,
             25f,
