@@ -1,5 +1,6 @@
 package ced.cedclient.render.cosmetic
 
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.state.DungeonState
 import ced.cedclient.state.IslandState
 import net.minecraft.client.Minecraft
@@ -34,6 +35,6 @@ object CosmeticConfig {
 /** Chat output shared by every cosmetic tool. */
 object CosmeticChat {
     fun say(text: String) {
-        Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§b[CC] §f$text"))
+        Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§f$text"))
     }
 }

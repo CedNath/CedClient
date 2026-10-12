@@ -1,5 +1,8 @@
 package ced.cedclient
 
+import net.fabricmc.loader.api.FabricLoader
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.commands.CedClientCommand
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
@@ -71,6 +74,7 @@ class CedClient : ClientModInitializer {
         registerModules()
         registerHudElements()
         registerKeybinds()
+        registerWelcome()
         loadConfig()
 
         CedClientCommand.register()
@@ -195,6 +199,23 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "daily_reset")
         ) { graphics, tickCounter ->
             DailyReset.render(graphics, tickCounter)
+        }
+    }
+
+    /** One chat line the first time a world / server is joined after launch. */
+    private fun registerWelcome() {
+        var welcomed = false
+        ClientPlayConnectionEvents.JOIN.register { _, _, client ->
+            if (welcomed) return@register
+            welcomed = true
+            val version = FabricLoader.getInstance().getModContainer("cedclient")
+                .map { it.metadata.version.friendlyString.substringBefore("-") }.orElse("")
+            // Next tick, so the player exists and the line lands after the join messages.
+            client.execute {
+                client.player?.sendSystemMessage(ChatPrefix.msg(
+                    "§fWelcome to §lCedClient§f $version! Press §e${openGuiKey.translatedKeyMessage.string}§f or type §e/cc§f to open the menu."
+                ))
+            }
         }
     }
 

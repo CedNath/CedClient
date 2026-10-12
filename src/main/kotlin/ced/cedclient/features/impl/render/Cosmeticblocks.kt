@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -541,7 +542,7 @@ object CosmeticBlocks : Module(
     // ------------------------------------------------------------------
 
     private fun feedback(src: FabricClientCommandSource, text: String) =
-        src.sendFeedback(Component.literal("§b[CC] §f$text"))
+        src.sendFeedback(ChatPrefix.msg("§f$text"))
 
     private fun word(ctx: CommandContext<FabricClientCommandSource>, name: String) =
         StringArgumentType.getString(ctx, name)
