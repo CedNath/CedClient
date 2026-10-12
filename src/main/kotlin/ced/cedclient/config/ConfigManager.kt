@@ -94,7 +94,8 @@ object ConfigManager {
 
     private fun applyModulesJson(modulesJson: JsonObject) {
         for ((name, element) in modulesJson.entrySet()) {
-            val module = ModuleManager.getModule(name) ?: continue
+            // "Theme" was renamed to "Client Settings"; read old saves into it (until the new name is saved).
+            val module = ModuleManager.getModule(if (name == "Theme" && !modulesJson.has("Client Settings")) "Client Settings" else name) ?: continue
             val moduleData = element.asJsonObject
 
             module.setEnabled(moduleData.get("enabled")?.asBoolean ?: false)

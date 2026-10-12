@@ -33,7 +33,7 @@ object Zoom : Module(
     val zoomKey = KeybindSetting("Zoom Key", GLFW.GLFW_KEY_C, "Hold to zoom.")
 
     private val maxZoom = NumberSetting(
-        "Max Zoom", 16.0, 2.0, 50.0, 1.0,
+        "Max Zoom", 25.0, 2.0, 50.0, 1.0,
         "Highest zoom multiplier reachable by scrolling"
     )
     private val defaultZoomSetting = NumberSetting(

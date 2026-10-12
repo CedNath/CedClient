@@ -115,6 +115,7 @@ object ChatChannelHud : Module(
     override var panelX: Int = 6
     override var panelY: Int = 46 // just below TimeHud's default position
     override var panelScale: Float = 1.0f
+    override fun resetPosition() { panelX = 6; panelY = 46; panelScale = 1.0f }
 
     override var lastWidth: Int = 60
         private set
