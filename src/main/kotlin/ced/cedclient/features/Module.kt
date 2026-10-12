@@ -8,7 +8,7 @@ open class Module(
     val name: String,
     val category: Category,
     val description: String = "",
-    defaultEnabled: Boolean = false
+    val defaultEnabled: Boolean = false
 ) {
     // Set directly rather than via setEnabled() so construction doesn't
     // fire onEnable() or trigger a ConfigManager save before the module

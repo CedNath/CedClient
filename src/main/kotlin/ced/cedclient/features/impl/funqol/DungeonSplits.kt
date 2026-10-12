@@ -627,6 +627,7 @@ object DungeonSplits : Module(
     }
 
     override fun save() = persist()
+    override fun resetPosition() { data.x = 6; data.y = 150; data.scale = 1f }
 
     override fun adjustScale(delta: Float) {
         panelScale = (panelScale + delta).coerceIn(MIN_SCALE, MAX_SCALE)

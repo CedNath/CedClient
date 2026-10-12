@@ -34,12 +34,12 @@ object RenderOptimizer : Module(
 ) {
     // ---- fog ----
     private val noAtmosphericFog = BooleanSetting("No World Fog", true, "Distance / rain haze, and the Nether and End fog.")
-    private val noRenderDistanceFog = BooleanSetting("No Render Distance Fog", false, "The fade at the edge of your render distance (chunks end with a hard edge).")
+    private val noRenderDistanceFog = BooleanSetting("No Render Distance Fog", true, "The fade at the edge of your render distance (chunks end with a hard edge).")
     private val noWaterFog = BooleanSetting("No Water Fog", true, "See clearly underwater.")
     private val noLavaFog = BooleanSetting("No Lava Fog", true, "See clearly in lava.")
     private val noSnowFog = BooleanSetting("No Powder Snow Fog", true, "See clearly inside powder snow.")
-    private val noBlindnessFog = BooleanSetting("No Blindness Fog", false, "Blindness effect fog.")
-    private val noDarknessFog = BooleanSetting("No Darkness Fog", false, "Darkness effect (Warden) fog.")
+    private val noBlindnessFog = BooleanSetting("No Blindness Fog", true, "Blindness effect fog.")
+    private val noDarknessFog = BooleanSetting("No Darkness Fog", true, "Darkness effect (Warden) fog.")
 
     // ---- overlays ----
     private val noWaterOverlay = BooleanSetting("No Underwater Overlay", true, "The blue texture on your screen underwater.")
@@ -50,8 +50,8 @@ object RenderOptimizer : Module(
     private val noSnowOverlay = BooleanSetting("No Freezing Overlay", true, "Frosty edges while freezing in powder snow.")
     private val noPortal = BooleanSetting("No Portal Overlay", false, "Purple swirl while standing in a Nether portal.")
     private val noNausea = BooleanSetting("No Nausea Overlay", false, "Wobble overlay from nausea.")
-    private val noWeather = BooleanSetting("No Weather", false, "Hide rain and snow (and their splash particles / sounds).")
-    private val noExplosions = BooleanSetting("No Explosion Particles", false, "Hide explosion particles, like your Hyperion's Wither Impact.")
+    private val noWeather = BooleanSetting("No Weather", true, "Hide rain and snow (and their splash particles / sounds).")
+    private val noExplosions = BooleanSetting("No Explosion Particles", true, "Hide explosion particles, like your Hyperion's Wither Impact.")
 
     private val fogSettings = listOf(
         noAtmosphericFog, noRenderDistanceFog, noWaterFog, noLavaFog, noSnowFog, noBlindnessFog, noDarknessFog,

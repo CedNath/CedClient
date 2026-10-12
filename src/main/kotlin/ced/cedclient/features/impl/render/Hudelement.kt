@@ -1,5 +1,7 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.features.impl.funqol.DungeonSplits
+import ced.cedclient.features.impl.misc.DailyReset
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 /**
@@ -25,4 +27,12 @@ interface HudElement {
 
     fun adjustScale(delta: Float)
     fun save()
+
+    /** Back to the default spot and size (Client Settings' "Reset Everything"). */
+    fun resetPosition()
+
+    companion object {
+        /** Every HUD panel, for MasterHudEditScreen and "Reset Everything". */
+        val all: List<HudElement> get() = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset, DungeonSplits)
+    }
 }

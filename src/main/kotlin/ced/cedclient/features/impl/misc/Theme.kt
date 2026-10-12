@@ -3,6 +3,11 @@ package ced.cedclient.features.impl.misc
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.ModuleManager
+import ced.cedclient.features.impl.render.HudElement
+import ced.cedclient.ui.clickgui.ClickGUI
+import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.DropdownSetting
@@ -11,18 +16,19 @@ import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.darker
 
 /**
- * Client-wide accent colours. Always on (it only holds settings): clicking it in the ClickGUI opens its settings
+ * Client Settings (object still called Theme): how CedClient itself looks and behaves. Client-wide accent colours. Always on (it only holds settings): clicking it in the ClickGUI opens its settings
  * instead of toggling it.
  *
  *  - GUI Accent: ClickGUI.clickGUIColor -- enabled modules, popups, the search bar, the preset / button editors.
  *  - HUD Accent: the badges, dividers and bullets on the HUD panels (Daily Reset, Entity ESP HUD), plus a darker
  *    shade of it for the panel outlines (Time HUD, Chat Channel HUD).
  *  - Open / Popup Animation + Animation Speed: how the ClickGUI panels and its popups appear (see ClickGUI).
+ *  - Reset Everything: every module, setting, HUD panel and ClickGUI panel back to its default.
  */
 object Theme : Module(
-    "Theme",
+    "Client Settings",
     Category.Misc,
-    "Accent colours for the ClickGUI and the HUD. Always on -- click to edit.",
+    "How CedClient looks and behaves: accent colours, GUI animations, and a full reset. Always on -- click to edit.",
     defaultEnabled = true
 ) {
     override val alwaysEnabled = true
@@ -53,8 +59,33 @@ object Theme : Module(
         ConfigManager.saveModulesOnly()
     }
 
+    private var resetArmedAt = 0L
+    private val resetEverything = ActionSetting(
+        "Reset Everything",
+        "Every module, setting, HUD position and ClickGUI panel back to its default. Click twice."
+    ) {
+        if (System.currentTimeMillis() - resetArmedAt > 3000L) {
+            resetArmedAt = System.currentTimeMillis()
+            Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§b[CC] §cClick Reset Everything again to reset all of CedClient"))
+            return@ActionSetting
+        }
+        resetArmedAt = 0L
+        resetAll()
+    }
+
     init {
-        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed)
+        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, resetEverything)
+    }
+
+    private fun resetAll() {
+        for (module in ModuleManager.modules) {
+            module.settings.values.forEach { it.reset() }
+            if (!module.isAction) module.setEnabled(module.defaultEnabled)
+        }
+        HudElement.all.forEach { it.resetPosition(); it.save() }
+        (Minecraft.getInstance().screen as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
+        ConfigManager.saveModulesOnly()
+        Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§b[CC] §fEverything reset to defaults"))
     }
 
     /** HUD accent as ARGB. */

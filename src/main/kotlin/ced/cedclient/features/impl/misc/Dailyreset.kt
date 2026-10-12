@@ -154,6 +154,7 @@ object DailyReset : Module(
     override var panelX: Int = 6
     override var panelY: Int = 90
     override var panelScale: Float = 1.0f
+    override fun resetPosition() { panelX = 6; panelY = 90; panelScale = 1.0f }
 
     override var lastWidth: Int = 120
         private set
