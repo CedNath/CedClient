@@ -11,6 +11,7 @@ import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
+import ced.cedclient.state.DungeonState
 import ced.cedclient.state.IslandState
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
@@ -151,10 +152,10 @@ object DailyReset : Module(
     // own time zone -- see the class doc comment above.
     private val EASTERN: ZoneId = ZoneId.of("America/New_York")
 
-    override var panelX: Int = 6
-    override var panelY: Int = 90
-    override var panelScale: Float = 1.0f
-    override fun resetPosition() { panelX = 6; panelY = 90; panelScale = 1.0f }
+    override var panelX: Int = 1102
+    override var panelY: Int = 163
+    override var panelScale: Float = 0.6f
+    override fun resetPosition() { panelX = 1102; panelY = 163; panelScale = 0.6f }
 
     override var lastWidth: Int = 120
         private set
@@ -760,6 +761,7 @@ object DailyReset : Module(
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         if (!isEnabled) return
         if (remaining().isEmpty()) return
+        if (DungeonState.inDungeon) return
         renderInternal(g)
     }
 

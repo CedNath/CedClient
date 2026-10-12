@@ -8,6 +8,7 @@ import ced.cedclient.ui.animations.EaseInOutAnimation
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.brighter
+import ced.cedclient.utils.Color.Companion.darker
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.clickGuiScale
 import ced.cedclient.utils.ui.mouseX
@@ -31,7 +32,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
 
     private val color: Color
         get() =
-            colorAnim.get(ClickGUI.clickGUIColor, Colors.gray26, module.enabled || pressed()).brighter(1 + hover.percent() / 500f)
+            colorAnim.get(if (module.alwaysEnabled) ClickGUI.clickGUIColor.darker(0.6f) else ClickGUI.clickGUIColor, Colors.gray26, module.enabled || pressed()).brighter(1 + hover.percent() / 500f)
 
     /** Action modules (one-shot buttons) light up briefly after a click instead of staying on. */
     private var pressedAt = 0L
