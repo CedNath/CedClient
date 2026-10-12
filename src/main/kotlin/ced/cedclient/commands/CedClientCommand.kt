@@ -11,6 +11,10 @@ import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.utils.Debug
 import ced.cedclient.features.impl.render.nametag.NametagFormatting
 import ced.cedclient.features.impl.funqol.PositionalMessages
+import ced.cedclient.config.ConfigManager
+import ced.cedclient.features.impl.render.ChatEmotes
+import ced.cedclient.features.impl.render.HardcodedCosmetics
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
@@ -18,6 +22,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.network.chat.Component
+import kotlin.math.roundToInt
 
 object CedClientCommand {
 
@@ -47,8 +52,30 @@ object CedClientCommand {
             // build the full tree fresh for each root name, then register both
             dispatcher.register(buildCommandTree("cedclient"))
             dispatcher.register(buildCommandTree("cc"))
+            dispatcher.register(emoteVolumeCommand())
         }
     }
+
+    /** /emotevolume [0-100]: how loud emote meme sounds play, instead of the Master slider. */
+    private fun emoteVolumeCommand(): LiteralArgumentBuilder<FabricClientCommandSource> =
+        ClientCommands.literal("emotevolume")
+            .executes { ctx ->
+                val pct = (HardcodedCosmetics.emoteVolume.value * 100).roundToInt()
+                ctx.source.sendFeedback(Component.literal("§b[CC] §fEmote sound volume: §e$pct% §7(ignores the Master slider)"))
+                ctx.source.sendFeedback(Component.literal("§7Emotes with sounds: " + ChatEmotes.soundEmotes.joinToString(" ") { ":$it:" }))
+                ctx.source.sendFeedback(Component.literal("§7Set with /emotevolume <0-100>"))
+                1
+            }
+            .then(
+                ClientCommands.argument("percent", IntegerArgumentType.integer(0, 100))
+                    .executes { ctx ->
+                        val pct = IntegerArgumentType.getInteger(ctx, "percent")
+                        HardcodedCosmetics.emoteVolume.value = pct / 100.0
+                        ConfigManager.saveModulesOnly()
+                        ctx.source.sendFeedback(Component.literal("§b[CC] §fEmote sound volume set to §e$pct%"))
+                        1
+                    }
+            )
 
     private fun buildCommandTree(rootName: String): LiteralArgumentBuilder<FabricClientCommandSource> {
         val openGuiExecutes =

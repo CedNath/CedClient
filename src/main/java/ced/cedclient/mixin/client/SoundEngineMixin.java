@@ -30,7 +30,7 @@ public class SoundEngineMixin {
         if (CustomHypeSound.shouldCancel(instance)) cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
     }
 
-    // ChatEmotes meme sounds: at least 75% even with a low Master slider. Start volume (computed inline in play)...
+    // ChatEmotes meme sounds: /emotevolume (default 50%) instead of the Master slider. Start volume (computed inline in play)...
     @ModifyExpressionValue(method = "play", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/sounds/SoundEngine;calculateVolume(FLnet/minecraft/sounds/SoundSource;)F"))
     private float cedclient$boostEmoteSoundStart(float volume, @Local(argsOnly = true) SoundInstance instance) {
