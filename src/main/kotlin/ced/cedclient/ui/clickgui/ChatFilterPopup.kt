@@ -33,6 +33,9 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
         textSetter = { newEntry = it.take(48) }
     )
 
+    // Type straight away, no click on the search box needed.
+    init { input.focus() }
+
     private val inputY get() = y + 34f
     private val inputX get() = x + 12f
     private val addButtonWidth = 56f
@@ -223,6 +226,8 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
     }
 
     override fun keyPressed(input: KeyEvent): Boolean {
+        // Escape closes the popup (ClickGUI) instead of just leaving the always-focused search box.
+        if (input.key == GLFW.GLFW_KEY_ESCAPE) return false
         val wasEnter = input.key == GLFW.GLFW_KEY_ENTER
         val handled = this.input.keyPressed(input)
         if (wasEnter) submitNewEntry()

@@ -59,6 +59,9 @@ abstract class FilterPopup(
         textSetter = { newEntry = it.take(32) }
     )
 
+    // Type straight away, no click on the search box needed.
+    init { input.focus() }
+
     private enum class FilterMode(val label: String) {
         BLOCKED("Blocked"),
         ONLY("Only")
@@ -394,6 +397,8 @@ abstract class FilterPopup(
     }
 
     override fun keyPressed(input: KeyEvent): Boolean {
+        // Escape closes the popup (ClickGUI) instead of just leaving the always-focused search box.
+        if (input.key == GLFW.GLFW_KEY_ESCAPE) return false
         val wasEnter = input.key == GLFW.GLFW_KEY_ENTER
         val handled = this.input.keyPressed(input)
         if (wasEnter) submitNewEntry()
