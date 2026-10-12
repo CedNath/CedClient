@@ -9,13 +9,15 @@ inline val mouseY: Float
     get() = Minecraft.getInstance().mouseHandler.ypos().toFloat()
 
 /**
- * GUI scale the ClickGUI is rendered at. Fixed at 1.15f -- there's no
- * in-GUI "GUI Scale" module/slider anymore, this is just the flat default
- * everything renders at. Every isAreaHovered(scaled=true) call site (and
- * ClickGUI's own extractRenderState) is already written against this var,
- * so changing this one number is all it takes to change the scale.
+ * GUI scale the ClickGUI is rendered at: 1.15 on a window 2560 px wide or more, shrinking with narrower windows so
+ * the same panel layout fits (1080p gets ~0.86). Every isAreaHovered(scaled=true) call site (and ClickGUI's own
+ * extractRenderState) is already written against this, so it's the one place the scale is decided.
  */
-var clickGuiScale: Float = 1.15f
+val clickGuiScale: Float
+    get() {
+        val width = Minecraft.getInstance().window.width
+        return if (width <= 0) 1.15f else 1.15f * minOf(1f, width / 2560f)
+    }
 
 fun isAreaHovered(x: Float, y: Float, w: Float, h: Float, scaled: Boolean = false): Boolean =
     if (scaled) mouseX / clickGuiScale in x..(x + w) && mouseY / clickGuiScale in y..(y + h)
