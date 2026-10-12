@@ -15,6 +15,8 @@ import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock
 import net.minecraft.world.level.block.SkullBlock
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.block.state.properties.AttachFace
+import net.minecraft.world.phys.shapes.CollisionContext
+import net.minecraft.world.phys.shapes.EntityCollisionContext
 import net.minecraft.world.phys.shapes.Shapes
 import net.minecraft.world.phys.shapes.VoxelShape
 
@@ -106,6 +108,13 @@ object SecretHitboxes : Module(
     // ------------------------------------------------------------------
     // Called from the mixins
     // ------------------------------------------------------------------
+
+    /**
+     * Only enlarge for a player's outline / click lookup. Face culling (Sodium, MoreCulling) asks with an empty
+     * context, and a full-block button there culled the face of the block it sits on, leaving a see-through hole.
+     */
+    @JvmStatic
+    fun isEntityQuery(context: CollisionContext): Boolean = context is EntityCollisionContext && context.entity != null
 
     private fun isUnusedDeviceLever(pos: BlockPos) = onF7 && UNUSED_DEVICE_LEVERS.contains(pos.asLong())
 
