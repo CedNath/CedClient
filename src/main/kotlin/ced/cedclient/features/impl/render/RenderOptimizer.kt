@@ -25,7 +25,8 @@ import net.minecraft.resources.Identifier
  *   ScreenEffectRendererMixin -> underwater / fire / in-wall overlays
  *   GuiOverlayMixin           -> vignette, pumpkin, powder snow, portal, nausea overlays
  *   WeatherEffectRendererMixin-> rain / snow
- *   ParticlePacketMixin       -> explosion particles (Hyperion)
+ *   ParticlePacketMixin       -> explosion particles (Hyperion), server-sent block-crack particles
+ *   BlockBreakParticlesMixin  -> block break / mining particles (cosmetic blocks too)
  */
 object RenderOptimizer : Module(
     "Render Optimizer",
@@ -51,13 +52,14 @@ object RenderOptimizer : Module(
     private val noPortal = BooleanSetting("No Portal Overlay", false, "Purple swirl while standing in a Nether portal.")
     private val noNausea = BooleanSetting("No Nausea Overlay", false, "Wobble overlay from nausea.")
     private val noWeather = BooleanSetting("No Weather", true, "Hide rain and snow (and their splash particles / sounds).")
+    private val noBlockBreaking = BooleanSetting("No Block Breaking Particles", false, "Hide the particles from breaking and mining blocks, cosmetic blocks included.")
     private val noExplosions = BooleanSetting("No Explosion Particles", true, "Hide explosion particles, like your Hyperion's Wither Impact.")
 
     private val fogSettings = listOf(
         noAtmosphericFog, noRenderDistanceFog, noWaterFog, noLavaFog, noSnowFog, noBlindnessFog, noDarknessFog,
     )
     private val overlaySettings = listOf(
-        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions,
+        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions, noBlockBreaking,
     )
 
     private val settingsAction = ActionSetting("Open Settings", "All Render Optimizer toggles in one window.") {
@@ -123,11 +125,13 @@ object RenderOptimizer : Module(
     @JvmStatic fun hidePortal() = on(noPortal)
     @JvmStatic fun hideNausea() = on(noNausea)
     @JvmStatic fun hideWeather() = on(noWeather)
+    @JvmStatic fun hideBlockBreaking() = on(noBlockBreaking)
 
-    /** ParticlePacketMixin: server-sent explosion particles. */
+    /** ParticlePacketMixin: server-sent explosion and block-crack particles. */
     @JvmStatic
     fun hideParticle(type: ParticleType<*>) =
-        on(noExplosions) && (type == ParticleTypes.EXPLOSION || type == ParticleTypes.EXPLOSION_EMITTER)
+        (on(noExplosions) && (type == ParticleTypes.EXPLOSION || type == ParticleTypes.EXPLOSION_EMITTER)) ||
+            (on(noBlockBreaking) && (type == ParticleTypes.BLOCK || type == ParticleTypes.BLOCK_CRUMBLE))
 
     /** Full-screen texture overlays: the pumpkin blur comes from the helmet's equippable camera overlay. */
     @JvmStatic
