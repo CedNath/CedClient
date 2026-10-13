@@ -77,7 +77,7 @@ object PositionalMessages : Module(
     )
 
     private val showBoxes = BooleanSetting("Show Boxes", true, "Outline each active spot.")
-    private val seeThrough = BooleanSetting("See Through Walls", true)
+    private val seeThrough = BooleanSetting("See Through Walls", false)
     private val showText = BooleanSetting("Show Message", true, "Draw the spot's message in the middle of its box.")
     private val textSize = NumberSetting("Message Size", 10.0, 4.0, 20.0, 0.5)
     private val textBackground = BooleanSetting("Message Background", true, "A dark card behind the message so it stays readable.")

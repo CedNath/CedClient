@@ -4,6 +4,7 @@ import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.commands.CedClientCommand
+import ced.cedclient.config.CedPaths
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.impl.funqol.CoralotHelper
@@ -243,10 +244,11 @@ class CedClient : ClientModInitializer {
         }
     }
 
-    /** One chat line the first time a world / server is joined after launch. */
+    /** One chat line the first time a world / server is ever joined (a marker file remembers it across launches). */
     private fun registerWelcome() {
         val welcomeDelayTicks = 100 // 5 s
-        var welcomed = false
+        val marker = CedPaths.file("welcomed")
+        var welcomed = marker.exists()
         var ticksLeft = -1
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
             if (!welcomed) ticksLeft = welcomeDelayTicks
@@ -257,6 +259,7 @@ class CedClient : ClientModInitializer {
             val player = client.player ?: return@register
             ticksLeft = -1
             welcomed = true
+            runCatching { marker.createNewFile() }
             val version = FabricLoader.getInstance().getModContainer("cedclient")
                 .map { it.metadata.version.friendlyString.substringBefore("-") }.orElse("")
             player.sendSystemMessage(ChatPrefix.msg(
