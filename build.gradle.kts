@@ -33,7 +33,8 @@ repositories {
 loom {
     runs {
         named("client") {
-            vmArg("-Ddevauth.enabled=1")
+            // -Pdevauth=0 launches offline (random "Player###" name) instead of your account
+            vmArg("-Ddevauth.enabled=" + (findProperty("devauth") ?: "1"))
         }
     }
 }
