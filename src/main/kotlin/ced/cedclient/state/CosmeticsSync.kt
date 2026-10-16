@@ -18,14 +18,21 @@ import java.time.Duration
  *   - tag == null          -> leave this IGN's name/nametag alone
  *   - scaleX/Y/Z all == 1f -> leave this IGN's model size alone
  *   - halo == null         -> no halo ring (else its 0xRRGGBB color, see HaloLayer)
+ *   - haloAnim / haloParticles: bit flags (HALO_ANIMS / HALO_PARTICLES order), 0 = none
  */
 data class CosmeticOverride(
     val tag: String? = null,
     val scaleX: Float = 1f,
     val scaleY: Float = 1f,
     val scaleZ: Float = 1f,
-    val halo: Int? = null
+    val halo: Int? = null,
+    val haloAnim: Int = 0,
+    val haloParticles: Int = 0
 )
+
+/** Site names for the halo flags; bit i = entry i. */
+val HALO_ANIMS = listOf("spin", "bob", "pulse", "rainbow")
+val HALO_PARTICLES = listOf("sparkle", "heart", "flame", "dust")
 
 /**
  * Pulls a { ign -> CosmeticOverride } map and keeps it applied live.
@@ -315,6 +322,14 @@ object CosmeticsSync {
         return t.ifEmpty { null }
     }
 
+    /** "spin,bob" or ["spin","bob"] -> bit flags by [names] index; unknown names are ignored. */
+    private fun flags(value: com.google.gson.JsonElement?, names: List<String>): Int {
+        if (value == null || value.isJsonNull) return 0
+        val words = if (value.isJsonArray) value.asJsonArray.mapNotNull { runCatching { it.asString }.getOrNull() }
+            else value.asString.split(',')
+        return words.fold(0) { acc, w -> names.indexOf(w.trim().lowercase()).let { if (it >= 0) acc or (1 shl it) else acc } }
+    }
+
     private fun clampScale(v: Float): Float =
         if (v.isNaN() || v.isInfinite()) 1f else v.coerceIn(MIN_SCALE, MAX_SCALE)
 
@@ -352,7 +367,9 @@ object CosmeticsSync {
                     scaleZ = axis("scaleZ"),
                     // "#rrggbb"; anything else = no halo
                     halo = obj.get("halo")?.takeIf { it.isJsonPrimitive }?.asString
-                        ?.takeIf { haloPattern.matches(it) }?.substring(1)?.toInt(16)
+                        ?.takeIf { haloPattern.matches(it) }?.substring(1)?.toInt(16),
+                    haloAnim = flags(obj.get("haloAnim"), HALO_ANIMS),
+                    haloParticles = flags(obj.get("haloParticles"), HALO_PARTICLES)
                 )
             } catch (t: Throwable) {
                 // One malformed entry shouldn't throw away everyone else's.
@@ -396,6 +413,8 @@ object CosmeticsSync {
                 entry.addProperty("scaleY", override.scaleY)
                 entry.addProperty("scaleZ", override.scaleZ)
                 if (override.halo != null) entry.addProperty("halo", "#%06x".format(override.halo))
+                if (override.haloAnim != 0) entry.addProperty("haloAnim", HALO_ANIMS.filterIndexed { i, _ -> override.haloAnim shr i and 1 == 1 }.joinToString(","))
+                if (override.haloParticles != 0) entry.addProperty("haloParticles", HALO_PARTICLES.filterIndexed { i, _ -> override.haloParticles shr i and 1 == 1 }.joinToString(","))
                 obj.add(ign, entry)
             }
             cacheFile.writeText(gson.toJson(obj))
