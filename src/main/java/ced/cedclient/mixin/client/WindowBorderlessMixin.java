@@ -41,6 +41,8 @@ public abstract class WindowBorderlessMixin implements BorderlessWindowAccess {
 
     @Unique
     private boolean cedclient$borderless = false;
+    @Unique
+    private boolean cedclient$wasMaximized = false;
 
     @Inject(method = "setMode", at = @At("HEAD"), cancellable = true)
     private void cedclient$borderlessMode(CallbackInfo ci) {
@@ -52,6 +54,10 @@ public abstract class WindowBorderlessMixin implements BorderlessWindowAccess {
             // fullscreen vanilla already saved it; from borderless we did.)
             boolean exclusive = GLFW.glfwGetWindowMonitor(this.handle) != 0L;
             if (!exclusive && !this.cedclient$borderless) {
+                // A maximized window ignores the move / resize below (Windows keeps it maximized), so F11 did
+                // nothing from a maximized window. Un-maximize first; leaving fullscreen maximizes it again.
+                this.cedclient$wasMaximized = GLFW.glfwGetWindowAttrib(this.handle, GLFW.GLFW_MAXIMIZED) == GLFW.GLFW_TRUE;
+                if (this.cedclient$wasMaximized) GLFW.glfwRestoreWindow(this.handle);
                 this.windowedX = this.x;
                 this.windowedY = this.y;
                 this.windowedWidth = this.width;
@@ -78,6 +84,15 @@ public abstract class WindowBorderlessMixin implements BorderlessWindowAccess {
             this.y = this.windowedY;
             this.width = this.windowedWidth;
             this.height = this.windowedHeight;
+        }
+    }
+
+    @Inject(method = "setMode", at = @At("TAIL"))
+    private void cedclient$remaximize(CallbackInfo ci) {
+        // Back to a window after borderless: maximize it again if it was maximized before F11.
+        if (!this.fullscreen && this.cedclient$wasMaximized) {
+            this.cedclient$wasMaximized = false;
+            GLFW.glfwMaximizeWindow(this.handle);
         }
     }
 
