@@ -39,6 +39,13 @@ object ChatEmotes {
         "sus" to "sus",
         "dictator" to "dictator",
         "scream" to "anime_wow",
+        "private" to "private_property",
+        "rizz" to "rizz",
+        "spongebob" to "spongebob_fail",
+        "person_shrugging" to "it_is_what_it_is",
+        "camera" to "camera",
+        "door" to "door",
+        "man_dancing" to "hee_hee",
     ).mapValues { Identifier.fromNamespaceAndPath("cedclient", it.value) }
     private const val VARIATION_SELECTOR = 0xFE0F
 
@@ -189,11 +196,13 @@ object ChatEmotes {
         // Chat Emotes off turns the sound off too (vine boom has no visible toggle of its own).
         if (!HardcodedCosmetics.chatEmotes.value || !HardcodedCosmetics.vineBoom.value || !liveChat) return
         val text = line.string
+        // Glyphs of every :shortcode: in the line, aliases included (":heehee:" = ":man_dancing:").
+        val typed = SHORTCODE.findAll(text).mapNotNull { byName[it.groupValues[1].lowercase()] }.toSet()
         // The line may already have its emotes swapped in, so also look for the glyph.
         val sound = SOUNDS.entries.firstOrNull { (name, _) ->
             val cp = codepointOf[name]
             val glyph = byName[name]
-            text.contains(":$name:") || (glyph != null && text.contains(glyph)) ||
+            (glyph != null && (glyph in typed || text.contains(glyph))) ||
                 (cp != null && text.codePoints().anyMatch { it == cp })
         }?.value ?: return
         val now = System.currentTimeMillis()

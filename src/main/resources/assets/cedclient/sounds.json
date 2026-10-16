@@ -6,5 +6,12 @@
   "fah": { "sounds": [{ "name": "cedclient:fah", "volume": 0.35 }] },
   "sus": { "sounds": ["cedclient:sus"] },
   "dictator": { "sounds": ["cedclient:dictator"] },
-  "anime_wow": { "sounds": ["cedclient:anime_wow"] }
+  "anime_wow": { "sounds": ["cedclient:anime_wow"] },
+  "private_property": { "sounds": ["cedclient:private_property"] },
+  "rizz": { "sounds": ["cedclient:rizz"] },
+  "spongebob_fail": { "sounds": ["cedclient:spongebob_fail"] },
+  "camera": { "sounds": ["cedclient:camera"] },
+  "door": { "sounds": ["cedclient:door"] },
+  "it_is_what_it_is": { "sounds": ["cedclient:it_is_what_it_is"] },
+  "hee_hee": { "sounds": ["cedclient:hee_hee"] }
 }

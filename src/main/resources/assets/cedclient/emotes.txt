@@ -210,3 +210,9 @@ f0002 sus
 f0003 dictator
 f0004 bucket
 1f940 wilted_rose wilted_flower
+f0005 private private_property
+f0006 rizz
+f0007 spongebob
+1f4f7 camera
+1f6aa door
+1f57a man_dancing heehee dancer
