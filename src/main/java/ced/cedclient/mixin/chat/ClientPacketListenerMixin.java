@@ -6,6 +6,7 @@ import ced.cedclient.events.EntityMetadataEvent;
 import ced.cedclient.events.PlaySoundEvent;
 import ced.cedclient.events.SubtitleEvent;
 import ced.cedclient.events.TitleEvent;
+import ced.cedclient.features.impl.funqol.CritterSafari;
 import ced.cedclient.features.impl.misc.ChatFilter;
 import ced.cedclient.features.impl.render.ChatEmotes;
 import ced.cedclient.state.IslandState;
@@ -103,7 +104,7 @@ public class ClientPacketListenerMixin {
         // NOTE: ChatFilter hiding doesn't call ci.cancel() -- it sets ChatHide.pending and
         // ChatComponentMixin drops the line at display time instead, so other mods hooking
         // handleSystemChat (NoammAddons' key/door detection) still see it.
-        if (ChatFilter.INSTANCE.shouldHide(content.getString())) {
+        if (ChatFilter.INSTANCE.shouldHide(content.getString()) || CritterSafari.hideChat(content.getString())) {
             // Hiding the line skips vanilla's own chat-log call inside
             // ChatComponent.addMessage() (that's where the "[CHAT] ..." log
             // lines come from), since addMessage() gets cancelled. Log it
@@ -169,19 +170,19 @@ public class ClientPacketListenerMixin {
     // NOTE: setSubtitleText is the Mojmap handler name and text() the record
     // accessor on ClientboundSetSubtitleTextPacket. If either fails to resolve,
     // Navigate > Declaration on the packet / ClientPacketListener in IntelliJ.
-    @Inject(method = "setSubtitleText", at = @At("HEAD"))
+    @Inject(method = "setSubtitleText", at = @At("HEAD"), cancellable = true)
     private void cedclient$onSetSubtitleText(ClientboundSetSubtitleTextPacket packet, CallbackInfo ci) {
         if (cedclient$offThread()) return;
-        new SubtitleEvent(packet.text().getString()).post();
+        if (new SubtitleEvent(packet.text().getString()).post()) ci.cancel();
     }
 
     // ============================================================
     // TITLE HANDLER (posts TitleEvent -- Rift Dance Room "Punch!" etc.)
     // ============================================================
-    @Inject(method = "setTitleText", at = @At("HEAD"))
+    @Inject(method = "setTitleText", at = @At("HEAD"), cancellable = true)
     private void cedclient$onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
         if (cedclient$offThread()) return;
-        new TitleEvent(packet.text().getString()).post();
+        if (new TitleEvent(packet.text().getString()).post()) ci.cancel();
     }
 
     /**

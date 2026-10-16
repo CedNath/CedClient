@@ -212,6 +212,12 @@
     { "type": "bitmap", "file": "cedclient:emoji/dictator.png", "height": 8, "ascent": 7, "chars": ["\uE0D1"] },
     { "type": "bitmap", "file": "cedclient:emoji/bucket.png", "height": 8, "ascent": 7, "chars": ["\uE0D2"] },
     { "type": "bitmap", "file": "cedclient:emoji/1f940.png", "height": 8, "ascent": 7, "chars": ["\uE0D3"] },
+    { "type": "bitmap", "file": "cedclient:emoji/private.png", "height": 8, "ascent": 7, "chars": ["\uE0D4"] },
+    { "type": "bitmap", "file": "cedclient:emoji/rizz.png", "height": 8, "ascent": 7, "chars": ["\uE0D5"] },
+    { "type": "bitmap", "file": "cedclient:emoji/spongebob.png", "height": 8, "ascent": 7, "chars": ["\uE0D6"] },
+    { "type": "bitmap", "file": "cedclient:emoji/1f4f7.png", "height": 8, "ascent": 7, "chars": ["\uE0D7"] },
+    { "type": "bitmap", "file": "cedclient:emoji/1f6aa.png", "height": 8, "ascent": 7, "chars": ["\uE0D8"] },
+    { "type": "bitmap", "file": "cedclient:emoji/1f57a.png", "height": 8, "ascent": 7, "chars": ["\uE0D9"] },
     { "type": "bitmap", "file": "cedclient:emoji/bucket_anim.png", "height": 8, "ascent": 7, "chars": ["\uF000\uF001\uF002\uF003\uF004\uF005\uF006\uF007\uF008\uF009"] }
   ]
 }

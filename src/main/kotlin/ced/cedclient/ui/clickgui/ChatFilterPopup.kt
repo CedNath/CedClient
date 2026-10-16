@@ -56,7 +56,8 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
     }
 
     override fun drawContent(mouseX: Float, mouseY: Float) {
-        NVGRenderer.rect(inputX, inputY, inputWidth, INPUT_HEIGHT, Colors.gray38.rgba, 4f)
+        NVGRenderer.rect(inputX, inputY, inputWidth, INPUT_HEIGHT, Colors.INPUT_BG.rgba, 4f)
+        NVGRenderer.hollowRect(inputX, inputY, inputWidth, INPUT_HEIGHT, 1f, Colors.INPUT_BORDER.rgba, 4f)
         input.x = inputX
         input.y = inputY + 1f
         input.width = inputWidth
@@ -237,8 +238,6 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     companion object {
-        private const val WIDTH = 340f
-        private const val HEIGHT = 420f
         private const val INPUT_HEIGHT = 24f
         private const val ROW_HEIGHT = 26f
         private const val MIN_THUMB_HEIGHT = 20f

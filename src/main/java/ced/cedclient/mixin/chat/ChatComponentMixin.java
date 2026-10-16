@@ -1,5 +1,6 @@
 package ced.cedclient.mixin.chat;
 
+import ced.cedclient.features.impl.misc.ChatPing;
 import ced.cedclient.features.impl.misc.ScreenshotTweaks;
 import ced.cedclient.features.impl.render.ChatEmotes;
 import ced.cedclient.features.impl.render.nametag.CustomNametagText;
@@ -65,6 +66,12 @@ public abstract class ChatComponentMixin {
     @Inject(method = "addMessage", at = @At("HEAD"))
     private void cedclient$vineBoom(CallbackInfo ci, @Local(argsOnly = true) Component contents) {
         ChatEmotes.onLineShown(contents);
+    }
+
+    // Chat Features ping / alerts: before CustomNametag below, which would swap your username out of the line.
+    @ModifyVariable(method = "addMessage", at = @At("HEAD"), argsOnly = true)
+    private Component cedclient$applyChatPing(Component contents) {
+        return ChatPing.transform(contents);
     }
 
     @ModifyVariable(method = "addMessage", at = @At("HEAD"), argsOnly = true)
