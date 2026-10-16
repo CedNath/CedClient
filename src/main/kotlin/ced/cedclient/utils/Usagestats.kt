@@ -12,7 +12,7 @@ import java.time.Duration
 import java.util.Properties
 
 /**
- * Sends a small ping per game launch, the same ping every 10 minutes while the game runs (so "playing now" on the
+ * Sends a small ping per game launch, the same ping every 20 minutes while the game runs (so "playing now" on the
  * site clears soon after a crash), and one when the game closes, to the CedClient stats Worker so the dev can see
  * who is using the mod.
  *
@@ -34,7 +34,7 @@ object UsageStats {
     private const val KEY = "shareUsage"
 
     private const val CLOSE_ENDPOINT = "https://cedclient.kasajonny420-dab.workers.dev/close"
-    private const val HEARTBEAT_MS = 10 * 60 * 1000L // site treats 25 min of silence as offline
+    private const val HEARTBEAT_MS = 20 * 60 * 1000L // site treats 45 min of silence as offline
 
     private var pinged = false
     private var launchedAt = 0L
