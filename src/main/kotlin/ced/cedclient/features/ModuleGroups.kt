@@ -29,9 +29,9 @@ object ModuleGroups {
         ),
         "Cheats" to listOf(
             "ESP & Camera" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes"),
-            "Fishing & Hunting" to listOf("FishingHelper", "LassoHelper", "PangolinCatcher(!!!)", "CoralotHelper(!!!)", "TropicalFishHelper(!!!)"),
+            "Fishing & Hunting" to listOf("FishingHelper", "LassoHelper", "PangolinCatcher(!!!)", "CoralotHelper(!!!)", "TropicalFishHelper(!!!)", "Auto Fusion"),
             "Slayers" to listOf("Slayer Helper"),
-            "Minigames" to listOf("TinyDancerHelper", "Auto Experiments", "Auto Fusion"),
+            "Minigames" to listOf("TinyDancerHelper", "Auto Experiments"),
         ),
         "Misc" to listOf(
             "General" to listOf("Client Settings", "AutoSprint", "WarpShortcuts", "InventoryButtons", "HideRecipeBook"),
