@@ -31,7 +31,9 @@ public abstract class PingHeartbeatMixin {
     )
     private void cedclient$onPacket(ChannelHandlerContext ctx, Packet<?> packet, CallbackInfo ci) {
         if (packet instanceof ClientboundPingPacket ping && ping.getId() != 0) {
-            Minecraft.getInstance().execute(TpsTracker::recordTick);
+            // Time it on arrival: the main thread may run the task late (frame stutter), which skewed TPS.
+            long now = System.currentTimeMillis();
+            Minecraft.getInstance().execute(() -> TpsTracker.recordTick(now));
         }
     }
 }

@@ -21,6 +21,6 @@ public abstract class PingPongMixin {
 
     @Inject(method = "handlePongResponse", at = @At("HEAD"))
     private void cedclient$onPong(ClientboundPongResponsePacket packet, CallbackInfo ci) {
-        PingTracker.onPong();
+        PingTracker.onPong(packet.time());
     }
 }
