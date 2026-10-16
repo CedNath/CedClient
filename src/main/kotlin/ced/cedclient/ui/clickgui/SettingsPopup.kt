@@ -21,7 +21,8 @@ class SettingsPopup(
     private val columns: List<List<Section>>,
     private val actions: List<ActionSetting> = emptyList(),
     height: Float = 600f,
-) : Popup(title, Popup.WIDTH, Popup.HEIGHT) {
+) : Popup(title, maxOf(Popup.WIDTH, columns.size * Panel.WIDTH + (columns.size + 1) * 16f), Popup.HEIGHT) {
+    // Wider than the standard size only when 3+ columns wouldn't fit (16f = PAD; companion constants aren't usable here).
 
     class Section(val name: String, val settings: List<RenderableSetting<*>>)
 
