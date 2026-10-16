@@ -33,6 +33,7 @@ object ModuleGroups {
             "Slayers" to listOf("Slayer Helper"),
             "Farming" to listOf("FarmHelper"),
             "Minigames" to listOf("TinyDancerHelper", "Auto Experiments"),
+            "Items" to listOf("Anvil Helper"),
         ),
         "Misc" to listOf(
             "General" to listOf("Client Settings", "AutoSprint", "WarpShortcuts", "InventoryButtons", "HideRecipeBook"),
