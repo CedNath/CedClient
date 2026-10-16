@@ -24,19 +24,22 @@ object EntityESPRenderer {
 
             val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
 
+            val partial = net.minecraft.client.Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(false)
             for (scanned in EntityESP.scannedEntities) {
                 val entity = scanned.entity
+                // Where the entity is drawn this frame (between its last two ticks), so boxes glide instead of stepping.
+                val shift = entity.getPosition(partial).subtract(entity.position())
                 val custom = scanned.style.color
                 val (r, g, b) = if (custom != null) Triple(custom.redFloat, custom.greenFloat, custom.blueFloat) else colorFor(scanned.category)
 
                 if (EntityESP.boxesEnabled && scanned.style.box) {
-                    val box: AABB = entity.boundingBox.inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                    val box: AABB = entity.boundingBox.move(shift).inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
                     drawLineBox(poseStack, lineBuffer, box, r, g, b)
                 }
 
                 if (EntityESP.tracersEnabled && scanned.style.tracer) {
                     val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                    val targetPos: Vec3 = entity.position().add(0.0, entity.bbHeight / 2.0, 0.0)
+                    val targetPos: Vec3 = entity.getPosition(partial).add(0.0, entity.bbHeight / 2.0, 0.0)
                     drawLine(
                         poseStack,
                         lineBuffer,

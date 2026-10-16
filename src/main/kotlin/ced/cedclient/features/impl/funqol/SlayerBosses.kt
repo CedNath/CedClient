@@ -1,0 +1,139 @@
+package ced.cedclient.features.impl.funqol
+
+import ced.cedclient.utils.getSkullTexture
+import net.minecraft.client.Minecraft
+import net.minecraft.core.BlockPos
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.phys.AABB
+import java.util.Base64
+
+/**
+ * Slayer Tracker for the overworld slayers (Revenant, Tarantula, Sven, Voidgloom, Inferno): finds your boss by its
+ * name tag ("☠ Voidgloom Seraph IV 12.5M❤") when the sidebar switches to "Slay the boss!" (the newest one within
+ * 15 blocks, since Hypixel no longer says whose boss is whose), reads its HP, and the boss-specific bits:
+ * Voidgloom beacons and Nukekubi skulls, Inferno attunement / fire pits / fire pillars.
+ */
+internal object SlayerBosses {
+    private val BOSS_NAMES = listOf("Revenant Horror", "Atoned Horror", "Tarantula Broodfather", "Sven Packmaster",
+        "Voidgloom Seraph", "Inferno Demonlord")
+    private val HP = Regex("""([\d.,]+)([kMB]?)❤""")
+    private val ATTUNEMENT = Regex("""\b(ASHEN|SPIRIT|CRYSTAL|AURIC)\b""")
+    private val HITS = Regex("""Hits?:?\s*(\d+)|(\d+)\s+Hits?""")
+    private val PILLAR = Regex("""^([\d.]+)s 8 hits$""")
+    private const val NUKEKUBI_SKIN = "eb07594e2df273921a77c101d0bfdfa1115abed5b9b2029eb496ceba9bdbb4b3"
+
+    /** The name-tag armor stand of your boss, and the mob under it. */
+    var label: ArmorStand? = null
+        private set
+    var body: Entity? = null
+        private set
+    var name: String? = null
+        private set
+    var hp = 0.0
+        private set
+    var maxHp = 0.0
+        private set
+    var attunement: String? = null
+        private set
+    var hits: Int? = null
+        private set
+    var pillar: Float? = null
+        private set
+    var beacons: List<AABB> = emptyList()
+        private set
+    var skulls: List<AABB> = emptyList()
+        private set
+    private var firePitsWarned = false
+    private var ticks = 0
+    private var placed: List<AABB> = emptyList()
+
+    fun reset() {
+        label = null; body = null; name = null; hp = 0.0; maxHp = 0.0; attunement = null; hits = null
+        pillar = null; beacons = emptyList(); placed = emptyList(); skulls = emptyList(); firePitsWarned = false
+    }
+
+    private fun parseHp(text: String): Double? {
+        val m = HP.findAll(text).lastOrNull() ?: return null
+        val n = m.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
+        return n * when (m.groupValues[2]) { "k" -> 1e3; "M" -> 1e6; "B" -> 1e9; else -> 1.0 }
+    }
+
+    private fun bossName(text: String) = BOSS_NAMES.firstOrNull { text.contains(it) }
+
+    /** Called every tick while a slayer quest is on; [lockWindow] = "Slay the boss!" appeared in the last 3 s. */
+    fun tick(lockWindow: Boolean) {
+        val mc = Minecraft.getInstance()
+        val player = mc.player ?: return
+        val level = mc.level ?: return
+        val stands = level.entitiesForRendering().filterIsInstance<ArmorStand>().filter { it.distanceToSqr(player) < 40.0 * 40.0 }
+
+        if (label == null && lockWindow) {
+            label = stands.filter { it.hasCustomName() && bossName(it.customName!!.string) != null && it.distanceToSqr(player) < 15.0 * 15.0 }
+                .minByOrNull { it.tickCount }
+        }
+        val l = label ?: return
+        if (l.isRemoved) { reset(); return }
+        val text = l.customName?.string ?: return
+        name = bossName(text)
+        parseHp(text)?.let { hp = it; maxHp = maxOf(maxHp, it) }
+        body = level.entitiesForRendering().filter { it is LivingEntity && it !is ArmorStand && it !== player && it.distanceToSqr(l) < 9.0 }
+            .minByOrNull { it.distanceToSqr(l) }
+
+        // Lines Hypixel stacks over the boss: attunement ("ASHEN ♨8"), shield hits.
+        val near = stands.filter { it !== l && it.hasCustomName() && it.distanceToSqr(l) < 16.0 }.map { it.customName!!.string }
+        attunement = near.firstNotNullOfOrNull { ATTUNEMENT.find(it)?.groupValues?.get(1) }
+        hits = near.plus(text).firstNotNullOfOrNull { s -> HITS.find(s)?.let { (it.groupValues[1].ifEmpty { it.groupValues[2] }).toIntOrNull() } }
+        pillar = stands.filter { it.hasCustomName() }.firstNotNullOfOrNull { PILLAR.matchEntire(it.customName!!.string.trim())?.groupValues?.get(1)?.toFloatOrNull() }
+
+        if (name == "Voidgloom Seraph") {
+            val flying = stands.filter { it.getItemBySlot(EquipmentSlot.HEAD).hoverName.string == "Beacon" && it.distanceToSqr(l) < 30.0 * 30.0 }
+                .map { it.boundingBox.inflate(0.2) }
+            if (++ticks % 10 == 0) placed = placedBeacons(l.blockPosition())
+            beacons = flying + placed
+            skulls = stands.filter { skin(it)?.contains(NUKEKUBI_SKIN) == true }.map { it.boundingBox.inflate(0.2) }
+        } else { beacons = emptyList(); skulls = emptyList() }
+    }
+
+    /** Beacon blocks the boss has set down around it. */
+    private fun placedBeacons(centre: BlockPos): List<AABB> {
+        val level = Minecraft.getInstance().level ?: return emptyList()
+        val out = ArrayList<AABB>()
+        for (p in BlockPos.betweenClosed(centre.offset(-12, -6, -12), centre.offset(12, 6, 12))) {
+            if (level.getBlockState(p).`is`(Blocks.BEACON)) out += AABB(p)
+        }
+        return out
+    }
+
+    private fun skin(stand: ArmorStand) = skinOf(stand)
+
+    /** Entity id -> (head texture as sent, decoded): decoding every armour stand's head every tick adds up. */
+    private val skins = HashMap<Int, Pair<String, String?>>()
+
+    /** Decoded skull texture JSON of [stand]'s head, or null. Shared with VampireSlayer. */
+    fun skinOf(stand: ArmorStand): String? {
+        val raw = stand.getItemBySlot(EquipmentSlot.HEAD).getSkullTexture() ?: return null
+        skins[stand.id]?.takeIf { it.first == raw }?.let { return it.second }
+        if (skins.size > 4000) skins.clear()
+        val decoded = runCatching { String(Base64.getDecoder().decode(raw)) }.getOrNull()
+        skins[stand.id] = raw to decoded
+        return decoded
+    }
+
+    /** Inferno T3/T4 drop fire pits when the boss goes under a third of its HP: true once per boss. */
+    fun firePitsNow(): Boolean {
+        if (firePitsWarned || name != "Inferno Demonlord" || maxHp <= 0 || hp > maxHp / 3) return false
+        firePitsWarned = true
+        return true
+    }
+
+    fun format(n: Double): String = when {
+        n >= 1e9 -> "%.2fB".format(n / 1e9)
+        n >= 1e6 -> "%.2fM".format(n / 1e6)
+        n >= 1e4 -> "%.1fk".format(n / 1e3)
+        else -> "%,d".format(n.toLong())
+    }
+}

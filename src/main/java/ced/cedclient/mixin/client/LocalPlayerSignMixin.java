@@ -1,5 +1,6 @@
 package ced.cedclient.mixin.client;
 
+import ced.cedclient.features.impl.misc.AuctionPriceInput;
 import ced.cedclient.features.impl.misc.SearchOverlay;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -8,12 +9,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** SearchOverlay: swaps Hypixel's Bazaar / AH "Enter query" sign for the search overlay. */
+/** SearchOverlay / AuctionPriceInput: swap Hypixel's search and price / amount signs for our own input screens. */
 @Mixin(LocalPlayer.class)
 public class LocalPlayerSignMixin {
 
     @Inject(method = "openTextEdit", at = @At("HEAD"), cancellable = true)
     private void cedclient$searchOverlay(SignBlockEntity sign, boolean isFrontText, CallbackInfo ci) {
-        if (SearchOverlay.tryOpen(sign, isFrontText)) ci.cancel();
+        if (SearchOverlay.tryOpen(sign, isFrontText) || AuctionPriceInput.tryOpen(sign, isFrontText)) ci.cancel();
     }
 }

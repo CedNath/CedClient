@@ -3,6 +3,7 @@ package ced.cedclient.state
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.utils.Debug
+import ced.cedclient.utils.TabListCache
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
@@ -207,6 +208,7 @@ object DungeonState {
 
     private var lastLevel: ClientLevel? = null
     private var rejoinCheckTicks = 0
+    private var classCheckTicks = 0
 
     fun init() {
         on<ChatMessageEvent> { event ->
@@ -349,11 +351,21 @@ object DungeonState {
         // Unlike floor, this doesn't wait on inDungeon -- the "(Mage XLVII)"
         // tag next to your own name is visible in the tab list in the
         // dungeon hub too, before Mort's map message ever fires.
-        if (playerClass != null && playerClassLevel == 0) {
+        // The tag also names the class, so it fills playerClass in when the "You have selected..." message was
+        // never seen (class picked in an earlier session, or straight into a second run). Once a second.
+        if ((playerClass == null || playerClassLevel == 0) && ++classCheckTicks % 20 == 0) {
+            // Own team suffix, else the dungeon tab's fake rows ("[302] Name (Mage XLVII)").
+            val name = mc.player?.gameProfile?.name
             val tagMatch = readOwnTabListSuffix()?.let { classLevelTagRegex.find(it) }
+                ?: name?.let { n -> TabListCache.entries.firstNotNullOfOrNull { e -> if (n in e.stripped) classLevelTagRegex.find(e.stripped) else null } }
+            val tagClass = tagMatch?.groups?.get("name")?.value?.let { n -> runCatching { DungeonClass.valueOf(n.uppercase()) }.getOrNull() }
+            if (playerClass == null && tagClass != null) {
+                playerClass = tagClass
+                if (Debug.enabled) Debug.log("[DungeonState] class -> $playerClass (from tab list)", interval = 1)
+            }
             val roman = tagMatch?.groups?.get("level")?.value
             val level = roman?.let { romanToInt(it) }
-            if (level != null) {
+            if (level != null && tagClass == playerClass) {
                 playerClassLevel = level
                 if (Debug.enabled) Debug.log("[DungeonState] classLevel -> $playerClassLevel (from tab list: '$roman')", interval = 1)
             }
@@ -517,12 +529,13 @@ object DungeonState {
     fun mageCooldownMultiplier(ignoreMageCooldownReduction: Boolean): Double {
         if (ignoreMageCooldownReduction) return 1.0
         if (!inDungeon) return 1.0
-        if (playerClass != DungeonClass.MAGE) return 1.0
 
+        // Hypixel's own "[Mage] Cooldown Reduction" line: exact, and only sent to Mages, so it doesn't need playerClass.
         val exactPercent = mageCooldownReductionPercent
         if (exactPercent != null) {
             return (1.0 - exactPercent / 100.0).coerceAtLeast(0.0)
         }
+        if (playerClass != DungeonClass.MAGE) return 1.0
 
         var multiplier = 1.0
         multiplier -= if (isUniqueClass) 0.5 else 0.25

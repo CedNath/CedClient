@@ -43,7 +43,6 @@ object EntityESP : Module(
     private val showPassive = BooleanSetting("Show Passive", true)
     private val showPlayers = BooleanSetting("Show Players", true)
     private val maxDistance = NumberSetting("Max Distance", 256.0, 8.0, 1024.0, 8.0)
-    private val scanIntervalTicks = NumberSetting("Scan Interval ticks", 5.0, 1.0, 40.0, 1.0)
     private val debugLog = BooleanSetting("Debug Log", false)
     private val showBoxes = BooleanSetting("Show Boxes", true)
     private val showTracers = BooleanSetting("Show Tracers", true)
@@ -160,11 +159,11 @@ object EntityESP : Module(
     init {
         loadFilters()
 
-        listOf(maxDistance, scanIntervalTicks, debugLog)
+        listOf(maxDistance, debugLog)
             .forEach { it.advanced = true }
 
         addSettings(
-            showHostile, showPassive, showPlayers, maxDistance, scanIntervalTicks,
+            showHostile, showPassive, showPlayers, maxDistance,
             showBoxes, showTracers, showLabels, labelScaleSetting, labelHealthBarSetting, showHudPanel, useNanoVGRendering,
             debugLog, openMobFilterMenu, openPlayerFilterMenu, openCustomFilterMenu
         )
@@ -173,8 +172,6 @@ object EntityESP : Module(
             if (!isEnabled) return@register
 
             tickCounter++
-            val interval = scanIntervalTicks.value.toInt().coerceAtLeast(1)
-            if (tickCounter % interval != 0) return@register
 
             scan()
 

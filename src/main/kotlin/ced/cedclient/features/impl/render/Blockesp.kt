@@ -86,7 +86,8 @@ object BlockESP : Module(
         "Very high values (100+) are a real, brute-force volume scan -- see the class doc. " +
                 "Results will lag behind by however long a pass actually takes, not freeze the game."
     )
-    private val scanIntervalTicks = NumberSetting("Scan Interval ticks", 20.0, 5.0, 100.0, 5.0)
+    /** Blocks don't move, so a fixed once-a-second rescan is enough (a full scan every tick would cost FPS). */
+    private const val SCAN_INTERVAL_TICKS = 20
     private val debugLog = BooleanSetting("Debug Log", false)
     private val showBoxes = BooleanSetting("Show Boxes", true)
     private val boxColor = ColorSetting(
@@ -180,11 +181,11 @@ object BlockESP : Module(
     init {
         loadFilters()
 
-        listOf(maxDistance, scanIntervalTicks, debugLog)
+        listOf(maxDistance, debugLog)
             .forEach { it.advanced = true }
 
         addSettings(
-            maxDistance, scanIntervalTicks,
+            maxDistance,
             showBoxes, boxColor, showTracers, tracerColor, showLabels,
             debugLog, openBlockFilterMenu
         )
@@ -193,8 +194,7 @@ object BlockESP : Module(
             if (!isEnabled) return@register
 
             tickCounter++
-            val interval = scanIntervalTicks.value.toInt().coerceAtLeast(1)
-            if (tickCounter % interval == 0) {
+            if (tickCounter % SCAN_INTERVAL_TICKS == 0) {
                 // self-throttling: if the previous pass is still running
                 // (likely at high Max Distance values), just skip this
                 // interval instead of queueing scans up behind it.
