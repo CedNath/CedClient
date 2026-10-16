@@ -3,6 +3,8 @@ package ced.cedclient.render;
 import ced.cedclient.accessor.CedClientPlayerRenderStateAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
+import net.minecraft.util.Mth;
 import net.minecraft.client.model.player.PlayerModel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
@@ -34,6 +36,8 @@ public class HaloLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
     };
     // Vanilla block face shading: top, bottom, north/south, east/west.
     private static final float TOP = 1.0F, BOTTOM = 0.5F, NS = 0.8F, EW = 0.6F;
+    // Animation flags, same bit order as CosmeticsSync's HALO_ANIMS.
+    private static final int SPIN = 1, BOB = 2, PULSE = 4, RAINBOW = 8;
 
     public HaloLayer(RenderLayerParent<AvatarRenderState, PlayerModel> renderer) {
         super(renderer);
@@ -41,14 +45,26 @@ public class HaloLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 
     @Override
     public void submit(PoseStack poseStack, SubmitNodeCollector collector, int lightCoords, AvatarRenderState state, float yRot, float xRot) {
-        int color = ((CedClientPlayerRenderStateAccessor) state).cedclient$getHaloColor();
-        if (color < 0 || state.isInvisible) return;
+        CedClientPlayerRenderStateAccessor accessor = (CedClientPlayerRenderStateAccessor) state;
+        int base = accessor.cedclient$getHaloColor();
+        if (base < 0 || state.isInvisible) return;
+        int anim = accessor.cedclient$getHaloAnim();
+        float t = (System.currentTimeMillis() % 3_600_000L) / 1000.0F;
+
+        int c = (anim & RAINBOW) != 0 ? Mth.hsvToRgb((t * 0.2F) % 1.0F, 0.8F, 1.0F) & 0xFFFFFF : base;
+        if ((anim & PULSE) != 0) {
+            float k = 0.7F + 0.3F * Mth.sin(t * 3.0F);
+            c = (int) ((c >> 16 & 0xFF) * k) << 16 | (int) ((c >> 8 & 0xFF) * k) << 8 | (int) ((c & 0xFF) * k);
+        }
+        int color = c;
 
         poseStack.pushPose();
         PlayerModel model = getParentModel();
         model.root().translateAndRotate(poseStack);
         model.translateToHead(poseStack);
-        poseStack.translate(-SHAPE.length * PX / 2, HEIGHT, -SHAPE.length * PX / 2);
+        poseStack.translate(0.0F, HEIGHT + ((anim & BOB) != 0 ? Mth.sin(t * 2.0F) * 0.04F : 0.0F), 0.0F);
+        if ((anim & SPIN) != 0) poseStack.mulPose(Axis.YP.rotationDegrees(t * 90.0F % 360.0F));
+        poseStack.translate(-SHAPE.length * PX / 2, 0.0F, -SHAPE.length * PX / 2);
         collector.submitCustomGeometry(poseStack, CustomRenderType.INSTANCE.getSOLID_QUADS(), (pose, buffer) -> {
             for (int z = 0; z < SHAPE.length; z++)
                 for (int x = 0; x < SHAPE[z].length(); x++)

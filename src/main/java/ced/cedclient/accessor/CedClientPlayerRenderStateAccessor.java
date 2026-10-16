@@ -26,4 +26,8 @@ public interface CedClientPlayerRenderStateAccessor {
     /** Synced halo color (0xRRGGBB), or -1 for no halo. Drawn by HaloLayer. */
     int cedclient$getHaloColor();
     void cedclient$setHaloColor(int color);
+
+    /** Halo animation bit flags (CosmeticsSync HALO_ANIMS order: spin, bob, pulse, rainbow). */
+    int cedclient$getHaloAnim();
+    void cedclient$setHaloAnim(int flags);
 }

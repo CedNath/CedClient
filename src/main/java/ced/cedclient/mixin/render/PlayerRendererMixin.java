@@ -74,6 +74,7 @@ public abstract class PlayerRendererMixin {
         accessor.cedclient$setHardcodedTarget(isHardcodedTarget);
         accessor.cedclient$setSelf(isSelf);
         accessor.cedclient$setHaloColor(override != null && override.getHalo() != null ? override.getHalo() : -1);
+        accessor.cedclient$setHaloAnim(override != null ? override.getHaloAnim() : 0);
 
         /*
          * Nametag position comes from state.attachments (EntityAttachments),
