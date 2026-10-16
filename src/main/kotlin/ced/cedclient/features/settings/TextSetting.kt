@@ -47,7 +47,8 @@ class TextSetting(
         val boxHeight = 16f
         val boxY = y + height - boxHeight - 4f
         val boxWidth = width - 12f
-        NVGRenderer.rect(x + 6f, boxY, boxWidth, boxHeight, Colors.gray26.rgba, 3f)
+        NVGRenderer.rect(x + 6f, boxY, boxWidth, boxHeight, Colors.INPUT_BG.rgba, 3f)
+        NVGRenderer.hollowRect(x + 6f, boxY, boxWidth, boxHeight, 1f, Colors.INPUT_BORDER.rgba, 3f)
 
         handler.x = x + 6f
         handler.y = boxY

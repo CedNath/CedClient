@@ -92,14 +92,29 @@ object ConfigManager {
         return modulesJson
     }
 
+    /** Renamed modules: read old saves into the new name (until the new name has been saved once). */
+    private fun savedName(name: String, saved: JsonObject): String = when {
+        name == "Theme" && !saved.has("Client Settings") -> "Client Settings"
+        // Old "Slayer Helper" (Skyblock) is now "Slayer Tracker"; the cheats module took the "Slayer Helper" name.
+        !saved.has("Slayer Tracker") && name == "Slayer Helper" -> "Slayer Tracker"
+        !saved.has("Slayer Tracker") && name == "Slayer Cheats" -> "Slayer Helper"
+        // "Chat History" and "Chat Ping" merged into "Chat Features" (on / off comes from Chat History, see mergedIn).
+        !saved.has("Chat Features") && (name == "Chat History" || name == "Chat Ping") -> "Chat Features"
+        else -> name
+    }
+
+    /** Old modules merged into another: only their settings are read, not their on / off. */
+    private val mergedIn = setOf("Chat Ping")
+
     private fun applyModulesJson(modulesJson: JsonObject) {
         for ((name, element) in modulesJson.entrySet()) {
-            // "Theme" was renamed to "Client Settings"; read old saves into it (until the new name is saved).
-            val module = ModuleManager.getModule(if (name == "Theme" && !modulesJson.has("Client Settings")) "Client Settings" else name) ?: continue
+            val module = ModuleManager.getModule(savedName(name, modulesJson)) ?: continue
             val moduleData = element.asJsonObject
 
-            module.setEnabled(moduleData.get("enabled")?.asBoolean ?: false)
-            module.expanded = moduleData.get("expanded")?.asBoolean ?: false
+            if (name !in mergedIn) {
+                module.setEnabled(moduleData.get("enabled")?.asBoolean ?: false)
+                module.expanded = moduleData.get("expanded")?.asBoolean ?: false
+            }
 
             val settingsJson = moduleData.get("settings")?.asJsonObject ?: continue
             for (setting in module.settings.values) {

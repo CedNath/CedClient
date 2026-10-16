@@ -72,7 +72,7 @@ object CompactScoreboard : Module(
         }
     }
 
-    private fun bgPanel(): Int {
+    internal fun bgPanel(): Int {
         val a = (opacity.value.coerceIn(0.0, 100.0) * 2.55).roundToInt()
         return (a shl 24) or BG_RGB
     }
@@ -165,7 +165,7 @@ object CompactScoreboard : Module(
     }
 
     // Same rounded-corner trick CompactTab uses.
-    private fun roundRect(ctx: GuiGraphicsExtractor, x1: Int, y1: Int, x2: Int, y2: Int, color: Int) {
+    internal fun roundRect(ctx: GuiGraphicsExtractor, x1: Int, y1: Int, x2: Int, y2: Int, color: Int) {
         ctx.fill(x1 + 2, y1, x2 - 2, y1 + 1, color)
         ctx.fill(x1 + 1, y1 + 1, x2 - 1, y1 + 2, color)
         ctx.fill(x1, y1 + 2, x2, y2 - 2, color)

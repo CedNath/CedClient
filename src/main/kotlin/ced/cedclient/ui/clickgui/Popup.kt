@@ -25,6 +25,11 @@ import net.minecraft.client.input.MouseButtonEvent
  * so this is new UI built to match the established look.
  */
 abstract class Popup(val title: String, val width: Float, val height: Float) {
+    companion object {
+        /** Every popup uses this size (two settings columns wide), so they all look alike. */
+        const val WIDTH = 688f
+        const val HEIGHT = 600f
+    }
 
     var x: Float = 0f
     var y: Float = 0f

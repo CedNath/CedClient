@@ -21,11 +21,12 @@ class SettingsPopup(
     private val columns: List<List<Section>>,
     private val actions: List<ActionSetting> = emptyList(),
     height: Float = 600f,
-) : Popup(title, columns.size * Panel.WIDTH + (columns.size + 1) * PAD, height) {
+) : Popup(title, Popup.WIDTH, Popup.HEIGHT) {
 
     class Section(val name: String, val settings: List<RenderableSetting<*>>)
 
     private var scroll = 0f
+    private var lastContentHeight = 0f
 
     private val allSettings get() = columns.asSequence().flatten().flatMap { it.settings }.filter { it.isVisible }
 
@@ -39,7 +40,8 @@ class SettingsPopup(
 
         NVGRenderer.pushScissor(x, viewTop, width, viewHeight)
         columns.forEachIndexed { i, sections ->
-            val cx = x + PAD + i * (Panel.WIDTH + PAD)
+            // Columns centred in the fixed-width popup (a single column sits in the middle).
+            val cx = x + (width - columns.size * Panel.WIDTH - (columns.size - 1) * PAD) / 2f + i * (Panel.WIDTH + PAD)
             var cy = viewTop + scroll
             for (section in sections) {
                 NVGRenderer.text(section.name, cx + 6f, cy + 4f, 16f, ClickGUI.clickGUIColor.rgba, font)
@@ -53,6 +55,7 @@ class SettingsPopup(
             contentHeight = maxOf(contentHeight, cy - (viewTop + scroll))
         }
         NVGRenderer.popScissor()
+        lastContentHeight = contentHeight
         scroll = scroll.coerceIn((viewHeight - contentHeight).coerceAtMost(0f), 0f)
 
         // Scroll thumb
@@ -101,7 +104,8 @@ class SettingsPopup(
     }
 
     override fun mouseScrolled(mouseX: Float, mouseY: Float, amount: Int): Boolean {
-        scroll += amount * 2
+        // Clamp here too: clamping only in draw let each scroll past the end show one frame too far (jitter).
+        scroll = (scroll + amount * 2).coerceIn((viewHeight - lastContentHeight).coerceAtMost(0f), 0f)
         return true
     }
 

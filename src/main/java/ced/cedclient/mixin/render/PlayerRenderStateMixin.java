@@ -24,6 +24,19 @@ public class PlayerRenderStateMixin
     @Unique
     private float cedclient$syncedScaleZ = 1.0F;
 
+    @Unique
+    private int cedclient$haloColor = -1;
+
+    @Override
+    public int cedclient$getHaloColor() {
+        return cedclient$haloColor;
+    }
+
+    @Override
+    public void cedclient$setHaloColor(int color) {
+        cedclient$haloColor = color;
+    }
+
     @Override
     public boolean cedclient$isSelf() {
         return cedclient$isSelf;
