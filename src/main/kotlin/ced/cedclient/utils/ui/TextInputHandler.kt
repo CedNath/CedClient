@@ -348,11 +348,11 @@ class TextInputHandler(
         return i
     }
 
-    /** Starts typing into the field without a click (caret at the end). */
-    fun focus() {
+    /** Starts typing into the field without a click (caret at the end; [selectAll] = typing replaces the text). */
+    fun focus(selectAll: Boolean = false) {
         isActive = true
         caret = text.length
-        selection = caret
+        selection = if (selectAll) 0 else caret
     }
 
     private fun deactivate() {

@@ -2,7 +2,6 @@ package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.RenderableSetting
-import ced.cedclient.features.settings.ResetDefaultsSetting
 import ced.cedclient.ui.animations.ColorAnimation
 import ced.cedclient.ui.animations.EaseInOutAnimation
 import ced.cedclient.render.nvg.NVGRenderer
@@ -26,8 +25,7 @@ import kotlin.math.floor
  */
 class ModuleButton(val module: Module, val panel: Panel) {
 
-    val representableSettings = module.settings.values.filterIsInstance<RenderableSetting<*>>().filter { !it.inPopup } +
-            listOfNotNull(ResetDefaultsSetting(module).takeIf { ResetDefaultsSetting.hasResettable(module) })
+    val representableSettings = module.settings.values.filterIsInstance<RenderableSetting<*>>().filter { !it.inPopup }
     private val colorAnim = ColorAnimation(150)
 
     private val color: Color
@@ -74,6 +72,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
         if (extendAnim.isAnimating()) NVGRenderer.pushScissor(x, y, Panel.WIDTH, totalHeight)
 
         if (extendAnim.isAnimating() || extended) {
+            // Solid backing so the world behind the GUI doesn't show through the settings.
+            NVGRenderer.rect(x, y + Panel.HEIGHT, Panel.WIDTH, totalHeight - Panel.HEIGHT, Colors.SETTING_BG.rgba)
             for (setting in representableSettings) {
                 if (setting.isVisible) drawY += setting.render(x, y + drawY, mouseX / clickGuiScale, mouseY / clickGuiScale)
             }

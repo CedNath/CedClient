@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.features.impl.misc.ChatPing
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
@@ -376,6 +377,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         }
 
         ConfigManager.save(panelSettings)
+        ChatPing.saveAlerts()
         super.onClose()
     }
 

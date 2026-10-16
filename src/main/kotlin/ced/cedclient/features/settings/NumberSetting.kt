@@ -68,7 +68,7 @@ class NumberSetting(
 
         val barY = y + height - 6f
         val barHeight = 3f
-        NVGRenderer.rect(x + 6f, barY, width - 12f, barHeight, Colors.gray26.rgba, 1.5f)
+        NVGRenderer.rect(x + 6f, barY, width - 12f, barHeight, Colors.INPUT_BORDER.rgba, 1.5f)
 
         val percent = if (max > min) ((value - min) / (max - min)).toFloat().coerceIn(0f, 1f) else 0f
         val fillWidth = (width - 12f) * percent

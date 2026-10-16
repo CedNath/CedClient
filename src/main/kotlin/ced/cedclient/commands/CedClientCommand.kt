@@ -85,6 +85,7 @@ object CedClientCommand {
         return ClientCommands.literal(rootName)
             .executes(openGuiExecutes)   // bare /cedclient or /cc opens GUI
             .then(PositionalMessages.commandTree())
+            .then(ced.cedclient.utils.DevAccess.commandTree())
 
             .then(
                 ClientCommands.literal("hud")

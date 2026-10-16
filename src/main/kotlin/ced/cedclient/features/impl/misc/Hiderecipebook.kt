@@ -27,8 +27,14 @@ object HideRecipeBook : Module(
         "Hide the recipe book button on the crafting table screen too."
     )
 
+    private val craftingGrid = BooleanSetting("Hide 2x2 Crafting", true, "Hides the 2x2 crafting grid (and its label) in your inventory.")
+
+    /** InventoryCraftingGridMixin / InventoryCraftingSlotMixin: only in the player inventory screen. */
+    @JvmStatic
+    fun hideCraftingGrid() = isEnabled && craftingGrid.value && net.minecraft.client.Minecraft.getInstance().screen is InventoryScreen
+
     init {
-        addSettings(alsoCraftingTable)
+        addSettings(alsoCraftingTable, craftingGrid)
 
         ScreenEvents.AFTER_INIT.register(ScreenEvents.AfterInit { _, screen, _, _ ->
             if (!isEnabled) return@AfterInit

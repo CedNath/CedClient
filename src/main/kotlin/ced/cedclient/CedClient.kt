@@ -17,6 +17,14 @@ import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.features.impl.misc.AutoSprint
 import ced.cedclient.features.impl.misc.BorderlessFullscreen
+import ced.cedclient.features.impl.misc.KeepConnection
+import ced.cedclient.state.UpdateChecker
+import ced.cedclient.state.Sidebar
+import ced.cedclient.features.impl.funqol.CritterSafari
+import ced.cedclient.features.impl.funqol.VampireSlayer
+import ced.cedclient.features.impl.render.VanillaTextures
+import ced.cedclient.features.impl.misc.ChatPing
+import ced.cedclient.features.impl.misc.ChatFeatures
 import ced.cedclient.chat.PlayerChatManager
 import ced.cedclient.features.impl.misc.ChatFilter
 import ced.cedclient.features.impl.misc.DailyReset
@@ -96,6 +104,9 @@ class CedClient : ClientModInitializer {
     private fun registerAlwaysOnState() {
         DungeonState.init()
         CosmeticsSync.init()
+        UpdateChecker.start()
+        Sidebar.init()
+        ChatFeatures.start()
         IslandState.init()
         PlayerChatManager.init()
         PartyApi.init()
@@ -107,6 +118,9 @@ class CedClient : ClientModInitializer {
 
         PictureInPictureRendererRegistry.register { context ->
             NVGSpecialRenderer(context.bufferSource())
+        }
+        PictureInPictureRendererRegistry.register { context ->
+            NVGSpecialRenderer(context.bufferSource(), NVGSpecialRenderer.TooltipState::class.java)
         }
 
     }
@@ -121,12 +135,16 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(Fullbright)
         ModuleManager.register(CleanView)
         ModuleManager.register(RenderOptimizer)
+        ModuleManager.register(VanillaTextures)
+        ModuleManager.register(ced.cedclient.features.impl.render.CustomTooltips)
+        ModuleManager.register(ced.cedclient.features.impl.render.ScrollableTooltips)
         ModuleManager.register(Zoom)
 
         // HUD: vanilla UI tweaks, then info overlays
         ModuleManager.register(CompactScoreboard)
         ModuleManager.register(CompactTab)
         ModuleManager.register(ChatChannelHud)
+        ModuleManager.register(ced.cedclient.features.impl.render.ActionBarHud)
         ModuleManager.register(TimeHud)
         ModuleManager.register(ItemCooldowns)
         ModuleManager.register(DailyReset)
@@ -142,7 +160,12 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(PositionalMessages)
         ModuleManager.register(F7SoundCap)
         ModuleManager.register(CustomHypeSound)
+        ModuleManager.register(CritterSafari)
+        ModuleManager.register(VampireSlayer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
         ModuleManager.register(SearchOverlay)
+        ModuleManager.register(ced.cedclient.features.impl.misc.AuctionPriceInput)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ItemValue)
 
         // Misc: movement / navigation, inventory, chat, screenshots, then client settings
         ModuleManager.register(AutoSprint)
@@ -150,8 +173,10 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(InventoryButtons)
         ModuleManager.register(HideRecipeBook)
         ModuleManager.register(ChatFilter)
+        ModuleManager.register(ChatFeatures)
         ModuleManager.register(ScreenshotTweaks)
         ModuleManager.register(BorderlessFullscreen)
+        ModuleManager.register(KeepConnection)
         ModuleManager.register(Theme)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(ResetPanels)
@@ -190,6 +215,41 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "chat_channel_hud")
         ) { graphics, tickCounter ->
             ChatChannelHud.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "action_bar_hud")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.render.ActionBarHud.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "chat_alerts_hud")
+        ) { graphics, tickCounter ->
+            ChatPing.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "critter_progress")
+        ) { graphics, tickCounter ->
+            CritterSafari.ProgressHud.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "critter_missing")
+        ) { graphics, tickCounter ->
+            CritterSafari.MissingHud.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "critter_trades")
+        ) { graphics, tickCounter ->
+            CritterSafari.TradesHud.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "slayer")
+        ) { graphics, tickCounter ->
+            VampireSlayer.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "sun_gecko")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.SunGecko.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "item_cooldowns")

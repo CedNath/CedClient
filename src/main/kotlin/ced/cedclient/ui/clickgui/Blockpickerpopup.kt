@@ -227,7 +227,7 @@ class BlockPickerPopup(
 
     override fun mouseScrolled(mouseX: Float, mouseY: Float, amount: Int): Boolean {
         if (mouseY !in listY..(listY + listHeight)) return false
-        scrollOffset += amount
+        scrollOffset = (scrollOffset + amount).coerceIn((-filtered.size * ROW_HEIGHT + listHeight).coerceAtMost(0f), 0f)
         return true
     }
 
@@ -237,8 +237,6 @@ class BlockPickerPopup(
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     companion object {
-        private const val WIDTH = 360f
-        private const val HEIGHT = 440f
         private const val INPUT_HEIGHT = 24f
         private const val BUTTON_HEIGHT = 22f
         private const val BUTTON_GAP = 6f

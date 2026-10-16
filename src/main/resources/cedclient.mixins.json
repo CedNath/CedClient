@@ -23,6 +23,7 @@
     "render.FogRendererMixin",
     "render.ScreenEffectRendererMixin",
     "render.GuiOverlayMixin",
+    "render.GuiItemNameMixin",
     "render.WeatherEffectRendererMixin",
     "render.QuadParticleGroupMixin",
     "render.EntityRenderDispatcherMixin",
@@ -32,11 +33,27 @@
     "network.PingHeartbeatMixin",
     "network.PingPongMixin",
     "network.ParticlePacketMixin",
+    "network.PacketErrorMixin",
+    "chat.ChatHistoryMixin",
+    "chat.GuiDisconnectMixin",
+    "chat.ChatScreenMenuMixin",
+    "network.ResourcePackPushMixin",
+    "network.DownloadedPackSourceMixin",
+    "render.ItemModelResolverMixin",
+    "render.PlayerHeadRendererMixin",
+    "render.TooltipStyleMixin",
+    "render.TooltipSpriteMixin",
+    "render.TooltipBlitMixin",
+    "render.TooltipScrollMixin",
+    "render.ShaderPreprocessorMixin",
 
     "item.ItemStackHoverNameMixin",
+    "item.ItemStackVanillaTextureMixin",
 
 
     "screen.ContainerEventHandlerMixin",
+    "screen.InventoryCraftingGridMixin",
+    "screen.InventoryCraftingSlotMixin",
     "screen.AbstractContainerScreenMixin",
     "screen.ScreenTooltipMixin",
     "scoreboard.PlayerTeamMixin",
@@ -44,6 +61,9 @@
     "input.MouseScrollMixin",
 
     "accessor.AbstractContainerScreenAccessor",
+    "accessor.GuiAccessor",
+    "accessor.LivingEntityRendererAccessor",
+    "accessor.CustomDataAccessor",
     "accessor.PlayerTabOverlayAccessor",
 
 
