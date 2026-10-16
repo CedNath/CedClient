@@ -40,11 +40,11 @@ object ConfigManager {
     // 30px gutter between panels: 15, 15+320+30=365, 365+320+30=715,
     // 715+320+30=1065.
     private val defaultPanelPositions: Map<String, Pair<Float, Float>> = mapOf(
-        "Render" to (15f to 15f),
-        "HUD" to (365f to 15f),
-        "Cosmetic" to (715f to 15f),
-        "Skyblock" to (1065f to 15f),
-        "Misc" to (1415f to 15f),
+        "Misc" to (15f to 15f),
+        "Skyblock" to (365f to 15f),
+        "Render" to (715f to 15f),
+        "HUD" to (1065f to 15f),
+        "Cosmetic" to (1415f to 15f),
     )
 
     /** Panels that existed before the category reshuffle; a saved layout containing them is reset once. */
