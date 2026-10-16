@@ -22,7 +22,8 @@ object ModuleGroups {
         ),
         "Skyblock" to listOf(
             "Dungeons" to listOf("Dungeon Splits", "Positional Messages", "F7SoundCap", "CustomHypeSound"),
-            "Hunting" to listOf("Critter Safari", "Sun Gecko"),
+            "Hunting" to listOf("Critter Safari"),
+            "Rift" to listOf("Sun Gecko"),
             "Slayers" to listOf("Slayer Tracker"),
             "Trading" to listOf("SearchOverlay", "Auction Price Input", "Item Value"),
         ),
