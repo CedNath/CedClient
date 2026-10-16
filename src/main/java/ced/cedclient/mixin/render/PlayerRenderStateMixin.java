@@ -37,6 +37,19 @@ public class PlayerRenderStateMixin
         cedclient$haloColor = color;
     }
 
+    @Unique
+    private int cedclient$haloAnim = 0;
+
+    @Override
+    public int cedclient$getHaloAnim() {
+        return cedclient$haloAnim;
+    }
+
+    @Override
+    public void cedclient$setHaloAnim(int flags) {
+        cedclient$haloAnim = flags;
+    }
+
     @Override
     public boolean cedclient$isSelf() {
         return cedclient$isSelf;
