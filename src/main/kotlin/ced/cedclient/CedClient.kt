@@ -211,6 +211,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(CoralotHelper)
             ModuleManager.register(TropicalFishHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.SlayerCheats)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.FarmHelper)
         }
         ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)
@@ -231,6 +232,12 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "hud_keep_on_screen")
         ) { graphics, _ ->
             HudElement.all.forEach { it.keepOnScreen(graphics.guiWidth(), graphics.guiHeight()) }
+        }
+        // Friends-only like the module itself (touching FarmHelper would set it up for everyone).
+        if (ced.cedclient.utils.DevAccess.isFriend) HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "farmhelper")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")

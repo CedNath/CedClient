@@ -31,6 +31,7 @@ object ModuleGroups {
             "ESP & Camera" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes"),
             "Fishing & Hunting" to listOf("FishingHelper", "LassoHelper", "PangolinCatcher(!!!)", "CoralotHelper(!!!)", "TropicalFishHelper(!!!)", "Auto Fusion"),
             "Slayers" to listOf("Slayer Helper"),
+            "Farming" to listOf("FarmHelper"),
             "Minigames" to listOf("TinyDancerHelper", "Auto Experiments"),
         ),
         "Misc" to listOf(

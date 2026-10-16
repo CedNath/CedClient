@@ -32,6 +32,8 @@
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
     "network.PingHeartbeatMixin",
+    "network.FarmPacketMixin",
+    "client.FarmFrameMixin",
     "network.PingPongMixin",
     "network.ParticlePacketMixin",
     "network.PacketErrorMixin",
