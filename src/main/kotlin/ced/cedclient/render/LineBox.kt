@@ -34,6 +34,14 @@ object LineBox {
         line(pose, buffer, minX, minY, maxZ, minX, maxY, maxZ, r, g, b, a)
     }
 
+    /** Connected line through [points] (camera-relative), e.g. a walk path. */
+    fun polyline(pose: PoseStack.Pose, buffer: VertexConsumer, points: List<Vec3>, r: Float, g: Float, b: Float, a: Float) {
+        for (i in 0 until points.size - 1) {
+            val p = points[i]; val q = points[i + 1]
+            line(pose, buffer, p.x, p.y, p.z, q.x, q.y, q.z, r, g, b, a)
+        }
+    }
+
     private fun line(
         pose: PoseStack.Pose, buffer: VertexConsumer,
         x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double,

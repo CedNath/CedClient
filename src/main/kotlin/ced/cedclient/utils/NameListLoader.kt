@@ -39,13 +39,20 @@ object NameListLoader {
         return null
     }
 
+    // Compiled once: this runs for every entity on every Entity ESP scan.
+    private val CODES = Regex("§.")
+    private val LEVEL = Regex("\\[Lv\\d+\\]        ")
+    private val HP = Regex("\\d+[kKmM]?/\\d+[kKmM]?❤")
+    private val SYMBOLS = Regex("[^\\p{L}\\p{N}\\p{Z}]")
+    private val SPACES = Regex("\\s{2,}")
+
     private fun normalizeName(raw: String?): String {
         if (raw == null) return ""
-        var s = raw.replace(Regex("§."), "")                      // strip color codes
-        s = s.replace(Regex("\\[Lv\\d+\\]        "), " ")                  // remove [Lv123]
-        s = s.replace(Regex("\\d+[kKmM]?/\\d+[kKmM]?❤"), " ")      // remove hp tags
-        s = s.replace(Regex("[^\\p{L}\\p{N}\\p{Z}]"), " ")         // keep letters/numbers/space
-        s = s.replace(Regex("\\s{2,}"), " ").trim()                // collapse whitespace
+        var s = raw.replace(CODES, "")                      // strip color codes
+        s = s.replace(LEVEL, " ")                  // remove [Lv123]
+        s = s.replace(HP, " ")      // remove hp tags
+        s = s.replace(SYMBOLS, " ")         // keep letters/numbers/space
+        s = s.replace(SPACES, " ").trim()                // collapse whitespace
         return s.lowercase()
     }
 
