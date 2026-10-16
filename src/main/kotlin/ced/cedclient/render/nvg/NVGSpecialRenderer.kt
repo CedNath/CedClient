@@ -10,18 +10,26 @@ import net.minecraft.client.gui.render.pip.PictureInPictureRenderer
 import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState
 import net.minecraft.client.renderer.MultiBufferSource
 import org.joml.Matrix3x2f
+import org.joml.Vector2f
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL13
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33C
 
+/**
+ * Vanilla keeps ONE texture per PictureInPictureRenderer and reuses it for every state of its class in a frame, so two
+ * NVG draws in the same frame overwrite each other. Tooltips therefore get their own renderer ([TooltipState] class,
+ * registered as a second instance) so they don't wipe out the ClickGUI or other NVG screens drawn under them.
+ */
 class NVGSpecialRenderer(
-    vertexConsumers: MultiBufferSource.BufferSource
+    vertexConsumers: MultiBufferSource.BufferSource,
+    private val stateClass: Class<out NVGRenderState> = NVGRenderState::class.java
 ) : PictureInPictureRenderer<NVGSpecialRenderer.NVGRenderState>(vertexConsumers) {
 
-    // Cache one FBO per (colorTex, depthTex) glId pair, since DirectStateAccess
-    // (Mojang's internal FBO cache) is no longer reachable from public API.
-    private val fboCache = HashMap<Pair<Int, Int>, Int>()
+    // One FBO per renderer, textures re-attached every draw: PIP textures are recreated whenever the size changes
+    // and GL hands the new one the freed id again, so an FBO cached by id kept pointing at the deleted texture and
+    // everything drew into nothing (tooltips of a new size showed no box).
+    private var fbo = 0
 
     override fun renderToTexture(state: NVGRenderState, poseStack: PoseStack) {
         val colorTexView = RenderSystem.outputColorTextureOverride ?: return
@@ -33,15 +41,10 @@ class NVGSpecialRenderer(
         val fbWidth = glColorTex.getWidth(0)
         val fbHeight = glColorTex.getHeight(0)
 
-        val fbo = fboCache.getOrPut(glColorTex.glId() to glDepthTex.glId()) {
-            val newFbo = GL30.glGenFramebuffers()
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, newFbo)
-            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColorTex.glId(), 0)
-            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL11.GL_TEXTURE_2D, glDepthTex.glId(), 0)
-            newFbo
-        }
-
+        if (fbo == 0) fbo = GL30.glGenFramebuffers()
         GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo)
+        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColorTex.glId(), 0)
+        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL11.GL_TEXTURE_2D, glDepthTex.glId(), 0)
         GlStateManager._viewport(0, 0, fbWidth, fbHeight)
 
         // --- NEW: FBO completeness check ---
@@ -140,10 +143,11 @@ class NVGSpecialRenderer(
     }
 
     override fun getTranslateY(height: Int, windowScaleFactor: Int): Float = height / 2f
-    override fun getRenderStateClass(): Class<NVGRenderState> = NVGRenderState::class.java
+    @Suppress("UNCHECKED_CAST")
+    override fun getRenderStateClass(): Class<NVGRenderState> = stateClass as Class<NVGRenderState>
     override fun getTextureLabel(): String = "nvg_renderer"
 
-    data class NVGRenderState(
+    open class NVGRenderState(
         private val x: Int,
         private val y: Int,
         private val width: Int,
@@ -164,6 +168,12 @@ class NVGSpecialRenderer(
         override fun bounds(): ScreenRectangle? = bounds
     }
 
+    /** Same as [NVGRenderState], separate class so tooltips render through their own renderer / texture. */
+    class TooltipState(
+        x: Int, y: Int, width: Int, height: Int, poseMatrix: Matrix3x2f, scissor: ScreenRectangle?, bounds: ScreenRectangle?,
+        renderContent: () -> Unit,
+    ) : NVGRenderState(x, y, width, height, poseMatrix, scissor, bounds, renderContent)
+
     companion object {
 
         fun draw(
@@ -173,13 +183,27 @@ class NVGSpecialRenderer(
             width: Int,
             height: Int,
             renderContent: () -> Unit,
-            afterRender: (() -> Unit)? = null
+            afterRender: (() -> Unit)? = null,
+            tooltip: Boolean = false
         ) {
             val scissor = context.scissorStack.peek()
-            val pose = Matrix3x2f(context.pose())
+            var pose = Matrix3x2f(context.pose())
+            var x = x
+            var y = y
+            var width = width
+            var height = height
+            if (tooltip) {
+                // The PIP blit ignores the pose, so a scaled tooltip (another mod's tooltip scale) drew its box at the
+                // unscaled spot. Move the rect into screen space instead; the content scales itself to the canvas.
+                val a = pose.transformPosition(Vector2f(x.toFloat(), y.toFloat()))
+                val b = pose.transformPosition(Vector2f((x + width).toFloat(), (y + height).toFloat()))
+                x = Math.round(a.x); y = Math.round(a.y)
+                width = maxOf(1, Math.round(b.x) - x); height = maxOf(1, Math.round(b.y) - y)
+                pose = Matrix3x2f()
+            }
             val bounds = createBounds(x, y, x + width, y + height, pose, scissor)
 
-            val state = NVGRenderState(
+            val state = if (tooltip) TooltipState(x, y, width, height, pose, scissor, bounds, renderContent) else NVGRenderState(
                 x,
                 y,
                 width,
