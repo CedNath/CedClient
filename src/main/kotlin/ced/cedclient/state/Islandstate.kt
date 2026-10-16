@@ -148,8 +148,12 @@ object IslandState {
     // the response was still occasionally slipping past it and showing up
     // in chat -- RETRY_INTERVAL_TICKS was bumped alongside it to preserve
     // the same safety gap between the window closing and the next retry.
-    private const val EXPECTED_RESPONSE_WINDOW_TICKS = 100
-    private var expectedResponseTicksRemaining: Int = 0
+    // Lag made the old 100-tick window close before a slow reply arrived (and a retry could send a second request
+    // whose reply had no window), so the raw JSON showed in chat. Now every request we send is counted and that many
+    // replies are hidden, each for up to EXPECTED_RESPONSE_MS of wall time.
+    private const val EXPECTED_RESPONSE_MS = 30_000L
+    @Volatile private var pendingResponses = 0
+    @Volatile private var lastRequestAt = 0L
 
     private data class LocrawResponse(
         val server: String? = null,
@@ -173,10 +177,6 @@ object IslandState {
         // we skip straight past the retry logic (e.g. level == null,
         // island already known), or the window would outlive its intended
         // ~2s and could wrongly swallow a later manually-typed /locraw.
-        if (expectedResponseTicksRemaining > 0) {
-            expectedResponseTicksRemaining--
-        }
-
         val currentLevel = mc.level
 
         if (currentLevel !== lastLevel) {
@@ -219,7 +219,10 @@ object IslandState {
         // chat-parsing half of this file works independently of the
         // sending half.
         mc.player?.connection?.sendCommand("locraw")
-        expectedResponseTicksRemaining = EXPECTED_RESPONSE_WINDOW_TICKS
+        synchronized(this) {
+            pendingResponses++
+            lastRequestAt = System.currentTimeMillis()
+        }
         if (Debug.enabled) Debug.log("[IslandState] sent /locraw", interval = 1)
     }
 
@@ -235,9 +238,14 @@ object IslandState {
      * eligible twice, and stops a stale window from lingering past its real
      * reply in the (unlikely) case the response never actually arrives.
      */
+    @Synchronized
     fun consumeExpectedLocrawResponse(): Boolean {
-        if (expectedResponseTicksRemaining <= 0) return false
-        expectedResponseTicksRemaining = 0
+        if (pendingResponses <= 0) return false
+        if (System.currentTimeMillis() - lastRequestAt > EXPECTED_RESPONSE_MS) {
+            pendingResponses = 0 // never answered; don't swallow a /locraw typed much later
+            return false
+        }
+        pendingResponses--
         return true
     }
 
