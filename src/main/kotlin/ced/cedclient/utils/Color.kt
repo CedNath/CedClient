@@ -175,4 +175,8 @@ object Colors {
 
     @JvmField val gray38 = Color(38, 38, 38)
     @JvmField val gray26 = Color(26, 26, 26)
+    /** ClickGUI: behind a module's settings, text boxes, and their borders / empty slider tracks. */
+    @JvmField val SETTING_BG = Color(30, 30, 33)
+    @JvmField val INPUT_BG = Color(52, 52, 58)
+    @JvmField val INPUT_BORDER = Color(110, 110, 120)
 }
