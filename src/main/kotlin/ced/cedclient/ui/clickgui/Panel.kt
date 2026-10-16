@@ -1,8 +1,10 @@
 package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.ModuleManager
+import ced.cedclient.features.ModuleGroups
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
+import ced.cedclient.utils.Color.Companion.withAlpha
 import ced.cedclient.utils.ui.isAreaHovered
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
@@ -22,8 +24,10 @@ class Panel(val panelSetting: PanelSetting) {
 
     private val category = panelSetting.category
 
-    val moduleButtons = ModuleManager.modulesByCategory[category]
-        ?.map { ModuleButton(it, this@Panel) } ?: listOf()
+    // Modules in heading order (ModuleGroups); headings[i] is the heading of moduleButtons[i].
+    private val arranged = ModuleGroups.arrange(category, ModuleManager.modulesByCategory[category] ?: listOf())
+    val moduleButtons = arranged.map { ModuleButton(it.second, this@Panel) }
+    private val headings = arranged.map { it.first }
     private val lastModuleButton by lazy { moduleButtons.lastOrNull() }
 
     private val textWidth = NVGRenderer.textWidth(category.displayName, 25f, NVGRenderer.defaultFont)
@@ -71,8 +75,14 @@ class Panel(val panelSetting: PanelSetting) {
 
         var startY = scrollOffset + HEIGHT
         if (panelSetting.extended) {
-            for (button in moduleButtons) {
+            var lastHeading: String? = null
+            for ((i, button) in moduleButtons.withIndex()) {
                 if (!button.module.name.contains(SearchBar.currentSearch, true)) continue
+                // Headings only without a search, so a filtered panel stays a plain list.
+                val heading = headings[i]
+                if (heading != null && heading != lastHeading && SearchBar.currentSearch.isEmpty())
+                    startY += drawHeading(heading, panelSetting.x, startY + panelSetting.y)
+                lastHeading = heading
                 startY += button.draw(panelSetting.x, startY + panelSetting.y, button == lastModuleButton)
             }
         }
@@ -90,6 +100,15 @@ class Panel(val panelSetting: PanelSetting) {
             )
         }
         if (scrollOffset != 0f) NVGRenderer.popScissor()
+    }
+
+    /** Small sub-heading row ("Dungeons", "Hunting"...) in the accent colour; returns its height. */
+    private fun drawHeading(text: String, x: Float, y: Float): Float {
+        NVGRenderer.rect(x, y, WIDTH, HEADING_HEIGHT, Colors.gray26.rgba)
+        val w = NVGRenderer.textWidth(text, 15f, NVGRenderer.defaultFont)
+        NVGRenderer.text(text, x + WIDTH / 2f - w / 2f, y + HEADING_HEIGHT / 2f - 7.5f, 15f, ClickGUI.clickGUIColor.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.rect(x + 12f, y + HEADING_HEIGHT - 1f, WIDTH - 24f, 1f, ClickGUI.clickGUIColor.withAlpha(0.35f).rgba)
+        return HEADING_HEIGHT
     }
 
     fun handleScroll(amount: Int): Boolean {
@@ -158,5 +177,6 @@ class Panel(val panelSetting: PanelSetting) {
     companion object {
         const val WIDTH = 320f
         const val HEIGHT = 46f
+        const val HEADING_HEIGHT = 26f
     }
 }
