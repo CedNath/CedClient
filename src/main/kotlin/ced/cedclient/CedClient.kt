@@ -217,6 +217,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(TinyDancerHelper)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoExperiments)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoFusion)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.AnvilHelper)
 
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {
