@@ -12,8 +12,9 @@ import java.time.Duration
 import java.util.Properties
 
 /**
- * Sends ONE small ping per game launch (and one when the game closes) to the CedClient stats Worker so the dev
- * can see who is using the mod.
+ * Sends a small ping per game launch, the same ping every 10 minutes while the game runs (so "playing now" on the
+ * site clears soon after a crash), and one when the game closes, to the CedClient stats Worker so the dev can see
+ * who is using the mod.
  *
  * What is sent: Minecraft username, UUID, CedClient version, Minecraft version; on close only the UUID and
  * how many seconds the game was open.
@@ -33,6 +34,7 @@ object UsageStats {
     private const val KEY = "shareUsage"
 
     private const val CLOSE_ENDPOINT = "https://cedclient.kasajonny420-dab.workers.dev/close"
+    private const val HEARTBEAT_MS = 10 * 60 * 1000L // site treats 25 min of silence as offline
 
     private var pinged = false
     private var launchedAt = 0L
@@ -61,27 +63,38 @@ object UsageStats {
                 .map { it.metadata.version.friendlyString }
                 .orElse("unknown")
 
-            val json = "{" +
+            // hb = this client sends heartbeats, so the site can drop it from "playing now" soon after a crash.
+            val json = { beat: Boolean -> "{" +
                     "\"uuid\":\"${esc(uuid)}\"," +
                     "\"name\":\"${esc(name)}\"," +
                     "\"version\":\"${esc(modVersion)}\"," +
-                    "\"mc\":\"${esc(mcVersion)}\"" +
-                    "}"
+                    "\"mc\":\"${esc(mcVersion)}\"," +
+                    "\"hb\":true,\"beat\":$beat" +
+                    "}" }
 
             val thread = Thread({
-                try {
-                    val client = HttpClient.newBuilder()
-                        .connectTimeout(Duration.ofSeconds(5))
-                        .build()
-                    val request = HttpRequest.newBuilder(URI.create(ENDPOINT))
-                        .timeout(Duration.ofSeconds(5))
-                        .header("Content-Type", "application/json")
-                        .header("User-Agent", "CedClient/$modVersion")
-                        .POST(HttpRequest.BodyPublishers.ofString(json))
-                        .build()
-                    client.send(request, HttpResponse.BodyHandlers.discarding())
-                } catch (_: Throwable) {
-                    // Never let stats affect the game.
+                val client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build()
+                var beat = false
+                while (true) {
+                    try {
+                        val request = HttpRequest.newBuilder(URI.create(ENDPOINT))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Content-Type", "application/json")
+                            .header("User-Agent", "CedClient/$modVersion")
+                            .POST(HttpRequest.BodyPublishers.ofString(json(beat)))
+                            .build()
+                        client.send(request, HttpResponse.BodyHandlers.discarding())
+                    } catch (_: Throwable) {
+                        // Never let stats affect the game.
+                    }
+                    beat = true
+                    try {
+                        Thread.sleep(HEARTBEAT_MS)
+                    } catch (_: InterruptedException) {
+                        return@Thread
+                    }
                 }
             }, "CedClient-UsageStats")
             thread.isDaemon = true
