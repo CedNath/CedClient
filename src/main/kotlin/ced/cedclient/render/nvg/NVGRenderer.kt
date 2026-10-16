@@ -238,6 +238,18 @@ object NVGRenderer {
         nvgFill(vg)
     }
 
+    /** Like [dropShadow] but in any colour (ARGB; its alpha is the strength at the edge). Also used for glows. */
+    fun shadow(x: Float, y: Float, width: Float, height: Float, blur: Float, spread: Float, radius: Float, color: Int) {
+        color(color, color and 0x00FFFFFF)
+        nvgBoxGradient(vg, x - spread, y - spread, width + 2 * spread, height + 2 * spread, radius + spread, blur, nvgColor, nvgColor2, nvgPaint)
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x - spread - blur, y - spread - blur, width + 2 * spread + 2 * blur, height + 2 * spread + 2 * blur, radius + spread)
+        nvgRoundedRect(vg, x, y, width, height, radius)
+        nvgPathWinding(vg, NVG_HOLE)
+        nvgFillPaint(vg, nvgPaint)
+        nvgFill(vg)
+    }
+
     fun circle(x: Float, y: Float, radius: Float, color: Int) {
         nvgBeginPath(vg)
         nvgCircle(vg, x, y, radius)
