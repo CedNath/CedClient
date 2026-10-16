@@ -65,14 +65,23 @@ class ColorSetting(
     override fun render(x: Float, y: Float, mouseX: Float, mouseY: Float): Float {
         val height = super.render(x, y, mouseX, mouseY)
 
-        NVGRenderer.text(name, x + 6f, y + Panel.HEIGHT / 2f - 6f, 12f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        val font = NVGRenderer.defaultFont
+        NVGRenderer.text(name, x + 6f, y + Panel.HEIGHT / 2f - 7f, 14f, Colors.WHITE.rgba, font)
 
-        val swatchSize = 13f
-        val swatchX = x + width - swatchSize - 6f
-        val swatchY = y + Panel.HEIGHT / 2f - swatchSize / 2f
-        NVGRenderer.rect(swatchX, swatchY, swatchSize, swatchSize, value.rgba, 2f)
+        // Colour pill (checker under it so see-through colours read as such) + hex code beside it.
+        val pillW = 30f
+        val pillH = 16f
+        val pillX = x + width - pillW - 8f
+        val pillY = y + Panel.HEIGHT / 2f - pillH / 2f
+        if (value.alphaFloat < 1f) drawChecker(pillX, pillY, pillW, pillH, pillH / 2f)
+        NVGRenderer.rect(pillX, pillY, pillW, pillH, value.rgba, pillH / 2f)
+        NVGRenderer.hollowRect(pillX, pillY, pillW, pillH, 1f, (if (isHovered || picking) Colors.WHITE else Colors.INPUT_BORDER).rgba, pillH / 2f)
+        val hex = "#%06X".format(value.rgba and 0xFFFFFF)
+        NVGRenderer.text(hex, pillX - 8f - NVGRenderer.textWidth(hex, 12f, font), y + Panel.HEIGHT / 2f - 6f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
 
         if (picking) {
+            // Rounded backing for the picker, like the menu's other boxes.
+            NVGRenderer.rect(x + 3f, y + Panel.HEIGHT + 1f, width - 6f, PICKER_HEIGHT - 2f, Colors.INPUT_BG.rgba, 6f)
             if (draggingSatBri) applySatBriFromMouse(mouseX, mouseY)
             if (draggingHue) applyHueFromMouse(mouseX)
             if (draggingAlpha) applyAlphaFromMouse(mouseX)
@@ -95,8 +104,7 @@ class ColorSetting(
 
         val indicatorX = satBriX + value.saturation * satBriWidth
         val indicatorY = satBriY + (1f - value.brightness) * SAT_BRI_HEIGHT
-        NVGRenderer.circle(indicatorX, indicatorY, 5f, Colors.WHITE.rgba)
-        NVGRenderer.circle(indicatorX, indicatorY, 3.5f, value.rgba)
+        knob(indicatorX, indicatorY, Color(value.hue, value.saturation, value.brightness, 1f).rgba)
     }
 
     private fun drawHueStrip() {
@@ -110,28 +118,39 @@ class ColorSetting(
             NVGRenderer.gradientRect(stopX, hueY, segmentWidth, STRIP_HEIGHT, color1, color2, Gradient.LeftToRight, 3f)
         }
 
-        val indicatorX = satBriX + value.hue * satBriWidth
-        NVGRenderer.rect(indicatorX - 1.5f, hueY - 2f, 3f, STRIP_HEIGHT + 4f, Colors.WHITE.rgba, 1.5f)
+        knob(satBriX + value.hue * satBriWidth, hueY + STRIP_HEIGHT / 2f, Color(value.hue, 1f, 1f, 1f).rgba)
     }
 
     private fun drawAlphaStrip() {
-        // small checkerboard so transparency is actually visible under the gradient
-        val checkerSize = STRIP_HEIGHT / 2f
-        var checkerX = satBriX
-        var col = 0
-        while (checkerX < satBriX + satBriWidth) {
-            val cellWidth = minOf(checkerSize, satBriX + satBriWidth - checkerX)
-            NVGRenderer.rect(checkerX, alphaY, cellWidth, STRIP_HEIGHT, (if (col % 2 == 0) Colors.gray38 else Colors.gray26).rgba)
-            checkerX += checkerSize
-            col++
-        }
+        drawChecker(satBriX, alphaY, satBriWidth, STRIP_HEIGHT, 0f)
 
         val transparent = Color(value.hue, value.saturation, value.brightness, 0f).rgba
         val opaque = Color(value.hue, value.saturation, value.brightness, 1f).rgba
         NVGRenderer.gradientRect(satBriX, alphaY, satBriWidth, STRIP_HEIGHT, transparent, opaque, Gradient.LeftToRight, 3f)
 
-        val indicatorX = satBriX + value.alphaFloat * satBriWidth
-        NVGRenderer.rect(indicatorX - 1.5f, alphaY - 2f, 3f, STRIP_HEIGHT + 4f, Colors.WHITE.rgba, 1.5f)
+        knob(satBriX + value.alphaFloat * satBriWidth, alphaY + STRIP_HEIGHT / 2f, value.rgba)
+    }
+
+    /** Round handle: white ring with the colour it picks inside. */
+    private fun knob(cx: Float, cy: Float, fill: Int) {
+        NVGRenderer.circle(cx, cy, 6.5f, 0x66000000)
+        NVGRenderer.circle(cx, cy, 5.5f, Colors.WHITE.rgba)
+        NVGRenderer.circle(cx, cy, 3.8f, fill or 0xFF000000.toInt())
+    }
+
+    /** Small grey checkerboard, so transparency is visible under a colour. */
+    private fun drawChecker(x: Float, y: Float, w: Float, h: Float, radius: Float) {
+        NVGRenderer.rect(x, y, w, h, Colors.gray38.rgba, radius)
+        val cell = h / 2f
+        NVGRenderer.pushScissor(x + radius / 2f, y, w - radius, h)
+        var cx = x
+        var col = 0
+        while (cx < x + w) {
+            NVGRenderer.rect(cx, y + if (col % 2 == 0) 0f else cell, minOf(cell, x + w - cx), cell, Colors.gray26.rgba)
+            cx += cell
+            col++
+        }
+        NVGRenderer.popScissor()
     }
 
     private fun applySatBriFromMouse(mouseX: Float, mouseY: Float) {

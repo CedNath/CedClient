@@ -17,12 +17,14 @@ import java.time.Duration
  * push can set just a tag, just a size, or both:
  *   - tag == null          -> leave this IGN's name/nametag alone
  *   - scaleX/Y/Z all == 1f -> leave this IGN's model size alone
+ *   - halo == null         -> no halo ring (else its 0xRRGGBB color, see HaloLayer)
  */
 data class CosmeticOverride(
     val tag: String? = null,
     val scaleX: Float = 1f,
     val scaleY: Float = 1f,
-    val scaleZ: Float = 1f
+    val scaleZ: Float = 1f,
+    val halo: Int? = null
 )
 
 /**
@@ -88,6 +90,7 @@ object CosmeticsSync {
     private const val MAX_SCALE = 5.0f
     private const val MAX_WORKER_BODY_CHARS = 1_000_000
     private val ignPattern = Regex("^\\w{1,16}$")
+    private val haloPattern = Regex("^#[0-9a-fA-F]{6}$")
 
     private val gson = Gson()
 
@@ -346,7 +349,10 @@ object CosmeticsSync {
                     tag = if (fromWorker) rawTag?.let { cleanTag(it) } else rawTag,
                     scaleX = axis("scaleX"),
                     scaleY = axis("scaleY"),
-                    scaleZ = axis("scaleZ")
+                    scaleZ = axis("scaleZ"),
+                    // "#rrggbb"; anything else = no halo
+                    halo = obj.get("halo")?.takeIf { it.isJsonPrimitive }?.asString
+                        ?.takeIf { haloPattern.matches(it) }?.substring(1)?.toInt(16)
                 )
             } catch (t: Throwable) {
                 // One malformed entry shouldn't throw away everyone else's.
@@ -389,6 +395,7 @@ object CosmeticsSync {
                 entry.addProperty("scaleX", override.scaleX)
                 entry.addProperty("scaleY", override.scaleY)
                 entry.addProperty("scaleZ", override.scaleZ)
+                if (override.halo != null) entry.addProperty("halo", "#%06x".format(override.halo))
                 obj.add(ign, entry)
             }
             cacheFile.writeText(gson.toJson(obj))

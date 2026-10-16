@@ -1,5 +1,6 @@
 package ced.cedclient.render.cosmetic
 
+import ced.cedclient.features.impl.render.ActionBarHud
 import ced.cedclient.features.impl.render.Freecam
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
@@ -250,7 +251,7 @@ object CosmeticTools {
     fun onScroll(amount: Double): Boolean {
         if (!rulerActive || mc.gui.screen() != null) return false
         airReach = (airReach + amount).coerceIn(1.0, 100.0)
-        mc.gui.hud.setOverlayMessage(net.minecraft.network.chat.Component.literal("§bRuler reach: ${airReach.toInt()}"), false)
+        ActionBarHud.notify(net.minecraft.network.chat.Component.literal("§bRuler reach: ${airReach.toInt()}"))
         return true
     }
 

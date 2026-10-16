@@ -22,4 +22,8 @@ public interface CedClientPlayerRenderStateAccessor {
     float cedclient$getSyncedScaleY();
     float cedclient$getSyncedScaleZ();
     void cedclient$setSyncedScale(float x, float y, float z);
+
+    /** Synced halo color (0xRRGGBB), or -1 for no halo. Drawn by HaloLayer. */
+    int cedclient$getHaloColor();
+    void cedclient$setHaloColor(int color);
 }

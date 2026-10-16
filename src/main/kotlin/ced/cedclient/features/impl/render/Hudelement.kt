@@ -1,6 +1,8 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.features.impl.funqol.CritterSafari
 import ced.cedclient.features.impl.funqol.DungeonSplits
+import ced.cedclient.features.impl.misc.ChatPing
 import ced.cedclient.features.impl.misc.DailyReset
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -43,6 +45,6 @@ interface HudElement {
 
     companion object {
         /** Every HUD panel, for MasterHudEditScreen and "Reset Everything". */
-        val all: List<HudElement> get() = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset, DungeonSplits)
+        val all: List<HudElement> get() = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset, DungeonSplits, ChatPing, ActionBarHud.Notices, ActionBarHud.ItemName, CritterSafari.ProgressHud, CritterSafari.MissingHud, CritterSafari.TradesHud, ced.cedclient.features.impl.funqol.VampireSlayer, ced.cedclient.features.impl.funqol.SunGecko)
     }
 }

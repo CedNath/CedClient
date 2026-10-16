@@ -367,7 +367,7 @@ object CosmeticBlocks : Module(
             val state = CosmeticCodec.placementState(selectedBlock, hit)
             if (state != null) CosmeticStore.setState(target, state, phantom) else CosmeticStore.set(target, selectedBlock, phantom)
         }
-        mc.gui.hud.setOverlayMessage(Component.literal("§b${target.x},${target.y},${target.z} §f-> ${brushLabel()}"), false)
+        ActionBarHud.notify(Component.literal("§b${target.x},${target.y},${target.z} §f-> ${brushLabel()}"))
     }
 
     private fun onRight(hit: BlockHitResult?) {
@@ -407,7 +407,7 @@ object CosmeticBlocks : Module(
         if (removedAt == null) {
             CosmeticTools.phantomHit()?.first?.let { if (CosmeticStore.remove(it)) removedAt = it }
         }
-        removedAt?.let { mc.gui.hud.setOverlayMessage(Component.literal("§cRemoved §f${it.x},${it.y},${it.z}"), false) }
+        removedAt?.let { ActionBarHud.notify(Component.literal("§cRemoved §f${it.x},${it.y},${it.z}")) }
     }
 
     private fun onMiddle(hit: BlockHitResult?) {

@@ -7,6 +7,8 @@ import ced.cedclient.features.impl.render.nametag.CustomNametagText;
 import ced.cedclient.state.CosmeticOverride;
 import ced.cedclient.state.CosmeticsSync;
 import ced.cedclient.accessor.CedClientPlayerRenderStateAccessor;
+import ced.cedclient.mixin.accessor.LivingEntityRendererAccessor;
+import ced.cedclient.render.HaloLayer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
@@ -26,6 +28,11 @@ public abstract class PlayerRendererMixin {
     // an extra 0.15 blocks on top of the linear v.y * scaleY term. Start
     // small and bump it up if big players' tags still sit too low.
     private static final double EXTRA_LIFT_PER_SCALE = 0.25;
+
+    @Inject(method = "<init>", at = @At("TAIL"))
+    private void cedclient$addHaloLayer(CallbackInfo ci) {
+        ((LivingEntityRendererAccessor) this).cedclient$addLayer(new HaloLayer((AvatarRenderer) (Object) this));
+    }
 
     @Inject(
             method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
@@ -66,6 +73,7 @@ public abstract class PlayerRendererMixin {
 
         accessor.cedclient$setHardcodedTarget(isHardcodedTarget);
         accessor.cedclient$setSelf(isSelf);
+        accessor.cedclient$setHaloColor(override != null && override.getHalo() != null ? override.getHalo() : -1);
 
         /*
          * Nametag position comes from state.attachments (EntityAttachments),

@@ -22,10 +22,16 @@ public abstract class CameraMixin {
     // time it's read.
     private float ced$lastPartialTick = 1.0f;
 
+    // Read at HEAD: calculateFov runs inside update(), so a value stored at TAIL would be last frame's
+    // (zoom then jumps back a step on frames where a tick happened = stutter with Zoom Speed below 1).
+    @Inject(method = "update", at = @At("HEAD"))
+    private void ced$beforeUpdate(DeltaTracker deltaTracker, CallbackInfo ci) {
+        ced$lastPartialTick = deltaTracker.getGameTimeDeltaPartialTick(true);
+    }
+
     @Inject(method = "update", at = @At("TAIL"))
     private void ced$afterUpdate(DeltaTracker deltaTracker, CallbackInfo ci) {
-        float partialTick = deltaTracker.getGameTimeDeltaPartialTick(true);
-        ced$lastPartialTick = partialTick;
+        float partialTick = ced$lastPartialTick;
 
         if (!Freecam.INSTANCE.isActive()) return;
 

@@ -74,8 +74,14 @@ object Theme : Module(
         resetAll()
     }
 
+    private val resetModule = ActionSetting("Reset a Module", "Pick one module to put back to its defaults.") {
+        (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.ResetModulePopup())
+    }
+
     init {
-        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, resetEverything)
+        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, resetModule, resetEverything)
+        // Animation tuning only shows with Advanced Mode on.
+        listOf(openAnimation, popupAnimation, animationSpeed).forEach { it.advanced = true }
     }
 
     private fun resetAll() {
