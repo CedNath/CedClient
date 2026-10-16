@@ -29,22 +29,25 @@ object EntityESPRenderer {
 
             // The geometry callback below runs later, during the draw pass -- iterate a snapshot.
             val entities = EntityESP.scannedEntities.toList()
+            val partial = net.minecraft.client.Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(false)
 
             // The callback hands back a PoseStack.Pose (one frozen transform), not a PoseStack.
             submitNodeCollector.submitCustomGeometry(poseStack, CustomRenderType.LINES_ESP) { pose, lineBuffer ->
                 for (scanned in entities) {
                     val entity = scanned.entity
+                    // Where the entity is drawn this frame (between its last two ticks), so boxes glide instead of stepping.
+                    val shift = entity.getPosition(partial).subtract(entity.position())
                     val custom = scanned.style.color
                     val (r, g, b) = if (custom != null) Triple(custom.redFloat, custom.greenFloat, custom.blueFloat) else colorFor(scanned.category)
 
                     if (EntityESP.boxesEnabled && scanned.style.box) {
-                        val box: AABB = entity.boundingBox.inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                        val box: AABB = entity.boundingBox.move(shift).inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
                         drawLineBox(pose, lineBuffer, box, r, g, b)
                     }
 
                     if (EntityESP.tracersEnabled && scanned.style.tracer) {
                         val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                        val targetPos: Vec3 = entity.position().add(0.0, entity.bbHeight / 2.0, 0.0)
+                        val targetPos: Vec3 = entity.getPosition(partial).add(0.0, entity.bbHeight / 2.0, 0.0)
                         drawLine(pose, lineBuffer, direction, targetPos.subtract(cameraPos), r, g, b)
                     }
                 }

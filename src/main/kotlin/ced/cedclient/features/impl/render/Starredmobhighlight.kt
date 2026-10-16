@@ -16,6 +16,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
@@ -57,7 +58,17 @@ object StarredMobHighlight : Module(
     private val showTracers = BooleanSetting("Show Tracers", false, "Draws a line to every starred mob.")
     private val highlightAssassins = BooleanSetting("Highlight Shadow Assassins", true, "Also box Shadow Assassins, even without a star nametag.")
     private val assassinColor = ColorSetting("Shadow Assassin Color", Color(170, 85, 255), "Color of the box around Shadow Assassins.")
-    private val scanIntervalTicks = NumberSetting("Scan Interval ticks", 2.0, 1.0, 10.0, 1.0)
+    private val hideOtherNametags = BooleanSetting("Hide Non-Starred Nametags", false, "Hides the name / health tags of dungeon mobs without a ✯, so only the starred ones are labelled.")
+
+    /** EntityRenderDispatcherMixin: true for a non-starred mob's nametag stand ("Zombie 2.5k❤") that should not draw. */
+    @JvmStatic
+    fun hideNametag(entity: Entity): Boolean {
+        if (!isEnabled || !hideOtherNametags.value || entity !is ArmorStand) return false
+        if (onlyInDungeon.value && !DungeonState.inDungeon) return false
+        val name = entity.customName?.string ?: return false
+        // Mob tags end in their health; that keeps secret / NPC / hologram labels visible.
+        return name.indexOf('❤') >= 0 && name.indexOf(STAR) < 0
+    }
 
     private class Target(val entity: LivingEntity, val assassin: Boolean)
 
@@ -67,8 +78,7 @@ object StarredMobHighlight : Module(
     private var tickCounter = 0
 
     init {
-        scanIntervalTicks.advanced = true
-        addSettings(onlyInDungeon, boxColor, highlightAssassins, assassinColor, lineWidth, throughWalls, showTracers, scanIntervalTicks)
+        addSettings(onlyInDungeon, boxColor, highlightAssassins, assassinColor, lineWidth, throughWalls, showTracers, hideOtherNametags)
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (!isEnabled) {
@@ -76,7 +86,7 @@ object StarredMobHighlight : Module(
                 return@register
             }
             tickCounter++
-            if (tickCounter % scanIntervalTicks.value.toInt().coerceAtLeast(1) == 0) scan(client)
+            scan(client)
         }
 
         // 26.2: MultiBufferSource/BufferSource are gone, so the lines are now submitted

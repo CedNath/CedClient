@@ -89,7 +89,9 @@ object WarpShortcuts : Module(
     )
 
     private val defaultEntries: List<WarpShortcut> =
-        defaultAliases.map { WarpShortcut(it, "warp $it", enabled = true, custom = false) }
+        defaultAliases.map { WarpShortcut(it, "warp $it", enabled = true, custom = false) } +
+            // Short forms that warp somewhere with a longer name.
+            listOf("saf" to "warp safari").map { (alias, target) -> WarpShortcut(alias, target, enabled = true, custom = false) }
 
     private val entries: MutableList<WarpShortcut> = mutableListOf()
 

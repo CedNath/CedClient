@@ -29,6 +29,9 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+/** Colour codes, compiled once. */
+private val CODES = Regex("§.")
+
 /**
  * Compact custom tab list. Hypixel packs every column into player-list
  * entries ordered column-major by `!A-a`/`!B-a` sort keys, so entries are
@@ -389,15 +392,10 @@ object CompactTab : Module(
         }
     }
 
-    /** PingTracker's ping/pong round trip is freshest; falls back to tab latency, then server-list ping. */
+    /** PingTracker's ping/pong round trip; falls back to the server-list ping. Tab latency is fake on Hypixel, so never used. */
     private fun realPing(mc: Minecraft): Int {
         val live = PingTracker.latest()
         if (live > 0) return live
-        try {
-            val self = mc.connection?.getPlayerInfo(mc.player!!.uuid)
-            if (self != null && self.latency > 1) return self.latency // Hypixel pins this at 1, so ignore it
-        } catch (ignored: Exception) {
-        }
         try {
             val si = mc.currentServer
             if (si != null && si.ping > 0) return si.ping.toInt()
@@ -415,7 +413,7 @@ object CompactTab : Module(
                 if (obj != null) for (en in sb.listPlayerScores(obj)) {
                     val team = sb.getPlayersTeam(en.owner())
                     val raw = if (team != null) team.playerPrefix.string + en.owner() + team.playerSuffix.string else en.ownerName().string
-                    hay += " " + raw.replace(Regex("\u00A7."), "")
+                    hay += " " + raw.replace(CODES, "")
                 }
             }
         } catch (ignored: Exception) {
@@ -555,7 +553,7 @@ object CompactTab : Module(
 
     private fun footerLine(footer: String?): String {
         if (footer != null && footer.isNotEmpty()) for (line in footer.split("\n")) {
-            val s = line.replace(Regex("\u00A7."), "").trim()
+            val s = line.replace(CODES, "").trim()
             if (s.uppercase().contains("STORE") || s.uppercase().contains("RANKS")) return "\u00A76$s"
         }
         return "\u00A76Ranks, Boosters & MORE! \u00A7eSTORE.HYPIXEL.NET"

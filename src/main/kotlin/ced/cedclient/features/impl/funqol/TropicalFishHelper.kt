@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.features.impl.render.ActionBarHud
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -139,7 +140,7 @@ object TropicalFishHelper : Module(
     private fun throwNet(player: LocalPlayer, fish: TropicalFish) {
         val before = player.inventory.selectedSlot
         if (!switchToNet(player)) {
-            mc.gui.hud.setOverlayMessage(Component.literal("§cNo \"${CoralotHelper.netItemName}\" in your hotbar"), false)
+            ActionBarHud.notify(Component.literal("§cNo \"${CoralotHelper.netItemName}\" in your hotbar"))
             tried[fish.id] = System.currentTimeMillis()
             target = null
             return
@@ -184,7 +185,7 @@ object TropicalFishHelper : Module(
         if (down && !keyWas) {
             armed = !armed
             if (!armed) target = null
-            mc.gui.hud.setOverlayMessage(Component.literal(if (armed) "§aFish catching ON" else "§cFish catching OFF"), false)
+            ActionBarHud.notify(Component.literal(if (armed) "§aFish catching ON" else "§cFish catching OFF"))
         }
         keyWas = down
     }

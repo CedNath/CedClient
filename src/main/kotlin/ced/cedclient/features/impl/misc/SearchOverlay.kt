@@ -28,6 +28,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 
+/** Colour codes, compiled once. */
+private val CODES = Regex("§.")
+
 /**
  * Skyblocker-style search for the Bazaar / Auction House: replaces Hypixel's "Enter query" sign with a
  * search box that suggests item names (with icons) and remembers recent searches.
@@ -181,7 +184,7 @@ object SearchOverlay : Module(
         } else {
             o["displayname"].asString.replace("[Lvl {LVL}] ", "").trim()
         }
-        val name = display.replace(Regex("§."), "").trim()
+        val name = display.replace(CODES, "").trim()
         val vanilla = o["vanilla"]?.asBoolean == true
         return if (name.isEmpty()) null else Entry(name, display, id, legacy, vanilla)
     }

@@ -57,11 +57,13 @@ object PingTracker {
         conn.send(ServerboundPingRequestPacket(now))
     }
 
-    /** Called from PingPongMixin when a ClientboundPongResponsePacket arrives. */
+    /** Called from PingPongMixin when a ClientboundPongResponsePacket arrives; [time] is the payload it echoes back. */
     @JvmStatic
-    fun onPong() {
+    fun onPong(time: Long) {
         val sent = pendingSentAt
-        if (sent <= 0) return // not ours (e.g. vanilla's F3 ping chart)
+        // Only the answer to our own probe: other mods / F3's ping chart send pings too, and timing their pong
+        // from our send time gave a far too low ping (~10 ms on a 150 ms connection).
+        if (sent <= 0 || time != sent) return
         pendingSentAt = 0
         pushRtt(System.currentTimeMillis() - sent)
     }

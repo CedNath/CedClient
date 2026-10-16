@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.features.impl.render.ActionBarHud
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -26,6 +27,9 @@ import kotlin.random.Random
 import org.lwjgl.glfw.GLFW
 
 private enum class CoralotState { IDLE, CATCH_DELAY, CONFIRMING }
+
+/** Colour codes, compiled once. */
+private val CODES = Regex("§.")
 
 object CoralotHelper : Module(
     "CoralotHelper(!!!)",
@@ -157,7 +161,7 @@ object CoralotHelper : Module(
             // Stealth enchant: the creature never shows its warning icon, so the icon-cleared trigger below never
             // fires -- this message (any mob name) means it can be caught right away. Anchored to the start of
             // the line so the same text pasted in party/guild chat doesn't trigger it.
-            val plain = message.string.replace(Regex("§."), "").trim()
+            val plain = message.string.replace(CODES, "").trim()
             STEALTH_MESSAGE.matchEntire(plain)?.let {
                 // Resolved a moment later (see tick): Stealth procs per creature, so the ones that DID notice you
                 // need a few ticks to get their warning icon -- only then can we tell which one is the stealthed one.
@@ -234,7 +238,7 @@ object CoralotHelper : Module(
         if (down && !keyWas) {
             armed = !armed
             if (!armed && state == CoralotState.CATCH_DELAY) reset()
-            mc.gui.hud.setOverlayMessage(Component.literal(if (armed) "§aCoralot catching ON" else "§cCoralot catching OFF"), false)
+            ActionBarHud.notify(Component.literal(if (armed) "§aCoralot catching ON" else "§cCoralot catching OFF"))
         }
         keyWas = down
     }

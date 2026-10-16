@@ -16,10 +16,10 @@ object TpsTracker {
     var serverTicks = 0L
         private set
 
+    /** [now] = when the packet came off the wire. */
     @JvmStatic
-    fun recordTick() {
+    fun recordTick(now: Long) {
         serverTicks++
-        val now = System.currentTimeMillis()
         if (lastTickMs > 0) {
             TICK_TIMES[tickIdx % TICK_TIMES.size] = now - lastTickMs
             tickIdx++

@@ -600,6 +600,13 @@ object DailyReset : Module(
         return auto + manual
     }
 
+    /** Your own tasks (name, done today), for the Custom Tasks popup. */
+    fun manualTasks(): List<Pair<String, Boolean>> {
+        ensureLoaded()
+        rolloverIfNeeded()
+        return tasks.map { it.name to it.completed }
+    }
+
     /** Every enabled auto-tracked daily + every manual task, with today's done state, for a full `/cc daily list`. */
     fun allTasks(): List<Pair<String, Boolean>> {
         ensureLoaded()
@@ -1050,6 +1057,22 @@ object DailyReset : Module(
         addSettings(forceDailyOnlyShortCooldowns)
         addSettings(useNanoVGRendering)
         addSettings(*entryToggles.values.toTypedArray())
+        // The per-daily toggles live in a popup instead of a long list in the panel.
+        entryToggles.values.forEach { it.inPopup = true }
+        addSettings(
+            ActionSetting("Dailies", "Turn each tracked daily on or off.") {
+                val toggles = entryToggles.values.toList()
+                val half = (toggles.size + 1) / 2
+                (net.minecraft.client.Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(
+                    ced.cedclient.ui.clickgui.SettingsPopup("Daily Tasks", listOf(
+                        listOf(ced.cedclient.ui.clickgui.SettingsPopup.Section("Dailies", toggles.take(half))),
+                        listOf(ced.cedclient.ui.clickgui.SettingsPopup.Section("", toggles.drop(half))),
+                    )))
+            },
+            ActionSetting("Custom Tasks", "Add your own tasks to the list.") {
+                (net.minecraft.client.Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.CustomDailyPopup())
+            },
+        )
         addSettings(
             // Manual override for testing (or just clearing a mistaken
             // check-off) without waiting for the actual midnight-ET reset.
