@@ -55,4 +55,22 @@ object DevAccess {
             ctx.source.sendFeedback(Component.literal("§7model: ${stack.get(DataComponents.ITEM_MODEL)}"))
             1
         })
+        // Bug reporter (utils/debug/Diag): recent issues, a test report, send now.
+        .then(ClientCommands.literal("diag")
+            .executes { ctx ->
+                val list = ced.cedclient.utils.debug.Diag.recent(10)
+                ctx.source.sendFeedback(Component.literal("§7Diag: ${list.size} recent issue(s)"))
+                list.forEach { ctx.source.sendFeedback(Component.literal("§8x${it.count} §7${it.kind} §f${it.source}§7: ${it.message.take(100)}")) }
+                1
+            }
+            .then(ClientCommands.literal("test").executes { ctx ->
+                ced.cedclient.utils.debug.Diag.error("diag test", "Test report from /cc dev diag test", RuntimeException("test"))
+                ctx.source.sendFeedback(Component.literal("§7Test issue recorded; §f/cc dev diag send §7to send it now"))
+                1
+            })
+            .then(ClientCommands.literal("send").executes { ctx ->
+                ced.cedclient.utils.debug.Diag.flushAsync()
+                ctx.source.sendFeedback(Component.literal("§7Sending pending issues"))
+                1
+            }))
 }

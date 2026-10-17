@@ -78,6 +78,8 @@ class CedClient : ClientModInitializer {
 
     override fun onInitializeClient() {
         println("CedClient initialized (client)")
+        // First, so errors while the rest starts up are caught too.
+        ced.cedclient.utils.debug.Diag.start()
 
         registerAlwaysOnState()
         registerModules()
