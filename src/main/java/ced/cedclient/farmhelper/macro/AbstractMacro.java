@@ -12,6 +12,7 @@ import ced.cedclient.farmhelper.handler.GameStateHandler;
 import ced.cedclient.farmhelper.handler.MacroHandler;
 import ced.cedclient.farmhelper.handler.RotationHandler;
 import ced.cedclient.farmhelper.util.*;
+import ced.cedclient.features.impl.funqol.FarmHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.Blocks;
 
@@ -53,6 +54,7 @@ public abstract class AbstractMacro {
     public boolean isPaused() { return !enabled; }
     public Optional<SavedState> getSavedState() { return savedState; }
     public void setSavedState(Optional<SavedState> state) { savedState = state; }
+    public boolean isRestoredState() { return restoredState; }
     public void setRestoredState(boolean value) { restoredState = value; }
     public int getLayerY() { return layerY; }
     public void setLayerY(int value) { layerY = value; }
@@ -68,8 +70,9 @@ public abstract class AbstractMacro {
 
     public boolean isYawSet() { return yaw.isPresent(); }
     public boolean isPitchSet() { return pitch.isPresent(); }
-    public float getYaw() { return yaw.orElse(0f); }
-    public float getPitch() { return pitch.orElse(0f); }
+    // CedClient: Custom Angles (FarmHelper module) swaps in the player's own yaw / pitch for the current crop.
+    public float getYaw() { return yaw.isPresent() ? FarmHelper.INSTANCE.customYaw(MacroHandler.getInstance().getCrop(), yaw.get()) : 0f; }
+    public float getPitch() { return pitch.isPresent() ? FarmHelper.INSTANCE.customPitch(MacroHandler.getInstance().getCrop(), pitch.get()) : 0f; }
     public void setYaw(float value) { yaw = Optional.of(value); }
     public void setPitch(float value) { pitch = Optional.of(value); }
 
@@ -91,11 +94,7 @@ public abstract class AbstractMacro {
             KeyBindUtils.holdThese(mc.options.keyShift);
             return;
         }
-        if (!PlayerUtils.isRewarpLocationSet()) {
-            LogUtils.sendError("Your rewarp position is not set! Stand at the end of the farm and do /farmhelper addrewarp.");
-            MacroHandler.getInstance().disableMacro();
-            return;
-        }
+        // CedClient: rewarp points are optional; without any, the macro just keeps alternating lanes.
 
         if (PlayerUtils.isStandingOnRewarpLocation() && FailsafeManager.getInstance().triggeredFailsafe.isEmpty()) {
             if (GameStateHandler.getInstance().notMoving() && KeyBindUtils.getHoldingKeybinds().length > 0) {

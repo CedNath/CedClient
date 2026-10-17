@@ -13,6 +13,7 @@ import ced.cedclient.farmhelper.handler.MacroHandler;
 import ced.cedclient.farmhelper.handler.RotationHandler;
 import ced.cedclient.farmhelper.util.BlockUtils;
 import ced.cedclient.farmhelper.util.Clock;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -35,11 +36,10 @@ public class LowerAvgBpsFailsafe extends Failsafe {
     @Override public int getPriority() { return 6; }
     @Override public FailsafeManager.EmergencyType getType() { return FailsafeManager.EmergencyType.LOWER_AVERAGE_BPS; }
 
-    @Override
-    public void onBlockChange(BlockPos pos, BlockState old, BlockState update) {
-        if (!BlockUtils.isCrop(old.getBlock()) || update.getBlock() != Blocks.AIR) return;
-        if (pos.distSqr(mc.player.blockPosition()) > 36) return;
-        breaks.add(System.currentTimeMillis());
+    // CedClient: counted where the client breaks the crop (MultiPlayerGameModeMixin). Server block updates never show
+    // crop -> air: the client already removed the block itself, and Replenish makes the server send a fresh crop.
+    public void onPlayerBreak(BlockState broken) {
+        if (BlockUtils.isCrop(broken.getBlock())) breaks.add(System.currentTimeMillis());
     }
 
     public float getBps() {
@@ -57,6 +57,13 @@ public class LowerAvgBpsFailsafe extends Failsafe {
     @Override
     public void onTickDetection() {
         if (farmingSince == 0) farmingSince = System.currentTimeMillis();
+        // A menu is open: the player isn't farming, so pause the counter and restart the warm-up once it closes.
+        if (Minecraft.getInstance().screen != null) {
+            clock.reset();
+            breaks.clear();
+            farmingSince = System.currentTimeMillis();
+            return;
+        }
         float bps = getBps();
         if (!FarmConfig.enableBpsCheck() || dontCheck() || bps >= FarmConfig.minBpsThreshold()) {
             clock.reset();

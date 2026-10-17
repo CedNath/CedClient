@@ -11,15 +11,12 @@ import ced.cedclient.farmhelper.failsafe.FailsafeManager;
 import ced.cedclient.farmhelper.failsafe.impl.WorldChangeFailsafe;
 import ced.cedclient.farmhelper.macro.AbstractMacro;
 import ced.cedclient.farmhelper.macro.AntiStuck;
-import ced.cedclient.farmhelper.macro.impl.*;
+import ced.cedclient.farmhelper.macro.impl.LaneMacro;
 import ced.cedclient.farmhelper.util.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 
-import java.util.EnumMap;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 public class MacroHandler {
     private static MacroHandler instance;
@@ -31,6 +28,7 @@ public class MacroHandler {
     private final Clock startDelay = new Clock();
     private FarmConfig.CropEnum crop = FarmConfig.CropEnum.NONE;
     private boolean resume = false;
+    private boolean screenWasOpen = false;
     private Optional<BlockPos> beforeTeleportationPos = Optional.empty();
     private final Clock afterRewarpDelay = new Clock();
     private boolean rewarpTeleport = false;
@@ -61,53 +59,11 @@ public class MacroHandler {
         return currentMacro.isPresent() && (currentMacro.get().getRewarpState() != AbstractMacro.RewarpState.NONE || !afterRewarpDelay.passed());
     }
 
-    private enum Macros {
-        S_SHAPE_MUSHROOM_ROTATE_MACRO(SShapeMushroomRotateMacro::new),
-        S_SHAPE_MUSHROOM_MACRO(SShapeMushroomMacro::new),
-        S_SHAPE_COCOA_BEAN_MACRO(SShapeCocoaBeanMacro::new),
-        S_SHAPE_SUGARCANE_MACRO(SShapeSugarcaneMacro::new),
-        S_SHAPE_VERTICAL_CROP_MACRO(SShapeVerticalCropMacro::new),
-        S_SHAPE_MELON_PUMPKIN_DEFAULT_MACRO(SShapeMelonPumpkinDefaultMacro::new),
-        S_SHAPE_MUSHROOM_SDS(SShapeMushroomSDSMacro::new),
-        CIRCLE_CROP_MACRO(CircularCropMacro::new);
-
-        private static final Map<Macros, AbstractMacro> macros = new EnumMap<>(Macros.class);
-        private final Supplier<AbstractMacro> factory;
-
-        Macros(Supplier<AbstractMacro> factory) {
-            this.factory = factory;
-        }
-
-        AbstractMacro getMacro() {
-            return macros.computeIfAbsent(this, m -> m.factory.get());
-        }
-    }
+    // CedClient: one generic macro driven by Crop Config (lane keys + angles) instead of the farm-layout presets.
+    private final AbstractMacro laneMacro = new LaneMacro();
 
     public AbstractMacro getMacro() {
-        switch (FarmConfig.getMacro()) {
-            case S_V_NORMAL_TYPE:
-            case S_PUMPKIN_MELON:
-            case S_PUMPKIN_MELON_MELONGKINGDE:
-            case S_CACTUS:
-            case S_CACTUS_SUNTZU:
-            case S_COCOA_BEANS_LEFT_RIGHT:
-                return Macros.S_SHAPE_VERTICAL_CROP_MACRO.getMacro();
-            case S_PUMPKIN_MELON_DEFAULT_PLOT:
-                return Macros.S_SHAPE_MELON_PUMPKIN_DEFAULT_MACRO.getMacro();
-            case S_SUGAR_CANE:
-                return Macros.S_SHAPE_SUGARCANE_MACRO.getMacro();
-            case S_COCOA_BEANS:
-            case S_COCOA_BEANS_TRAPDOORS:
-                return Macros.S_SHAPE_COCOA_BEAN_MACRO.getMacro();
-            case S_MUSHROOM:
-                return Macros.S_SHAPE_MUSHROOM_MACRO.getMacro();
-            case S_MUSHROOM_ROTATE:
-                return Macros.S_SHAPE_MUSHROOM_ROTATE_MACRO.getMacro();
-            case S_MUSHROOM_SDS:
-                return Macros.S_SHAPE_MUSHROOM_SDS.getMacro();
-            default:
-                return Macros.CIRCLE_CROP_MACRO.getMacro();
-        }
+        return laneMacro;
     }
 
     public void toggleMacro() {
@@ -208,6 +164,14 @@ public class MacroHandler {
         if (!isMacroToggled) return;
         if (mc.player == null || mc.level == null) return;
         if (mc.screen != null) {
+            KeyBindUtils.stopMovement();
+            screenWasOpen = true;
+            return;
+        }
+        // CedClient: closing a menu re-grabs the mouse, which sets Minecraft.missTime = 10000: no breaking until attack
+        // is released once. The macro never lets go of attack, so it stood still -- release everything for one tick.
+        if (screenWasOpen) {
+            screenWasOpen = false;
             KeyBindUtils.stopMovement();
             return;
         }

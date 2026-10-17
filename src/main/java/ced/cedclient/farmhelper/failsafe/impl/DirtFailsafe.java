@@ -51,6 +51,12 @@ public class DirtFailsafe extends Failsafe {
         }
     }
 
+    // CedClient: blocks your own client broke (MultiPlayerGameModeMixin). Holding attack while walking can break the
+    // dirt in front of you client-side; the server puts it back, which looked like "someone placed dirt".
+    public void onPlayerBreak(BlockPos pos) {
+        blocksDestroyedByPlayer.add(new Object[]{pos.immutable(), System.currentTimeMillis()});
+    }
+
     public boolean hasDirtBlocks() {
         return !dirtBlocks.isEmpty();
     }

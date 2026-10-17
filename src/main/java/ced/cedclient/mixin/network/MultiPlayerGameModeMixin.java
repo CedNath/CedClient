@@ -1,9 +1,12 @@
 package ced.cedclient.mixin.network;
 
+import ced.cedclient.farmhelper.failsafe.impl.DirtFailsafe;
+import ced.cedclient.farmhelper.failsafe.impl.LowerAvgBpsFailsafe;
 import ced.cedclient.data.ClickType;
 import ced.cedclient.events.ItemClickEvent;
 import ced.cedclient.features.impl.funqol.BreakerHelper;
 import ced.cedclient.render.cosmetic.CosmeticHooks;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,6 +28,15 @@ public class MultiPlayerGameModeMixin {
     @Inject(method = "startDestroyBlock", at = @At("HEAD"))
     private void cedclient$onBlockHit(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         BreakerHelper.onHitBlock(pos);
+    }
+
+    // FarmHelper BPS: every block the client breaks (state read before it turns to air).
+    @Inject(method = "destroyBlock", at = @At("HEAD"))
+    private void cedclient$onDestroyBlock(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        if (Minecraft.getInstance().level == null) return;
+        LowerAvgBpsFailsafe.getInstance().onPlayerBreak(Minecraft.getInstance().level.getBlockState(pos));
+        DirtFailsafe.getInstance().onPlayerBreak(pos); // our own break coming back is not "someone placed a block"
+        ced.cedclient.features.impl.funqol.FarmHelper.INSTANCE.learnFrom(Minecraft.getInstance().level.getBlockState(pos).getBlock());
     }
 
     // ============================================================

@@ -37,7 +37,7 @@ public class PlayerUtils {
                 || block instanceof MushroomBlock || block instanceof CactusBlock || block instanceof TallFlowerBlock;
     }
 
-    private static FarmConfig.CropEnum cropOf(Block block) {
+    public static FarmConfig.CropEnum cropOf(Block block) {
         if (block == Blocks.WHEAT) return FarmConfig.CropEnum.WHEAT;
         if (block == Blocks.CARROTS) return FarmConfig.CropEnum.CARROT;
         if (block == Blocks.POTATOES) return FarmConfig.CropEnum.POTATO;
@@ -48,7 +48,12 @@ public class PlayerUtils {
         if (block == Blocks.PUMPKIN) return FarmConfig.CropEnum.PUMPKIN;
         if (block == Blocks.RED_MUSHROOM || block == Blocks.BROWN_MUSHROOM) return FarmConfig.CropEnum.MUSHROOM;
         if (block == Blocks.CACTUS) return FarmConfig.CropEnum.CACTUS;
-        if (block == Blocks.SUNFLOWER) return FarmConfig.CropEnum.SUNFLOWER;
+        // Same flower block: Sunflower by day, Moonflower by night, from the world's time (night = ticks 13000-23000).
+        if (block == Blocks.SUNFLOWER) {
+            var level = Minecraft.getInstance().level;
+            long t = level == null ? 0 : Math.floorMod(level.getOverworldClockTime(), 24000L);
+            return t >= 13000 && t < 23000 ? FarmConfig.CropEnum.MOONFLOWER : FarmConfig.CropEnum.SUNFLOWER;
+        }
         if (block == Blocks.ROSE_BUSH) return FarmConfig.CropEnum.ROSE;
         return FarmConfig.CropEnum.NONE;
     }
@@ -67,8 +72,6 @@ public class PlayerUtils {
             float yaw;
             if (MacroHandler.getInstance().getCurrentMacro().isPresent()) {
                 yaw = MacroHandler.getInstance().getCurrentMacro().get().getClosest90Deg().orElse(AngleUtils.getClosest());
-            } else if (FarmConfig.getMacro() == FarmConfig.MacroEnum.S_MUSHROOM || FarmConfig.getMacro() == FarmConfig.MacroEnum.S_SUGAR_CANE) {
-                yaw = AngleUtils.getClosestDiagonal();
             } else {
                 yaw = AngleUtils.getClosest();
             }
@@ -90,11 +93,6 @@ public class PlayerUtils {
         }
         if (closest != null) {
             FarmConfig.CropEnum crop = cropOf(closest);
-            if (crop == FarmConfig.CropEnum.SUNFLOWER) {
-                // Sunflower by day, Moonflower by night (sidebar shows "Day").
-                boolean day = ced.cedclient.state.Sidebar.INSTANCE.getLines().stream().anyMatch(l -> l.contains("Day"));
-                return day ? FarmConfig.CropEnum.SUNFLOWER : FarmConfig.CropEnum.MOONFLOWER;
-            }
             if (crop != FarmConfig.CropEnum.NONE) return crop;
         }
         LogUtils.sendError("Can't detect crop type! Lower average BPS failsafe will be disabled!");
@@ -119,7 +117,7 @@ public class PlayerUtils {
     public static FarmConfig.CropEnum getCropBasedOnMouseOver() {
         if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) return FarmConfig.CropEnum.NONE;
         FarmConfig.CropEnum crop = cropOf(mc.level.getBlockState(hit.getBlockPos()).getBlock());
-        return crop == FarmConfig.CropEnum.SUNFLOWER || crop == FarmConfig.CropEnum.ROSE ? FarmConfig.CropEnum.NONE : crop;
+        return crop == FarmConfig.CropEnum.SUNFLOWER || crop == FarmConfig.CropEnum.MOONFLOWER || crop == FarmConfig.CropEnum.ROSE ? FarmConfig.CropEnum.NONE : crop;
     }
 
     public static int getFarmingTool(FarmConfig.CropEnum crop, boolean withError, boolean anyHoe) {
@@ -145,6 +143,9 @@ public class PlayerUtils {
                 case MELON: if (name.contains("MELON_DICER")) return i; break;
                 case PUMPKIN: if (name.contains("PUMPKIN_DICER")) return i; break;
                 case COCOA_BEANS: if (name.contains("COCO_CHOPPER")) return i; break;
+                // Eclipse Sickle (both flowers) / Wild Rose Cutter, IDs from the SkyBlock wiki.
+                case SUNFLOWER: case MOONFLOWER: if (name.contains("HOE_SUNFLOWER")) return i; break;
+                case ROSE: if (name.contains("HOE_WILD_ROSE")) return i; break;
                 default: break;
             }
         }
@@ -162,32 +163,6 @@ public class PlayerUtils {
     public static boolean isStandingOnRewarpLocation() {
         if (!isRewarpLocationSet()) return false;
         return FarmHelper.rewarps().contains(BlockUtils.getRelativeBlockPos(0, 0, 0));
-    }
-
-    public static boolean shouldWalkForwards() {
-        if (FailsafeManager.getInstance().triggeredFailsafe.isPresent()) return false;
-        FarmConfig.CropEnum crop = MacroHandler.getInstance().getCrop();
-        FarmConfig.MacroEnum macro = FarmConfig.getMacro();
-        if (crop == FarmConfig.CropEnum.CACTUS
-                || (macro != FarmConfig.MacroEnum.S_PUMPKIN_MELON_MELONGKINGDE && (crop == FarmConfig.CropEnum.PUMPKIN || crop == FarmConfig.CropEnum.MELON))
-                || (crop == FarmConfig.CropEnum.COCOA_BEANS && macro == FarmConfig.MacroEnum.S_COCOA_BEANS_LEFT_RIGHT))
-            return false;
-
-        float angle = AngleUtils.getClosest();
-        double x = mc.player.getX() % 1;
-        double z = mc.player.getZ() % 1;
-        float yaw;
-        if (MacroHandler.getInstance().getCurrentMacro().isPresent() && MacroHandler.getInstance().getCurrentMacro().get().getClosest90Deg().isPresent()) {
-            yaw = MacroHandler.getInstance().getCurrentMacro().get().getClosest90Deg().get();
-        } else {
-            yaw = mc.player.getYRot();
-        }
-        if (BlockUtils.canWalkThrough(BlockUtils.getRelativeBlockPos(0, 0, 1, yaw))) return false;
-        if (angle == 0) return (z > -0.9 && z < -0.35) || (z < 0.65 && z > 0.1);
-        if (angle == 90) return (x > -0.65 && x < -0.1) || (x < 0.9 && x > 0.35);
-        if (angle == 180) return (z > -0.65 && z < -0.1) || (z < 0.9 && z > 0.35);
-        if (angle == 270) return (x > -0.9 && x < -0.35) || (x < 0.65 && x > 0.1);
-        return false;
     }
 
     public static boolean isSpawnLocationSet() {
