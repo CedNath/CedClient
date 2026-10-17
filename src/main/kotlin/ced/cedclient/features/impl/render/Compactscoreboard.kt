@@ -63,6 +63,11 @@ object CompactScoreboard : Module(
 
     private class Line(val text: Component, val score: String, val blank: Boolean, val width: Int)
 
+    private var cachedTick = Long.MIN_VALUE
+    private var cachedObjective: Objective? = null
+    private var cachedLines: List<Line> = emptyList()
+    private var cachedTitle: Component? = null
+
     init {
         // Wrap vanilla's scoreboard element: ours when it applies, otherwise the original.
         HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD) { vanilla ->
@@ -90,29 +95,36 @@ object CompactScoreboard : Module(
         val sb = level.scoreboard
         val objective: Objective = sb.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return false
 
-        // Same ordering vanilla uses: highest score first, ties by name; "#"-prefixed owners are hidden.
-        val entries: List<PlayerScoreEntry> = sb.listPlayerScores(objective)
-            .filter { !it.owner().startsWith("#") }
-            .sortedWith(
-                compareByDescending<PlayerScoreEntry> { it.value() }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.owner() }
-            )
-            .take(MAX_LINES)
-        if (entries.isEmpty()) return false
-
-        val lines = entries.map { en ->
-            val team = sb.getPlayersTeam(en.owner())
-            val raw: Component = if (team != null) {
-                Component.empty().append(team.playerPrefix).append(en.ownerName()).append(team.playerSuffix)
-            } else {
-                en.ownerName()
+        // The sidebar only changes on a tick: rebuild the lines once per game tick, not every frame (profiled hot).
+        val tick = level.gameTime
+        if (tick != cachedTick || objective !== cachedObjective) {
+            cachedTick = tick
+            cachedObjective = objective
+            // Same ordering vanilla uses: highest score first, ties by name; "#"-prefixed owners are hidden.
+            val entries: List<PlayerScoreEntry> = sb.listPlayerScores(objective)
+                .filter { !it.owner().startsWith("#") }
+                .sortedWith(
+                    compareByDescending<PlayerScoreEntry> { it.value() }
+                        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.owner() }
+                )
+                .take(MAX_LINES)
+            cachedLines = entries.map { en ->
+                val team = sb.getPlayersTeam(en.owner())
+                val raw: Component = if (team != null) {
+                    Component.empty().append(team.playerPrefix).append(en.ownerName()).append(team.playerSuffix)
+                } else {
+                    en.ownerName()
+                }
+                val text = CustomNametagText.transformChat(raw)
+                val score = if (showScores.value) en.value().toString() else ""
+                Line(text, score, isBlank(text), tr.width(text))
             }
-            val text = CustomNametagText.transformChat(raw)
-            val score = if (showScores.value) en.value().toString() else ""
-            Line(text, score, isBlank(text), tr.width(text))
+            cachedTitle = if (showTitle.value) CustomNametagText.transformChat(objective.displayName) else null
         }
+        val lines = cachedLines
+        if (lines.isEmpty()) return false
 
-        val title: Component? = if (showTitle.value) CustomNametagText.transformChat(objective.displayName) else null
+        val title: Component? = cachedTitle
         val titleW = title?.let { tr.width(it) } ?: 0
 
         var contentW = titleW
