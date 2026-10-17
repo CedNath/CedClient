@@ -6,6 +6,7 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.mixin.accessor.AbstractContainerScreenAccessor
 import ced.cedclient.utils.CursorGlide
+import ced.cedclient.utils.debug.Diag
 import ced.cedclient.utils.cleanName
 import ced.cedclient.utils.loreLines
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -200,6 +201,10 @@ object AutoExperiments : Module(
                 hasAdded = true
                 clicks = 0
                 dbg("ultra read order=${ultrasequencerOrder.toSortedMap()}")
+                // Numbers should run 1..n with none missing; a gap means the board was read wrong.
+                Diag.check(ultrasequencerOrder.keys == (0 until ultrasequencerOrder.size).toSet(), "Auto Experiments") {
+                    "Ultrasequencer order has gaps: ${ultrasequencerOrder.toSortedMap()}"
+                }
                 if (autoClose.value && ultrasequencerOrder.size > max) { dbg("ultra auto close (${ultrasequencerOrder.size} > $max)"); mc.player?.closeContainer(); return }
             }
         }
