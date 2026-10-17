@@ -11,23 +11,6 @@ import ced.cedclient.features.impl.funqol.FarmHelper;
 public final class FarmConfig {
     private FarmConfig() {}
 
-    public enum MacroEnum {
-        S_V_NORMAL_TYPE,
-        S_PUMPKIN_MELON,
-        S_PUMPKIN_MELON_MELONGKINGDE,
-        S_PUMPKIN_MELON_DEFAULT_PLOT,
-        S_SUGAR_CANE,
-        S_CACTUS,
-        S_CACTUS_SUNTZU,
-        S_COCOA_BEANS,
-        S_COCOA_BEANS_TRAPDOORS,
-        S_COCOA_BEANS_LEFT_RIGHT,
-        S_MUSHROOM,
-        S_MUSHROOM_ROTATE,
-        S_MUSHROOM_SDS,
-        C_NORMAL_TYPE
-    }
-
     public enum CropEnum {
         NONE("None"),
         CARROT("Carrot"),
@@ -44,7 +27,7 @@ public final class FarmConfig {
         MUSHROOM_ROTATE("Mushroom"),
         SUNFLOWER("Sunflower"),
         MOONFLOWER("Moonflower"),
-        ROSE("Rose");
+        ROSE("Wild Rose");
 
         public final String label;
 
@@ -55,11 +38,6 @@ public final class FarmConfig {
         public String getLabel() {
             return label;
         }
-    }
-
-    public static MacroEnum getMacro() {
-        MacroEnum[] all = MacroEnum.values();
-        return all[Math.min(FarmHelper.macroIndex(), all.length - 1)];
     }
 
     public static long getRandomTimeBetweenChangingRows() { return FarmHelper.randomRowDelay(); }

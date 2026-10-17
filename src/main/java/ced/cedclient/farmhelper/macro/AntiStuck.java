@@ -51,6 +51,7 @@ public class AntiStuck {
             stop();
             return;
         }
-        KeyBindUtils.holdThese(mc.options.keyDown, mc.options.keyJump);
+        // Only jump when actually pressed against a block; otherwise a plain step back (jumping every time looked off).
+        KeyBindUtils.holdThese(mc.options.keyDown, mc.player.horizontalCollision ? mc.options.keyJump : null);
     }
 }

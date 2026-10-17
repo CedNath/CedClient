@@ -2,10 +2,13 @@ package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
+import ced.cedclient.farmhelper.FarmConfig
 import ced.cedclient.farmhelper.FarmHelperCore
 import ced.cedclient.farmhelper.failsafe.FailsafeManager
+import ced.cedclient.farmhelper.failsafe.impl.LowerAvgBpsFailsafe
 import ced.cedclient.farmhelper.handler.GameStateHandler
 import ced.cedclient.farmhelper.handler.MacroHandler
+import ced.cedclient.farmhelper.util.PlayerUtils
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.impl.render.HudCard
@@ -16,6 +19,7 @@ import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.RenderableSetting
+import ced.cedclient.features.settings.Setting.Companion.withDependency
 import ced.cedclient.features.settings.TextSetting
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.clickgui.SettingsPopup
@@ -27,9 +31,13 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.DeltaTracker
+import ced.cedclient.farmhelper.util.KeyBindUtils
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.core.BlockPos
+import net.minecraft.util.Mth
+import net.minecraft.world.level.block.Block
+import kotlin.math.abs
 import org.lwjgl.glfw.GLFW
 import java.io.File
 
@@ -43,17 +51,9 @@ object FarmHelper : Module(
     Category.Cheats,
     "Crop farming macro (ported from JellyLab's FarmHelper, CC BY-NC-SA 4.0). Toggle Key in the Garden starts / stops it."
 ), HudElement {
-    /** Same order as the original MacroEnum (MacroHandler maps the index). */
-    private val TYPES = listOf(
-        "Vertical (wheat / carrot / potato / wart)", "Melon / Pumpkin", "Melon / Pumpkin (melonkingde)",
-        "Melon / Pumpkin (default plot)", "Sugar Cane", "Cactus", "Cactus (SunTzu)", "Cocoa Beans",
-        "Cocoa Beans (trapdoors)", "Cocoa Beans (left / right)", "Mushroom", "Mushroom (rotate)", "Mushroom (SDS)",
-        "Circular",
-    )
 
     private val mc get() = Minecraft.getInstance()
 
-    val farmType = DropdownSetting("Farm Type", TYPES, description = "Layout of your farm")
     val toggleKey = KeybindSetting("Toggle Key", GLFW.GLFW_KEY_UNKNOWN, "Starts / stops the macro (Garden only)")
     private val statusHud = BooleanSetting("Status HUD", true, "Macro state, crop, run time and failsafe warnings")
 
@@ -83,6 +83,97 @@ object FarmHelper : Module(
     val failsafeSound = BooleanSetting("Failsafe Sound", true, "Loud alert when a failsafe fires")
     val pauseOnGuest = BooleanSetting("Pause On Guest", true, "Pause when someone visits your garden")
 
+    // Crop Config: per crop, the yaw / pitch the macro looks at and the keys it holds on each lane (LaneMacro).
+    private val LANE_KEYS = listOf("A", "D", "W", "S", "W+A", "W+D", "S+A", "S+D")
+    private class CropConfig(val crop: FarmConfig.CropEnum, yaw: Double, pitch: Double, lane1: String = "A", lane2: String = "D") {
+        val yaw = NumberSetting("${crop.label} Yaw", yaw, -180.0, 180.0, 0.01)
+        val pitch = NumberSetting("${crop.label} Pitch", pitch, -90.0, 90.0, 0.01)
+        val lane1 = DropdownSetting("${crop.label} Lane 1 Keys", LANE_KEYS, lane1, "Held on the first lane, until you stop moving")
+        val lane2 = DropdownSetting("${crop.label} Lane 2 Keys", LANE_KEYS, lane2, "Held on the next lane, until you stop moving; then back to Lane 1")
+        val settings: List<RenderableSetting<*>> get() = listOf(yaw, pitch, lane1, lane2)
+    }
+    private val cropConfigs = listOf(
+        CropConfig(FarmConfig.CropEnum.WHEAT, 0.0, 3.0), CropConfig(FarmConfig.CropEnum.CARROT, 0.0, 3.0),
+        CropConfig(FarmConfig.CropEnum.POTATO, 0.0, 3.0), CropConfig(FarmConfig.CropEnum.NETHER_WART, 0.0, 0.25),
+        CropConfig(FarmConfig.CropEnum.SUGAR_CANE, 45.0, 0.0), CropConfig(FarmConfig.CropEnum.MELON, 0.0, 28.0),
+        CropConfig(FarmConfig.CropEnum.PUMPKIN, 0.0, 28.0), CropConfig(FarmConfig.CropEnum.CACTUS, 0.0, 0.25),
+        CropConfig(FarmConfig.CropEnum.COCOA_BEANS, 0.0, -70.0, "W", "S"), CropConfig(FarmConfig.CropEnum.MUSHROOM, 45.0, 0.0),
+        CropConfig(FarmConfig.CropEnum.SUNFLOWER, 0.0, 3.0), CropConfig(FarmConfig.CropEnum.MOONFLOWER, 0.0, 3.0),
+        CropConfig(FarmConfig.CropEnum.ROSE, 0.0, 3.0),
+    )
+    private val cropPicker = DropdownSetting("Crop", cropConfigs.map { it.crop.label })
+    private val cropConfigSettings = listOf<RenderableSetting<*>>(cropPicker) + cropConfigs.flatMap { it.settings }
+    private val useCurrentAngles = ActionSetting("Use My Current Angles") {
+        val player = mc.player ?: return@ActionSetting
+        val c = cropConfigs.first { it.crop.label == cropPicker.value }
+        c.yaw.value = Mth.wrapDegrees(player.yRot.toDouble())
+        c.pitch.value = player.xRot.toDouble()
+    }
+    private val cropConfigButton = ActionSetting("Crop Config", "Yaw / pitch and lane keys per crop.") {
+        runCatching { PlayerUtils.getFarmingCrop() }.getOrNull()?.let { c -> configOf(c)?.let { cropPicker.value = it.crop.label } }
+        (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Crop Config", listOf(listOf(
+            SettingsPopup.Section("Crop", listOf(cropPicker)),
+            SettingsPopup.Section("Settings (click a number to type it)", cropConfigSettings.drop(1)),
+        )), listOf(useCurrentAngles)))
+    }
+
+    // Learn Angles: while you farm by hand, your steady yaw / pitch per crop goes into Crop Config.
+    val learnAngles = BooleanSetting("Learn Angles", true, "While you farm by hand (macro off), saves the yaw / pitch you hold for each crop into Crop Config")
+    private const val LEARN_SAMPLES = 60 // crop breaks, ~3 s of normal farming
+    private class Samples(val yaw: ArrayDeque<Double> = ArrayDeque(), val pitch: ArrayDeque<Double> = ArrayDeque())
+    private val samples = HashMap<FarmConfig.CropEnum, Samples>()
+
+    /** MultiPlayerGameModeMixin: you broke [block] yourself. */
+    fun learnFrom(block: Block) {
+        if (!isEnabled || !learnAngles.value || MacroHandler.getInstance().isMacroToggled) return
+        val player = mc.player ?: return
+        val c = configOf(PlayerUtils.cropOf(block)) ?: return
+        val s = samples.getOrPut(c.crop) { Samples() }
+        s.yaw.addLast(player.yRot.toDouble())
+        s.pitch.addLast(player.xRot.toDouble())
+        if (s.yaw.size > LEARN_SAMPLES) { s.yaw.removeFirst(); s.pitch.removeFirst() }
+        if (s.yaw.size < LEARN_SAMPLES) return
+        // Yaw counts in all 4 directions (like customYaw), so a farm walked both ways still reads as one angle.
+        val yaw = steadyAngle(s.yaw, 90.0) ?: return
+        val pitch = steadyAngle(s.pitch, null) ?: return
+        s.yaw.clear(); s.pitch.clear()
+        val sameYaw = abs(((yaw - c.yaw.value) % 90 + 135) % 90 - 45) < 0.05
+        if (sameYaw && abs(pitch - c.pitch.value) < 0.05) return
+        c.yaw.value = Mth.wrapDegrees(yaw)
+        c.pitch.value = pitch
+        msg("§aLearned ${c.crop.label} angles §7(yaw %.2f, pitch %.2f) §8- Crop Config".format(c.yaw.value, c.pitch.value))
+    }
+
+    /** Median of [values] (wrapped by [period] when given), or null when they spread over 1.5 degrees: not a steady angle. */
+    internal fun steadyAngle(values: Collection<Double>, period: Double?): Double? {
+        val ref = values.last()
+        val d = values.map { if (period == null) it - ref else ((it - ref) % period + period * 1.5) % period - period / 2 }.sorted()
+        if (d[d.size * 9 / 10] - d[d.size / 10] > 1.5) return null
+        return ref + d[d.size / 2]
+    }
+
+    private fun configOf(crop: FarmConfig.CropEnum?): CropConfig? {
+        val c = if (crop == FarmConfig.CropEnum.MUSHROOM_ROTATE) FarmConfig.CropEnum.MUSHROOM else crop
+        return cropConfigs.firstOrNull { it.crop == c }
+    }
+
+    /** The macro's [base] yaw turned to your crop yaw, in whichever of the 4 directions [base] faces. */
+    fun customYaw(crop: FarmConfig.CropEnum?, base: Float): Float {
+        val c = configOf(crop) ?: return base
+        return (base + ((c.yaw.value - base) % 90 + 135) % 90 - 45).toFloat()
+    }
+
+    fun customPitch(crop: FarmConfig.CropEnum?, base: Float): Float = configOf(crop)?.pitch?.value?.toFloat() ?: base
+
+    /** Holds the current crop's keys for [lane] (1 or 2) plus attack. Unknown crop: A / D. */
+    fun holdLane(lane: Int) {
+        val c = configOf(MacroHandler.getInstance().crop)
+        val combo = (if (lane == 1) c?.lane1?.value else c?.lane2?.value)?.takeIf { it in LANE_KEYS } ?: if (lane == 1) "A" else "D"
+        val o = mc.options
+        val keys = combo.split("+").map { when (it) { "W" -> o.keyUp; "A" -> o.keyLeft; "S" -> o.keyDown; else -> o.keyRight } }
+        KeyBindUtils.holdThese(*(keys + o.keyAttack).toTypedArray())
+    }
+
     private val rewarpsText = TextSetting("Rewarps", "", maxLength = 4000).also { it.hide() }
     private val spawnText = TextSetting("Spawn", "", maxLength = 80).also { it.hide() }
 
@@ -100,9 +191,13 @@ object FarmHelper : Module(
     private var keyWasDown = false
 
     init {
-        val inPopup = timingSettings + behaviourSettings + failsafeSettings
+        cropConfigs.forEach { c -> c.settings.forEach { it.withDependency { cropPicker.value == c.crop.label } } }
+        val inPopup = timingSettings + behaviourSettings + failsafeSettings + cropConfigSettings
         inPopup.forEach { it.inPopup = true }
-        addSettings(farmType, toggleKey, statusHud, options, *inPopup.toTypedArray(), rewarpsText, spawnText)
+        addSettings(toggleKey, statusHud, options, cropConfigButton, learnAngles, *inPopup.toTypedArray(), rewarpsText, spawnText)
+        // Self-check: 44.9 / 45.1 / -315 (= 45) read as one steady yaw; a 30 degree spread does not.
+        check(steadyAngle(listOf(44.9, 45.1, -315.0, 45.0), 90.0)!!.let { abs(it - 45.0) < 0.11 })
+        check(steadyAngle(listOf(0.0, 10.0, 20.0, 30.0), null) == null)
         loadHud()
 
         ClientTickEvents.START_CLIENT_TICK.register { FarmHelperCore.onTick() }
@@ -114,6 +209,8 @@ object FarmHelper : Module(
             val down = isEnabled && key > 0 && mc.screen == null && GLFW.glfwGetKey(mc.window.handle(), key) == GLFW.GLFW_PRESS
             if (down && !keyWasDown) MacroHandler.getInstance().toggleMacro()
             keyWasDown = down
+            // Held macro keys aren't "input" to vanilla, so it would drop to the AFK FPS limit after a minute.
+            if (MacroHandler.getInstance().isMacroToggled) mc.framerateLimitTracker.onInputReceived()
             if (!isEnabled && MacroHandler.getInstance().isMacroToggled) MacroHandler.getInstance().disableMacro()
         }
 
@@ -146,7 +243,6 @@ object FarmHelper : Module(
 
     // ---- values for the port
 
-    @JvmStatic fun macroIndex(): Int = TYPES.indexOf(farmType.value).coerceAtLeast(0)
     @JvmStatic fun randomRowDelay(): Long = (rowDelay.value + Math.random() * rowDelayRandom.value).toLong()
     @JvmStatic fun randomRotationTime(): Long = (rotationTime.value + Math.random() * rotationRandom.value).toLong()
     @JvmStatic fun randomRewarpDelay(): Long = (rewarpDelay.value + Math.random() * rewarpRandom.value).toLong()
@@ -197,11 +293,13 @@ object FarmHelper : Module(
             mh.isCurrentMacroPaused -> "§ePaused"
             else -> "§aOn"
         }
-        val out = mutableListOf("FarmHelper" to "", "Macro" to state, "Farm" to farmType.value)
+        val out = mutableListOf("FarmHelper" to "", "Macro" to state)
         if (mh.isMacroToggled) {
             out += "Crop" to mh.crop.label
             mh.currentMacro.ifPresent { out += "State" to it.currentState.name }
             out += "Time" to formatTime(mh.macroingTimer.elapsedTime)
+            val bps = LowerAvgBpsFailsafe.getInstance().bps
+            out += "BPS" to (if (bps < minBps.value) "§c" else "§a") + "%.1f".format(bps)
         }
         out += "Rewarps" to "${rewarps().size}" + if (spawn() == null) "  (no spawn)" else ""
         return out
@@ -232,7 +330,7 @@ object FarmHelper : Module(
     }
 
     override fun renderInternal(g: GuiGraphicsExtractor) = draw(g, listOf(
-        "FarmHelper" to "", "Macro" to "§aOn", "Farm" to TYPES[0], "Crop" to "Wheat", "State" to "LEFT", "Time" to "12:34", "Rewarps" to "2"))
+        "FarmHelper" to "", "Macro" to "§aOn", "Crop" to "Wheat", "State" to "LEFT", "Time" to "12:34", "BPS" to "§a19.6", "Rewarps" to "2"))
 
     private fun draw(g: GuiGraphicsExtractor, rows: List<Pair<String, String>>) {
         val s = panelScale
