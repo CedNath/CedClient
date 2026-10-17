@@ -21,7 +21,7 @@ object ModuleGroups {
             "Players" to listOf("Custom Nametag", "Cosmetics", "Player Scale"),
         ),
         "Skyblock" to listOf(
-            "Dungeons" to listOf("Dungeon Splits", "Positional Messages", "F7SoundCap", "CustomHypeSound"),
+            "Dungeons" to listOf("Dungeon Splits", "Positional Messages", "F7SoundCap", "CustomHypeSound", "Explosive Shot Damage"),
             "Hunting" to listOf("Critter Safari"),
             "Rift" to listOf("Sun Gecko"),
             "Slayers" to listOf("Slayer Tracker"),
