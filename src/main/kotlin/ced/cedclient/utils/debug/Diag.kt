@@ -29,7 +29,7 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 /**
- * Bug reporter: notices when something in CedClient went wrong and sends it to a Discord webhook.
+ * Bug reporter: notices when something in CedClient went wrong and sends it to Discord through the site Worker.
  *
  * Detectors (all only report problems that involve CedClient code):
  *  - errors thrown by our event handlers (EventBus catches them, so one bad feature no longer breaks the rest)
@@ -39,16 +39,19 @@ import java.util.concurrent.TimeUnit
  *  - freezes: the game thread stuck for [FREEZE_MS] with CedClient on its stack (a watchdog thread)
  *  - soft checks: features call [warn] / [check] when their state looks wrong (see callers)
  *
- * Same problem = one issue with a counter. Pending issues go out in one webhook message every
- * [SEND_EVERY_MS] (and when the game closes), at most [MAX_MESSAGES] per launch. Everything is also written to the
+ * Same problem = one issue with a counter. Pending issues go out in one report every
+ * [SEND_EVERY_MS] (and when the game closes), at most [MAX_MESSAGES] per launch (the Worker also rate limits). Everything is also written to the
  * log as "[CedDiag]", listed by "/cc dev diag", and shown in chat to the dev.
  *
  * Sent: Minecraft name, CedClient + MC version, island, OS and the error text / stack trace. Never: tokens, chat.
  * Opt out with sendReports=false in config/cedclient-diag.properties.
  */
 object Diag {
-    /** Paste the Discord webhook URL here. Empty = nothing is sent (issues stay in the log and /cc dev diag). */
-    private const val WEBHOOK_URL = ""
+    /**
+     * The site Worker's /bug route: it checks the report and forwards it to Discord. The webhook URL is a Worker
+     * secret (wrangler secret put DISCORD_WEBHOOK), so it is never in the jar.
+     */
+    private const val ENDPOINT = "https://cedclient.kasajonny420-dab.workers.dev/bug"
 
     private const val CONFIG_NAME = "cedclient-diag.properties"
     private const val SEND_EVERY_MS = 60_000L
@@ -56,7 +59,7 @@ object Diag {
     private const val FREEZE_MS = 5_000L
     private const val OUR_PACKAGE = "ced.cedclient"
 
-    enum class Kind(val color: Int) { ERROR(0xE04040), WARN(0xE0A020), CRASH(0x900000), FREEZE(0x4080E0) }
+    enum class Kind { ERROR, WARN, CRASH, FREEZE }
 
     class Issue(val kind: Kind, val source: String, val message: String, val detail: String?) {
         val first: Long = System.currentTimeMillis()
@@ -95,8 +98,6 @@ object Diag {
 
     /** Send pending issues now (background thread). */
     fun flushAsync() = Thread({ flush() }, "CedClient-Diag-Flush").apply { isDaemon = true }.start()
-
-    fun webhookSet() = webhook().isNotBlank()
 
     // ------------------------------------------------------------------ setup
 
@@ -284,8 +285,8 @@ object Diag {
     @Synchronized
     private fun flush() {
         try {
-            val url = webhook()
-            if (url.isBlank() || !sendEnabled() || messagesSent >= MAX_MESSAGES) return
+            val url = props.getProperty("endpoint")?.trim()?.takeIf { it.isNotEmpty() } ?: ENDPOINT // endpoint= for a local test Worker
+            if (!sendEnabled() || messagesSent >= MAX_MESSAGES) return
             val pending = synchronized(issues) { issues.values.filter { it.count > it.sentCount }.take(10) }
             if (pending.isEmpty()) return
             val request = HttpRequest.newBuilder(URI.create(url))
@@ -300,43 +301,40 @@ object Diag {
                 synchronized(issues) { pending.forEach { it.sentCount = it.count } }
             }
         } catch (_: Throwable) {
-            // A dead webhook must never affect the game; pending issues retry next round.
+            // A dead endpoint must never affect the game; pending issues retry next round.
         }
     }
 
+    /** Plain report data; the Worker turns it into the Discord message (so the client can't post arbitrary content). */
     private fun buildMessage(pending: List<Issue>): String {
         val loader = FabricLoader.getInstance()
         fun version(id: String) = loader.getModContainer(id).map { it.metadata.version.friendlyString }.orElse("?")
         val time = DateTimeFormatter.ofPattern("HH:mm:ss")
-        val header = "**${Minecraft.getInstance().user?.name ?: "?"}** · CedClient ${version("cedclient")} · " +
-            "MC ${version("minecraft")} · island ${IslandState.island ?: "-"} · ${System.getProperty("os.name")}"
-        val embeds = JsonArray()
+        val user = Minecraft.getInstance().user
+        val list = JsonArray()
         for (issue in pending) {
-            val body = buildString {
-                append(issue.message.take(800))
-                issue.detail?.let { append("\n```\n").append(it.take(3000)).append("\n```") }
-            }
-            val first = LocalTime.ofInstant(Instant.ofEpochMilli(issue.first), ZoneId.systemDefault()).format(time)
-            embeds.add(JsonObject().apply {
-                addProperty("title", "${issue.kind} · ${issue.source}".take(250))
-                addProperty("description", body)
-                addProperty("color", issue.kind.color)
-                add("footer", JsonObject().apply {
-                    addProperty("text", "x${issue.count}${if (issue.sentCount > 0) " (seen again)" else ""} · first $first")
-                })
+            list.add(JsonObject().apply {
+                addProperty("kind", issue.kind.name)
+                addProperty("source", issue.source.take(120))
+                addProperty("message", issue.message.take(800))
+                issue.detail?.let { addProperty("detail", it.take(3000)) }
+                addProperty("count", issue.count)
+                addProperty("again", issue.sentCount > 0)
+                addProperty("first", LocalTime.ofInstant(Instant.ofEpochMilli(issue.first), ZoneId.systemDefault()).format(time))
             })
         }
         return JsonObject().apply {
-            addProperty("username", "CedClient Diag")
-            addProperty("content", header.take(1900))
-            add("embeds", embeds)
-            add("allowed_mentions", JsonObject().apply { add("parse", JsonArray()) }) // error text can't ping anyone
+            addProperty("uuid", user?.profileId?.toString() ?: "")
+            addProperty("name", user?.name ?: "")
+            addProperty("version", version("cedclient"))
+            addProperty("mc", version("minecraft"))
+            addProperty("island", IslandState.island?.toString() ?: "-")
+            addProperty("os", System.getProperty("os.name"))
+            add("issues", list)
         }.toString()
     }
 
     // ------------------------------------------------------------------ config
-
-    private fun webhook() = props.getProperty("webhook")?.trim()?.takeIf { it.isNotEmpty() } ?: WEBHOOK_URL
 
     private fun sendEnabled() = props.getProperty("sendReports", "true").trim().equals("true", ignoreCase = true)
 
@@ -363,7 +361,7 @@ object Diag {
             Files.newBufferedWriter(configPath()).use {
                 props.store(it, " CedClient bug reports. sendReports=false turns sending off.\n" +
                     " Sent when something in CedClient breaks: your Minecraft name, mod + MC version, island, OS and the error.\n" +
-                    " webhook= overrides the built-in Discord webhook (leave empty to use it).")
+                    " endpoint= sends to another URL instead (testing only; leave unset).")
             }
         } catch (_: Throwable) {
         }
