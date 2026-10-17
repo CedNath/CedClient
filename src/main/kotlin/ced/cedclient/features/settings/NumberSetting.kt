@@ -5,7 +5,11 @@ import ced.cedclient.utils.Colors
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
+import net.minecraft.client.Minecraft
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
+import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToLong
 
 /**
@@ -61,9 +65,11 @@ class NumberSetting(
         if (dragging) applyFromMouseX(mouseX)
 
         NVGRenderer.text(name, x + 6f, y + 4f, 14f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        val shown = editing?.let { "${it}_" } ?: format(value)
+        valueX = x + width - 6f - NVGRenderer.textWidth(shown, 14f, NVGRenderer.defaultFont)
         NVGRenderer.text(
-            format(value), x + width - 6f - NVGRenderer.textWidth(format(value), 14f, NVGRenderer.defaultFont),
-            y + 4f, 14f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont
+            shown, valueX, y + 4f, 14f,
+            (if (editing != null) Colors.WHITE else Colors.MINECRAFT_GRAY).rgba, NVGRenderer.defaultFont
         )
 
         val barY = y + height - 6f
@@ -78,14 +84,65 @@ class NumberSetting(
     }
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
-        if (!isHovered) return false
+        if (!isHovered) {
+            commitEdit()
+            return false
+        }
+        // Click the number itself to type a value.
+        if (mouseX >= valueX - 6f && mouseY < lastY + 20f) {
+            if (editing == null) {
+                editing = format(value)
+                freshEdit = true
+            }
+            return true
+        }
+        commitEdit()
         dragging = true
         applyFromMouseX(mouseX)
         return true
     }
 
+    // Typed value while editing; the first key replaces the shown number (like a selected field).
+    private var editing: String? = null
+    private var freshEdit = false
+    private var valueX = 0f
+
+    private fun commitEdit() {
+        editing?.toDoubleOrNull()?.let { value = it }
+        editing = null
+    }
+
+    override fun keyTyped(input: CharacterEvent): Boolean {
+        val text = editing ?: return false
+        val c = input.codepointAsString()
+        if (c.length != 1 || c[0] !in "0123456789.-") return true
+        editing = (if (freshEdit) "" else text) + c
+        freshEdit = false
+        return true
+    }
+
     override fun mouseReleased(click: MouseButtonEvent) {
         dragging = false
+    }
+
+    /** Hover + arrow keys: one step per press (x10 with Shift), for values a drag can't hit exactly. */
+    override fun keyPressed(input: KeyEvent): Boolean {
+        editing?.let { text ->
+            when (input.key()) {
+                GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> commitEdit()
+                GLFW.GLFW_KEY_ESCAPE -> editing = null
+                GLFW.GLFW_KEY_BACKSPACE -> { editing = if (freshEdit) "" else text.dropLast(1); freshEdit = false }
+            }
+            return true // typing owns the keyboard until Enter / Esc
+        }
+        if (!isHovered) return false
+        val dir = when (input.key()) {
+            GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_DOWN -> -1
+            GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP -> 1
+            else -> return false
+        }
+        value += dir * step * (if (Minecraft.getInstance().hasShiftDown()) 10 else 1)
+        return true
     }
 
     override fun read(element: JsonElement, gson: Gson) {
