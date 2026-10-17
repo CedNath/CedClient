@@ -59,6 +59,7 @@ object DungeonSplits : Module(
     )
     private val terminalSplits = BooleanSetting("Terminal Splits", true, "F7 / M7: time each terminal section (1st-4th) during the Terminals split.")
     private val chatSummary = BooleanSetting("Chat Summary", true, "Post the run's splits (and a new PB) to chat when it ends.")
+    private val lingerSeconds = NumberSetting("Show After Run", 10.0, 0.0, 60.0, 1.0, "Seconds the splits stay up after the run ends (hidden right away once you leave the dungeon).")
     private val resetPbs = ActionSetting("Reset All PBs", "Forget every saved personal best and the recent-run history.") {
         data.pbs.clear()
         data.history.clear()
@@ -241,7 +242,7 @@ object DungeonSplits : Module(
     private fun nowTick() = TpsTracker.serverTicks - runStartTick
 
     init {
-        addSettings(showDeltas, secondColumn, estimateFrom, chatSummary, customizeHud, resetPbs)
+        addSettings(showDeltas, secondColumn, estimateFrom, chatSummary, lingerSeconds, customizeHud, resetPbs)
         addSettings(*popupOnly.toTypedArray())
         popupOnly.forEach { it.inPopup = true }
         load()
@@ -382,7 +383,7 @@ object DungeonSplits : Module(
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
         if (!isEnabled || runStart == 0L || segs.isEmpty()) return
-        if (finishedAt != 0L && System.currentTimeMillis() - finishedAt > LINGER_MS) return
+        if (finishedAt != 0L && (!DungeonState.inDungeon || System.currentTimeMillis() - finishedAt > lingerSeconds.value * 1000)) return
         renderInternal(g)
     }
 
@@ -636,7 +637,6 @@ object DungeonSplits : Module(
 
     private val ORDINALS = listOf("1st", "2nd", "3rd", "4th")
     private const val HISTORY_SIZE = 10
-    private const val LINGER_MS = 60_000L
     private const val DEFEATED_GRACE_MS = 4_000L
     private const val SUMMARY_DELAY_MS = 1_500L
     private const val MIN_SCALE = 0.5f
