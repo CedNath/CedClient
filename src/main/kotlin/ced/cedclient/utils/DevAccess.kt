@@ -2,6 +2,7 @@ package ced.cedclient.utils
 
 import ced.cedclient.state.IslandState
 import ced.cedclient.state.Sidebar
+import ced.cedclient.features.impl.funqol.AutoExperiments
 import ced.cedclient.features.impl.funqol.SlayerCheats
 import com.mojang.brigadier.arguments.DoubleArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
@@ -55,6 +56,12 @@ object DevAccess {
             ctx.source.sendFeedback(Component.literal("§7${stack.item} §f${stack.hoverName.string}"))
             ctx.source.sendFeedback(Component.literal("§7${stack.get(DataComponents.CUSTOM_DATA)}"))
             ctx.source.sendFeedback(Component.literal("§7model: ${stack.get(DataComponents.ITEM_MODEL)}"))
+            1
+        })
+        // Auto Experiments debug lines in chat + log (until restart).
+        .then(ClientCommands.literal("expdebug").executes { ctx ->
+            AutoExperiments.debug = !AutoExperiments.debug
+            ctx.source.sendFeedback(Component.literal("§7Auto Experiments debug: ${if (AutoExperiments.debug) "§aon" else "§coff"}"))
             1
         })
         // Slayer Helper Mania Walk: min blocks between the picked green tile and the boss (until restart).

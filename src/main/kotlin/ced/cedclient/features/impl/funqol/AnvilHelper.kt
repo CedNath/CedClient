@@ -4,6 +4,7 @@ import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.utils.ChatPrefix
+import ced.cedclient.utils.CursorGlide
 import ced.cedclient.utils.enchantments as sbEnchants // ItemStack has its own enchantments member
 import ced.cedclient.utils.skyblockId
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -26,7 +27,7 @@ object AnvilHelper : Module(
     private val mc: Minecraft = Minecraft.getInstance()
 
     private val maxLevel = NumberSetting("Max Level", 5.0, 2.0, 10.0, 1.0, "Stop combining once a book reaches this level.")
-    private val clickDelay = NumberSetting("Click Delay ms", 300.0, 100.0, 1500.0, 50.0)
+    private val clickDelay = NumberSetting("Click Delay ms", 400.0, 100.0, 1500.0, 50.0)
 
     // SkyBlock Anvil (54-slot chest): left input, right input, combine button, result.
     // shortcut: slot numbers from memory of the menu; confirm in game (run/TESTING.md) and fix here if they moved.
@@ -59,7 +60,7 @@ object AnvilHelper : Module(
         }
         val player = mc.player ?: return
         val now = System.currentTimeMillis()
-        if (now - lastClickAt < clickDelay.value.toLong()) return
+        if (CursorGlide.busy || now - lastClickAt < clickDelay.value.toLong()) return
 
         val slots = screen.menu.slots
         val inv = slots.filter { it.container === player.inventory && book(it.item) != null }
@@ -93,14 +94,19 @@ object AnvilHelper : Module(
             running = true
             player.sendSystemMessage(ChatPrefix.msg("§aAnvil Helper combining books §7(close the menu to stop)"))
         }
-        mc.gameMode?.handleContainerInput(screen.menu.containerId, target.first.index, 0, target.second, player)
-        lastClickAt = now
-        lastState = state
+        val id = screen.menu.containerId
+        // Cursor travels to the slot first, then clicks it.
+        CursorGlide.moveTo(screen, target.first, clickDelay.value.toLong()) {
+            mc.gameMode?.handleContainerInput(id, target.first.index, 0, target.second, player)
+            lastClickAt = System.currentTimeMillis()
+            lastState = state
+        }
     }
 
     private fun stop(reason: String) {
         if (!running) return
         running = false
+        CursorGlide.cancel()
         mc.player?.sendSystemMessage(ChatPrefix.msg("§cAnvil Helper off §7($reason)"))
     }
 }
