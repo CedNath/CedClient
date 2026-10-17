@@ -13,7 +13,12 @@ object EventBus {
 
     fun post(event: Event): Boolean {
         listeners[event::class]?.forEach { handler ->
-            handler(event)
+            // One broken listener is reported, and the others still run.
+            try {
+                handler(event)
+            } catch (t: Throwable) {
+                ced.cedclient.utils.debug.Diag.error("event ${event::class.simpleName}", t.toString(), t)
+            }
         }
 
         return if (event is CancellableEvent) event.isCancelled else false

@@ -132,6 +132,8 @@ public class FailsafeManager {
             chooseEmergencyDelay.schedule(FarmConfig.failsafeStopDelay() + (long) (Math.random() * 500));
         }
         LogUtils.sendWarning("[Failsafe] Probability of emergency: " + failsafe.getType().name().replace('_', ' '));
+        // Reported so false triggers (a failsafe firing on normal farming) show up for the dev.
+        ced.cedclient.utils.debug.Diag.warn("Farm failsafe", failsafe.getType().name());
     }
 
     private Failsafe getHighestPriorityEmergency() {

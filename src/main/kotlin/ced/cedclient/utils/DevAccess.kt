@@ -5,6 +5,7 @@ import ced.cedclient.state.Sidebar
 import ced.cedclient.features.impl.funqol.AutoExperiments
 import ced.cedclient.features.impl.funqol.SlayerCheats
 import com.mojang.brigadier.arguments.DoubleArgumentType
+import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
@@ -66,6 +67,30 @@ object DevAccess {
             ctx.source.sendFeedback(Component.literal("§7Time: §f$t §7(total ${level.overworldClockTime}), bright: ${level.isBrightOutside}, flower: §f$flower"))
             1
         })
+        // Bug reporter (utils/debug/Diag): recent issues, a test report, send now, set a local webhook.
+        .then(ClientCommands.literal("diag")
+            .executes { ctx ->
+                val list = ced.cedclient.utils.debug.Diag.recent(10)
+                ctx.source.sendFeedback(Component.literal("§7Diag: ${list.size} recent issue(s), webhook ${if (ced.cedclient.utils.debug.Diag.webhookSet()) "§aset" else "§cnot set"}"))
+                list.forEach { ctx.source.sendFeedback(Component.literal("§8x${it.count} §7${it.kind} §f${it.source}§7: ${it.message.take(100)}")) }
+                1
+            }
+            .then(ClientCommands.literal("test").executes { ctx ->
+                ced.cedclient.utils.debug.Diag.error("diag test", "Test report from /cc dev diag test", RuntimeException("test"))
+                ctx.source.sendFeedback(Component.literal("§7Test issue recorded; §f/cc dev diag send §7to send it now"))
+                1
+            })
+            .then(ClientCommands.literal("send").executes { ctx ->
+                ced.cedclient.utils.debug.Diag.flushAsync()
+                ctx.source.sendFeedback(Component.literal("§7Sending pending issues"))
+                1
+            })
+            .then(ClientCommands.literal("webhook")
+                .then(ClientCommands.argument("url", StringArgumentType.greedyString()).executes { ctx ->
+                    ced.cedclient.utils.debug.Diag.setProp("webhook", StringArgumentType.getString(ctx, "url"))
+                    ctx.source.sendFeedback(Component.literal("§7Webhook saved to config/cedclient-diag.properties"))
+                    1
+                })))
         // Auto Experiments debug lines in chat + log (until restart).
         .then(ClientCommands.literal("expdebug").executes { ctx ->
             AutoExperiments.debug = !AutoExperiments.debug
