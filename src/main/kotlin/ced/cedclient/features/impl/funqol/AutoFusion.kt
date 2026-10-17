@@ -2,9 +2,11 @@ package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.mixin.accessor.AbstractContainerScreenAccessor
 import ced.cedclient.utils.ChatPrefix
+import ced.cedclient.utils.CursorGlide
 import ced.cedclient.utils.cleanName
 import ced.cedclient.utils.loreLines
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -29,6 +31,7 @@ object AutoFusion : Module(
     private val mc: Minecraft = Minecraft.getInstance()
 
     private val clickDelay = NumberSetting("Click Delay ms", 300.0, 100.0, 1500.0, 50.0)
+    private val smoothMouse = BooleanSetting("Smooth Mouse", true, "Move the cursor to each button before clicking it")
 
     private const val STUCK_MS = 2500L
     private const val CLOSED_TICKS = 10
@@ -39,7 +42,7 @@ object AutoFusion : Module(
     private var closedTicks = 0
 
     init {
-        addSettings(clickDelay)
+        addSettings(clickDelay, smoothMouse)
 
         ClientTickEvents.END_CLIENT_TICK.register { _ ->
             if (!isEnabled || !armed) return@register
@@ -69,6 +72,7 @@ object AutoFusion : Module(
     private fun stop(reason: String) {
         armed = false
         lastClickTitle = null
+        CursorGlide.cancel()
         mc.player?.sendSystemMessage(ChatPrefix.msg("§cAuto Fusion off §7($reason)"))
     }
 
@@ -87,12 +91,18 @@ object AutoFusion : Module(
             return
         }
         if (now - lastClickAt < clickDelay.value.toLong()) return
+        if (CursorGlide.busy) return
         val target = confirmSlot(screen) ?: repeatSlot(screen) ?: return
-        // Plain left click, same as clicking the button yourself (Hypixel keeps the item in place).
-        val player = mc.player ?: return
-        mc.gameMode?.handleContainerInput(screen.menu.containerId, target.index, 0, ContainerInput.PICKUP, player)
-        lastClickAt = now
-        lastClickTitle = title
+        val id = screen.menu.containerId
+        // Plain left click, same as clicking the button yourself; with Smooth Mouse the cursor travels there first.
+        val click = {
+            mc.player?.let { player ->
+                mc.gameMode?.handleContainerInput(id, target.index, 0, ContainerInput.PICKUP, player)
+                lastClickAt = System.currentTimeMillis()
+                lastClickTitle = title
+            }
+        }
+        if (smoothMouse.value) CursorGlide.moveTo(screen, target, clickDelay.value.toLong()) { click() } else click()
     }
 
     private fun menuSlots(screen: AbstractContainerScreen<*>) = screen.menu.slots.filter { it.container !== mc.player?.inventory }

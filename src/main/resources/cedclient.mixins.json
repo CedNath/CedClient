@@ -58,6 +58,7 @@
     "screen.InventoryCraftingGridMixin",
     "screen.InventoryCraftingSlotMixin",
     "screen.AbstractContainerScreenMixin",
+    "screen.ContainerContentsMixin",
     "screen.ScreenTooltipMixin",
     "screen.GuiMixin",
     "scoreboard.PlayerTeamMixin",

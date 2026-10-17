@@ -5,6 +5,7 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.mixin.accessor.AbstractContainerScreenAccessor
+import ced.cedclient.utils.CursorGlide
 import ced.cedclient.utils.cleanName
 import ced.cedclient.utils.loreLines
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -32,7 +33,7 @@ object AutoExperiments : Module(
 
     private val autoClick = BooleanSetting("Auto Click", true)
     private val showSolver = BooleanSetting("Show Solver", true)
-    private val clickDelay = NumberSetting("Click Delay ms", 200.0, 0.0, 1000.0, 10.0)
+    private val clickDelay = NumberSetting("Click Delay ms", 400.0, 0.0, 1000.0, 10.0)
     private val autoClose = BooleanSetting("Auto Close", true)
     private val serumCount = NumberSetting("Serum Count", 0.0, 0.0, 3.0, 1.0)
     private val getMaxXp = BooleanSetting("Get Max XP", false)
@@ -55,6 +56,16 @@ object AutoExperiments : Module(
     private var solving: String? = null
     private var yourTurn = false
 
+    /** Toggled by "/cc dev expdebug" (until restart): logs solver state changes and clicks to chat and the log. */
+    var debug = false
+    private var lastCenter: Any? = null
+
+    private fun dbg(msg: String) {
+        if (!debug) return
+        println("[AutoExperiments] $msg")
+        mc.player?.sendSystemMessage(net.minecraft.network.chat.Component.literal("§8[exp] §7$msg"))
+    }
+
     init {
         addSettings(autoClick, showSolver, clickDelay, autoClose, serumCount, getMaxXp, superpairsSolver)
 
@@ -65,10 +76,6 @@ object AutoExperiments : Module(
 
         ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
             if (screen !is AbstractContainerScreen<*>) return@register
-            ScreenEvents.afterExtract(screen).register { s, g, _, _, _ ->
-                if (isEnabled && showSolver.value) drawSolver(s as AbstractContainerScreen<*>, g)
-                if (isEnabled && superpairsSolver.value) drawSuperpairs(s as AbstractContainerScreen<*>, g)
-            }
             ScreenMouseEvents.allowMouseClick(screen).register { s, event ->
                 onMouseClick(s as AbstractContainerScreen<*>, event.x(), event.y())
             }
@@ -97,6 +104,7 @@ object AutoExperiments : Module(
         val screen = mc.gui.screen()
         if (screen !== lastScreen) {
             lastScreen = screen
+            if (solving != null) dbg("screen changed to '${screen?.title?.string}', state reset")
             reset()
         }
         solving = null
@@ -106,6 +114,12 @@ object AutoExperiments : Module(
         if (slots.size < 54) return
 
         val title = screen.title.string
+        val center = slots[49].item.item
+        if (center != lastCenter) {
+            lastCenter = center
+            if (title.startsWith("Chronomatron (") || title.startsWith("Ultrasequencer ("))
+                dbg("center -> $center, clicks=$clicks, chrono=$chronomatronOrder, ultra=$ultrasequencerOrder, glideBusy=${CursorGlide.busy}")
+        }
         when {
             title.startsWith("Chronomatron (") -> solveChronomatron(screen, slots)
             title.startsWith("Ultrasequencer (") -> solveUltrasequencer(screen, slots)
@@ -143,6 +157,7 @@ object AutoExperiments : Module(
         // Close once the last click of the final round is in (one Click Delay after it, so it registers).
         // Waiting for the next round's glowstone could miss the reset and never close.
         if (autoClose.value && hasAdded && chronomatronOrder.size > max && clicks >= chronomatronOrder.size && canClick()) {
+            dbg("chrono auto close (round ${chronomatronOrder.size} > $max)")
             mc.player?.closeContainer()
             return
         }
@@ -153,10 +168,11 @@ object AutoExperiments : Module(
                 lastAdded = it.index
                 hasAdded = true
                 clicks = 0
+                dbg("chrono added slot ${it.index}, order=$chronomatronOrder")
             }
         }
         if (autoClick.value && hasAdded && center == Items.CLOCK && clicks < chronomatronOrder.size && canClick()) {
-            click(screen, chronomatronOrder[clicks++])
+            click(screen, chronomatronOrder[clicks])
         }
     }
 
@@ -168,21 +184,34 @@ object AutoExperiments : Module(
 
         if (center == Items.CLOCK) hasAdded = false
 
-        if (!hasAdded && center == Items.GLOWSTONE) {
-            if (!slots[44].hasItem()) return
-            ultrasequencerOrder.clear()
+        // Re-read every tick while watching and keep the fullest read: the numbers can show up over a few ticks,
+        // and the first glowstone tick may still show last round's board.
+        if (center == Items.GLOWSTONE) {
+            val read = HashMap<Int, Int>()
             for (slot in slots) {
                 if (slot.index !in 9..44) continue
                 val name = ChatFormatting.stripFormatting(slot.item.hoverName.string) ?: continue
-                if (name.matches(numberName)) ultrasequencerOrder[slot.item.count - 1] = slot.index
+                if (name.matches(numberName)) read[slot.item.count - 1] = slot.index
             }
-            hasAdded = true
-            clicks = 0
-            if (autoClose.value && ultrasequencerOrder.size > max) { mc.player?.closeContainer(); return }
+            if (read.isNotEmpty() && (!hasAdded || read.size > ultrasequencerOrder.size)) {
+                ultrasequencerOrder.clear()
+                ultrasequencerOrder.putAll(read)
+                hasAdded = true
+                clicks = 0
+                dbg("ultra read order=${ultrasequencerOrder.toSortedMap()}")
+                if (autoClose.value && ultrasequencerOrder.size > max) { dbg("ultra auto close (${ultrasequencerOrder.size} > $max)"); mc.player?.closeContainer(); return }
+            }
         }
         if (autoClick.value && center == Items.CLOCK && canClick()) {
-            ultrasequencerOrder[clicks]?.let { click(screen, it); clicks++ }
+            ultrasequencerOrder[clicks]?.let { click(screen, it) }
         }
+    }
+
+    /** Called by ContainerContentsMixin right after the slots are drawn, so tooltips stay on top. */
+    fun drawOverlays(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor) {
+        if (!isEnabled) return
+        if (showSolver.value) drawSolver(screen, g)
+        if (superpairsSolver.value) drawSuperpairs(screen, g)
     }
 
     /** Slots still to click this round, in order. Empty unless it's your turn. */
@@ -256,12 +285,22 @@ object AutoExperiments : Module(
         return true
     }
 
-    private fun canClick() = System.currentTimeMillis() - lastClickTime >= clickDelay.value.toLong()
+    private fun canClick() = !CursorGlide.busy && System.currentTimeMillis() - lastClickTime >= clickDelay.value.toLong()
 
-    // Middle click (clone): never moves an item, so a mis-click can't pick anything up.
+    // Middle click (clone): never moves an item, so a mis-click can't pick anything up. The cursor travels there first.
+    // Click Delay counts from the glide's start (the glide fits inside it): clicks stay one delay apart,
+    // not glide + delay, which was slow enough to run out the experiment timer.
     private fun click(screen: AbstractContainerScreen<*>, slot: Int) {
-        val player = mc.player ?: return
-        mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, 2, ContainerInput.CLONE, player)
-        lastClickTime = System.currentTimeMillis()
+        val id = screen.menu.containerId
+        val start = System.currentTimeMillis()
+        lastClickTime = start
+        dbg("glide -> slot $slot (click #$clicks)")
+        // No "clicked" line after a "glide" line = the glide was dropped (screen changed mid-glide).
+        CursorGlide.moveTo(screen, screen.menu.slots[slot], clickDelay.value.toLong()) {
+            val player = mc.player ?: return@moveTo
+            mc.gameMode?.handleContainerInput(id, slot, 2, ContainerInput.CLONE, player)
+            clicks++ // counted on landing, so the solver keeps showing the slot the cursor is still heading to
+            dbg("clicked slot $slot after ${System.currentTimeMillis() - start}ms, center=${screen.menu.slots[49].item.item}")
+        }
     }
 }
