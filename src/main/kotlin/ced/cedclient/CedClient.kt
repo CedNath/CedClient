@@ -163,6 +163,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CritterSafari)
         ModuleManager.register(VampireSlayer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ExplosiveShotDamage)
         ModuleManager.register(SearchOverlay)
         ModuleManager.register(ced.cedclient.features.impl.misc.AuctionPriceInput)
         ModuleManager.register(ced.cedclient.features.impl.misc.ItemValue)
