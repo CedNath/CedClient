@@ -2,6 +2,7 @@ package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.utils.CursorGlide
@@ -28,6 +29,7 @@ object AnvilHelper : Module(
 
     private val maxLevel = NumberSetting("Max Level", 5.0, 2.0, 10.0, 1.0, "Stop combining once a book reaches this level.")
     private val clickDelay = NumberSetting("Click Delay ms", 400.0, 100.0, 1500.0, 50.0)
+    private val smoothMouse = BooleanSetting("Smooth Mouse", true, "Move the cursor to each slot before clicking it")
 
     // SkyBlock Anvil (54-slot chest): left input, right input, combine button, result.
     // shortcut: slot numbers from memory of the menu; confirm in game (run/TESTING.md) and fix here if they moved.
@@ -42,7 +44,7 @@ object AnvilHelper : Module(
     private var lastState = ""
 
     init {
-        addSettings(maxLevel, clickDelay)
+        addSettings(maxLevel, clickDelay, smoothMouse)
         ClientTickEvents.END_CLIENT_TICK.register { _ -> if (isEnabled) tick() }
     }
 
@@ -95,12 +97,13 @@ object AnvilHelper : Module(
             player.sendSystemMessage(ChatPrefix.msg("§aAnvil Helper combining books §7(close the menu to stop)"))
         }
         val id = screen.menu.containerId
-        // Cursor travels to the slot first, then clicks it.
-        CursorGlide.moveTo(screen, target.first, clickDelay.value.toLong()) {
+        val click = {
             mc.gameMode?.handleContainerInput(id, target.first.index, 0, target.second, player)
             lastClickAt = System.currentTimeMillis()
             lastState = state
         }
+        // With Smooth Mouse the cursor travels to the slot first, then clicks it.
+        if (smoothMouse.value) CursorGlide.moveTo(screen, target.first, clickDelay.value.toLong()) { click() } else click()
     }
 
     private fun stop(reason: String) {
