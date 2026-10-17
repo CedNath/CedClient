@@ -34,6 +34,7 @@ object AutoExperiments : Module(
     private val autoClick = BooleanSetting("Auto Click", true)
     private val showSolver = BooleanSetting("Show Solver", true)
     private val clickDelay = NumberSetting("Click Delay ms", 400.0, 0.0, 1000.0, 10.0)
+    private val smoothMouse = BooleanSetting("Smooth Mouse", true, "Move the cursor to each slot before clicking it")
     private val autoClose = BooleanSetting("Auto Close", true)
     private val serumCount = NumberSetting("Serum Count", 0.0, 0.0, 3.0, 1.0)
     private val getMaxXp = BooleanSetting("Get Max XP", false)
@@ -67,7 +68,7 @@ object AutoExperiments : Module(
     }
 
     init {
-        addSettings(autoClick, showSolver, clickDelay, autoClose, serumCount, getMaxXp, superpairsSolver)
+        addSettings(autoClick, showSolver, clickDelay, smoothMouse, autoClose, serumCount, getMaxXp, superpairsSolver)
 
         ClientTickEvents.END_CLIENT_TICK.register { _ ->
             if (!isEnabled) return@register
@@ -294,13 +295,16 @@ object AutoExperiments : Module(
         val id = screen.menu.containerId
         val start = System.currentTimeMillis()
         lastClickTime = start
+        val doClick = {
+            mc.player?.let { player ->
+                mc.gameMode?.handleContainerInput(id, slot, 2, ContainerInput.CLONE, player)
+                clicks++ // counted on landing, so the solver keeps showing the slot the cursor is still heading to
+                dbg("clicked slot $slot after ${System.currentTimeMillis() - start}ms, center=${screen.menu.slots[49].item.item}")
+            }
+        }
+        if (!smoothMouse.value) { doClick(); return }
         dbg("glide -> slot $slot (click #$clicks)")
         // No "clicked" line after a "glide" line = the glide was dropped (screen changed mid-glide).
-        CursorGlide.moveTo(screen, screen.menu.slots[slot], clickDelay.value.toLong()) {
-            val player = mc.player ?: return@moveTo
-            mc.gameMode?.handleContainerInput(id, slot, 2, ContainerInput.CLONE, player)
-            clicks++ // counted on landing, so the solver keeps showing the slot the cursor is still heading to
-            dbg("clicked slot $slot after ${System.currentTimeMillis() - start}ms, center=${screen.menu.slots[49].item.item}")
-        }
+        CursorGlide.moveTo(screen, screen.menu.slots[slot], clickDelay.value.toLong()) { doClick() }
     }
 }

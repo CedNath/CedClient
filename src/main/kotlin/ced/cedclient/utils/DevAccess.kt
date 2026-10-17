@@ -58,6 +58,14 @@ object DevAccess {
             ctx.source.sendFeedback(Component.literal("§7model: ${stack.get(DataComponents.ITEM_MODEL)}"))
             1
         })
+        // World time and which flower Farm Helper picks now (to check the 13000/23000 night cutoff against Hypixel).
+        .then(ClientCommands.literal("time").executes { ctx ->
+            val level = Minecraft.getInstance().level ?: return@executes 0
+            val t = Math.floorMod(level.overworldClockTime, 24000L)
+            val flower = ced.cedclient.farmhelper.util.PlayerUtils.cropOf(net.minecraft.world.level.block.Blocks.SUNFLOWER)
+            ctx.source.sendFeedback(Component.literal("§7Time: §f$t §7(total ${level.overworldClockTime}), bright: ${level.isBrightOutside}, flower: §f$flower"))
+            1
+        })
         // Auto Experiments debug lines in chat + log (until restart).
         .then(ClientCommands.literal("expdebug").executes { ctx ->
             AutoExperiments.debug = !AutoExperiments.debug
