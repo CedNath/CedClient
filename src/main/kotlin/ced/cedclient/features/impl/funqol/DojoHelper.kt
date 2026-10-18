@@ -49,7 +49,7 @@ object DojoHelper : Module(
     private val discipline = BooleanSetting("Discipline Sword Swap", true, "Pick the sword that matches the helmet of the zombie you look at.")
     private val control = BooleanSetting("Control Aim", true, "Keep your aim on the moving Wither Skeleton, not the dummies.")
     private val swiftness = BooleanSetting("Swiftness Auto Walk", true, "Walk and jump onto each new green wool block by itself.")
-    private val prediction = NumberSetting("Prediction Ticks", 6.0, 0.0, 20.0, 0.5, "Aim this many ticks ahead of the skeleton's movement.")
+    private val prediction = NumberSetting("Prediction Ticks", 9.5, 0.0, 20.0, 0.5, "Aim this many ticks ahead of the skeleton's movement.")
     private val swiftDebug = BooleanSetting("Swiftness Debug", false, "Draw what Swiftness sees (wool, path, gaps) and say each decision in chat.")
     private val range = NumberSetting("Control Range", 22.0, 4.0, 30.0, 1.0, "Only aim at Wither Skeletons this close, so it stays off things outside the arena.")
     // New name so configs saved with the old 60 ms snappy default pick up the smoother one.
