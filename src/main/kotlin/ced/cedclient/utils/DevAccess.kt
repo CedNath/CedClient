@@ -24,6 +24,7 @@ object DevAccess {
     private val FRIENDS = DEV + setOf(
         UUID.fromString("4e9324f4-782d-4708-a349-4818e2d6ea77"), // abhu
         UUID.fromString("b719162a-bd30-467d-8034-e480d440b007"), // cleeve
+        UUID.fromString("b5035d13-0620-41b9-b284-5cc9467dcbaf"),
     )
 
     private val self: UUID? get() = Minecraft.getInstance().user?.profileId

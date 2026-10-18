@@ -233,7 +233,7 @@ class CedClient : ClientModInitializer {
 
 //#if CHEAT
         // Cheats: ESP, camera, then the auto-catch / auto-play helpers (left out of the Legit build)
-        ModuleManager.register(EntityESP)
+        if (ced.cedclient.utils.DevAccess.isFriend) ModuleManager.register(EntityESP)
         ModuleManager.register(BlockESP)
         ModuleManager.register(Freecam)
         ModuleManager.register(SecretHitboxes)
