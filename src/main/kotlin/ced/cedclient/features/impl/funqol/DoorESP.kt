@@ -51,7 +51,7 @@ object DoorESP : Module(
     private val keyColor = ColorSetting("Next Door Color", Color(60, 255, 60), "Once a key is picked up, the nearest door it opens gets this color.")
     private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show the next door once its key is picked up (and the fairy door).")
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Outline")
-    private val tracers = BooleanSetting("Tracers", false, "Draws a line to every shown door.")
+    private val tracers = BooleanSetting("Tracers", false, "Draws a line to the first door to open: the green one, else the nearest wither (then blood) door.")
     private val onlyInDungeon = BooleanSetting("Only In Dungeons", true, "Off: also scan outside dungeons (e.g. a copied map).")
 
     private val CODES = Regex("§.")
@@ -108,6 +108,7 @@ object DoorESP : Module(
             // shortcut: "next" = nearest locked door of the key's type, not the map's blood path; fine since you open the one you're at.
             fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
             val next = setOfNotNull(if (witherKey) nearest(Kind.WITHER) else null, if (bloodKey) nearest(Kind.BLOOD) else null)
+            val tracerTo = next.firstOrNull() ?: nearest(Kind.WITHER) ?: nearest(Kind.BLOOD)
 
             val shown = current.mapNotNull { door ->
                 val isNext = door in next
@@ -118,18 +119,18 @@ object DoorESP : Module(
                     door.kind == Kind.BLOOD -> bloodColor.value
                     else -> witherColor.value
                 }
-                door.box.move(-cam.x, -cam.y, -cam.z) to c
+                Triple(door.box.move(-cam.x, -cam.y, -cam.z), c, door === tracerTo)
             }
             if (style.value != "Outline") {
                 val fill = bufferSource.getBuffer(CustomRenderType.FILLED_ESP)
                 // See-through fill (40% of the colour's opacity) so the door itself stays visible.
-                for ((box, c) in shown) FilledBox.draw(poseStack, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
+                for ((box, c, _) in shown) FilledBox.draw(poseStack, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
                 bufferSource.endBatch()
             }
             val buffer = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
-            for ((box, c) in shown) {
+            for ((box, c, traced) in shown) {
                 if (style.value != "Filled") LineBox.draw(poseStack, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-                if (tracers.value) LineBox.polyline(poseStack, buffer, listOf(look, box.center), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+                if (tracers.value && traced) LineBox.polyline(poseStack, buffer, listOf(look, box.center), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
             }
             bufferSource.endBatch()
         })
