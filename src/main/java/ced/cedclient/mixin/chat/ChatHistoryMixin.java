@@ -2,6 +2,9 @@ package ced.cedclient.mixin.chat;
 
 import ced.cedclient.accessor.ChatHistoryAccess;
 import ced.cedclient.features.impl.misc.ChatFeatures;
+import ced.cedclient.utils.ChatHide;
+import net.minecraft.ChatFormatting;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -20,6 +23,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Chat Features: Max Chat Lines instead of the 100-message limit, plus access for saving / restoring
@@ -65,6 +70,35 @@ public abstract class ChatHistoryMixin implements ChatHistoryAccess {
         }
         int limit = ChatFeatures.maxLines(100);
         while (trimmedMessages.size() > limit) trimmedMessages.removeLast();
+    }
+
+    @Unique private static final Pattern CEDCLIENT_COUNT = Pattern.compile(" \\(x(\\d+)\\)$");
+
+    /**
+     * Chat Features > Compact Repeats: the same message again within the last 30 removes the earlier copy and shows
+     * " (x2)", " (x3)" ... on the new one. Lines without letters or digits (separators) and lines Chat Filter is
+     * about to hide are left alone.
+     */
+    @ModifyVariable(method = "addMessage", at = @At("HEAD"), argsOnly = true)
+    private Component cedclient$compactRepeats(Component contents) {
+        if (!ChatFeatures.compactRepeats() || ChatHide.pending) return contents;
+        String text = contents.getString();
+        if (!text.matches("(?s).*[\\p{L}\\p{N}].*")) return contents;
+        for (int i = 0, n = Math.min(allMessages.size(), 30); i < n; i++) {
+            GuiMessage old = allMessages.get(i);
+            String oldText = old.content().getString();
+            int count = 1;
+            Matcher m = CEDCLIENT_COUNT.matcher(oldText);
+            if (m.find()) {
+                count = Integer.parseInt(m.group(1));
+                oldText = oldText.substring(0, m.start());
+            }
+            if (!oldText.equals(text)) continue;
+            allMessages.remove(i);
+            trimmedMessages.removeIf(line -> line.parent() == old);
+            return contents.copy().append(Component.literal(" (x" + (count + 1) + ")").withStyle(ChatFormatting.GRAY));
+        }
+        return contents;
     }
 
     @Inject(method = "addMessageToQueue", at = @At("HEAD"), cancellable = true)
