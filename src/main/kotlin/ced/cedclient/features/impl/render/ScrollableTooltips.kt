@@ -7,6 +7,7 @@ import ced.cedclient.features.settings.NumberSetting
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
+import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.Minecraft
 import org.joml.Vector2i
 import org.joml.Vector2ic
@@ -57,7 +58,8 @@ object ScrollableTooltips : Module(
         ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
             scrollX = 0
             scrollY = 0
-            ScreenMouseEvents.allowMouseScroll(screen).register { _, _, _, _, amount -> !scroll(amount) }
+            // Not in chat: the wheel scrolls chat history there, and chat hover tooltips stay vanilla.
+            if (screen !is ChatScreen) ScreenMouseEvents.allowMouseScroll(screen).register { _, _, _, _, amount -> !scroll(amount) }
         }
     }
 
@@ -65,7 +67,7 @@ object ScrollableTooltips : Module(
     @JvmStatic
     fun position(pos: Vector2ic, screenW: Int, screenH: Int, w: Int, h: Int): Vector2ic {
         drawScale = 1f
-        if (!isEnabled) return pos
+        if (!isEnabled || mc.screen is ChatScreen) return pos
         lastTooltipAt = System.currentTimeMillis()
         val key = tooltipKey(w, h)
         if (key != lastKey) {
