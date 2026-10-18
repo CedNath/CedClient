@@ -258,12 +258,33 @@ object NVGRenderer {
         nvgFill(vg)
     }
 
+    private val xform = FloatArray(6)
+    private var snapX = 0f
+    private var snapY = 0f
+
+    /**
+     * Moves a text origin onto a whole framebuffer pixel ([snapX], [snapY], in the current local space). Under a
+     * fractional scale (ClickGUI is ~0.86 on 1080p) glyphs otherwise land between pixels and get smeared = blurry.
+     */
+    private fun snap(x: Float, y: Float) {
+        nvgCurrentTransform(vg, xform)
+        val a = xform[0]; val b = xform[1]; val c = xform[2]; val d = xform[3]; val e = xform[4]; val f = xform[5]
+        val det = a * d - b * c
+        if (det == 0f) { snapX = x; snapY = y; return }
+        val dpr = devicePixelRatio()
+        val px = round((a * x + c * y + e) * dpr) / dpr - e
+        val py = round((b * x + d * y + f) * dpr) / dpr - f
+        snapX = (d * px - c * py) / det
+        snapY = (a * py - b * px) / det
+    }
+
     fun text(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {
         nvgFontSize(vg, size)
         nvgFontFaceId(vg, getFontID(font))
         color(color)
         nvgFillColor(vg, nvgColor)
-        nvgText(vg, x, y + .5f, text)
+        snap(x, y + .5f)
+        nvgText(vg, snapX, snapY, text)
     }
 
     fun textShadow(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {
@@ -271,11 +292,13 @@ object NVGRenderer {
         nvgFontSize(vg, size)
         color(-16777216)
         nvgFillColor(vg, nvgColor)
-        nvgText(vg, round(x + 2f), round(y + 2f), text)
+        snap(x + 2f, y + 2f)
+        nvgText(vg, snapX, snapY, text)
 
         color(color)
         nvgFillColor(vg, nvgColor)
-        nvgText(vg, round(x), round(y), text)
+        snap(x, y)
+        nvgText(vg, snapX, snapY, text)
     }
 
     fun textWidth(text: String, size: Float, font: Font): Float {
@@ -317,7 +340,8 @@ object NVGRenderer {
         nvgTextLineHeight(vg, lineHeight)
         color(color)
         nvgFillColor(vg, nvgColor)
-        nvgTextBox(vg, x, y, w, text)
+        snap(x, y)
+        nvgTextBox(vg, snapX, snapY, w, text)
     }
 
     fun wrappedTextBounds(
