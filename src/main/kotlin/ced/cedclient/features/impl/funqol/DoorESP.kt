@@ -46,7 +46,7 @@ object DoorESP : Module(
     private val witherColor = ColorSetting("Wither Door Color", Color(255, 40, 40), "Wither door color (all but the next one once a wither key is picked up).")
     private val bloodDoor = BooleanSetting("Blood Door", true, "Box the red (blood key) door.")
     private val bloodColor = ColorSetting("Blood Door Color", Color(255, 40, 40), "Blood door color until the blood key is picked up.")
-    private val fairyDoor = BooleanSetting("Fairy Door", true, "Box the open fairy room door on the way to blood (until you walk through). Green while it is the next door.")
+    private val fairyDoor = BooleanSetting("Fairy Door", true, "Box the open fairy room door on the way to blood (until you walk through). Green once the wither key for the door after the fairy room is picked up.")
     private val fairyColor = ColorSetting("Fairy Door Color", Color(255, 40, 40), "Fairy room door color.")
     private val keyColor = ColorSetting("Next Door Color", Color(60, 255, 60), "Once a key is picked up, the next door on the way to blood gets this color.")
     private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show the next door once its key is picked up (and the fairy door).")
@@ -106,7 +106,7 @@ object DoorESP : Module(
             val bufferSource = context.bufferSource()
             val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
 
-            // The fairy door counts as the next door while you haven't walked through it (it needs no key).
+            // The fairy door counts as the next door until you walk through it; it goes green with the wither key from the room before it.
             val pathNext = DungeonScanner.bloodPath.firstOrNull {
                 it.spot == DungeonScanner.Spot.WITHER || it.spot == DungeonScanner.Spot.BLOOD ||
                     (it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL && !passedFairy)
@@ -114,7 +114,7 @@ object DoorESP : Module(
             fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
             val nextDoor = if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
                 else nearest(Kind.WITHER) ?: nearest(Kind.BLOOD)
-            val keyForNext = when (nextDoor?.kind) { Kind.WITHER -> witherKey; Kind.BLOOD -> bloodKey; Kind.FAIRY -> true; null -> false }
+            val keyForNext = when (nextDoor?.kind) { Kind.WITHER -> witherKey; Kind.BLOOD -> bloodKey; Kind.FAIRY -> witherKey; null -> false }
             val greenDoor = nextDoor?.takeIf { keyForNext }
             val tracerTo = nextDoor
 
