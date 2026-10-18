@@ -10,8 +10,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Chat Features > Message Clicks: right-click a chat message for copy / reply options, Ctrl + left-click to copy it (ChatFeatures.Menu). */
-@Mixin(ChatScreen.class)
+/**
+ * Chat Features > Message Clicks: right-click a chat message for copy / reply options, Ctrl + left-click to copy it (ChatFeatures.Menu).
+ * Priority below the default 1000 so this HEAD hook runs before other mods' chat clicks (BetterPV opens /pv on names).
+ */
+@Mixin(value = ChatScreen.class, priority = 500)
 public class ChatScreenMenuMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
