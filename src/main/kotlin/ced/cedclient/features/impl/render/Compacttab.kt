@@ -151,7 +151,7 @@ object CompactTab : Module(
             val w = min(screenW - 12, tabW)
             val x0 = (screenW - w) / 2
             val y0 = 4
-            roundRect(ctx, x0, y0, x0 + w, y0 + tabH, bgPanel())
+            CompactScoreboard.panel(ctx, x0, y0, x0 + w, y0 + tabH, bgPanel())
             drawColumns(ctx, overlay, tr, columns, colWidths, x0 + pad, y0 + topPad, rows, gap, lh)
             centeredText(ctx, tr, mdl.footer, x0 + w / 2, y0 + tabH - footH + 2, GOLD)
             drawEffects(ctx, tr, mdl, x0, w, y0 + tabH + boxGap / 2)
@@ -173,11 +173,11 @@ object CompactTab : Module(
             val tabX0 = if (pos == "LEFT") x0 + statW + boxGap else x0
             val statX0 = if (pos == "LEFT") x0 else x0 + tabW + boxGap
 
-            roundRect(ctx, tabX0, y0, tabX0 + tabW, y0 + tabH, bgPanel())
+            CompactScoreboard.panel(ctx, tabX0, y0, tabX0 + tabW, y0 + tabH, bgPanel())
             drawColumns(ctx, overlay, tr, columns, colWidths, tabX0 + pad, y0 + topPad, rows, gap, lh)
             centeredText(ctx, tr, mdl.footer, tabX0 + tabW / 2, y0 + tabH - footH + 2, GOLD)
 
-            roundRect(ctx, statX0, y0, statX0 + statW, y0 + statH, bgPanel())
+            CompactScoreboard.panel(ctx, statX0, y0, statX0 + statW, y0 + statH, bgPanel())
             val cellH = statH / labels.size
             for (i in labels.indices) {
                 val cellTop = y0 + i * cellH
@@ -198,11 +198,11 @@ object CompactTab : Module(
             val tabY0 = if (bottom) y0 else y0 + statBarH + gapTB
             val statY0 = if (bottom) tabY0 + tabH + gapTB else y0
 
-            roundRect(ctx, x0, tabY0, x0 + w, tabY0 + tabH, bgPanel())
+            CompactScoreboard.panel(ctx, x0, tabY0, x0 + w, tabY0 + tabH, bgPanel())
             drawColumns(ctx, overlay, tr, columns, colWidths, x0 + pad, tabY0 + topPad, rows, gap, lh)
             centeredText(ctx, tr, mdl.footer, x0 + w / 2, tabY0 + tabH - footH + 2, GOLD)
 
-            roundRect(ctx, x0, statY0, x0 + w, statY0 + statBarH, bgPanel())
+            CompactScoreboard.panel(ctx, x0, statY0, x0 + w, statY0 + statBarH, bgPanel())
             val cellW = w / labels.size
             for (i in labels.indices) {
                 val cxL = x0 + i * cellW
@@ -247,7 +247,7 @@ object CompactTab : Module(
         if (cur.isNotEmpty()) rows.add(cur)
 
         val panelH = rows.size * rowPitch + 6
-        roundRect(ctx, x0, topY, x0 + w, topY + panelH, bgPanel())
+        CompactScoreboard.panel(ctx, x0, topY, x0 + w, topY + panelH, bgPanel())
 
         for ((ri, row) in rows.withIndex()) {
             val cellW = w / row.size

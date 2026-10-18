@@ -108,7 +108,7 @@ object EntityESPHud : HudElement {
     private const val CORNER_RADIUS = 8
     private const val BORDER_THICKNESS = 1
 
-    private val BORDER_COLOR = 0xFF5A4FCF.toInt()
+    private val BORDER_COLOR get() = Theme.hudBorderRgba
     private val BACKGROUND_COLOR = 0xE8161620.toInt()
     private val ACCENT_COLOR get() = Theme.hudAccentRgba
     private val IDLE_BADGE_COLOR = 0xFF7BD88F.toInt() // soft green -- "nothing nearby"

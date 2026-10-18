@@ -823,7 +823,7 @@ object DailyReset : Module(
         )
     }
 
-    private val BORDER_COLOR = 0xFF5A4FCF.toInt()
+    private val BORDER_COLOR get() = Theme.hudBorderRgba
     private val BACKGROUND_COLOR = 0xE8161620.toInt()
     private val ACCENT_COLOR get() = Theme.hudAccentRgba
     private val PROGRESS_COLOR = 0xFFE8B85C.toInt() // warm amber, for multi-count "(x/y)" lines

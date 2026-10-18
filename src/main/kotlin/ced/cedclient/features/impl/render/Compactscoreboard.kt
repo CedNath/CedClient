@@ -151,7 +151,7 @@ object CompactScoreboard : Module(
         g.pose().translate(x0, y0)
         g.pose().scale(s, s)
 
-        roundRect(g, 0, 0, panelW, panelH, bgPanel())
+        panel(g, 0, 0, panelW, panelH, bgPanel())
 
         var y = PAD_Y
         if (title != null) {
@@ -174,6 +174,22 @@ object CompactScoreboard : Module(
 
         g.pose().popMatrix()
         return true
+    }
+
+    /** A panel background ([roundRect]) plus, with Mod Settings > HUD Outlines, a 1px ring in the HUD border colour. */
+    internal fun panel(ctx: GuiGraphicsExtractor, x1: Int, y1: Int, x2: Int, y2: Int, color: Int) {
+        roundRect(ctx, x1, y1, x2, y2, color)
+        if (!ced.cedclient.features.impl.misc.Theme.hudOutlines.value) return
+        val c = ced.cedclient.features.impl.misc.Theme.hudBorderRgba
+        ctx.fill(x1 + 2, y1 - 1, x2 - 2, y1, c)   // top
+        ctx.fill(x1 + 2, y2, x2 - 2, y2 + 1, c)   // bottom
+        ctx.fill(x1 - 1, y1 + 2, x1, y2 - 2, c)   // left
+        ctx.fill(x2, y1 + 2, x2 + 1, y2 - 2, c)   // right
+        // corners follow the 2px cut of roundRect
+        ctx.fill(x1 + 1, y1, x1 + 2, y1 + 1, c); ctx.fill(x1, y1 + 1, x1 + 1, y1 + 2, c)
+        ctx.fill(x2 - 2, y1, x2 - 1, y1 + 1, c); ctx.fill(x2 - 1, y1 + 1, x2, y1 + 2, c)
+        ctx.fill(x1, y2 - 2, x1 + 1, y2 - 1, c); ctx.fill(x1 + 1, y2 - 1, x1 + 2, y2, c)
+        ctx.fill(x2 - 1, y2 - 2, x2, y2 - 1, c); ctx.fill(x2 - 2, y2 - 1, x2 - 1, y2, c)
     }
 
     // Same rounded-corner trick CompactTab uses.
