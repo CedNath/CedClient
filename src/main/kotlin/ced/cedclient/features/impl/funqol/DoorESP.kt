@@ -30,9 +30,9 @@ import net.minecraft.world.phys.Vec3
  * sits on the fixed dungeon grid (tile centers at -185 + 16 * n, door tiles = exactly one odd index), 3x3 wide
  * and 4 tall from y 69. A door whose blocks are gone (opened) simply stops showing.
  *
- * "Next door" and the fairy door come from DungeonScanner's route from the entrance to blood: the next door is the
- * first still-locked door on it, the fairy door the (open) door on it into the fairy room, shown until you walk
- * through. While that route isn't fully loaded yet, the next door falls back to the nearest one of the key's type.
+ * "Next door" and the fairy door come from DungeonScanner's route from your room to blood: the next door is the
+ * first still-locked door on it, the fairy door the (open) door on it into the fairy room, shown until you are in
+ * the fairy room or past it. While that route isn't fully loaded yet, the next door falls back to the nearest one of the key's type.
  *
  * Key tracking comes from the Hypixel pickup / open chat lines, so "Only With Key" and the key color know
  * whether the party holds a key for that door.
@@ -78,7 +78,6 @@ object DoorESP : Module(
     private var witherKey = false
     private var bloodKey = false
     private var lastLevel: ClientLevel? = null
-    private var passedFairy = false
     private var scanDelay = 0
 
     private val mc get() = Minecraft.getInstance()
@@ -106,10 +105,10 @@ object DoorESP : Module(
             val bufferSource = context.bufferSource()
             val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
 
-            // The fairy door counts as the next door until you walk through it; it goes green with the wither key from the room before it.
+            // The fairy door counts as the next door while it is ahead; it goes green with the wither key from the room before it.
             val pathNext = DungeonScanner.bloodPath.firstOrNull {
                 it.spot == DungeonScanner.Spot.WITHER || it.spot == DungeonScanner.Spot.BLOOD ||
-                    (it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL && !passedFairy)
+                    (it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL)
             }
             fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
             val nextDoor = if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
@@ -150,14 +149,15 @@ object DoorESP : Module(
             lastLevel = level
             witherKey = false
             bloodKey = false
-            passedFairy = false
             DungeonScanner.reset()
         }
         if (!isEnabled || level == null || (onlyInDungeon.value && (!DungeonState.inDungeon || DungeonState.inBoss))) {
             if (doors.isNotEmpty()) doors = emptyList()
             return
         }
-        if (scanDelay-- <= 0) { scanDelay = 20; DungeonScanner.scan(level) }
+        val player = mc.player
+        // Every 10 ticks, so the route follows you right after a leap.
+        if (player != null && scanDelay-- <= 0) { scanDelay = 10; DungeonScanner.scan(level, player.x, player.z) }
         val pos = BlockPos.MutableBlockPos()
         val found = DOOR_SPOTS.mapNotNull { (x, z) ->
             val state = level.getBlockState(pos.set(x, 69, z))
@@ -168,11 +168,7 @@ object DoorESP : Module(
             }
         }
         val fairy = DungeonScanner.bloodPath.firstOrNull { it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL }
-        val player = mc.player
-        if (fairy != null && player != null && Math.abs(player.x - (fairy.x + 0.5)) < 1.5 &&
-            Math.abs(player.z - (fairy.z + 0.5)) < 1.5 && player.y in 68.0..73.0
-        ) passedFairy = true
-        doors = if (fairy != null && fairyDoor.value && !passedFairy) found + Door(fairy.x, fairy.z, Kind.FAIRY) else found
+        doors = if (fairy != null && fairyDoor.value) found + Door(fairy.x, fairy.z, Kind.FAIRY) else found
     }
 }
 //#endif

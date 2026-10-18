@@ -11,7 +11,8 @@ import net.minecraft.world.level.block.Blocks
  * spot between two room tiles. A spot whose top block is at a door roof height (73 / 74 / 81 / 82) is a door,
  * typed by the block at y 69; any other top block means both tiles are one room; nothing there = a wall.
  *
- * From that it finds the route from the entrance to blood ([bloodPath]). Results stay cached for the run, so a
+ * From that it finds the route from the room you stand in to blood ([bloodPath]), so doors behind you (even ones
+ * opened while unloaded, still cached as locked) never count after a leap. Results stay cached for the run, so a
  * part of the dungeon that unloads later keeps its last known state. Call [scan] from a tick, [reset] on world change.
  */
 object DungeonScanner {
@@ -27,7 +28,7 @@ object DungeonScanner {
     private val roomTypes = arrayOfNulls<String>(36)
     private val spots = arrayOfNulls<Spot>(121)
 
-    /** Doors from the entrance to the blood room, in order. Empty until the whole route is loaded. */
+    /** Doors from your room (outside the grid: the entrance) to the blood room, in order. Empty until the route is loaded. */
     var bloodPath: List<PathDoor> = emptyList()
         private set
 
@@ -39,7 +40,7 @@ object DungeonScanner {
         bloodPath = emptyList()
     }
 
-    fun scan(level: ClientLevel) {
+    fun scan(level: ClientLevel, playerX: Double, playerZ: Double) {
         for (i in 0..10) for (j in 0..10) {
             val x = START + 16 * i
             val z = START + 16 * j
@@ -60,12 +61,13 @@ object DungeonScanner {
                 }
             }
         }
-        bloodPath = findPath()
+        val ri = Math.floorDiv(playerX.toInt() - START + 16, 32)
+        val rj = Math.floorDiv(playerZ.toInt() - START + 16, 32)
+        bloodPath = findPath(if (ri in 0..5 && rj in 0..5) ri * 6 + rj else roomTypes.indexOf("ENTRANCE"))
     }
 
-    /** Breadth-first from the entrance tile to a blood tile over doors and same-room joins. */
-    private fun findPath(): List<PathDoor> {
-        val start = roomTypes.indexOf("ENTRANCE")
+    /** Breadth-first from room tile [start] to a blood tile over doors and same-room joins. */
+    private fun findPath(start: Int): List<PathDoor> {
         if (start < 0 || "BLOOD" !in roomTypes) return emptyList()
         val parent = IntArray(36) { -1 }
         parent[start] = start
