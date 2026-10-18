@@ -248,6 +248,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoExperiments)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.DojoHelper)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoFusion)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AnvilHelper)
 

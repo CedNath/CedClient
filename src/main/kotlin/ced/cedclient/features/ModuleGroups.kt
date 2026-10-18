@@ -34,7 +34,7 @@ object ModuleGroups {
 //#if CHEAT
             "Farming" to listOf("FarmHelper"),
 //#endif
-            "Minigames" to listOf("TinyDancerHelper", "Auto Experiments"),
+            "Minigames" to listOf("TinyDancerHelper", "Auto Experiments", "Dojo Helper"),
 //#if CHEAT
             "Items" to listOf("Anvil Helper"),
 //#endif
