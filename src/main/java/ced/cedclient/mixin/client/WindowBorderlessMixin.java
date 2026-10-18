@@ -64,14 +64,18 @@ public abstract class WindowBorderlessMixin implements BorderlessWindowAccess {
                 this.windowedHeight = this.height;
             }
 
+            // Locals, not the fields: dropping the border fires GLFW's move / resize callbacks right away, and
+            // vanilla's onMove / onResize write the small window's position and size back into x / y / width /
+            // height, so a small window stayed small (just without its border).
             VideoMode mode = monitor.getCurrentMode();
-            this.x = monitor.getX();
-            this.y = monitor.getY();
-            this.width = mode.getWidth();
-            this.height = mode.getHeight();
-            this.isResized = true;
+            int mx = monitor.getX(), my = monitor.getY(), mw = mode.getWidth(), mh = mode.getHeight();
             GLFW.glfwSetWindowAttrib(this.handle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
-            GLFW.glfwSetWindowMonitor(this.handle, 0L, this.x, this.y, this.width, this.height, GLFW.GLFW_DONT_CARE);
+            GLFW.glfwSetWindowMonitor(this.handle, 0L, mx, my, mw, mh, GLFW.GLFW_DONT_CARE);
+            this.x = mx;
+            this.y = my;
+            this.width = mw;
+            this.height = mh;
+            this.isResized = true;
             this.cedclient$borderless = true;
             ci.cancel();
         } else if (this.cedclient$borderless) {
