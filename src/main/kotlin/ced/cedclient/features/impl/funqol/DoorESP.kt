@@ -9,6 +9,7 @@ import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.render.FilledBox
 import ced.cedclient.render.LineBox
 import ced.cedclient.render.pipeline.CustomRenderType
+import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonState
 import ced.cedclient.utils.Color
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -17,7 +18,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
-import net.minecraft.world.level.block.AbstractSkullBlock
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
@@ -30,9 +30,9 @@ import net.minecraft.world.phys.Vec3
  * sits on the fixed dungeon grid (tile centers at -185 + 16 * n, door tiles = exactly one odd index), 3x3 wide
  * and 4 tall from y 69. A door whose blocks are gone (opened) simply stops showing.
  *
- * Fairy door: the door into the fairy room on the blood path has no blocks, only the two skulls beside it that
- * every key door has. A door spot that is open but flanked by skulls, and was never seen locked this run, is the
- * fairy door; it stops showing once you walk through it.
+ * "Next door" and the fairy door come from DungeonScanner's route from the entrance to blood: the next door is the
+ * first still-locked door on it, the fairy door the (open) door on it into the fairy room, shown until you walk
+ * through. While that route isn't fully loaded yet, the next door falls back to the nearest one of the key's type.
  *
  * Key tracking comes from the Hypixel pickup / open chat lines, so "Only With Key" and the key color know
  * whether the party holds a key for that door.
@@ -46,12 +46,12 @@ object DoorESP : Module(
     private val witherColor = ColorSetting("Wither Door Color", Color(255, 40, 40), "Wither door color (all but the next one once a wither key is picked up).")
     private val bloodDoor = BooleanSetting("Blood Door", true, "Box the red (blood key) door.")
     private val bloodColor = ColorSetting("Blood Door Color", Color(255, 40, 40), "Blood door color until the blood key is picked up.")
-    private val fairyDoor = BooleanSetting("Fairy Door", true, "Box the open fairy room door on the blood path (until you walk through).")
+    private val fairyDoor = BooleanSetting("Fairy Door", true, "Box the open fairy room door on the way to blood (until you walk through).")
     private val fairyColor = ColorSetting("Fairy Door Color", Color(255, 40, 40), "Fairy room door color.")
-    private val keyColor = ColorSetting("Next Door Color", Color(60, 255, 60), "Once a key is picked up, the nearest door it opens gets this color.")
+    private val keyColor = ColorSetting("Next Door Color", Color(60, 255, 60), "Once a key is picked up, the next door on the way to blood gets this color.")
     private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show the next door once its key is picked up (and the fairy door).")
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Outline")
-    private val tracers = BooleanSetting("Tracers", false, "Draws a line to the first door to open: the green one, else the nearest wither (then blood) door.")
+    private val tracers = BooleanSetting("Tracers", false, "Draws a line to the next door to open on the way to blood.")
     private val onlyInDungeon = BooleanSetting("Only In Dungeons", true, "Off: also scan outside dungeons (e.g. a copied map).")
 
     private val CODES = Regex("§.")
@@ -70,15 +70,16 @@ object DoorESP : Module(
 
     private enum class Kind { WITHER, BLOOD, FAIRY }
 
-    private class Door(val box: AABB, val kind: Kind)
+    private class Door(val x: Int, val z: Int, val kind: Kind) {
+        val box = AABB(x - 1.0, 69.0, z - 1.0, x + 2.0, 73.0, z + 2.0)
+    }
 
     @Volatile private var doors: List<Door> = emptyList()
     private var witherKey = false
     private var bloodKey = false
     private var lastLevel: ClientLevel? = null
-    /** Door spots seen with coal / terracotta this run: open + skulls there later means opened, not fairy. */
-    private val seenLocked = HashSet<Int>()
-    private val passedFairy = HashSet<Int>()
+    private var passedFairy = false
+    private var scanDelay = 0
 
     private val mc get() = Minecraft.getInstance()
 
@@ -105,13 +106,16 @@ object DoorESP : Module(
             val bufferSource = context.bufferSource()
             val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
 
-            // shortcut: "next" = nearest locked door of the key's type, not the map's blood path; fine since you open the one you're at.
+            val pathNext = DungeonScanner.bloodPath.firstOrNull { it.spot == DungeonScanner.Spot.WITHER || it.spot == DungeonScanner.Spot.BLOOD }
             fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
-            val next = setOfNotNull(if (witherKey) nearest(Kind.WITHER) else null, if (bloodKey) nearest(Kind.BLOOD) else null)
-            val tracerTo = next.firstOrNull() ?: nearest(Kind.WITHER) ?: nearest(Kind.BLOOD)
+            val nextDoor = if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
+                else nearest(Kind.WITHER) ?: nearest(Kind.BLOOD)
+            val keyForNext = when (nextDoor?.kind) { Kind.WITHER -> witherKey; Kind.BLOOD -> bloodKey; else -> false }
+            val greenDoor = nextDoor?.takeIf { keyForNext }
+            val tracerTo = nextDoor
 
             val shown = current.mapNotNull { door ->
-                val isNext = door in next
+                val isNext = door === greenDoor
                 if (onlyWithKey.value && !isNext && door.kind != Kind.FAIRY) return@mapNotNull null
                 val c = when {
                     isNext -> keyColor.value
@@ -142,47 +146,29 @@ object DoorESP : Module(
             lastLevel = level
             witherKey = false
             bloodKey = false
-            seenLocked.clear()
-            passedFairy.clear()
+            passedFairy = false
+            DungeonScanner.reset()
         }
         if (!isEnabled || level == null || (onlyInDungeon.value && (!DungeonState.inDungeon || DungeonState.inBoss))) {
             if (doors.isNotEmpty()) doors = emptyList()
             return
         }
-        val player = mc.player
+        if (scanDelay-- <= 0) { scanDelay = 20; DungeonScanner.scan(level) }
         val pos = BlockPos.MutableBlockPos()
-        doors = DOOR_SPOTS.withIndex().mapNotNull { (index, spot) ->
-            val (x, z) = spot
+        val found = DOOR_SPOTS.mapNotNull { (x, z) ->
             val state = level.getBlockState(pos.set(x, 69, z))
-            val kind = when {
-                state.`is`(Blocks.RED_TERRACOTTA) -> Kind.BLOOD
-                state.`is`(Blocks.COAL_BLOCK) -> Kind.WITHER
-                // shortcut: a door opened while its chunk was unloaded looks like the fairy door; dungeons fit in view distance.
-                state.isAir && index !in seenLocked && index !in passedFairy && hasSkulls(level, pos, x, z) -> Kind.FAIRY
-                else -> return@mapNotNull null
+            when {
+                state.`is`(Blocks.RED_TERRACOTTA) -> if (bloodDoor.value) Door(x, z, Kind.BLOOD) else null
+                state.`is`(Blocks.COAL_BLOCK) -> if (witherDoors.value) Door(x, z, Kind.WITHER) else null
+                else -> null
             }
-            if (kind != Kind.FAIRY) seenLocked.add(index)
-            if (kind == Kind.FAIRY && player != null &&
-                Math.abs(player.x - (x + 0.5)) < 1.5 && Math.abs(player.z - (z + 0.5)) < 1.5 && player.y in 68.0..73.0
-            ) passedFairy.add(index)
-            val on = when (kind) { Kind.WITHER -> witherDoors.value; Kind.BLOOD -> bloodDoor.value; Kind.FAIRY -> fairyDoor.value }
-            if (!on) return@mapNotNull null
-            Door(AABB(x - 1.0, 69.0, z - 1.0, x + 2.0, 73.0, z + 2.0), kind)
         }
-    }
-
-    /**
-     * Skulls flank a key door on the sides of its 3-wide opening. The passage runs along x for doors between room
-     * columns (odd x index) and along z otherwise, so the skulls sit 2-3 blocks out on the other axis.
-     */
-    private fun hasSkulls(level: ClientLevel, pos: BlockPos.MutableBlockPos, x: Int, z: Int): Boolean {
-        val passageAlongX = (x + 185) / 16 % 2 == 1
-        for (side in 2..3) for (sign in intArrayOf(-1, 1)) for (along in -2..2) for (y in 69..71) {
-            val px = if (passageAlongX) x + along else x + sign * side
-            val pz = if (passageAlongX) z + sign * side else z + along
-            if (level.getBlockState(pos.set(px, y, pz)).block is AbstractSkullBlock) return true
-        }
-        return false
+        val fairy = DungeonScanner.bloodPath.firstOrNull { it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL }
+        val player = mc.player
+        if (fairy != null && player != null && Math.abs(player.x - (fairy.x + 0.5)) < 1.5 &&
+            Math.abs(player.z - (fairy.z + 0.5)) < 1.5 && player.y in 68.0..73.0
+        ) passedFairy = true
+        doors = if (fairy != null && fairyDoor.value && !passedFairy) found + Door(fairy.x, fairy.z, Kind.FAIRY) else found
     }
 }
 //#endif

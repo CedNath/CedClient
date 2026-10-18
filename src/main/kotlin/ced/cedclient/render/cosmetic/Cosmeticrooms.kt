@@ -334,6 +334,13 @@ object CosmeticRooms {
 
     private class Core(val hash: Int, val highest: Int)
 
+    /** Room whose core is at tile centre ([x], [z]), or null (unknown / chunk not loaded). Used by DungeonScanner. */
+    fun roomInfoAt(level: ClientLevel, x: Int, z: Int): RoomInfo? {
+        if (!isReady()) return null
+        val chunk = chunkAt(level, x, z) ?: return null
+        return coreToRoom[coreAt(x, z, chunk).hash]
+    }
+
     private fun scanRoom(center: RoomTile, level: ClientLevel): ScannedRoom? {
         val chunk = chunkAt(level, center.x, center.z) ?: return fail("chunk not loaded")
         val core = coreAt(center.x, center.z, chunk)
