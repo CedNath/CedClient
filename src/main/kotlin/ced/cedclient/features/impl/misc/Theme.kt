@@ -36,8 +36,8 @@ object Theme : Module(
 ) {
     override val alwaysEnabled = true
 
-    val guiAccent = ColorSetting("GUI Accent", Color(0x69, 0x00, 0x00), "Enabled modules, popups and other ClickGUI highlights.")
-    val hudAccent = ColorSetting("HUD Accent", Color(0xFF, 0x80, 0x80), "Badges, dividers and outlines on the HUD panels.")
+    val guiAccent = ColorSetting("GUI Accent", Color(0x69, 0x00, 0x00), "Enabled modules, popups and other ClickGUI highlights.").apply { oldDefault = 0x6E32C8 }
+    val hudAccent = ColorSetting("HUD Accent", Color(0xFF, 0x80, 0x80), "Badges, dividers and outlines on the HUD panels.").apply { oldDefault = 0x8A7FFF }
 
     val openAnimation = DropdownSetting(
         "Open Animation",
