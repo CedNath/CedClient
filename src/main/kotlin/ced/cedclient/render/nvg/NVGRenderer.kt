@@ -166,9 +166,19 @@ object NVGRenderer {
         nvgFill(vg)
     }
 
+    // Both corners on whole framebuffer pixels: at the ~0.86 ClickGUI scale of 1080p, edges between pixels were
+    // drawn half-transparent (soft panels). Stacked rects now meet exactly, so the old +.5 overlap isn't needed.
+    private fun snappedBox(x: Float, y: Float, w: Float, h: Float, draw: (Float, Float, Float, Float) -> Unit) {
+        snap(x + w, y + h)
+        val x2 = snapX
+        val y2 = snapY
+        snap(x, y)
+        draw(snapX, snapY, x2 - snapX, y2 - snapY)
+    }
+
     fun rect(x: Float, y: Float, w: Float, h: Float, color: Int, radius: Float) {
         nvgBeginPath(vg)
-        nvgRoundedRect(vg, x, y, w, h + .5f, radius)
+        snappedBox(x, y, w, h) { sx, sy, sw, sh -> nvgRoundedRect(vg, sx, sy, sw, sh, radius) }
         color(color)
         nvgFillColor(vg, nvgColor)
         nvgFill(vg)
@@ -176,7 +186,7 @@ object NVGRenderer {
 
     fun rect(x: Float, y: Float, w: Float, h: Float, color: Int) {
         nvgBeginPath(vg)
-        nvgRect(vg, x, y, w, h + .5f)
+        snappedBox(x, y, w, h) { sx, sy, sw, sh -> nvgRect(vg, sx, sy, sw, sh) }
         color(color)
         nvgFillColor(vg, nvgColor)
         nvgFill(vg)
