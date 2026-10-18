@@ -19,18 +19,17 @@ import org.lwjgl.system.MemoryUtil.memFree
 import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.abs
 import kotlin.math.round
 import kotlin.math.sqrt
 
 /**
- * NanoVG rendering wrapper — ported to match Odin's clickgui/settings rendering
+ * NanoVG rendering wrapper â€” ported to match Odin's clickgui/settings rendering
  * logic 1:1, so panel/button/setting code can be ported from Odin without
  * touching the rendering layer afterward.
  *
- * Text now goes through real nvgText() (custom font @ cedclient:font/font.ttf).
+ * Text now goes through real nvgText() (Inter @ cedclient:font/inter.ttf).
  * The old vanilla-Minecraft-font fallback and the fb-space/gui-space dual
- * measurement path are gone — text() and textWidth()/wrappedTextBounds() all
+ * measurement path are gone â€” text() and textWidth()/wrappedTextBounds() all
  * measure and draw in the exact same NanoVG space now, so nothing can drift
  * out of sync between what's measured and what's drawn.
  */
@@ -42,7 +41,7 @@ object NVGRenderer {
 
     val defaultFont = Font(
         "Default",
-        Minecraft.getInstance().resourceManager.getResource(Identifier.parse("cedclient:font/font.ttf")).get().open()
+        Minecraft.getInstance().resourceManager.getResource(Identifier.parse("cedclient:font/inter.ttf")).get().open() // Inter (SIL OFL, font/inter_license.txt)
     )
 
     private val fontMap = HashMap<Font, NVGFont>()
@@ -67,7 +66,7 @@ object NVGRenderer {
      *
      * It's exposed because it does NOT reliably equal
      * GuiGraphicsExtractor.guiWidth()/guiHeight(): guiWidth() is Minecraft's
-     * own GUI-scaled logical width (raw framebuffer pixels ÷ the player's
+     * own GUI-scaled logical width (raw framebuffer pixels Ã· the player's
      * in-game GUI Scale setting), while devicePixelRatio() above compares
      * framebuffer pixels to monitor resolution, not to Minecraft's GUI
      * Scale -- so at any GUI Scale other than what makes those two
@@ -290,18 +289,12 @@ object NVGRenderer {
         snapY = (a * py - b * px) / det
     }
 
-    /**
-     * Font size that lands on whole device pixels. The UI font (ProFont, 100 units per pixel) is only sharp at
-     * exactly 12 px, so sizes that end up near 12 on screen (14-15 px text at the ~0.86 ClickGUI scale of 1080p)
-     * snap to it; anything else rounds to a whole pixel instead of a blurry fraction.
-     */
+    /** Font size that lands on whole device pixels (the ClickGUI is scaled ~0.86 on 1080p), not a blurry fraction. */
     private fun fontSize(size: Float): Float {
         nvgCurrentTransform(vg, xform)
         val s = sqrt(xform[0] * xform[0] + xform[1] * xform[1]) * devicePixelRatio()
         if (s <= 0f) return size
-        val device = size * s
-        val px = if (abs(device - 12f) <= 1.5f) 12f else round(device).coerceAtLeast(1f)
-        return px / s
+        return round(size * s).coerceAtLeast(1f) / s
     }
 
     fun text(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {

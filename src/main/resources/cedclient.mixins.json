@@ -26,6 +26,7 @@
     "render.GuiItemNameMixin",
     "render.WeatherEffectRendererMixin",
     "render.ClientLevelWeatherMixin",
+    "render.GameRendererBlurMixin",
     "render.QuadParticleGroupMixin",
     "render.EntityRenderDispatcherMixin",
 

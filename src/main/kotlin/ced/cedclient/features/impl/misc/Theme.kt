@@ -10,6 +10,8 @@ import ced.cedclient.ui.clickgui.ClickGUI
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import ced.cedclient.features.settings.ActionSetting
+import ced.cedclient.features.settings.BooleanSetting
+import ced.cedclient.features.settings.Setting.Companion.withDependency
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
@@ -27,7 +29,7 @@ import ced.cedclient.utils.Color.Companion.darker
  *  - Reset Everything: every module, setting, HUD panel and ClickGUI panel back to its default.
  */
 object Theme : Module(
-    "Client Settings",
+    "Mod Settings",
     Category.Misc,
     "How CedClient looks and behaves: accent colours, GUI animations, and a full reset. Always on -- click to edit.",
     defaultEnabled = true
@@ -53,6 +55,8 @@ object Theme : Module(
         "How popups (filters, block picker, settings) appear."
     )
     val animationSpeed = NumberSetting("Animation Speed", 0.6, 0.25, 3.0, 0.05, "Higher is faster. Applies to both animations.")
+    val menuBlur = BooleanSetting("Menu Blur", true, "Blur the game behind the CedClient menu.")
+    val blurStrength = NumberSetting("Blur Strength", 3.0, 1.0, 10.0, 1.0, "How strong the menu blur is.").withDependency { menuBlur.value }
 
     private val resetColors = ActionSetting("Reset Colors", "Back to the default purple.") {
         guiAccent.value = guiAccent.default.copy()
@@ -79,7 +83,7 @@ object Theme : Module(
     }
 
     init {
-        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, resetModule, resetEverything)
+        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, menuBlur, blurStrength, resetModule, resetEverything)
         // Animation tuning only shows with Advanced Mode on.
         listOf(openAnimation, popupAnimation, animationSpeed).forEach { it.advanced = true }
     }
