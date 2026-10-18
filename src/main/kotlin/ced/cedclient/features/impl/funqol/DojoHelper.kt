@@ -27,6 +27,7 @@ import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.floor
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
@@ -81,6 +82,8 @@ object DojoHelper : Module(
      * back. Forgotten once they turn orange, since the snake later reuses the same spots for new blocks.
      */
     private val visited = HashSet<BlockPos>()
+    /** Swiftness view yaw, fixed for the whole challenge. */
+    private var swiftYaw: Float? = null
 
     init {
         addSettings(discipline, control, swiftness, swiftDebug, range, smoothnessMs, prediction)
@@ -110,6 +113,7 @@ object DojoHelper : Module(
         walkLook = null
         if (swiftness.value && challenge("Swiftness")) walkToWool(player) else {
             visited.clear()
+            swiftYaw = null
             stopWalking()
         }
         if (aimTarget == null && walkLook == null) look = null
@@ -132,8 +136,8 @@ object DojoHelper : Module(
     }
 
     /**
-     * Nearest green wool other than the block underfoot. Looks down and turns only as far as needed so the block lies
-     * straight along one of the 8 WASD directions, holds those keys, jumps at a gap's edge and brakes on arrival.
+     * Nearest green wool not yet stood on. Holds one straight-on view looking down and steers with WASD per axis, aiming
+     * where the slide / jump will end so it stops on the block's middle; jumps when the arc lands there.
      */
     private fun walkToWool(player: LocalPlayer) {
         val level = mc.level ?: return
@@ -166,61 +170,75 @@ object DojoHelper : Module(
         }
         val nx = dx / dist
         val nz = dz / dist
-        val supportY = if (player.onGround()) under.y else target.y
+        val air = !player.onGround()
+        val supportY = if (air) target.y else under.y
         val gap = gapLength(player, nx, nz, dist, supportY)
 
-        val yawTo = Math.toDegrees(atan2(dz, dx)).toFloat() - 90f
-        // A walking jump clears 2 blocks of lava; 3 needs sprint, which only works with W. Else the closest key direction.
-        val keyDir = if (gap >= 3 && player.onGround()) 0f else Math.round(Mth.wrapDegrees(yawTo - player.yRot) / 45f) * 45f
-        val wantYaw = yawTo - keyDir
-        walkLook = wantYaw to 80f
-        val lined = abs(Mth.wrapDegrees(wantYaw - player.yRot)) < 12f
-
+        // View: turned once to the nearest straight-on direction, looking down, then held; steering is WASD only.
+        val yaw = swiftYaw ?: (Math.round(player.yRot / 90f) * 90f).also { swiftYaw = it }
+        walkLook = yaw to 80f
+        val rad = Math.toRadians(yaw.toDouble())
+        val fx = -kotlin.math.sin(rad)
+        val fz = kotlin.math.cos(rad)
+        // Offset and velocity along W (forward) and D (right).
+        val dF = dx * fx + dz * fz
+        val dR = dx * -fz + dz * fx
         val v = player.deltaMovement
+        val vF = v.x * fx + v.z * fz
+        val vR = v.x * -fz + v.z * fx
         val speed = sqrt(v.x * v.x + v.z * v.z)
-        val closing = v.x * nx + v.z * nz
-        // More than 3 blocks of lava is past a sprint jump: wait on the block instead of leaping in.
-        val tooFar = gap > 3 && player.onGround()
-        // Ground friction leaves roughly 2.2x the current speed of slide after letting go.
-        val air = !player.onGround()
-        // Mid-jump keep pushing toward the block even while still turning; letting go there drops you short.
-        val go = if (air) dist > 0.35 else lined && !tooFar && dist > 0.25 + speed * 2.2
-        val brake = !air && !go && closing > 0.08 && dist < 1.2
+
+        // How far each axis still drifts if its keys are let go now: until landing in the air, or the ground slide.
+        val ticks = if (air) airTicks(player.y, v.y, target.y + 1.0) else 0
+        fun drift(vel: Double) = if (air) vel * (1 - 0.91.pow(ticks)) / 0.09 else vel * 1.2
+        // +1 / -1: press toward / away on that axis so the drift ends on the block's middle; 0: leave it.
+        fun axis(d: Double, vel: Double): Int {
+            val rest = d - drift(vel)
+            return if (rest > 0.15) 1 else if (rest < -0.15) -1 else 0
+        }
+        val f = axis(dF, vF)
+        val r = axis(dR, vR)
+
+        // A walking jump clears 2 blocks of lava; 3 needs sprint, which only works holding W.
+        val sprinting = gap >= 3 && !air && f > 0 && dF > dist * 0.7
+        val tooFar = gap >= 3 && !air && !sprinting
+        val go = !tooFar
+        mc.options.keyUp.setDown(go && f > 0)
+        mc.options.keyDown.setDown(go && f < 0)
+        mc.options.keyRight.setDown(go && r > 0)
+        mc.options.keyLeft.setDown(go && r < 0)
+        mc.options.keySprint.setDown(sprinting)
+
         // Fallback when the timing never lines up: jump right before the floor runs out (hitbox half-width is 0.3).
-        val atEdge = player.onGround() && !solid(player.x + nx * 0.25, supportY, player.z + nz * 0.25)
-        val sprinting = go && gap >= 3
+        val atEdge = !air && !solid(player.x + nx * 0.25, supportY, player.z + nz * 0.25)
         val reach = landingDistance(speed, sprinting, (target.y - supportY).toDouble())
         // Jump when this speed's arc lands within 0.3 of the block's middle.
         val timed = abs(reach - dist) < 0.3
         val up = target.y > supportY && dist < 1.6
-
-        val dir = when {
-            go -> keyDir
-            brake -> keyDir + 180f
-            else -> null
-        }
-        pressDirection(dir?.let { Mth.wrapDegrees(it) })
-        mc.options.keySprint.setDown(sprinting)
-        val jump = lined && !tooFar && player.onGround() && (gap > 0 && (timed || atEdge) || up)
+        val jump = go && !air && (gap > 0 && (timed || atEdge) || up)
         mc.options.keyJump.setDown(jump)
         walking = true
         if (swiftDebug.value) {
             val keys = listOf("W" to mc.options.keyUp, "A" to mc.options.keyLeft, "S" to mc.options.keyDown, "D" to mc.options.keyRight)
                 .filter { it.second.isDown }.joinToString("") { it.first }.ifEmpty { "-" }
             debug("§a${target.toShortString()} §7${level.getBlockState(target).block.name.string} gap=$gap keys=$keys" +
-                (if (sprinting) " §bsprint" else "") + (if (jump) " §ejump" else "") + (if (brake) " §cbrake" else "") +
-                (if (!lined) " §6turning" else "") + (if (tooFar) " §ctoo far" else "") + (if (atEdge) " §dedge" else "") + (if (timed) " §dtimed" else "") +
-                " §7d=%.2f reach=%.2f".format(dist, reach) + (if (up) " §dup" else "") +
+                (if (sprinting) " §bsprint" else "") + (if (jump) " §ejump" else "") +
+                (if (tooFar) " §ctoo far" else "") + (if (atEdge) " §dedge" else "") + (if (timed) " §dtimed" else "") +
+                " §7d=%.2f reach=%.2f F=%.2f R=%.2f".format(dist, reach, dF, dR) + (if (up) " §dup" else "") +
                 " §8ground=${player.onGround()} under=${level.getBlockState(under).block.name.string}@${under.y}")
         }
     }
 
-    /** Hold the WASD keys for [dir] degrees relative to where the player faces (0 = W, 90 = D), or none for null. */
-    private fun pressDirection(dir: Float?) {
-        mc.options.keyUp.setDown(dir != null && abs(dir) <= 45f)
-        mc.options.keyDown.setDown(dir != null && abs(dir) >= 135f)
-        mc.options.keyRight.setDown(dir != null && dir in 45f..135f)
-        mc.options.keyLeft.setDown(dir != null && dir in -135f..-45f)
+    /** Ticks until a fall from [y] at vertical speed [vy] comes down to [landY]. */
+    private fun airTicks(y: Double, vy: Double, landY: Double): Int {
+        var yy = y
+        var v = vy
+        for (t in 1..40) {
+            yy += v
+            v = (v - 0.08) * 0.98
+            if (v < 0 && yy <= landY) return t
+        }
+        return 40
     }
 
     /**
