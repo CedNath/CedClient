@@ -40,7 +40,7 @@ object ModuleGroups {
 //#endif
         ),
         "Misc" to listOf(
-            "General" to listOf("Client Settings", "AutoSprint", "WarpShortcuts", "InventoryButtons", "HideRecipeBook"),
+            "General" to listOf("Mod Settings", "AutoSprint", "WarpShortcuts", "InventoryButtons", "HideRecipeBook"),
             "Chat" to listOf("Chat Features", "ChatFilter"),
             "Window & Connection" to listOf("ScreenshotTweaks", "Borderless Fullscreen", "Keep Connection"),
             "Panels" to listOf("Advanced Mode", "Reset Panels"),

@@ -362,10 +362,20 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
     }
 
     /**
-     * No vanilla menu background: its full-screen blur pass (plus the dark texture) ran every frame under the GUI.
-     * The dim is drawn in extractRenderState instead, fading in with the open animation.
+     * No vanilla menu background texture; the dim is drawn in extractRenderState, fading in with the open animation.
+     * Mod Settings > Menu Blur asks for vanilla's blur pass, at Blur Strength (GameRendererBlurMixin), not the
+     * player's own menu blur setting.
      */
-    override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {}
+    override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+        if (blurRadius() >= 1) graphics.blurBeforeThisStratum()
+    }
+
+    /** Blur radius this frame: Blur Strength, eased in with the background dim when the menu opens. 0 = off. */
+    fun blurRadius(): Int {
+        if (!Theme.menuBlur.value) return 0
+        val elapsed = (System.nanoTime() - openedAt) / 1_000_000f * Theme.animationSpeed.value.toFloat()
+        return Math.round(Theme.blurStrength.value.toFloat() * easeOutCubic(elapsed / DIM_FADE_MS))
+    }
 
     override fun onClose() {
         for (panel in panels.filter { it.panelSetting.extended }.reversed()) {

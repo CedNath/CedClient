@@ -96,7 +96,7 @@ object ConfigManager {
 
     /** Renamed modules: read old saves into the new name (until the new name has been saved once). */
     private fun savedName(name: String, saved: JsonObject): String = when {
-        name == "Theme" && !saved.has("Client Settings") -> "Client Settings"
+        name == "Mod Settings" && !saved.has("Mod Settings") -> if (saved.has("Client Settings")) "Client Settings" else "Theme"
         // Old "Slayer Helper" (Skyblock) is now "Slayer Tracker"; the cheats module took the "Slayer Helper" name.
         !saved.has("Slayer Tracker") && name == "Slayer Helper" -> "Slayer Tracker"
         !saved.has("Slayer Tracker") && name == "Slayer Cheats" -> "Slayer Helper"
