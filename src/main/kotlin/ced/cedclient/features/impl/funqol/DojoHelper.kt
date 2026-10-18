@@ -131,8 +131,9 @@ object DojoHelper : Module(
         val level = mc.level ?: return
         val feet = player.blockPosition()
         val under = BlockPos.containing(player.x, player.y - 0.2, player.z)
-        val wool = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6))
-            .filter { level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }.map { it.immutable() }
+        // betweenClosed hands out one reused mutable pos: copy each before keeping it.
+        val wool = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6)).map { it.immutable() }
+            .filter { level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }
         val target = wool.filter { it != under }.minByOrNull { it.distToCenterSqr(player.position()) }
         if (swiftDebug.value) {
             dbgWool = wool
@@ -168,8 +169,10 @@ object DojoHelper : Module(
         val v = player.deltaMovement
         val speed = sqrt(v.x * v.x + v.z * v.z)
         val closing = v.x * nx + v.z * nz
+        // More than 3 blocks of lava is past a sprint jump: wait on the block instead of leaping in.
+        val tooFar = gap > 3 && player.onGround()
         // Ground friction leaves roughly 2.2x the current speed of slide after letting go.
-        val go = lined && dist > 0.25 + speed * 2.2
+        val go = lined && !tooFar && dist > 0.25 + speed * 2.2
         val brake = !go && closing > 0.08 && dist < 1.2
         val atEdge = player.onGround() && !solid(player.x + nx * 0.45, supportY, player.z + nz * 0.45)
         val up = target.y > supportY && dist < 1.6
@@ -181,7 +184,7 @@ object DojoHelper : Module(
         }
         pressDirection(dir?.let { Mth.wrapDegrees(it) })
         mc.options.keySprint.setDown(go && gap >= 2)
-        val jump = lined && (atEdge && gap > 0 || up) && player.onGround()
+        val jump = lined && !tooFar && (atEdge && gap > 0 || up) && player.onGround()
         mc.options.keyJump.setDown(jump)
         walking = true
         if (swiftDebug.value) {
@@ -189,7 +192,7 @@ object DojoHelper : Module(
                 .filter { it.second.isDown }.joinToString("") { it.first }.ifEmpty { "-" }
             debug("§a${target.toShortString()} §7${level.getBlockState(target).block.name.string} gap=$gap keys=$keys" +
                 (if (go && gap >= 2) " §bsprint" else "") + (if (jump) " §ejump" else "") + (if (brake) " §cbrake" else "") +
-                (if (!lined) " §6turning" else "") + (if (atEdge) " §dedge" else "") + (if (up) " §dup" else "") +
+                (if (!lined) " §6turning" else "") + (if (tooFar) " §ctoo far" else "") + (if (atEdge) " §dedge" else "") + (if (up) " §dup" else "") +
                 " §8ground=${player.onGround()} under=${level.getBlockState(under).block.name.string}@${under.y}")
         }
     }
