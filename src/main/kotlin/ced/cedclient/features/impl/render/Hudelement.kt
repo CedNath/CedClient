@@ -116,7 +116,7 @@ interface HudElement {
 
         /** Every HUD panel, for MasterHudEditScreen and "Reset Everything". */
 //#if CHEAT
-        val all: List<HudElement> get() = listOf(EntityESPHud, TimeHud, ChatChannelHud, DailyReset, DungeonSplits, ChatPing, ActionBarHud.Notices, ActionBarHud.ItemName, CritterSafari.ProgressHud, CritterSafari.MissingHud, CritterSafari.TradesHud, ced.cedclient.features.impl.funqol.VampireSlayer, ced.cedclient.features.impl.funqol.SunGecko) + (if (ced.cedclient.utils.DevAccess.isFriend) listOf(ced.cedclient.features.impl.funqol.FarmHelper) else emptyList())
+        val all: List<HudElement> get() = listOf(TimeHud, ChatChannelHud, DailyReset, DungeonSplits, ChatPing, ActionBarHud.Notices, ActionBarHud.ItemName, CritterSafari.ProgressHud, CritterSafari.MissingHud, CritterSafari.TradesHud, ced.cedclient.features.impl.funqol.VampireSlayer, ced.cedclient.features.impl.funqol.SunGecko) + (if (ced.cedclient.utils.DevAccess.isFriend) listOf(EntityESPHud, ced.cedclient.features.impl.funqol.FarmHelper) else emptyList())
 //#else
 //$        val all: List<HudElement> get() = listOf(TimeHud, ChatChannelHud, DailyReset, DungeonSplits, ChatPing, ActionBarHud.Notices, ActionBarHud.ItemName, CritterSafari.ProgressHud, CritterSafari.MissingHud, CritterSafari.TradesHud, ced.cedclient.features.impl.funqol.VampireSlayer, ced.cedclient.features.impl.funqol.SunGecko)
 //#endif
