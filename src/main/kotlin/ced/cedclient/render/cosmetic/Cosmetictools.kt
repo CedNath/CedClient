@@ -1,12 +1,16 @@
 package ced.cedclient.render.cosmetic
 
 import ced.cedclient.features.impl.render.ActionBarHud
+//#if CHEAT
 import ced.cedclient.features.impl.render.Freecam
+//#endif
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.registries.BuiltInRegistries
+//#if CHEAT
 import net.minecraft.world.level.ClipContext
+//#endif
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
@@ -80,11 +84,23 @@ object CosmeticTools {
     /** Biggest replacenear radius whose cube fits in Max Region Size. */
     fun maxNearRadius(): Int = ((Math.cbrt(maxRegion.toDouble()) - 1) / 2).toInt().coerceAtLeast(1)
 
+//#if CHEAT
     /** [replace] in a cube of [radius] blocks around the player (the camera in Freecam) instead of the selection. */
+//#else
+//$    /** [replace] in a cube of [radius] blocks around the player instead of the selection. */
+//#endif
     fun replaceNear(radius: Int, from: String, toSpecs: String): String {
+//#if CHEAT
         val eye = aimEye() ?: return "§cNot in a world"
+//#else
+//$        val player = mc.player ?: return "§cNot in a world"
+//#endif
         val r = radius.coerceIn(1, maxNearRadius())
+//#if CHEAT
         val c = if (Freecam.isActive) BlockPos.containing(eye) else mc.player?.blockPosition() ?: return "§cNot in a world"
+//#else
+//$        val c = player.blockPosition()
+//#endif
         val result = replaceBetween(c.offset(-r, -r, -r), c.offset(r, r, r), from, toSpecs)
         return if (result.startsWith("§a")) "$result within $r blocks" else result
     }
@@ -155,6 +171,7 @@ object CosmeticTools {
         if (blocks.size == 1) BuiltInRegistries.BLOCK.getKey(blocks[0].first.block).path else "${blocks.size} block types"
 
     // ------------------------------------------------------------------
+//#if CHEAT
     // Aim: the Freecam camera while Freecam is on, else the player's eyes. Vanilla's hitResult always comes
     // from the player's body, so in Freecam every tool would otherwise target the block in front of you.
     // ------------------------------------------------------------------
@@ -179,13 +196,21 @@ object CosmeticTools {
     }
 
     // ------------------------------------------------------------------
+//#endif
     // Phantom ray cast (phantom blocks have no hitbox, so the crosshair passes through them)
     // ------------------------------------------------------------------
 
     /** First phantom block along the view ray within reach, plus the face the ray entered it through. */
+//#if CHEAT
     fun phantomHit(reach: Double = if (Freecam.isActive) FREECAM_REACH else 5.0): Pair<BlockPos, Direction>? {
         val eye = aimEye() ?: return null
         val look = aimLook() ?: return null
+//#else
+//$    fun phantomHit(reach: Double = 5.0): Pair<BlockPos, Direction>? {
+//$        val player = mc.player ?: return null
+//$        val eye = player.getEyePosition(1f)
+//$        val look = player.lookAngle
+//#endif
         val checked = HashSet<Long>()
         var dist = 0.0
         while (dist <= reach) {
@@ -256,14 +281,25 @@ object CosmeticTools {
     }
 
     private fun airTarget(): BlockPos? {
+//#if CHEAT
         val eye = aimEye() ?: return null
         val t = eye.add((aimLook() ?: return null).scale(airReach))
+//#else
+//$        val player = mc.player ?: return null
+//$        val t = player.getEyePosition(1f).add(player.lookAngle.scale(airReach))
+//#endif
         return BlockPos.containing(t)
     }
 
     private fun rulerTarget(): BlockPos? {
+//#if CHEAT
         aimHit()?.let { hit ->
             val d = hit.location.distanceTo(aimEye() ?: hit.location)
+//#else
+//$        val hit = mc.hitResult
+//$        if (hit is BlockHitResult && hit.type == HitResult.Type.BLOCK) {
+//$            val d = hit.location.distanceTo(mc.player?.getEyePosition(1f) ?: hit.location)
+//#endif
             if (d <= airReach + 0.5) return hit.blockPos
         }
         return airTarget()

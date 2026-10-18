@@ -31,6 +31,10 @@ import net.minecraft.world.phys.Vec3
  * starred stand with the nearest mob underneath it from scratch, so a mob that shows up (or
  * moves) a tick later is simply picked up on the next scan.
  *
+//#if LEGIT
+//$ * The box is depth-tested, so walls and terrain hide it -- there is no see-through-walls mode.
+//$ *
+//#endif
  * Shadow Assassins are boxed too (optional, own color). They're NPC "players" whose profile name
  * contains "Shadow Assassin", so they're matched by that name instead of by a star -- the same
  * way Odin's Highlight finds them -- and they keep showing even while their nametag is hidden.
@@ -38,7 +42,11 @@ import net.minecraft.world.phys.Vec3
 object StarredMobHighlight : Module(
     "StarredMobHighlight",
     Category.Render,
+//#if CHEAT
     "Boxes dungeon mobs with a \u272F in their nametag (the ones that must die for the key)"
+//#else
+//$    "Highlights dungeon mobs with a \u272F in their nametag (the ones that must die for the key). Only visible when the mob is in line of sight."
+//#endif
 ) {
     private const val STAR = '\u272F'
     private const val ASSASSIN_NAME = "Shadow Assassin"
@@ -54,8 +62,10 @@ object StarredMobHighlight : Module(
     )
     private val boxColor = ColorSetting("Box Color", Color(255, 255, 255), "Color of the box around starred mobs.")
     private val lineWidth = NumberSetting("Line Width", 2.0, 1.0, 6.0, 0.5)
+//#if CHEAT
     private val throughWalls = BooleanSetting("Through Walls", true, "Show the boxes through walls and terrain. Off: only when the mob is in line of sight.")
     private val showTracers = BooleanSetting("Show Tracers", false, "Draws a line to every starred mob.")
+//#endif
     private val highlightAssassins = BooleanSetting("Highlight Shadow Assassins", true, "Also box Shadow Assassins, even without a star nametag.")
     private val assassinColor = ColorSetting("Shadow Assassin Color", Color(170, 85, 255), "Color of the box around Shadow Assassins.")
     private val hideOtherNametags = BooleanSetting("Hide Non-Starred Nametags", false, "Hides the name / health tags of dungeon mobs without a ✯, so only the starred ones are labelled.")
@@ -78,7 +88,11 @@ object StarredMobHighlight : Module(
     private var tickCounter = 0
 
     init {
+//#if CHEAT
         addSettings(onlyInDungeon, boxColor, highlightAssassins, assassinColor, lineWidth, throughWalls, showTracers, hideOtherNametags)
+//#else
+//$        addSettings(onlyInDungeon, boxColor, highlightAssassins, assassinColor, lineWidth, hideOtherNametags)
+//#endif
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (!isEnabled) {
@@ -98,7 +112,11 @@ object StarredMobHighlight : Module(
             val camera = context.gameRenderer().mainCamera
             val cameraPos = camera.position()
             val bufferSource = context.bufferSource()
+//#if CHEAT
             val lineBuffer = bufferSource.getBuffer(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
+//#else
+//$            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_DEPTH)
+//#endif
 
             val width = lineWidth.value.toFloat()
             val pt = partialTick()
@@ -122,12 +140,14 @@ object StarredMobHighlight : Module(
                     .inflate(0.05)
                     .move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
                 drawLineBox(poseStack, lineBuffer, box, r, g, b, a, width)
+//#if CHEAT
 
                 if (showTracers.value) {
                     val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
                     val target = Vec3(ix, iy + mob.bbHeight / 2.0, iz).subtract(cameraPos)
                     drawLine(poseStack, lineBuffer, direction, target, r, g, b, a, width)
                 }
+//#endif
             }
 
             bufferSource.endBatch()
@@ -198,7 +218,11 @@ object StarredMobHighlight : Module(
     }
 
     // ------------------------------------------------------------------
+//#if CHEAT
     // Rendering helpers (same vertex pattern as EntityESPRenderer)
+//#else
+//$    // Rendering helpers (plain line-box vertex pattern)
+//#endif
     // ------------------------------------------------------------------
     private fun drawLineBox(
         poseStack: PoseStack, buffer: VertexConsumer, box: AABB,

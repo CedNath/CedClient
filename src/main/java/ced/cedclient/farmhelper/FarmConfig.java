@@ -1,3 +1,4 @@
+//#if CHEAT
 /*
  * Ported from FarmHelper (https://github.com/JellyLabScripts/FarmHelper) by JellyLab and contributors.
  * Licensed under CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/); this file stays under that
@@ -63,3 +64,4 @@ public final class FarmConfig {
     /** Time the server has to "turn / move you back" before a check counts (original default). */
     public static final int DETECTION_TIME_WINDOW = 500;
 }
+//#endif

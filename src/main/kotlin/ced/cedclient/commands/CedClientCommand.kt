@@ -1,11 +1,15 @@
 package ced.cedclient.commands
 
 import ced.cedclient.utils.ChatPrefix
+//#if CHEAT
 import ced.cedclient.features.impl.funqol.CoralotHelper
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
+//#endif
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.render.nametag.CustomNametag
+//#if CHEAT
 import ced.cedclient.features.impl.render.EntityESP
+//#endif
 import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.features.impl.misc.WarpShortcuts
 import ced.cedclient.ui.clickgui.ClickGUI
@@ -112,6 +116,7 @@ object CedClientCommand {
             )
 
             .then(
+//#if CHEAT
                 ClientCommands.literal("dance")
                     .executes { ctx ->
                         // Singleplayer test run of TinyDancerHelper (fake beats, floor shifted to you).
@@ -213,6 +218,7 @@ object CedClientCommand {
             )
 
             .then(
+//#endif
                 // Chat-based alternative to the (small) Tag Text box in the
                 // GUI -- mainly so &#hex/<gradient:...>/<rainbow> strings
                 // aren't painful to type. Bare "/cedclient nametag" clears it
@@ -240,6 +246,7 @@ object CedClientCommand {
             )
 
             .then(
+//#if CHEAT
                 ClientCommands.literal("coralot").requires { ced.cedclient.utils.DevAccess.isFriend }
                     .then(
                         ClientCommands.literal("netname")
@@ -290,6 +297,7 @@ object CedClientCommand {
             )
 
             .then(
+//#endif
                 // Auto-tracked + manual checklist of daily-reset tasks -- see
                 // DailyReset.kt. Bare "/cc daily" (and "/cc daily list") print
                 // everything still outstanding today.

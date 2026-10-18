@@ -2,9 +2,11 @@ package ced.cedclient.utils
 
 import ced.cedclient.state.IslandState
 import ced.cedclient.state.Sidebar
+//#if CHEAT
 import ced.cedclient.features.impl.funqol.AutoExperiments
 import ced.cedclient.features.impl.funqol.SlayerCheats
 import com.mojang.brigadier.arguments.DoubleArgumentType
+//#endif
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
@@ -58,6 +60,7 @@ object DevAccess {
             ctx.source.sendFeedback(Component.literal("§7model: ${stack.get(DataComponents.ITEM_MODEL)}"))
             1
         })
+//#if CHEAT
         // World time and which flower Farm Helper picks now (to check the 13000/23000 night cutoff against Hypixel).
         .then(ClientCommands.literal("time").executes { ctx ->
             val level = Minecraft.getInstance().level ?: return@executes 0
@@ -66,6 +69,7 @@ object DevAccess {
             ctx.source.sendFeedback(Component.literal("§7Time: §f$t §7(total ${level.overworldClockTime}), bright: ${level.isBrightOutside}, flower: §f$flower"))
             1
         })
+//#endif
         // Bug reporter (utils/debug/Diag): recent issues, a test report, send now.
         .then(ClientCommands.literal("diag")
             .executes { ctx ->
@@ -84,6 +88,7 @@ object DevAccess {
                 ctx.source.sendFeedback(Component.literal("§7Sending pending issues"))
                 1
             }))
+//#if CHEAT
         // Auto Experiments debug lines in chat + log (until restart).
         .then(ClientCommands.literal("expdebug").executes { ctx ->
             AutoExperiments.debug = !AutoExperiments.debug
@@ -101,4 +106,5 @@ object DevAccess {
                 ctx.source.sendFeedback(Component.literal("§7Mania min distance set to §f${SlayerCheats.maniaMinDist} §7blocks"))
                 1
             }))
+//#endif
 }

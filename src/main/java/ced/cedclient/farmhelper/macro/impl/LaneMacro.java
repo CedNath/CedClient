@@ -1,3 +1,4 @@
+//#if CHEAT
 /*
  * Written for CedClient on top of the FarmHelper port (https://github.com/JellyLabScripts/FarmHelper, JellyLab and
  * contributors). Licensed under CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/), like the code it
@@ -59,3 +60,4 @@ public class LaneMacro extends AbstractMacro {
         return lane == 1 ? State.LEFT : State.RIGHT;
     }
 }
+//#endif

@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import ced.cedclient.config.CedPaths
@@ -453,3 +454,4 @@ object EntityESPHud : HudElement {
         NVGRenderer.text(label, x + dotIndent, y, fontSize, NAME_TEXT_COLOR, font)
     }
 }
+//#endif

@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.hitbox;
 
 import ced.cedclient.features.impl.funqol.SecretHitboxes;
@@ -26,3 +27,4 @@ public class SkullBlockMixin {
         if (shape != null) cir.setReturnValue(shape);
     }
 }
+//#endif

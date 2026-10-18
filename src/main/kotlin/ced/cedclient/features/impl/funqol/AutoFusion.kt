@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -131,3 +132,4 @@ object AutoFusion : Module(
         }
     }
 }
+//#endif

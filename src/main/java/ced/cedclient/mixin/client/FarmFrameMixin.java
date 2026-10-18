@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.client;
 
 import ced.cedclient.farmhelper.FarmHelperCore;
@@ -15,3 +16,4 @@ public class FarmFrameMixin {
         FarmHelperCore.onFrame();
     }
 }
+//#endif

@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.client;
 
 import ced.cedclient.features.impl.render.Freecam;
@@ -58,3 +59,4 @@ public class MinecraftTurnMixin {
         ci.cancel();
     }
 }
+//#endif

@@ -2,7 +2,9 @@ package ced.cedclient.features.impl.misc
 
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+//#if CHEAT
 import ced.cedclient.features.impl.render.Freecam
+//#endif
 import ced.cedclient.features.settings.BooleanSetting
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
@@ -42,7 +44,11 @@ object AutoSprint : Module(
         }
 
         val inWater = disableInWater.value && player.isInWater
+//#if CHEAT
         val shouldSprint = client.screen == null && !Freecam.isActive && !inWater
+//#else
+//$        val shouldSprint = client.screen == null && !inWater
+//#endif
 
         if (shouldSprint) {
             client.options.keySprint.isDown = true

@@ -1,0 +1,28 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "ced.cedclient.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "network.FarmPacketMixin",
+    "client.FarmFrameMixin",
+    "screen.ContainerContentsMixin",
+    "input.KeyboardInputMixin",
+    "accessor.CameraAccessor",
+    "accessor.ClientInputAccessor",
+    "client.MinecraftTurnMixin"
+  ],
+  "client": [
+    "hitbox.LeverBlockMixin",
+    "hitbox.ButtonBlockMixin",
+    "hitbox.MushroomBlockMixin",
+    "hitbox.SkullBlockMixin",
+    "hitbox.SkullCollisionMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

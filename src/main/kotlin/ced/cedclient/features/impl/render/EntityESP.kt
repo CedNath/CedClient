@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import ced.cedclient.config.CedPaths
@@ -244,3 +245,4 @@ object EntityESP : Module(
         println(sb.toString().trimEnd())
     }
 }
+//#endif

@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.events.SubtitleEvent
@@ -737,3 +738,4 @@ object SlayerCheats : Module(
         }
     }
 }
+//#endif

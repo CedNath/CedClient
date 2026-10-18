@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.utils.debug
 
 import ced.cedclient.utils.HumanLook
@@ -132,3 +133,4 @@ object MouseLookDebugger {
         return diff
     }
 }
+//#endif

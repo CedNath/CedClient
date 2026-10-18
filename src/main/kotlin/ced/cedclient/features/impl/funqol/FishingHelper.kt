@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -240,3 +241,4 @@ object FishingHelper : Module(
 object FishinghelperConfig {
     var debugLogging: Boolean = false
 }
+//#endif

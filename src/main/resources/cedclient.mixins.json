@@ -31,8 +31,6 @@
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
     "network.PingHeartbeatMixin",
-    "network.FarmPacketMixin",
-    "client.FarmFrameMixin",
     "network.PingPongMixin",
     "network.ParticlePacketMixin",
     "network.PacketErrorMixin",
@@ -57,22 +55,17 @@
     "screen.InventoryCraftingGridMixin",
     "screen.InventoryCraftingSlotMixin",
     "screen.AbstractContainerScreenMixin",
-    "screen.ContainerContentsMixin",
     "screen.ScreenTooltipMixin",
     "scoreboard.PlayerTeamMixin",
 
-    "input.KeyboardInputMixin",
     "input.MouseScrollMixin",
 
     "accessor.AbstractContainerScreenAccessor",
-    "accessor.CameraAccessor",
     "accessor.GuiAccessor",
     "accessor.LivingEntityRendererAccessor",
     "accessor.CustomDataAccessor",
-    "accessor.ClientInputAccessor",
     "accessor.PlayerTabOverlayAccessor",
 
-    "client.MinecraftTurnMixin",
 
     "cosmetic.RenderSectionRegionMixin",
     "cosmetic.BlockFaceCullingMixin",
@@ -90,12 +83,7 @@
     "client.WindowBorderlessMixin",
     "client.SoundEngineMixin",
     "client.LocalPlayerSignMixin",
-    "accessor.MinecraftAccessor",
-    "hitbox.LeverBlockMixin",
-    "hitbox.ButtonBlockMixin",
-    "hitbox.MushroomBlockMixin",
-    "hitbox.SkullBlockMixin",
-    "hitbox.SkullCollisionMixin"
+    "accessor.MinecraftAccessor"
   ],
 
   "injectors": {

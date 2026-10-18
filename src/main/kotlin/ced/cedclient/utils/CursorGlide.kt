@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.utils
 
 import ced.cedclient.mixin.accessor.AbstractContainerScreenAccessor
@@ -92,3 +93,4 @@ object CursorGlide {
         onArrive = null
     }
 }
+//#endif

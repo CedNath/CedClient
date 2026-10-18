@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.events.ChatMessageEvent
@@ -389,3 +390,4 @@ object FarmHelper : Module(
     override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = 1f }
     override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 }
+//#endif

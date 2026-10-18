@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -93,3 +94,4 @@ class HudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     override fun isPauseScreen(): Boolean = false
 }
+//#endif

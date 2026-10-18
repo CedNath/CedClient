@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import ced.cedclient.features.Category
@@ -219,3 +220,4 @@ object Freecam : Module(
         return lastPitch + (pitch - lastPitch) * partialTick
     }
 }
+//#endif

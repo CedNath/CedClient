@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -182,3 +183,4 @@ object SecretHitboxes : Module(
         return if (powered) buttonCachePressed else buttonCache
     }
 }
+//#endif

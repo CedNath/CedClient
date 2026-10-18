@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import com.mojang.blaze3d.vertex.PoseStack
@@ -164,3 +165,4 @@ object BlockESPRenderer {
             .setLineWidth(2.0f)
     }
 }
+//#endif

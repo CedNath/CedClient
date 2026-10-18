@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.impl.render.BlockESP
@@ -29,3 +30,4 @@ class BlockFilterPopup : FilterPopup(
             .map { it.name.string }
             .distinct()
 }
+//#endif

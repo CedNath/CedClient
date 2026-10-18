@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.utils.ChatPrefix
@@ -443,3 +444,4 @@ object TinyDancerHelper : Module(
         }
     }
 }
+//#endif

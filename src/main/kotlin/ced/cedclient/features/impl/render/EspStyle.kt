@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import ced.cedclient.utils.Color
@@ -18,3 +19,4 @@ class EspStyle(
         val ALL = EspStyle()
     }
 }
+//#endif

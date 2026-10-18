@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -178,3 +179,4 @@ object LassoHelper : Module(
         return (baseMs + offset).coerceAtLeast(0L)
     }
 }
+//#endif

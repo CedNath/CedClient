@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.input;
 
 
@@ -43,3 +44,4 @@ public abstract class KeyboardInputMixin {
         }
     }
 }
+//#endif

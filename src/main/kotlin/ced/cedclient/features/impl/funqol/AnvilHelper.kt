@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -113,3 +114,4 @@ object AnvilHelper : Module(
         mc.player?.sendSystemMessage(ChatPrefix.msg("§cAnvil Helper off §7($reason)"))
     }
 }
+//#endif

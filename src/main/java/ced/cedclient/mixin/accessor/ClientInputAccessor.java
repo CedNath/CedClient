@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.accessor;
 
 import net.minecraft.client.player.ClientInput;
@@ -14,3 +15,4 @@ public interface ClientInputAccessor {
     @Accessor("moveVector")
     void ced$setMoveVector(Vec2 vec2);
 }
+//#endif

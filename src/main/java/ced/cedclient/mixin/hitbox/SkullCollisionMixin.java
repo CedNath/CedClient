@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.hitbox;
 
 import ced.cedclient.features.impl.funqol.SecretHitboxes;
@@ -32,3 +33,4 @@ public class SkullCollisionMixin {
         if ((Object) this instanceof SkullBlock) SecretHitboxes.SKULL_COLLISION.set(false);
     }
 }
+//#endif

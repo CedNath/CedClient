@@ -45,7 +45,9 @@ object ConfigManager {
         "Render" to (715f to 15f),
         "HUD" to (1065f to 15f),
         "Cosmetic" to (1415f to 15f),
+//#if CHEAT
         "Cheats" to (1765f to 15f),
+//#endif
     )
 
     /** Panels that existed before the category reshuffle; a saved layout containing them is reset once. */
@@ -206,9 +208,13 @@ object ConfigManager {
                 val entry = panelsJson?.get(panel.category.name)?.asJsonObject
                 val x = entry?.get("x")?.asFloat
                 val y = entry?.get("y")?.asFloat
+//#if CHEAT
                 // Cheats briefly defaulted to under Skyblock; a panel still at that spot gets the new default.
                 val oldCheatsSpot = panel.category.name == "Cheats" && x == 1065f && y == 300f
                 if (x != null && y != null && !oldCheatsSpot) {
+//#else
+//$                if (x != null && y != null) {
+//#endif
                     panel.x = x
                     panel.y = y
                     panel.extended = entry.get("extended")?.asBoolean ?: true
