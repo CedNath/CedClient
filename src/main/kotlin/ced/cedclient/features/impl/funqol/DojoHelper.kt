@@ -76,6 +76,8 @@ object DojoHelper : Module(
     private var dbgUnder: BlockPos? = null
     private val dbgSamples = ArrayList<Pair<Vec3, Boolean>>()
     private var dbgLast = ""
+    /** Swiftness blocks already stood on: they stay lime a moment after the next one spawns, so never walk back. */
+    private val visited = HashSet<BlockPos>()
 
     init {
         addSettings(discipline, control, swiftness, swiftDebug, range, smoothnessMs, prediction)
@@ -103,7 +105,10 @@ object DojoHelper : Module(
         aimTarget = if (control.value && challenge("Control")) pickSkeleton(player) else null
         if (aimTarget == null) movement.clear()
         walkLook = null
-        if (swiftness.value && challenge("Swiftness")) walkToWool(player) else stopWalking()
+        if (swiftness.value && challenge("Swiftness")) walkToWool(player) else {
+            visited.clear()
+            stopWalking()
+        }
         if (aimTarget == null && walkLook == null) look = null
     }
 
@@ -134,7 +139,8 @@ object DojoHelper : Module(
         // betweenClosed hands out one reused mutable pos: copy each before keeping it.
         val wool = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6)).map { it.immutable() }
             .filter { level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }
-        val target = wool.filter { it != under }.minByOrNull { it.distToCenterSqr(player.position()) }
+        if (player.onGround() && under in wool) visited.add(under.immutable())
+        val target = wool.filter { it != under && it !in visited }.minByOrNull { it.distToCenterSqr(player.position()) }
         if (swiftDebug.value) {
             dbgWool = wool
             dbgTarget = target
@@ -161,7 +167,7 @@ object DojoHelper : Module(
 
         val yawTo = Math.toDegrees(atan2(dz, dx)).toFloat() - 90f
         // Long gaps need sprint, which only works with W; otherwise use whichever key direction is closest.
-        val keyDir = if (gap >= 2) 0f else Math.round(Mth.wrapDegrees(yawTo - player.yRot) / 45f) * 45f
+        val keyDir = if (gap >= 2 && player.onGround()) 0f else Math.round(Mth.wrapDegrees(yawTo - player.yRot) / 45f) * 45f
         val wantYaw = yawTo - keyDir
         walkLook = wantYaw to 80f
         val lined = abs(Mth.wrapDegrees(wantYaw - player.yRot)) < 12f
@@ -172,8 +178,10 @@ object DojoHelper : Module(
         // More than 3 blocks of lava is past a sprint jump: wait on the block instead of leaping in.
         val tooFar = gap > 3 && player.onGround()
         // Ground friction leaves roughly 2.2x the current speed of slide after letting go.
-        val go = lined && !tooFar && dist > 0.25 + speed * 2.2
-        val brake = !go && closing > 0.08 && dist < 1.2
+        val air = !player.onGround()
+        // Mid-jump keep pushing toward the block even while still turning; letting go there drops you short.
+        val go = if (air) dist > 0.35 else lined && !tooFar && dist > 0.25 + speed * 2.2
+        val brake = !air && !go && closing > 0.08 && dist < 1.2
         val atEdge = player.onGround() && !solid(player.x + nx * 0.45, supportY, player.z + nz * 0.45)
         val up = target.y > supportY && dist < 1.6
 
