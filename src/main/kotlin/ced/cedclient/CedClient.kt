@@ -14,6 +14,7 @@ import ced.cedclient.features.impl.funqol.DungeonSplits
 import ced.cedclient.features.impl.funqol.PositionalMessages
 //#if CHEAT
 import ced.cedclient.features.impl.funqol.SecretHitboxes
+import ced.cedclient.features.impl.funqol.DoorESP
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
@@ -237,6 +238,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(BlockESP)
         ModuleManager.register(Freecam)
         ModuleManager.register(SecretHitboxes)
+        ModuleManager.register(DoorESP)
         ModuleManager.register(LassoHelper)
         // Friends-only (DevAccess): not registered at all for anyone else.
         if (ced.cedclient.utils.DevAccess.isFriend) {

@@ -28,7 +28,7 @@ object ModuleGroups {
             "Trading" to listOf("SearchOverlay", "Auction Price Input", "Item Value"),
         ),
         "Cheats" to listOf(
-            "ESP & Camera" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes"),
+            "ESP & Camera" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes", "Door ESP"),
             "Fishing & Hunting" to listOf("FishingHelper", "LassoHelper", "PangolinCatcher(!!!)", "CoralotHelper(!!!)", "TropicalFishHelper(!!!)", "Auto Fusion"),
             "Slayers" to listOf("Slayer Helper"),
 //#if CHEAT
