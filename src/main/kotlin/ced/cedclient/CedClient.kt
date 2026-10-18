@@ -266,6 +266,7 @@ class CedClient : ClientModInitializer {
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "hud_keep_on_screen")
         ) { graphics, _ ->
+            HudElement.followScreenSize(graphics.guiWidth(), graphics.guiHeight())
             HudElement.all.forEach { it.keepOnScreen(graphics.guiWidth(), graphics.guiHeight()) }
         }
 //#if CHEAT

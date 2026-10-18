@@ -90,6 +90,7 @@ object Theme : Module(
             if (!module.isAction) module.setEnabled(module.defaultEnabled)
         }
         HudElement.all.forEach { it.resetPosition(); it.save() }
+        HudElement.layoutEdited()
         (Minecraft.getInstance().screen as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
         ConfigManager.saveModulesOnly()
         Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§fEverything reset to defaults"))

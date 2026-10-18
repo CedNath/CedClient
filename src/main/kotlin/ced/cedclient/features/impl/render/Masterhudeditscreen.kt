@@ -96,6 +96,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         // save as soon as a drag finishes, not just when the screen closes,
         // so a crash/force-quit before pressing Escape doesn't lose the edit
         dragging?.save()
+        HudElement.layoutEdited()
         dragging = null
         return super.mouseReleased(event)
     }
@@ -105,6 +106,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         if (hit != null) {
             hit.adjustScale(scrollY.toFloat() * 0.1f)
             hit.save()
+            HudElement.layoutEdited()
             return true
         }
         return super.mouseScrolled(x, y, scrollX, scrollY)
@@ -112,6 +114,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     override fun onClose() {
         elements.forEach { it.save() }
+        HudElement.layoutEdited()
         super.onClose()
     }
 
