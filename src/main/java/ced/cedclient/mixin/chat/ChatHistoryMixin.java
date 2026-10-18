@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -94,11 +95,21 @@ public abstract class ChatHistoryMixin implements ChatHistoryAccess {
                 oldText = oldText.substring(0, m.start());
             }
             if (!oldText.equals(text)) continue;
-            allMessages.remove(i);
-            trimmedMessages.removeIf(line -> line.parent() == old);
+            // Hypixel sends the "-----" lines around a message as their own messages: take the old copy's with it.
+            List<GuiMessage> gone = new ArrayList<>(List.of(old));
+            if (i + 1 < allMessages.size() && cedclient$isSeparator(allMessages.get(i + 1))) gone.add(allMessages.get(i + 1));
+            if (i - 1 >= 0 && cedclient$isSeparator(allMessages.get(i - 1))) gone.add(allMessages.get(i - 1));
+            allMessages.removeIf(msg -> gone.stream().anyMatch(g -> g == msg));
+            trimmedMessages.removeIf(line -> gone.stream().anyMatch(g -> g == line.parent()));
             return contents.copy().append(Component.literal(" (x" + (count + 1) + ")").withStyle(ChatFormatting.GRAY));
         }
         return contents;
+    }
+
+    @Unique
+    private static boolean cedclient$isSeparator(GuiMessage message) {
+        String s = message.content().getString();
+        return !s.isBlank() && !s.matches("(?s).*[\\p{L}\\p{N}].*");
     }
 
     @Inject(method = "addMessageToQueue", at = @At("HEAD"), cancellable = true)
