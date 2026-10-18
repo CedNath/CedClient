@@ -43,13 +43,13 @@ object DoorESP : Module(
     "Boxes wither doors and the blood door through walls during dungeon clear."
 ) {
     private val witherDoors = BooleanSetting("Wither Doors", true, "Box the coal (wither key) doors.")
-    private val witherColor = ColorSetting("Wither Door Color", Color(40, 40, 40), "Wither door color while nobody has a wither key.")
+    private val witherColor = ColorSetting("Wither Door Color", Color(255, 40, 40), "Wither door color (all but the next one once a wither key is picked up).")
     private val bloodDoor = BooleanSetting("Blood Door", true, "Box the red (blood key) door.")
-    private val bloodColor = ColorSetting("Blood Door Color", Color(255, 40, 40), "Blood door color while nobody has the blood key.")
+    private val bloodColor = ColorSetting("Blood Door Color", Color(255, 40, 40), "Blood door color until the blood key is picked up.")
     private val fairyDoor = BooleanSetting("Fairy Door", true, "Box the open fairy room door on the blood path (until you walk through).")
-    private val fairyColor = ColorSetting("Fairy Door Color", Color(255, 120, 220), "Fairy room door color.")
-    private val keyColor = ColorSetting("Key Held Color", Color(60, 255, 60), "Door color once the party holds its key.")
-    private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show doors the party can open right now (key picked up).")
+    private val fairyColor = ColorSetting("Fairy Door Color", Color(255, 40, 40), "Fairy room door color.")
+    private val keyColor = ColorSetting("Next Door Color", Color(60, 255, 60), "Once a key is picked up, the nearest door it opens gets this color.")
+    private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show the next door once its key is picked up (and the fairy door).")
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Outline")
     private val tracers = BooleanSetting("Tracers", false, "Draws a line to every shown door.")
     private val onlyInDungeon = BooleanSetting("Only In Dungeons", true, "Off: also scan outside dungeons (e.g. a copied map).")
@@ -105,12 +105,16 @@ object DoorESP : Module(
             val bufferSource = context.bufferSource()
             val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
 
+            // shortcut: "next" = nearest locked door of the key's type, not the map's blood path; fine since you open the one you're at.
+            fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
+            val next = setOfNotNull(if (witherKey) nearest(Kind.WITHER) else null, if (bloodKey) nearest(Kind.BLOOD) else null)
+
             val shown = current.mapNotNull { door ->
-                val hasKey = when (door.kind) { Kind.WITHER -> witherKey; Kind.BLOOD -> bloodKey; Kind.FAIRY -> true }
-                if (onlyWithKey.value && !hasKey) return@mapNotNull null
+                val isNext = door in next
+                if (onlyWithKey.value && !isNext && door.kind != Kind.FAIRY) return@mapNotNull null
                 val c = when {
+                    isNext -> keyColor.value
                     door.kind == Kind.FAIRY -> fairyColor.value
-                    hasKey -> keyColor.value
                     door.kind == Kind.BLOOD -> bloodColor.value
                     else -> witherColor.value
                 }
