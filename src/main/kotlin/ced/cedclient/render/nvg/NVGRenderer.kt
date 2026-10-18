@@ -19,7 +19,9 @@ import org.lwjgl.system.MemoryUtil.memFree
 import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.abs
 import kotlin.math.round
+import kotlin.math.sqrt
 
 /**
  * NanoVG rendering wrapper — ported to match Odin's clickgui/settings rendering
@@ -278,8 +280,22 @@ object NVGRenderer {
         snapY = (a * py - b * px) / det
     }
 
+    /**
+     * Font size that lands on whole device pixels. The UI font (ProFont, 100 units per pixel) is only sharp at
+     * exactly 12 px, so sizes that end up near 12 on screen (14-15 px text at the ~0.86 ClickGUI scale of 1080p)
+     * snap to it; anything else rounds to a whole pixel instead of a blurry fraction.
+     */
+    private fun fontSize(size: Float): Float {
+        nvgCurrentTransform(vg, xform)
+        val s = sqrt(xform[0] * xform[0] + xform[1] * xform[1]) * devicePixelRatio()
+        if (s <= 0f) return size
+        val device = size * s
+        val px = if (abs(device - 12f) <= 1.5f) 12f else round(device).coerceAtLeast(1f)
+        return px / s
+    }
+
     fun text(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {
-        nvgFontSize(vg, size)
+        nvgFontSize(vg, fontSize(size))
         nvgFontFaceId(vg, getFontID(font))
         color(color)
         nvgFillColor(vg, nvgColor)
@@ -289,7 +305,7 @@ object NVGRenderer {
 
     fun textShadow(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {
         nvgFontFaceId(vg, getFontID(font))
-        nvgFontSize(vg, size)
+        nvgFontSize(vg, fontSize(size))
         color(-16777216)
         nvgFillColor(vg, nvgColor)
         snap(x + 2f, y + 2f)
@@ -302,7 +318,7 @@ object NVGRenderer {
     }
 
     fun textWidth(text: String, size: Float, font: Font): Float {
-        nvgFontSize(vg, size)
+        nvgFontSize(vg, fontSize(size))
         nvgFontFaceId(vg, getFontID(font))
         return nvgTextBounds(vg, 0f, 0f, text, fontBounds)
     }
@@ -335,7 +351,7 @@ object NVGRenderer {
         font: Font,
         lineHeight: Float = 1f
     ) {
-        nvgFontSize(vg, size)
+        nvgFontSize(vg, fontSize(size))
         nvgFontFaceId(vg, getFontID(font))
         nvgTextLineHeight(vg, lineHeight)
         color(color)
@@ -352,7 +368,7 @@ object NVGRenderer {
         lineHeight: Float = 1f
     ): FloatArray {
         val bounds = FloatArray(4)
-        nvgFontSize(vg, size)
+        nvgFontSize(vg, fontSize(size))
         nvgFontFaceId(vg, getFontID(font))
         nvgTextLineHeight(vg, lineHeight)
         nvgTextBoxBounds(vg, 0f, 0f, w, text, bounds)
