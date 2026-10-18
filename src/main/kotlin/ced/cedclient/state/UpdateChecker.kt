@@ -142,7 +142,12 @@ object UpdateChecker {
     /** "CedClient-4.6-26.1.2-Legit.jar" style name for this install: same Minecraft version, Legit if this jar is. */
     private fun assetNameFor(version: String): String {
         val mc = FabricLoader.getInstance().getModContainer("minecraft").map { it.metadata.version.friendlyString }.orElse("")
-        val legit = ownJar?.fileName?.toString()?.contains("-Legit") == true
+        // The build itself decides (the file name lies: Modrinth's is "-legit", gc copies are "-cheat").
+//#if CHEAT
+        val legit = false
+//#else
+//$        val legit = true
+//#endif
         return "CedClient-$version-$mc${if (legit) "-Legit" else ""}.jar"
     }
 
