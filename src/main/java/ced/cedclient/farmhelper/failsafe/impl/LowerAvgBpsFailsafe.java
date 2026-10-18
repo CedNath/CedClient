@@ -59,7 +59,7 @@ public class LowerAvgBpsFailsafe extends Failsafe {
     public void onTickDetection() {
         if (farmingSince == 0) farmingSince = System.currentTimeMillis();
         // A menu is open: the player isn't farming, so pause the counter and restart the warm-up once it closes.
-        if (Minecraft.getInstance().screen != null) {
+        if (Minecraft.getInstance().gui.screen() != null) {
             clock.reset();
             breaks.clear();
             farmingSince = System.currentTimeMillis();

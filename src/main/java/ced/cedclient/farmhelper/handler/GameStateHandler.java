@@ -103,7 +103,7 @@ public class GameStateHandler {
         dy = Math.abs(mc.player.getDeltaMovement().y);
         dz = Math.abs(mc.player.getDeltaMovement().z);
 
-        if (notMoving() && mc.screen == null) {
+        if (notMoving() && mc.gui.screen() == null) {
             if (hasPassedSinceStopped() && !PlayerUtils.isStandingOnRewarpLocation()) {
                 if (DirtFailsafe.getInstance().hasDirtBlocks() && DirtFailsafe.getInstance().isTouchingDirtBlock()) {
                     FailsafeManager.getInstance().possibleDetection(DirtFailsafe.getInstance());
@@ -163,7 +163,7 @@ public class GameStateHandler {
     }
 
     public boolean notMoving() {
-        if (dx < 0.01 && dz < 0.01 && dyIsRest() && mc.screen == null) return true;
+        if (dx < 0.01 && dz < 0.01 && dyIsRest() && mc.gui.screen() == null) return true;
         return !holdingKeybindIsWalkable() && (playerIsInFlowingWater(0) || playerIsInFlowingWater(1)) && mc.player.isInWater();
     }
 
