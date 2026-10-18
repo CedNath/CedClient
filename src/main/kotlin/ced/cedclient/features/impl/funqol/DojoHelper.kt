@@ -166,8 +166,8 @@ object DojoHelper : Module(
         val gap = gapLength(player, nx, nz, dist, supportY)
 
         val yawTo = Math.toDegrees(atan2(dz, dx)).toFloat() - 90f
-        // Long gaps need sprint, which only works with W; otherwise use whichever key direction is closest.
-        val keyDir = if (gap >= 2 && player.onGround()) 0f else Math.round(Mth.wrapDegrees(yawTo - player.yRot) / 45f) * 45f
+        // A walking jump clears 2 blocks of lava; 3 needs sprint, which only works with W. Else the closest key direction.
+        val keyDir = if (gap >= 3 && player.onGround()) 0f else Math.round(Mth.wrapDegrees(yawTo - player.yRot) / 45f) * 45f
         val wantYaw = yawTo - keyDir
         walkLook = wantYaw to 80f
         val lined = abs(Mth.wrapDegrees(wantYaw - player.yRot)) < 12f
@@ -182,7 +182,12 @@ object DojoHelper : Module(
         // Mid-jump keep pushing toward the block even while still turning; letting go there drops you short.
         val go = if (air) dist > 0.35 else lined && !tooFar && dist > 0.25 + speed * 2.2
         val brake = !air && !go && closing > 0.08 && dist < 1.2
-        val atEdge = player.onGround() && !solid(player.x + nx * 0.45, supportY, player.z + nz * 0.45)
+        // Fallback when the timing never lines up: jump right before the floor runs out (hitbox half-width is 0.3).
+        val atEdge = player.onGround() && !solid(player.x + nx * 0.25, supportY, player.z + nz * 0.25)
+        val sprinting = go && gap >= 3
+        val reach = landingDistance(speed, sprinting, (target.y - supportY).toDouble())
+        // Jump when this speed's arc lands within 0.3 of the block's middle.
+        val timed = abs(reach - dist) < 0.3
         val up = target.y > supportY && dist < 1.6
 
         val dir = when {
@@ -191,8 +196,8 @@ object DojoHelper : Module(
             else -> null
         }
         pressDirection(dir?.let { Mth.wrapDegrees(it) })
-        mc.options.keySprint.setDown(go && gap >= 2)
-        val jump = lined && !tooFar && (atEdge && gap > 0 || up) && player.onGround()
+        mc.options.keySprint.setDown(sprinting)
+        val jump = lined && !tooFar && player.onGround() && (gap > 0 && (timed || atEdge) || up)
         mc.options.keyJump.setDown(jump)
         walking = true
         if (swiftDebug.value) {
@@ -200,7 +205,8 @@ object DojoHelper : Module(
                 .filter { it.second.isDown }.joinToString("") { it.first }.ifEmpty { "-" }
             debug("§a${target.toShortString()} §7${level.getBlockState(target).block.name.string} gap=$gap keys=$keys" +
                 (if (go && gap >= 2) " §bsprint" else "") + (if (jump) " §ejump" else "") + (if (brake) " §cbrake" else "") +
-                (if (!lined) " §6turning" else "") + (if (tooFar) " §ctoo far" else "") + (if (atEdge) " §dedge" else "") + (if (up) " §dup" else "") +
+                (if (!lined) " §6turning" else "") + (if (tooFar) " §ctoo far" else "") + (if (atEdge) " §dedge" else "") + (if (timed) " §dtimed" else "") +
+                " §7d=%.2f reach=%.2f".format(dist, reach) + (if (up) " §dup" else "") +
                 " §8ground=${player.onGround()} under=${level.getBlockState(under).block.name.string}@${under.y}")
         }
     }
@@ -211,6 +217,27 @@ object DojoHelper : Module(
         mc.options.keyDown.setDown(dir != null && abs(dir) >= 135f)
         mc.options.keyRight.setDown(dir != null && dir in 45f..135f)
         mc.options.keyLeft.setDown(dir != null && dir in -135f..-45f)
+    }
+
+    /**
+     * Horizontal distance a jump started now travels before coming back down to [dy] above the takeoff height, at
+     * [speed] blocks/tick, holding the move key (air control) the whole way. Sprint-jumping adds the 0.2 boost.
+     */
+    private fun landingDistance(speed: Double, sprint: Boolean, dy: Double): Double {
+        var v = speed + if (sprint) 0.2 else 0.0
+        val accel = if (sprint) 0.026 else 0.02
+        var vy = 0.42
+        var x = 0.0
+        var y = 0.0
+        repeat(40) {
+            v += accel
+            x += v
+            y += vy
+            v *= 0.91
+            vy = (vy - 0.08) * 0.98
+            if (vy < 0 && y <= dy) return x
+        }
+        return x
     }
 
     /** Blocks of missing floor at [y] along the straight line from the player to [dist] ahead. */
