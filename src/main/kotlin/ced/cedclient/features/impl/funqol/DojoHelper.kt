@@ -76,7 +76,10 @@ object DojoHelper : Module(
     private var dbgUnder: BlockPos? = null
     private val dbgSamples = ArrayList<Pair<Vec3, Boolean>>()
     private var dbgLast = ""
-    /** Swiftness blocks already stood on: they stay lime a moment after the next one spawns, so never walk back. */
+    /**
+     * Swiftness blocks stood on while still green: they stay lime a moment after the next one spawns, so don't walk
+     * back. Forgotten once they turn orange, since the snake later reuses the same spots for new blocks.
+     */
     private val visited = HashSet<BlockPos>()
 
     init {
@@ -139,6 +142,7 @@ object DojoHelper : Module(
         // betweenClosed hands out one reused mutable pos: copy each before keeping it.
         val wool = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6)).map { it.immutable() }
             .filter { level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }
+        visited.retainAll(wool.toSet())
         if (player.onGround() && under in wool) visited.add(under.immutable())
         val target = wool.filter { it != under && it !in visited }.minByOrNull { it.distToCenterSqr(player.position()) }
         if (swiftDebug.value) {
