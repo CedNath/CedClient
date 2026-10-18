@@ -10,6 +10,7 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import org.lwjgl.glfw.GLFW
+import ced.cedclient.utils.ui.TextInputHandler
 import kotlin.math.roundToLong
 
 /**
@@ -65,12 +66,22 @@ class NumberSetting(
         if (dragging) applyFromMouseX(mouseX)
 
         NVGRenderer.text(name, x + 6f, y + 4f, 14f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
-        val shown = editing?.let { "${it}_" } ?: format(value)
+        val shown = format(value)
         valueX = x + width - 6f - NVGRenderer.textWidth(shown, 14f, NVGRenderer.defaultFont)
-        NVGRenderer.text(
-            shown, valueX, y + 4f, 14f,
-            (if (editing != null) Colors.WHITE else Colors.MINECRAFT_GRAY).rgba, NVGRenderer.defaultFont
-        )
+        if (input.isActive) {
+            // A real text box over the value while typing: caret, selection, Ctrl+A / C / V / Z.
+            val boxW = maxOf(NVGRenderer.textWidth(editText, 14f, NVGRenderer.defaultFont) + 14f, 56f)
+            val boxX = x + width - 4f - boxW
+            NVGRenderer.rect(boxX, y + 2f, boxW, 18f, Colors.INPUT_BG.rgba, 4f)
+            NVGRenderer.hollowRect(boxX, y + 2f, boxW, 18f, 1f, Colors.WHITE.rgba, 4f)
+            input.x = boxX + 1f
+            input.y = y + 3f
+            input.width = boxW - 2f
+            input.height = 16f
+            input.draw(mouseX, mouseY)
+        } else {
+            NVGRenderer.text(shown, valueX, y + 4f, 14f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont)
+        }
 
         val barY = y + height - 6f
         val barHeight = 3f
@@ -84,54 +95,45 @@ class NumberSetting(
     }
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
-        if (!isHovered) {
-            commitEdit()
-            return false
+        if (input.isActive) {
+            if (input.mouseClicked(mouseX, mouseY, click)) return true
+            commitEdit() // clicked elsewhere: keep what was typed
         }
-        // Click the number itself to type a value.
+        if (!isHovered) return false
+        // Click the number itself to type a value: it starts selected, so typing replaces it.
         if (mouseX >= valueX - 6f && mouseY < lastY + 20f) {
-            if (editing == null) {
-                editing = format(value)
-                freshEdit = true
-            }
+            editText = format(value)
+            input.focus(selectAll = true)
             return true
         }
-        commitEdit()
         dragging = true
         applyFromMouseX(mouseX)
         return true
     }
 
-    // Typed value while editing; the first key replaces the shown number (like a selected field).
-    private var editing: String? = null
-    private var freshEdit = false
+    private var editText = ""
+    private val input = TextInputHandler({ editText }) { editText = it.filter { c -> c in "0123456789.-" }.take(16) }
     private var valueX = 0f
 
     private fun commitEdit() {
-        editing?.toDoubleOrNull()?.let { value = it }
-        editing = null
+        editText.toDoubleOrNull()?.let { value = it }
+        input.deactivate()
     }
 
-    override fun keyTyped(input: CharacterEvent): Boolean {
-        val text = editing ?: return false
-        val c = input.codepointAsString()
-        if (c.length != 1 || c[0] !in "0123456789.-") return true
-        editing = (if (freshEdit) "" else text) + c
-        freshEdit = false
-        return true
-    }
+    override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     override fun mouseReleased(click: MouseButtonEvent) {
         dragging = false
+        input.mouseReleased()
     }
 
     /** Hover + arrow keys: one step per press (x10 with Shift), for values a drag can't hit exactly. */
     override fun keyPressed(input: KeyEvent): Boolean {
-        editing?.let { text ->
+        if (this.input.isActive) {
             when (input.key()) {
                 GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> commitEdit()
-                GLFW.GLFW_KEY_ESCAPE -> editing = null
-                GLFW.GLFW_KEY_BACKSPACE -> { editing = if (freshEdit) "" else text.dropLast(1); freshEdit = false }
+                GLFW.GLFW_KEY_ESCAPE -> this.input.deactivate()
+                else -> this.input.keyPressed(input)
             }
             return true // typing owns the keyboard until Enter / Esc
         }

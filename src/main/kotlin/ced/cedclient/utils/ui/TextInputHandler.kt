@@ -46,7 +46,8 @@ class TextInputHandler(
 
     private var caretBlinkTime = System.currentTimeMillis()
     private var lastClickTime = 0L
-    private var isActive = false
+    var isActive = false
+        private set
     private var isDragging = false
     private var clickCount = 0
 
@@ -355,7 +356,7 @@ class TextInputHandler(
         selection = if (selectAll) 0 else caret
     }
 
-    private fun deactivate() {
+    fun deactivate() {
         isActive = false
         textOffset = 0f
         clearSelection()

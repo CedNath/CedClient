@@ -7,7 +7,11 @@ import ced.cedclient.utils.Color
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
 import com.google.gson.JsonElement
+import ced.cedclient.utils.ui.TextInputHandler
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
+import org.lwjgl.glfw.GLFW
 
 /**
  * Draws the swatch plus, when clicked, an inline HSB picker below the row --
@@ -55,6 +59,15 @@ class ColorSetting(
     private var draggingHue = false
     private var draggingAlpha = false
 
+    // Hex box under the strips: follows the picker until clicked, then typing a valid #RRGGBB / #RRGGBBAA applies
+    // it live; Esc puts back the colour from before typing.
+    private var hexText = ""
+    private var beforeEdit: Color? = null
+    private val hexInput = TextInputHandler({ hexText }) { typed ->
+        hexText = typed.uppercase().filter { it == '#' || it in "0123456789ABCDEF" }.take(9)
+        parseHex(hexText)?.let { value = it }
+    }
+
     override fun getHeight(): Float =
         if (picking) Panel.HEIGHT + PICKER_HEIGHT else Panel.HEIGHT
 
@@ -65,6 +78,7 @@ class ColorSetting(
 
     private val hueY get() = satBriY + SAT_BRI_HEIGHT + MARGIN
     private val alphaY get() = hueY + STRIP_HEIGHT + MARGIN
+    private val hexY get() = alphaY + STRIP_HEIGHT + MARGIN
 
     override fun render(x: Float, y: Float, mouseX: Float, mouseY: Float): Float {
         val height = super.render(x, y, mouseX, mouseY)
@@ -93,9 +107,44 @@ class ColorSetting(
             drawSatBriSquare()
             drawHueStrip()
             drawAlphaStrip()
+            drawHexInput(mouseX, mouseY)
         }
 
         return height
+    }
+
+    private fun drawHexInput(mouseX: Float, mouseY: Float) {
+        val editing = hexInput.isActive
+        if (!editing) {
+            hexText = if (value.alpha == 255) "#%06X".format(value.rgba and 0xFFFFFF)
+            else "#%06X%02X".format(value.rgba and 0xFFFFFF, value.alpha)
+            beforeEdit = null
+        } else if (beforeEdit == null) beforeEdit = value.copy()
+        val valid = parseHex(hexText) != null
+        val border = when {
+            editing && !valid -> Colors.MINECRAFT_RED
+            editing -> Colors.WHITE
+            else -> Colors.INPUT_BORDER
+        }
+        NVGRenderer.rect(satBriX, hexY, satBriWidth, HEX_HEIGHT, Colors.SETTING_BG.rgba, 4f)
+        NVGRenderer.hollowRect(satBriX, hexY, satBriWidth, HEX_HEIGHT, 1f, border.rgba, 4f)
+        // Swatch at the right end, so the typed colour is visible while typing.
+        val sw = HEX_HEIGHT - 6f
+        NVGRenderer.rect(satBriX + satBriWidth - sw - 3f, hexY + 3f, sw, sw, value.rgba or 0xFF000000.toInt(), 3f)
+        hexInput.x = satBriX + 2f
+        hexInput.y = hexY + 1f
+        hexInput.width = satBriWidth - sw - 10f
+        hexInput.height = HEX_HEIGHT - 2f
+        hexInput.draw(mouseX, mouseY)
+    }
+
+    /** "#RRGGBB" / "RRGGBB" (opaque) or with "AA" alpha on the end, else null. */
+    private fun parseHex(text: String): Color? {
+        val hex = text.removePrefix("#")
+        if (hex.length != 6 && hex.length != 8) return null
+        val n = hex.toLongOrNull(16) ?: return null
+        return if (hex.length == 6) Color((n.toInt() and 0xFFFFFF) or 0xFF000000.toInt())
+        else Color(((n and 0xFF) shl 24 or (n shr 8)).toInt())
     }
 
     private fun drawSatBriSquare() {
@@ -171,6 +220,9 @@ class ColorSetting(
     }
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+        // Any click: into the hex box starts typing, anywhere else stops it (keeping what was typed).
+        if (picking && hexInput.mouseClicked(mouseX, mouseY, click)) return true
+
         val headerHovered = mouseX in lastX..(lastX + width) && mouseY in lastY..(lastY + Panel.HEIGHT)
         if (headerHovered) {
             picking = !picking
@@ -202,6 +254,16 @@ class ColorSetting(
         draggingSatBri = false
         draggingHue = false
         draggingAlpha = false
+        hexInput.mouseReleased()
+    }
+
+    override fun keyTyped(input: CharacterEvent): Boolean = hexInput.keyTyped(input)
+
+    override fun keyPressed(input: KeyEvent): Boolean {
+        if (!hexInput.isActive) return false
+        if (input.key() == GLFW.GLFW_KEY_ESCAPE) beforeEdit?.let { value = it.copy() }
+        hexInput.keyPressed(input)
+        return true // typing owns the keyboard until Enter / Esc
     }
 
     override fun read(element: JsonElement, gson: Gson) {
@@ -214,7 +276,8 @@ class ColorSetting(
         private const val MARGIN = 6f
         private const val SAT_BRI_HEIGHT = 70f
         private const val STRIP_HEIGHT = 12f
-        private const val PICKER_HEIGHT = MARGIN + SAT_BRI_HEIGHT + MARGIN + STRIP_HEIGHT + MARGIN + STRIP_HEIGHT + MARGIN
+        private const val HEX_HEIGHT = 18f
+        private const val PICKER_HEIGHT = MARGIN + SAT_BRI_HEIGHT + MARGIN + STRIP_HEIGHT + MARGIN + STRIP_HEIGHT + MARGIN + HEX_HEIGHT + MARGIN
 
         // red -> yellow -> green -> cyan -> blue -> magenta (wraps back to red in drawHueStrip)
         private val HUE_STOPS = floatArrayOf(0f, 1f / 6f, 2f / 6f, 3f / 6f, 4f / 6f, 5f / 6f)
