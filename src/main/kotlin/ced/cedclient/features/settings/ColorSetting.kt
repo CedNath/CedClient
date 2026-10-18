@@ -266,8 +266,15 @@ class ColorSetting(
         return true // typing owns the keyboard until Enter / Esc
     }
 
+    /** An earlier default (0xRRGGBB): a saved colour still equal to it is moved to the current default on load. */
+    var oldDefault: Int? = null
+
     override fun read(element: JsonElement, gson: Gson) {
         value = gson.fromJson(element, Color::class.java)
+        val old = oldDefault ?: return
+        val rgb = value.rgba and 0xFFFFFF
+        // ±1 per channel: the colour goes through HSB and back when saved / loaded.
+        if ((0..16 step 8).all { s -> kotlin.math.abs((rgb shr s and 0xFF) - (old shr s and 0xFF)) <= 1 }) value = default.copy()
     }
 
     override fun write(gson: Gson): JsonElement = gson.toJsonTree(value)
