@@ -192,6 +192,9 @@ object DungeonSplits : Module(
     private var lastRunEnded = false
     /** When the end-of-run summary started (run time, ms), waiting a moment for a "Defeated" line. */
     private var summaryAt = -1L
+    /** Run time of Necron's "All this, for nothing..." (M7 fallback above), -1 until seen. */
+    private var necronDownAt = -1L
+    private var necronDownTick = -1L
     private var summarySeenAtMillis = 0L
     private var summaryTick = -1L
     /** End-of-run chat summary, posted at [summarySayAt]. */
@@ -278,18 +281,30 @@ object DungeonSplits : Module(
             }
         }
 
-        // Advance the current segment (one line can only end one segment).
-        val seg = segs.getOrNull(current) ?: return
-        val ends = seg.def.ends ?: return
-        if (ends(text)) {
-            val t = now()
+        // M7 read as F7 (no Dragons row): Necron's last line was noted, and the Wither King speaking proves it's M7.
+        if (text.startsWith("[BOSS] Necron: All this, for nothing")) { necronDownAt = now(); necronDownTick = nowTick() }
+        if (text.startsWith("[BOSS] Wither King:") && segs.none { it.def.name == "Dragons" } && necronDownAt >= 0) {
+            ced.cedclient.utils.debug.Diag.warn("Dungeon Splits", "Wither King in a run read as $floor; added the Dragons split")
+            floor = "M7"
+            segs.getOrNull(current)?.takeIf { it.running }?.let { it.end = necronDownAt; it.endTick = necronDownTick }
+            segs = segs + Seg(boss("Dragons", 0xAA00AA, 57.0)).also { it.start = necronDownAt; it.startTick = necronDownTick }
+            current = segs.lastIndex
+            return
+        }
+
+        // Advance (one line ends one segment). If a later segment's end line shows up, an earlier trigger was missed:
+        // close everything up to it here, skipped ones without a time, so the next split still starts on time.
+        val hit = (current until segs.size).firstOrNull { segs[it].def.ends?.invoke(text) == true } ?: return
+        val t = now()
+        val tk = nowTick()
+        for (i in current..hit) {
+            val seg = segs[i]
             seg.end = t
-            val tk = nowTick()
             seg.endTick = tk
             if (seg.def.name == "Terminals" && section <= 4) { sections[4] = t; sectionTicks[4] = tk }
-            current++
-            segs.getOrNull(current)?.let { it.start = t; it.startTick = tk }
         }
+        current = hit + 1
+        segs.getOrNull(current)?.let { it.start = t; it.startTick = tk }
     }
 
     private fun tick() {
@@ -337,6 +352,8 @@ object DungeonSplits : Module(
         section = 1
         sectionTermsDone = false
         sectionGateDown = false
+        necronDownAt = -1L
+        necronDownTick = -1L
         ensureFloor()
     }
 
@@ -361,17 +378,17 @@ object DungeonSplits : Module(
         val pb = data.pbs[f]
         if (clear) {
             val runs = data.history.getOrPut(f) { mutableListOf() }
-            runs += segs.filter { it.done }.associate { it.def.name to it.time(t) }
+            runs += segs.filter { it.done && it.start >= 0 }.associate { it.def.name to it.time(t) }
             while (runs.size > HISTORY_SIZE) runs.removeAt(0)
         }
         val newPb = clear && (pb == null || t < pb.total)
-        if (newPb) data.pbs[f] = PbRun(t, segs.filter { it.done }.associate { it.def.name to it.time(t) })
+        if (newPb) data.pbs[f] = PbRun(t, segs.filter { it.done && it.start >= 0 }.associate { it.def.name to it.time(t) })
         if (clear) persist()
         if (isEnabled && chatSummary.value) {
             val delta = if (clear && pb != null) " " + deltaText(t - pb.total, chat = true) else ""
             // Held back until Hypixel's end-of-run block has finished printing, so it isn't split in the middle.
             pendingSummary += "§f$f ${if (clear) "cleared" else "§cfailed§f"} in §e${fmtTotal(t)}$delta" + if (newPb) " §a§lNEW PB!" else ""
-            pendingSummary += segs.filter { it.done }.joinToString(" §8| ") { "${mcColor(it.def.color)}${it.def.name} §f${fmtSeg(it.time(t))}" }
+            pendingSummary += segs.filter { it.done && it.start >= 0 }.joinToString(" §8| ") { "${mcColor(it.def.color)}${it.def.name} §f${fmtSeg(it.time(t))}" }
             pendingSummary += "§7Lag lost: §c${fmtSeg(lagLost(t, atTick))}"
             summarySayAt = System.currentTimeMillis() + SUMMARY_DELAY_MS
         }
