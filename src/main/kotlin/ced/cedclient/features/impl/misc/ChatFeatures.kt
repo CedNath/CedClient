@@ -63,19 +63,20 @@ object ChatFeatures : Module(
     private val saveHistory = BooleanSetting("Save Between Launches", true, "Restores your chat (and sent messages) the first time you join after starting the game.")
     private val savedLines = NumberSetting("Lines To Save", 10000.0, 1000.0, 30000.0, 1000.0).withDependency { saveHistory.value }
     private val divider = BooleanSetting("Server Divider", true, "A [server] line in chat every time you join.")
+    private val compactRepeats = BooleanSetting("Compact Repeats", true, "The same message again shows once with (x2), (x3) instead of filling chat.")
     private val menu = BooleanSetting("Right-Click Menu", true, "Right-click a message in chat: copy it, copy the sender or a link, or reply.")
     private val timestamps = BooleanSetting("Show Timestamps", false, "The time each message came in, in front of it. Restored chat keeps its original times.")
     private val timeFormat = DropdownSetting("Time Format", listOf("HH:mm:ss", "HH:mm"), "HH:mm:ss").withDependency { timestamps.value }
     private val timeColor = ColorSetting("Timestamp Color", Color(170, 170, 170)).withDependency { timestamps.value }
     private val ctrlCopy = BooleanSetting("Ctrl + Click Copy", true, "Ctrl + left-click a message in chat to copy it.")
 
-    private val historySettings: List<RenderableSetting<*>> = listOf(maxLines, keepOnDisconnect, saveHistory, savedLines, divider)
+    private val historySettings: List<RenderableSetting<*>> = listOf(maxLines, keepOnDisconnect, saveHistory, savedLines, divider, compactRepeats)
     private val timeSettings: List<RenderableSetting<*>> = listOf(timestamps, timeFormat, timeColor)
     private val clickSettings: List<RenderableSetting<*>> = listOf(menu, ctrlCopy)
 
     private fun popup(popup: SettingsPopup) { (mc.screen as? ClickGUI)?.openPopup(popup) }
 
-    private val historyButton = ActionSetting("History", "Max lines, keep on disconnect, save between launches, server divider.") {
+    private val historyButton = ActionSetting("History", "Max lines, keep on disconnect, save between launches, server divider, compact repeats.") {
         popup(SettingsPopup("Chat History", listOf(listOf(SettingsPopup.Section("History", historySettings)))))
     }
     private val timeButton = ActionSetting("Timestamps", "Time in front of each message: on / off, format, colour.") {
@@ -100,6 +101,7 @@ object ChatFeatures : Module(
 
     @JvmStatic fun maxLines(vanilla: Int): Int = if (isEnabled) maxLines.value.toInt() else vanilla
     @JvmStatic fun extendsHistory(): Boolean = isEnabled
+    @JvmStatic fun compactRepeats(): Boolean = isEnabled && compactRepeats.value
     @JvmStatic fun keepOnDisconnect(): Boolean = isEnabled && keepOnDisconnect.value
 
     private val mc get() = Minecraft.getInstance()

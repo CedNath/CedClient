@@ -78,7 +78,6 @@ object ChatPing : HudElement {
     )
 
     // "[MVP+] Name: hi", "Party > [VIP] Name [Tag]: hi", "Guild > Name: hi", vanilla "<Name> hi"
-    private val senderRegex = Regex("""^(?:(?:Guild|Party|Co-op|Officer) > )?(?:\[[^\]]+] )*(\w{1,16})(?: \[[^\]]+])*\s*:|^<(\w{1,16})> """)
 
     // ---- alerts ----
 
@@ -198,12 +197,18 @@ object ChatPing : HudElement {
         if (alert.copyLine.value) Minecraft.getInstance().keyboardHandler.clipboard = text
     }
 
-    /** A chat line you sent: the sender before the colon is you. */
+    /**
+     * A line about you: after the channel ("Party > "), rank / level brackets and symbols (♲, emblems), the first word
+     * is your name -- your chat ("[MVP++] You: hi") and your own actions ("[MVP++] You created a BIN auction").
+     * Your outgoing DMs ("To [MVP+] Friend: ...") count too.
+     */
     private fun isOwnMessage(text: String): Boolean {
-        val m = senderRegex.find(text) ?: return false
-        val sender = m.groupValues[1].ifEmpty { m.groupValues[2] }
-        return sender.equals(Minecraft.getInstance().user?.name, ignoreCase = true)
+        if (text.startsWith("To ")) return true
+        val first = leadNameRegex.find(text)?.groupValues?.get(1) ?: return false
+        return first.equals(Minecraft.getInstance().user?.name, ignoreCase = true)
     }
+
+    private val leadNameRegex = Regex("""^(?:(?:Guild|Party|Co-op|Officer) > )?(?:\[[^\]]*]\s*|[^\w\s\[]+\s*)*(\w{1,16})\b""")
 
     private fun playSound(id: String, volume: Float, pitch: Float) {
         if (id.isBlank()) return
