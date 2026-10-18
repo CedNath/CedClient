@@ -36,8 +36,8 @@ object Theme : Module(
 ) {
     override val alwaysEnabled = true
 
-    val guiAccent = ColorSetting("GUI Accent", Color(110, 50, 200), "Enabled modules, popups and other ClickGUI highlights.")
-    val hudAccent = ColorSetting("HUD Accent", Color(0x8A, 0x7F, 0xFF), "Badges, dividers and outlines on the HUD panels.")
+    val guiAccent = ColorSetting("GUI Accent", Color(0x69, 0x00, 0x00), "Enabled modules, popups and other ClickGUI highlights.")
+    val hudAccent = ColorSetting("HUD Accent", Color(0xFF, 0x80, 0x80), "Badges, dividers and outlines on the HUD panels.")
 
     val openAnimation = DropdownSetting(
         "Open Animation",
@@ -55,6 +55,7 @@ object Theme : Module(
         "How popups (filters, block picker, settings) appear."
     )
     val animationSpeed = NumberSetting("Animation Speed", 0.6, 0.25, 3.0, 0.05, "Higher is faster. Applies to both animations.")
+    val hudOutlines = BooleanSetting("HUD Outlines", false, "A thin outline in the HUD accent around Compact Tab and Compact Scoreboard.")
     val menuBlur = BooleanSetting("Menu Blur", true, "Blur the game behind the CedClient menu.")
     val blurStrength = NumberSetting("Blur Strength", 3.0, 1.0, 10.0, 1.0, "How strong the menu blur is.").withDependency { menuBlur.value }
 
@@ -83,7 +84,7 @@ object Theme : Module(
     }
 
     init {
-        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, menuBlur, blurStrength, resetModule, resetEverything)
+        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, hudOutlines, menuBlur, blurStrength, resetModule, resetEverything)
         // Animation tuning only shows with Advanced Mode on.
         listOf(openAnimation, popupAnimation, animationSpeed).forEach { it.advanced = true }
     }
