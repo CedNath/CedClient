@@ -11,12 +11,14 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
+import net.minecraft.core.BlockPos
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.monster.skeleton.WitherSkeleton
 import net.minecraft.world.entity.monster.zombie.Zombie
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Items
+import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -28,16 +30,18 @@ import kotlin.math.sqrt
  *    -> Wooden / Iron / Golden / Diamond Sword from your hotbar. Only switches; you still hit.
  *  - Test of Control: keeps your aim on the Wither Skeleton (plain skeletons are decoys), leading its movement a few
  *    ticks, so when it jumps to a new spot the aim follows straight there.
+ *  - Test of Swiftness: walks to each new green wool block (the old ones turn orange then red), sprint-jumping gaps.
  */
 object DojoHelper : Module(
     "Dojo Helper",
     Category.Cheats,
-    "Discipline: switches to the right sword for the zombie you look at. Control: aims at the Wither Skeleton."
+    "Discipline: switches to the right sword for the zombie you look at. Control: aims at the Wither Skeleton. Swiftness: walks to the green wool."
 ) {
     private val mc get() = Minecraft.getInstance()
 
     private val discipline = BooleanSetting("Discipline Sword Swap", true, "Pick the sword that matches the helmet of the zombie you look at.")
     private val control = BooleanSetting("Control Aim", true, "Keep your aim on the Wither Skeleton, not the decoy skeletons.")
+    private val swiftness = BooleanSetting("Swiftness Auto Walk", true, "Walk and jump onto each new green wool block by itself.")
     private val prediction = NumberSetting("Prediction Ticks", 2.0, 0.0, 6.0, 0.5, "Aim this many ticks ahead of the skeleton's movement.")
     private val smoothnessMs = NumberSetting("Aim Smoothness ms", 60.0, 10.0, 300.0, 10.0, "Lower snaps faster.")
 
@@ -51,10 +55,12 @@ object DojoHelper : Module(
     private var look: HumanLook? = null
     private var lastFrameNanos = 0L
     private var aimTarget: WitherSkeleton? = null
+    private var aimPoint: Vec3? = null
+    private var walking = false
 
     init {
         smoothnessMs.advanced = true
-        addSettings(discipline, control, prediction, smoothnessMs)
+        addSettings(discipline, control, swiftness, prediction, smoothnessMs)
 
         ClientTickEvents.END_CLIENT_TICK.register { if (isEnabled) tick() }
         // Aim every rendered frame, so it doesn't step at 20 Hz.
@@ -63,7 +69,9 @@ object DojoHelper : Module(
 
     override fun onDisable() {
         aimTarget = null
+        aimPoint = null
         look = null
+        stopWalking()
     }
 
     private fun challenge(name: String) = Sidebar.lines.any { it.contains("Challenge: $name") }
@@ -74,7 +82,9 @@ object DojoHelper : Module(
             mc.level?.entitiesForRendering()?.filterIsInstance<WitherSkeleton>()
                 ?.filter { it.isAlive }?.minByOrNull { player.distanceTo(it) }
         } else null
-        if (aimTarget == null) look = null
+        aimPoint = null
+        if (swiftness.value && challenge("Swiftness")) walkToWool(player) else stopWalking()
+        if (aimTarget == null && aimPoint == null) look = null
 
         if (discipline.value && challenge("Discipline")) {
             val zombie = mc.level?.entitiesForRendering()?.filterIsInstance<Zombie>()
@@ -87,15 +97,46 @@ object DojoHelper : Module(
         }
     }
 
+    /** Nearest green wool other than the block underfoot; walk + face it, jump when it's not right next to us. */
+    private fun walkToWool(player: LocalPlayer) {
+        val level = mc.level ?: return
+        val feet = player.blockPosition()
+        val under = BlockPos.containing(player.x, player.y - 0.2, player.z)
+        val target = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6))
+            .filter { it != under && level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }
+            .minByOrNull { it.distToCenterSqr(player.position()) }?.immutable()
+        if (target == null) {
+            stopWalking()
+            return
+        }
+        val center = Vec3.atBottomCenterOf(target.above())
+        val dx = center.x - player.x
+        val dz = center.z - player.z
+        val dist = sqrt(dx * dx + dz * dz)
+        // Look a little below eye level toward the block so the pitch stays natural.
+        aimPoint = center.add(0.0, player.eyeHeight * 0.4, 0.0)
+        val gap = dist > 1.4 || target.y >= under.y + 1
+        mc.options.keyUp.setDown(dist > 0.3)
+        mc.options.keySprint.setDown(gap)
+        mc.options.keyJump.setDown(gap && player.onGround())
+        walking = true
+    }
+
+    private fun stopWalking() {
+        if (!walking) return
+        walking = false
+        for (key in listOf(mc.options.keyUp, mc.options.keySprint, mc.options.keyJump)) key.setDown(false)
+    }
+
     private fun aim() {
         val player = mc.player ?: return
-        val target = aimTarget?.takeIf { it.isAlive } ?: return
+        val point = aimTarget?.takeIf { it.isAlive }?.let { predicted(it) } ?: aimPoint ?: return
         val l = look ?: HumanLook((smoothnessMs.value / 1000.0).toFloat(), 2000f, 0.2f).also { look = it; lastFrameNanos = 0L }
         val now = System.nanoTime()
         var dt = if (lastFrameNanos == 0L) 1f / 60f else (now - lastFrameNanos) / 1_000_000_000f
         lastFrameNanos = now
         if (dt <= 0f || dt > 0.1f) dt = 1f / 60f
-        val (yaw, pitch) = anglesTo(player, predicted(target))
+        val (yaw, pitch) = anglesTo(player, point)
         val (newYaw, newPitch) = l.step(player.yRot, player.xRot, yaw, pitch, dt)
         player.yRot = newYaw
         player.xRot = newPitch
