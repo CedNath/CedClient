@@ -98,9 +98,22 @@ val legitSourceSet = sourceSets.create("legit") {
     java.setSrcDirs(listOf(legitJavaDir))
     resources.setSrcDirs(listOf("src/main/resources"))
     compileClasspath += sourceSets.main.get().compileClasspath
-    runtimeClasspath += sourceSets.main.get().runtimeClasspath
+    // Main's libraries, but not main's own (cheat) classes, or runLegitClient would load both builds.
+    runtimeClasspath += sourceSets.main.get().runtimeClasspath - sourceSets.main.get().output
 }
 kotlin.sourceSets.named("legit") { kotlin.setSrcDirs(listOf(legitKotlinDir)) }
+
+// gradlew runClient = cheat build, gradlew runLegitClient = legit build (same run/ folder, same -Pdevauth flag).
+loom {
+    runs {
+        create("legitClient") {
+            client()
+            configName = "Minecraft Client (Legit)"
+            source(legitSourceSet)
+            vmArg("-Ddevauth.enabled=" + (findProperty("devauth") ?: "1"))
+        }
+    }
+}
 tasks.named<KotlinCompile>("compileLegitKotlin") {
     dependsOn(preprocessLegitSources)
     // Kotlin refers to the (preprocessed) Java classes too, e.g. mixin accessors.
