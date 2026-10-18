@@ -91,9 +91,13 @@ object DojoHelper : Module(
         ClientTickEvents.END_CLIENT_TICK.register { if (isEnabled) tick() }
         // Aim and sword checks every rendered frame, so they don't step at 20 Hz.
         LevelRenderEvents.START_MAIN.register { if (isEnabled) frame() }
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { ctx ->
-            if (isEnabled && swiftDebug.value && challenge("Swiftness")) drawDebug(ctx.poseStack(), ctx.bufferSource(), ctx.gameRenderer().mainCamera.position())
-        })
+        // 26.2: lines go through the SubmitNodeCollector in COLLECT_SUBMITS (see BlockESPRenderer).
+        LevelRenderEvents.COLLECT_SUBMITS.register { ctx ->
+            if (isEnabled && swiftDebug.value && challenge("Swiftness")) {
+                val cam = ctx.gameRenderer().mainCamera().position()
+                ctx.submitNodeCollector().submitCustomGeometry(ctx.poseStack(), CustomRenderType.LINES_ESP) { pose, buf -> drawDebug(pose, buf, cam) }
+            }
+        }
     }
 
     override fun onDisable() {
@@ -145,7 +149,7 @@ object DojoHelper : Module(
         val under = BlockPos.containing(player.x, player.y - 0.2, player.z)
         // betweenClosed hands out one reused mutable pos: copy each before keeping it.
         val wool = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6)).map { it.immutable() }
-            .filter { level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }
+            .filter { level.getBlockState(it).block.let { b -> b == Blocks.WOOL.lime() || b == Blocks.WOOL.green() } }
         visited.retainAll(wool.toSet())
         if (player.onGround() && under in wool) visited.add(under.immutable())
         val target = wool.filter { it != under && it !in visited }.minByOrNull { it.distToCenterSqr(player.position()) }
@@ -290,10 +294,9 @@ object DojoHelper : Module(
         mc.player?.sendSystemMessage(ChatPrefix.msg("§8[swift] $msg"))
     }
 
-    private fun drawDebug(pose: com.mojang.blaze3d.vertex.PoseStack, buffers: net.minecraft.client.renderer.MultiBufferSource.BufferSource, cam: Vec3) {
-        val buf = buffers.getBuffer(CustomRenderType.LINES_ESP)
+    private fun drawDebug(pose: com.mojang.blaze3d.vertex.PoseStack.Pose, buf: com.mojang.blaze3d.vertex.VertexConsumer, cam: Vec3) {
         fun line(a: Vec3, b: Vec3, rgb: Int) {
-            val m = pose.last().pose()
+            val m = pose.pose()
             val n = b.subtract(a).normalize()
             val r = (rgb shr 16 and 255) / 255f
             val g = (rgb shr 8 and 255) / 255f
@@ -318,8 +321,7 @@ object DojoHelper : Module(
             box(AABB(t).inflate(0.05), 0x55FFFF)
             mc.player?.let { p -> line(p.position().add(0.0, 0.05, 0.0), Vec3(t.x + 0.5, t.y + 1.0, t.z + 0.5), 0x55FFFF) }
         }
-        for ((p, ok) in dbgSamples) box(AABB(p, p).inflate(0.06), if (ok) 0x55FF55 else 0xFF5555)
-        buffers.endBatch()
+        for ((p, ok) in dbgSamples.toList()) box(AABB(p, p).inflate(0.06), if (ok) 0x55FF55 else 0xFF5555)
     }
 
     private fun stopWalking() {
