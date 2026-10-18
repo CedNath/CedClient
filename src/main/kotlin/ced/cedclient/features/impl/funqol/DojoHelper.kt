@@ -204,7 +204,7 @@ object DojoHelper : Module(
             val keys = listOf("W" to mc.options.keyUp, "A" to mc.options.keyLeft, "S" to mc.options.keyDown, "D" to mc.options.keyRight)
                 .filter { it.second.isDown }.joinToString("") { it.first }.ifEmpty { "-" }
             debug("§a${target.toShortString()} §7${level.getBlockState(target).block.name.string} gap=$gap keys=$keys" +
-                (if (go && gap >= 2) " §bsprint" else "") + (if (jump) " §ejump" else "") + (if (brake) " §cbrake" else "") +
+                (if (sprinting) " §bsprint" else "") + (if (jump) " §ejump" else "") + (if (brake) " §cbrake" else "") +
                 (if (!lined) " §6turning" else "") + (if (tooFar) " §ctoo far" else "") + (if (atEdge) " §dedge" else "") + (if (timed) " §dtimed" else "") +
                 " §7d=%.2f reach=%.2f".format(dist, reach) + (if (up) " §dup" else "") +
                 " §8ground=${player.onGround()} under=${level.getBlockState(under).block.name.string}@${under.y}")
