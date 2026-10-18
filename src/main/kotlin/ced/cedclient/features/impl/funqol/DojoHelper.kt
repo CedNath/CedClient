@@ -32,8 +32,8 @@ import kotlin.math.sqrt
  *    Gold / Diamond -> Wooden / Iron / Golden / Diamond Sword from your hotbar. Checked every frame; you still hit.
  *  - Test of Control: keeps your aim on the Wither Skeleton that keeps moving (the dummies stand still), leading its
  *    movement a few ticks.
- *  - Test of Swiftness: walks to each new green wool block (the old ones turn orange then red), jumping at the edge
- *    of a gap and braking so it doesn't slide off into the lava.
+ *  - Test of Swiftness: looks down and WASD-walks to each new green wool block (the old ones turn orange then red),
+ *    jumping at the edge of a gap and braking so it doesn't slide off into the lava.
  */
 object DojoHelper : Module(
     "Dojo Helper",
@@ -46,7 +46,9 @@ object DojoHelper : Module(
     private val control = BooleanSetting("Control Aim", true, "Keep your aim on the moving Wither Skeleton, not the dummies.")
     private val swiftness = BooleanSetting("Swiftness Auto Walk", true, "Walk and jump onto each new green wool block by itself.")
     private val prediction = NumberSetting("Prediction Ticks", 2.0, 0.0, 6.0, 0.5, "Aim this many ticks ahead of the skeleton's movement.")
-    private val smoothnessMs = NumberSetting("Aim Smoothness ms", 60.0, 10.0, 300.0, 10.0, "Lower snaps faster.")
+    private val range = NumberSetting("Control Range", 12.0, 4.0, 30.0, 1.0, "Only aim at Wither Skeletons this close, so it stays off things outside the arena.")
+    // New name so configs saved with the old 60 ms snappy default pick up the smoother one.
+    private val smoothnessMs = NumberSetting("Aim Smoothness", 220.0, 40.0, 600.0, 10.0, "Milliseconds to settle on the target; higher is smoother.")
 
     private val swordFor = mapOf<Item, Item>(
         Items.LEATHER_HELMET to Items.WOODEN_SWORD,
@@ -58,14 +60,14 @@ object DojoHelper : Module(
     private var look: HumanLook? = null
     private var lastFrameNanos = 0L
     private var aimTarget: WitherSkeleton? = null
-    private var aimPoint: Vec3? = null
+    /** Swiftness look: (yaw, pitch) to turn to, or null. */
+    private var walkLook: Pair<Float, Float>? = null
     private var walking = false
     /** Wither Skeleton id -> how much it has moved lately (decaying sum of per-tick distance). */
     private val movement = HashMap<Int, Double>()
 
     init {
-        smoothnessMs.advanced = true
-        addSettings(discipline, control, swiftness, prediction, smoothnessMs)
+        addSettings(discipline, control, swiftness, range, smoothnessMs, prediction)
 
         ClientTickEvents.END_CLIENT_TICK.register { if (isEnabled) tick() }
         // Aim and sword checks every rendered frame, so they don't step at 20 Hz.
@@ -74,7 +76,7 @@ object DojoHelper : Module(
 
     override fun onDisable() {
         aimTarget = null
-        aimPoint = null
+        walkLook = null
         look = null
         movement.clear()
         stopWalking()
@@ -86,14 +88,14 @@ object DojoHelper : Module(
         val player = mc.player ?: return
         aimTarget = if (control.value && challenge("Control")) pickSkeleton(player) else null
         if (aimTarget == null) movement.clear()
-        aimPoint = null
+        walkLook = null
         if (swiftness.value && challenge("Swiftness")) walkToWool(player) else stopWalking()
-        if (aimTarget == null && aimPoint == null) look = null
+        if (aimTarget == null && walkLook == null) look = null
     }
 
     /** The Wither Skeleton that has moved the most lately; sticks with the current one unless another clearly moves more. */
     private fun pickSkeleton(player: LocalPlayer): WitherSkeleton? {
-        val skeletons = mc.level?.entitiesForRendering()?.filterIsInstance<WitherSkeleton>()?.filter { it.isAlive } ?: return null
+        val skeletons = mc.level?.entitiesForRendering()?.filterIsInstance<WitherSkeleton>()?.filter { it.isAlive && player.distanceTo(it) <= range.value } ?: return null
         movement.keys.retainAll(skeletons.map { it.id }.toSet())
         for (s in skeletons) {
             val moved = s.position().distanceTo(Vec3(s.xOld, s.yOld, s.zOld))
@@ -107,7 +109,10 @@ object DojoHelper : Module(
         return if ((movement[best.id] ?: 0.0) > cur * 1.5 + 0.3) best else current
     }
 
-    /** Nearest green wool other than the block underfoot: face it, walk, jump at a gap's edge, brake on arrival. */
+    /**
+     * Nearest green wool other than the block underfoot. Looks down and turns only as far as needed so the block lies
+     * straight along one of the 8 WASD directions, holds those keys, jumps at a gap's edge and brakes on arrival.
+     */
     private fun walkToWool(player: LocalPlayer) {
         val level = mc.level ?: return
         val feet = player.blockPosition()
@@ -122,29 +127,44 @@ object DojoHelper : Module(
             stopWalking()
             return
         }
-        // Look at a point a bit above the block so the pitch stays natural while walking.
-        aimPoint = Vec3(target.x + 0.5, target.y + 1.0 + player.eyeHeight * 0.4, target.z + 0.5)
+        val nx = dx / dist
+        val nz = dz / dist
+        val supportY = if (player.onGround()) under.y else target.y
+        val gap = gapLength(player, nx, nz, dist, supportY)
 
         val yawTo = Math.toDegrees(atan2(dz, dx)).toFloat() - 90f
-        val facing = abs(Mth.wrapDegrees(yawTo - player.yRot)) < 25f
+        // Long gaps need sprint, which only works with W; otherwise use whichever key direction is closest.
+        val keyDir = if (gap >= 2) 0f else Math.round(Mth.wrapDegrees(yawTo - player.yRot) / 45f) * 45f
+        val wantYaw = yawTo - keyDir
+        walkLook = wantYaw to 80f
+        val lined = abs(Mth.wrapDegrees(wantYaw - player.yRot)) < 12f
+
         val v = player.deltaMovement
         val speed = sqrt(v.x * v.x + v.z * v.z)
-        // Speed toward the block; positive while closing in.
-        val closing = if (dist > 1e-3) (v.x * dx + v.z * dz) / dist else 0.0
-
+        val closing = v.x * nx + v.z * nz
         // Ground friction leaves roughly 2.2x the current speed of slide after letting go.
-        val forward = facing && dist > 0.25 + speed * 2.2
-        val brake = !forward && closing > 0.08 && dist < 1.2
-        val supportY = if (player.onGround()) under.y else target.y
-        val gap = gapLength(player, dx / dist, dz / dist, dist, supportY)
-        val atEdge = player.onGround() && !solid(player.x + dx / dist * 0.45, supportY, player.z + dz / dist * 0.45)
+        val go = lined && dist > 0.25 + speed * 2.2
+        val brake = !go && closing > 0.08 && dist < 1.2
+        val atEdge = player.onGround() && !solid(player.x + nx * 0.45, supportY, player.z + nz * 0.45)
         val up = target.y > supportY && dist < 1.6
 
-        mc.options.keyUp.setDown(forward)
-        mc.options.keyDown.setDown(brake)
-        mc.options.keySprint.setDown(forward && gap >= 2)
-        mc.options.keyJump.setDown(facing && (atEdge && gap > 0 || up) && player.onGround())
+        val dir = when {
+            go -> keyDir
+            brake -> keyDir + 180f
+            else -> null
+        }
+        pressDirection(dir?.let { Mth.wrapDegrees(it) })
+        mc.options.keySprint.setDown(go && gap >= 2)
+        mc.options.keyJump.setDown(lined && (atEdge && gap > 0 || up) && player.onGround())
         walking = true
+    }
+
+    /** Hold the WASD keys for [dir] degrees relative to where the player faces (0 = W, 90 = D), or none for null. */
+    private fun pressDirection(dir: Float?) {
+        mc.options.keyUp.setDown(dir != null && abs(dir) <= 45f)
+        mc.options.keyDown.setDown(dir != null && abs(dir) >= 135f)
+        mc.options.keyRight.setDown(dir != null && dir in 45f..135f)
+        mc.options.keyLeft.setDown(dir != null && dir in -135f..-45f)
     }
 
     /** Blocks of missing floor at [y] along the straight line from the player to [dist] ahead. */
@@ -169,7 +189,7 @@ object DojoHelper : Module(
     private fun stopWalking() {
         if (!walking) return
         walking = false
-        for (key in listOf(mc.options.keyUp, mc.options.keyDown, mc.options.keySprint, mc.options.keyJump)) key.setDown(false)
+        for (key in listOf(mc.options.keyUp, mc.options.keyDown, mc.options.keyLeft, mc.options.keyRight, mc.options.keySprint, mc.options.keyJump)) key.setDown(false)
     }
 
     private fun frame() {
@@ -177,13 +197,12 @@ object DojoHelper : Module(
         val pt = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
         if (discipline.value && challenge("Discipline")) swapSword(player, pt)
 
-        val point = aimTarget?.takeIf { it.isAlive }?.let { predicted(it, pt) } ?: aimPoint ?: return
-        val l = look ?: HumanLook((smoothnessMs.value / 1000.0).toFloat(), 2000f, 0f).also { look = it; lastFrameNanos = 0L }
+        val (yaw, pitch) = aimTarget?.takeIf { it.isAlive }?.let { anglesTo(player.getEyePosition(pt), predicted(it, pt)) } ?: walkLook ?: return
+        val l = look ?: HumanLook((smoothnessMs.value / 1000.0).toFloat(), 540f, 0f).also { look = it; lastFrameNanos = 0L }
         val now = System.nanoTime()
         var dt = if (lastFrameNanos == 0L) 1f / 60f else (now - lastFrameNanos) / 1_000_000_000f
         lastFrameNanos = now
         if (dt <= 0f || dt > 0.1f) dt = 1f / 60f
-        val (yaw, pitch) = anglesTo(player.getEyePosition(pt), point)
         val (newYaw, newPitch) = l.step(player.yRot, player.xRot, yaw, pitch, dt)
         player.yRot = newYaw
         player.xRot = newPitch
@@ -208,7 +227,8 @@ object DojoHelper : Module(
 
     /** Middle of [e] at this frame, [prediction] ticks ahead along its last tick's movement. */
     private fun predicted(e: Entity, pt: Float): Vec3 {
-        val moved = e.position().subtract(e.xOld, e.yOld, e.zOld)
+        // Ignore teleports: leading by a whole jump would swing the aim past the skeleton.
+        val moved = e.position().subtract(e.xOld, e.yOld, e.zOld).let { if (it.length() > 1.0) Vec3.ZERO else it }
         return e.getPosition(pt).add(moved.scale(prediction.value)).add(0.0, e.bbHeight / 2.0, 0.0)
     }
 
