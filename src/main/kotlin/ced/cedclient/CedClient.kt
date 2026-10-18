@@ -7,19 +7,28 @@ import ced.cedclient.commands.CedClientCommand
 import ced.cedclient.config.CedPaths
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.ModuleManager
+//#if CHEAT
 import ced.cedclient.features.impl.funqol.CoralotHelper
+//#endif
 import ced.cedclient.features.impl.funqol.DungeonSplits
 import ced.cedclient.features.impl.funqol.PositionalMessages
+//#if CHEAT
 import ced.cedclient.features.impl.funqol.SecretHitboxes
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
 import ced.cedclient.features.impl.funqol.PlayerScale
 import ced.cedclient.features.impl.funqol.TinyDancerHelper
+//#endif
 import ced.cedclient.features.impl.funqol.F7SoundCap
+//#if CHEAT
 import ced.cedclient.features.impl.funqol.TropicalFishHelper
+//#endif
 import ced.cedclient.features.impl.funqol.CustomHypeSound
 import ced.cedclient.features.impl.misc.SearchOverlay
+//#if LEGIT
+//$import ced.cedclient.features.impl.funqol.PlayerScale
+//#endif
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.features.impl.misc.AutoSprint
@@ -39,19 +48,28 @@ import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.ScreenshotTweaks
 import ced.cedclient.features.impl.misc.WarpShortcuts
+//#if CHEAT
 import ced.cedclient.features.impl.render.BlockESP
+//#endif
 import ced.cedclient.features.impl.render.HudElement
+//#if CHEAT
 import ced.cedclient.features.impl.render.StarredMobHighlight
 import ced.cedclient.features.impl.render.BlockESPRenderer
+//#endif
 import ced.cedclient.features.impl.render.ChatChannelHud
 import ced.cedclient.features.impl.render.CompactScoreboard
 import ced.cedclient.features.impl.render.CompactTab
+//#if CHEAT
 import ced.cedclient.features.impl.render.EntityESP
 import ced.cedclient.features.impl.render.EntityESPHud
 import ced.cedclient.features.impl.render.EntityESPLabels
 import ced.cedclient.features.impl.render.EntityESPRenderer
 import ced.cedclient.features.impl.render.Freecam
+//#endif
 import ced.cedclient.features.impl.render.CosmeticBlocks
+//#if LEGIT
+//$import ced.cedclient.features.impl.render.StarredMobHighlight
+//#endif
 import ced.cedclient.features.impl.render.FloorDrops
 import ced.cedclient.features.impl.render.Fullbright
 import ced.cedclient.features.impl.render.HardcodedCosmetics
@@ -71,7 +89,9 @@ import ced.cedclient.ui.inventory.InventoryButtonManager
 import ced.cedclient.utils.PingTracker
 import ced.cedclient.utils.TabListCache
 import ced.cedclient.utils.UsageStats
+//#if CHEAT
 import ced.cedclient.utils.debug.MouseLookDebugger
+//#endif
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -140,13 +160,17 @@ class CedClient : ClientModInitializer {
             NVGSpecialRenderer(NVGSpecialRenderer.TooltipState::class.java)
         }
 
+//#if CHEAT
         MouseLookDebugger.register()
+//#endif
     }
 
     private fun registerModules() {
+//#if CHEAT
         EntityESPRenderer.register()
         EntityESPHud.load()
         BlockESPRenderer.register()
+//#endif
 
         // Registration order = order inside each ClickGUI panel, so related modules sit together.
 
@@ -176,7 +200,11 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(PlayerScale)
 
+//#if CHEAT
         // Skyblock: dungeons, sounds, menus
+//#else
+//$        // Skyblock: dungeons
+//#endif
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
         ModuleManager.register(F7SoundCap)
@@ -202,6 +230,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(ResetPanels)
 
+//#if CHEAT
         // Cheats: ESP, camera, then the auto-catch / auto-play helpers (left out of the Legit build)
         ModuleManager.register(EntityESP)
         ModuleManager.register(BlockESP)
@@ -222,6 +251,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoFusion)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AnvilHelper)
 
+//#endif
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)
         try {
             ModuleManager.modules
@@ -237,12 +267,14 @@ class CedClient : ClientModInitializer {
         ) { graphics, _ ->
             HudElement.all.forEach { it.keepOnScreen(graphics.guiWidth(), graphics.guiHeight()) }
         }
+//#if CHEAT
         // Friends-only like the module itself (touching FarmHelper would set it up for everyone).
         if (ced.cedclient.utils.DevAccess.isFriend) HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "farmhelper")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
         }
+//#endif
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")
         ) { graphics, tickCounter ->
@@ -253,8 +285,11 @@ class CedClient : ClientModInitializer {
         ) { graphics, tickCounter ->
             PositionalMessages.render(graphics, tickCounter)
         }
+//#if CHEAT
         // First, so HUD panels draw over the floating entity labels.
+//#endif
         HudElementRegistry.addLast(
+//#if CHEAT
             Identifier.fromNamespaceAndPath("cedclient", "entity_esp_labels")
         ) { graphics, tickCounter ->
             EntityESPLabels.render(graphics, tickCounter)
@@ -265,6 +300,7 @@ class CedClient : ClientModInitializer {
             EntityESPHud.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
+//#endif
             Identifier.fromNamespaceAndPath("cedclient", "time_hud")
         ) { graphics, tickCounter ->
             TimeHud.render(graphics, tickCounter)
@@ -354,23 +390,31 @@ class CedClient : ClientModInitializer {
                 client.gui.setScreen(ClickGUI())
             }
 
+//#if CHEAT
             // Freecam / Zoom keys are KeybindSettings on their modules (rebindable in the ClickGUI), polled here.
+//#else
+//$            // The Zoom key is a KeybindSetting on its module (rebindable in the ClickGUI), polled here.
+//#endif
             // Only while no screen is open, so typing in chat doesn't trigger them.
             val window = GLFW.glfwGetCurrentContext()
             fun down(code: Int) = code > 0 && window != 0L && client.gui.screen() == null &&
                     GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
 
+//#if CHEAT
             val freecamDown = down(Freecam.toggleKey.value)
             if (freecamDown && !freecamKeyWasDown) Freecam.toggleFreecam()
             freecamKeyWasDown = freecamDown
 
+//#endif
             // Zoom is a hold key, not a toggle -- pass the held state every tick.
             Zoom.setHeld(down(Zoom.zoomKey.value))
         }
     }
 
+//#if CHEAT
     private var freecamKeyWasDown = false
 
+//#endif
     private fun loadConfig() {
         // Load module config safely. If something inside loadModulesOnly throws (NPE etc.),
         // catch it and log the stacktrace instead of crashing the client.

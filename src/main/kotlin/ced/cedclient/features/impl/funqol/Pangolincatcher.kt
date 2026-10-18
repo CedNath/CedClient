@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -637,3 +638,4 @@ object PangolinCatcher : Module(
         lastFrameNanos = 0L
     }
 }
+//#endif

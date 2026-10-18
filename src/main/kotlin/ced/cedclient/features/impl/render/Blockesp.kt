@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import ced.cedclient.config.CedPaths
@@ -316,3 +317,4 @@ object BlockESP : Module(
 
     private const val MAX_RESULTS = 200
 }
+//#endif

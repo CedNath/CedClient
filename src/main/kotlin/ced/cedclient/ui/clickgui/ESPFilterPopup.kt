@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.impl.render.EntityESP
@@ -19,3 +20,4 @@ class ESPFilterPopup : FilterPopup(
     styleOf = EntityESP::styleOf,
     onStyleChanged = EntityESP::saveFilters,
 )
+//#endif

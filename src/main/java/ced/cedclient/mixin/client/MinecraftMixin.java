@@ -4,7 +4,9 @@ import ced.cedclient.data.ClickType;
 import ced.cedclient.events.ItemClickEvent;
 import ced.cedclient.events.core.EventBus;
 import ced.cedclient.events.core.TickEvent;
+//#if CHEAT
 import ced.cedclient.features.impl.funqol.SlayerCheats;
+//#endif
 import ced.cedclient.input.CedMouseState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -54,10 +56,16 @@ public class MinecraftMixin {
     // up rejecting internally (e.g. attack still on cooldown) -- same
     // approximation useItem() already makes for right-clicks. Acceptable
     // since the chat fallback still corrects the real remaining time.
+//#if CHEAT
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
+//#else
+//$    @Inject(method = "startAttack", at = @At("HEAD"))
+//#endif
     private void cedclient$onStartAttack(CallbackInfoReturnable<Boolean> cir) {
+//#if CHEAT
         // Slayer Helper is mid Holy Ice / Healing Melon swap: drop your clicks so they don't land on the wrong item.
         if (SlayerCheats.INSTANCE.blocksAttack()) { cir.setReturnValue(false); return; }
+//#endif
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
         ItemStack stack = player.getMainHandItem();

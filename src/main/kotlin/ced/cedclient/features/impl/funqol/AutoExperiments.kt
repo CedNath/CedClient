@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -313,3 +314,4 @@ object AutoExperiments : Module(
         CursorGlide.moveTo(screen, screen.menu.slots[slot], clickDelay.value.toLong()) { doClick() }
     }
 }
+//#endif

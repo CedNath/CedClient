@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.ui.clickgui
 
 import ced.cedclient.features.impl.render.EntityESP
@@ -31,3 +32,4 @@ class MobFilterPopup : FilterPopup(
             .map { it.description.string }
             .distinct()
 }
+//#endif

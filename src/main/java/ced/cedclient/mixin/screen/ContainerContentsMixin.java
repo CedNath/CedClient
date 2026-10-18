@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.screen;
 
 import ced.cedclient.features.impl.funqol.AutoExperiments;
@@ -16,3 +17,4 @@ public class ContainerContentsMixin {
         AutoExperiments.INSTANCE.drawOverlays((AbstractContainerScreen<?>) (Object) this, graphics);
     }
 }
+//#endif

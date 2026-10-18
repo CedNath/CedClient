@@ -1,3 +1,4 @@
+//#if CHEAT
 /*
  * Ported from FarmHelper (https://github.com/JellyLabScripts/FarmHelper) by JellyLab and contributors.
  * Licensed under CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/); this file stays under that
@@ -133,3 +134,4 @@ public class RotationHandler {
         mc.player.setXRot(interpolate(startRotation.getPitch(), targetRotation.getPitch(), back ? this::easeOutBack : this::easeOutQuart));
     }
 }
+//#endif

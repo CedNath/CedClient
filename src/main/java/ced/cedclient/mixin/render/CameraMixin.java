@@ -1,8 +1,12 @@
 package ced.cedclient.mixin.render;
 
+//#if CHEAT
 import ced.cedclient.features.impl.render.Freecam;
+//#endif
 import ced.cedclient.features.impl.render.Zoom;
+//#if CHEAT
 import ced.cedclient.mixin.accessor.CameraAccessor;
+//#endif
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -31,6 +35,7 @@ public abstract class CameraMixin {
 
     @Inject(method = "update", at = @At("TAIL"))
     private void ced$afterUpdate(DeltaTracker deltaTracker, CallbackInfo ci) {
+//#if CHEAT
         float partialTick = ced$lastPartialTick;
 
         if (!Freecam.INSTANCE.isActive()) return;
@@ -45,6 +50,9 @@ public abstract class CameraMixin {
                 (float) Freecam.INSTANCE.getYaw(partialTick),
                 (float) Freecam.INSTANCE.getPitch(partialTick)
         );
+//#else
+//$        ced$lastPartialTick = deltaTracker.getGameTimeDeltaPartialTick(true);
+//#endif
     }
 
     // Divides the vanilla FOV by Zoom's current interpolated divisor.

@@ -8,5 +8,7 @@ enum class Category(val displayName: String) {
     Render("Render"),
     HUD("HUD"),
     Cosmetic("Cosmetic"),
+//#if CHEAT
     Cheats("Cheats"),
+//#endif
 }

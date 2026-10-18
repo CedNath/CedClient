@@ -21,7 +21,7 @@
   },
 
   "mixins": [
-    "cedclient.mixins.json"
+    "cedclient.mixins.json"${cheat_mixins}
   ],
 
   "depends": {

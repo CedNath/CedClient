@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import ced.cedclient.render.nvg.NVGRenderer
@@ -146,3 +147,4 @@ object EntityESPLabels {
     private val HP_MID = Color(240, 200, 60).rgba
     private val HP_LOW = Color(240, 80, 80).rgba
 }
+//#endif

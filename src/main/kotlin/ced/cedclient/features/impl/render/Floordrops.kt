@@ -40,9 +40,14 @@ import net.minecraft.world.phys.Vec3
  *
  * Differences from Skyblocker:
  *  - the highlight color is a ColorSetting instead of the fixed Skyblocker config color
+//#if CHEAT
  *  - "See Through Walls" picks between CustomRenderType.LINES_ESP (no depth test, shows
  *    through blocks) and LINES_DEPTH (normal, hidden behind blocks)
  *  - drawn as an outline box like BlockESP/StarredMobHighlight, not a filled box
+//#else
+//$ *  - always drawn with CustomRenderType.LINES_DEPTH, so terrain hides it (Legit: no see-through-walls option)
+//$ *  - drawn as an outline box like BlockESP/StarredMobESP, not a filled box
+//#endif
  */
 object FloorDrops : Module(
     "FloorDrops",
@@ -57,11 +62,13 @@ object FloorDrops : Module(
         Color(85, 255, 85),
         "Color of the box drawn around floor drops."
     )
+//#if CHEAT
     private val seeThroughWalls = BooleanSetting(
         "See Through Walls",
         true,
         "Draw the highlight through blocks. Turn off to have terrain hide it."
     )
+//#endif
     private val lineWidth = NumberSetting("Line Width", 2.0, 1.0, 6.0, 0.5)
     private val onlyOnForagingIslands = BooleanSetting(
         "Only On Foraging Islands",
@@ -89,7 +96,11 @@ object FloorDrops : Module(
 
     init {
         lineWidth.advanced = true
+//#if CHEAT
         addSettings(highlightColor, seeThroughWalls, lineWidth, onlyOnForagingIslands)
+//#else
+//$        addSettings(highlightColor, lineWidth, onlyOnForagingIslands)
+//#endif
 
         on<ParticleEvent> { onParticle(it.packet) }
 
@@ -128,7 +139,11 @@ object FloorDrops : Module(
             val submitNodeCollector = context.submitNodeCollector()
 
             // Read the settings once per frame, not once per node.
+//#if CHEAT
             val renderType = if (seeThroughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH
+//#else
+//$            val renderType = CustomRenderType.LINES_DEPTH
+//#endif
             val c = highlightColor.value
             val width = lineWidth.value.toFloat()
             val now = System.currentTimeMillis()

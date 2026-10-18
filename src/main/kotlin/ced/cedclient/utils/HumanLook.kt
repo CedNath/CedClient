@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.utils
 
 import kotlin.math.abs
@@ -124,3 +125,4 @@ fun isLookingAt(player: net.minecraft.world.entity.player.Player, target: net.mi
     if (yawDiff < -180f) yawDiff += 360f
     return abs(yawDiff) <= toleranceDeg && abs(pitch - player.xRot) <= toleranceDeg
 }
+//#endif

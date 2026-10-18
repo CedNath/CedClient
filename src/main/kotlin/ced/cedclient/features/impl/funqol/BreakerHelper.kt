@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import net.minecraft.core.BlockPos
@@ -13,3 +14,4 @@ object BreakerHelper {
         // no-op
     }
 }
+//#endif

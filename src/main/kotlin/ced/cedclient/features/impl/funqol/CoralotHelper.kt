@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.impl.render.ActionBarHud
@@ -405,3 +406,4 @@ object CoralotHelper : Module(
         lastFrameNanos = 0L
     }
 }
+//#endif

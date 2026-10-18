@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.accessor;
 
 import net.minecraft.client.Camera;
@@ -12,3 +13,4 @@ public interface CameraAccessor {
     @Invoker("setRotation")
     void ced$setRotation(float yaw, float pitch);
 }
+//#endif

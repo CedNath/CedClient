@@ -1,12 +1,18 @@
 package ced.cedclient.mixin.network;
 
+//#if CHEAT
 import ced.cedclient.farmhelper.failsafe.impl.DirtFailsafe;
 import ced.cedclient.farmhelper.failsafe.impl.LowerAvgBpsFailsafe;
+//#endif
 import ced.cedclient.data.ClickType;
 import ced.cedclient.events.ItemClickEvent;
+//#if CHEAT
 import ced.cedclient.features.impl.funqol.BreakerHelper;
+//#endif
 import ced.cedclient.render.cosmetic.CosmeticHooks;
+//#if CHEAT
 import net.minecraft.client.Minecraft;
+//#endif
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,6 +31,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(MultiPlayerGameMode.class)
 public class MultiPlayerGameModeMixin {
 
+//#if CHEAT
     @Inject(method = "startDestroyBlock", at = @At("HEAD"))
     private void cedclient$onBlockHit(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         BreakerHelper.onHitBlock(pos);
@@ -39,6 +46,7 @@ public class MultiPlayerGameModeMixin {
         ced.cedclient.features.impl.funqol.FarmHelper.INSTANCE.learnFrom(Minecraft.getInstance().level.getBlockState(pos).getBlock());
     }
 
+//#endif
     // ============================================================
     // ITEM RIGHT-CLICK HANDLER (posts ItemClickEvent)
     // ============================================================

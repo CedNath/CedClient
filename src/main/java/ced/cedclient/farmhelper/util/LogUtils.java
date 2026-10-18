@@ -1,3 +1,4 @@
+//#if CHEAT
 /*
  * Ported from FarmHelper (https://github.com/JellyLabScripts/FarmHelper) by JellyLab and contributors.
  * Licensed under CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/); this file stays under that
@@ -35,3 +36,4 @@ public class LogUtils {
         return s / 60 + ":" + String.format("%02d", s % 60) + "." + (millis % 1000) / 100;
     }
 }
+//#endif

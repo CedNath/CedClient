@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.mixin.network;
 
 import ced.cedclient.farmhelper.FarmHelperCore;
@@ -26,3 +27,4 @@ public abstract class FarmPacketMixin {
         Minecraft.getInstance().execute(() -> FarmHelperCore.onPacket(packet));
     }
 }
+//#endif

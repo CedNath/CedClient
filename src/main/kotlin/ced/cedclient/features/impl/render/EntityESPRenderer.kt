@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.features.impl.render
 
 import com.mojang.blaze3d.vertex.PoseStack
@@ -125,3 +126,4 @@ object EntityESPRenderer {
         MobCategoryType.PLAYER -> Triple(0.35f, 0.6f, 1.0f)
     }
 }
+//#endif

@@ -1,3 +1,4 @@
+//#if CHEAT
 package ced.cedclient.utils
 
 import com.google.gson.Gson
@@ -57,3 +58,4 @@ object NameListLoader {
     }
 
 }
+//#endif

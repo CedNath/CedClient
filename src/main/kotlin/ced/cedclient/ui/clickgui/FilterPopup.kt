@@ -1,7 +1,9 @@
 package ced.cedclient.ui.clickgui
 
+//#if CHEAT
 import ced.cedclient.features.impl.render.EspStyle
 import ced.cedclient.features.settings.ColorSetting
+//#endif
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.TextInputHandler
@@ -17,9 +19,11 @@ import org.lwjgl.glfw.GLFW
  * whatever's already in the active list (so a manually-typed entry that
  * isn't a live candidate still shows up and can be removed the same way).
  *
+//#if CHEAT
  * Active rows in the Only tab also get Box / Tracer / Label chips when [styleOf] returns a style for them
  * (EntityESP / BlockESP): what to draw for that entry. [onStyleChanged] persists a click.
  *
+//#endif
  * Talks to EntityESP purely through the constructor callbacks rather than
  * importing EntityESP itself, so this stays reusable if CedClient ever
  * grows a second name-filterable module.
@@ -31,9 +35,13 @@ abstract class FilterPopup(
     private val addBlocked: (String) -> Unit,
     private val removeBlocked: (String) -> Unit,
     private val addOnly: (String) -> Unit,
+//#if CHEAT
     private val removeOnly: (String) -> Unit,
     private val styleOf: (String) -> EspStyle? = { null },
     private val onStyleChanged: () -> Unit = {},
+//#else
+//$    private val removeOnly: (String) -> Unit
+//#endif
 ) : Popup(title, WIDTH, HEIGHT) {
 
     /** Names to offer as one-click toggles, e.g. currently-scanned entity names. Empty = free-text only. */
@@ -79,6 +87,7 @@ abstract class FilterPopup(
     private val addButtonX get() = inputX + inputWidth + 8f
 
     private val listY get() = y + 94f
+//#if CHEAT
     private val listHeight get() = height - 104f - editorHeight
 
     /** Colour picker for one entry, docked under the list while open. */
@@ -98,6 +107,9 @@ abstract class FilterPopup(
         colorEditor = null
         colorEntry = null
     }
+//#else
+//$    private val listHeight get() = height - 104f
+//#endif
 
     private val scrollbarWidth = 5f
     private val scrollbarX get() = x + width - scrollbarWidth - 4f
@@ -187,7 +199,11 @@ abstract class FilterPopup(
         var rowY = listY + scrollOffset
         val active = activeSet()
         for (name in list) {
+//#if CHEAT
             drawRow(name, name in active, rowY, mouseX, mouseY, rowStyle(name, name in active))
+//#else
+//$            drawRow(name, name in active, rowY, mouseX, mouseY)
+//#endif
             rowY += ROW_HEIGHT
         }
         if (list.isEmpty()) {
@@ -204,6 +220,7 @@ abstract class FilterPopup(
         NVGRenderer.popScissor()
 
         if (needsScrollbar) drawScrollbar(contentHeight, mouseX, mouseY)
+//#if CHEAT
 
         val editor = colorEditor
         val entry = colorEntry
@@ -216,6 +233,7 @@ abstract class FilterPopup(
                 editor.render(x + (width - Panel.WIDTH) / 2f, ey, mouseX, mouseY)
             }
         }
+//#endif
     }
 
     private fun drawScrollbar(contentHeight: Float, mouseX: Float, mouseY: Float) {
@@ -252,6 +270,7 @@ abstract class FilterPopup(
         )
     }
 
+//#if CHEAT
     /** Style chips only make sense for entries that are on in the Only tab. */
     private fun rowStyle(name: String, active: Boolean): EspStyle? =
         if (mode == FilterMode.ONLY && active) styleOf(name) else null
@@ -266,6 +285,9 @@ abstract class FilterPopup(
     private fun chipOn(style: EspStyle, i: Int) = when (i) { 0 -> style.box; 1 -> style.tracer; else -> style.label }
 
     private fun drawRow(name: String, active: Boolean, rowY: Float, mouseX: Float, mouseY: Float, style: EspStyle?) {
+//#else
+//$    private fun drawRow(name: String, active: Boolean, rowY: Float, mouseX: Float, mouseY: Float) {
+//#endif
         if (rowY + ROW_HEIGHT < listY || rowY > listY + listHeight) return
 
         val hovered = isAreaHovered(x + 12f, rowY, width - 24f, ROW_HEIGHT - 2f, mouseX, mouseY)
@@ -275,8 +297,12 @@ abstract class FilterPopup(
         val boxColor = if (active) ClickGUI.clickGUIColor else Colors.gray38
         NVGRenderer.rect(x + 16f, rowY + (ROW_HEIGHT - 2f) / 2f - boxSize / 2f, boxSize, boxSize, boxColor.rgba, 3f)
 
+//#if CHEAT
         val chipsWidth = if (style != null) 3 * (CHIP_WIDTH + 4f) + SWATCH + 4f else 0f
         val label = NVGRenderer.truncate(name, width - 24f - boxSize - 16f - chipsWidth, 15f, NVGRenderer.defaultFont)
+//#else
+//$        val label = NVGRenderer.truncate(name, width - 24f - boxSize - 16f, 15f, NVGRenderer.defaultFont)
+//#endif
         NVGRenderer.text(
             label,
             x + 16f + boxSize + 8f,
@@ -285,6 +311,7 @@ abstract class FilterPopup(
             Colors.WHITE.rgba,
             NVGRenderer.defaultFont
         )
+//#if CHEAT
 
         if (style == null) return
         val chipY = rowY + (ROW_HEIGHT - 2f) / 2f - CHIP_HEIGHT / 2f
@@ -311,9 +338,11 @@ abstract class FilterPopup(
                 (if (on) Colors.WHITE else Colors.MINECRAFT_GRAY).rgba, NVGRenderer.defaultFont
             )
         }
+//#endif
     }
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+//#if CHEAT
         colorEditor?.let { editor ->
             if (editor.mouseClicked(mouseX, mouseY, click)) {
                 if (!editor.picking) closeColorEditor() // its header row toggles it shut
@@ -338,6 +367,7 @@ abstract class FilterPopup(
             }
         }
 
+//#endif
         if (click.button() != 0) return false
 
         if (isAreaHovered(blockedTabX, tabY, tabWidth, TAB_HEIGHT, mouseX, mouseY)) {
@@ -366,6 +396,7 @@ abstract class FilterPopup(
         if (mouseY in listY..(listY + listHeight)) {
             val index = ((mouseY - listY - scrollOffset) / ROW_HEIGHT).toInt()
             list.getOrNull(index)?.let { name ->
+//#if CHEAT
                 val style = rowStyle(name, name in activeSet())
                 val chip = if (style == null) -1 else (0..2).firstOrNull { mouseX in chipX(it)..(chipX(it) + CHIP_WIDTH) } ?: -1
                 when (chip) {
@@ -375,6 +406,9 @@ abstract class FilterPopup(
                     else -> style!!.label = !style.label
                 }
                 if (chip >= 0) onStyleChanged()
+//#else
+//$                toggle(name)
+//#endif
                 return true
             }
         }
@@ -384,10 +418,12 @@ abstract class FilterPopup(
     override fun mouseReleased(click: MouseButtonEvent) {
         input.mouseReleased()
         draggingScrollbar = false
+//#if CHEAT
         colorEditor?.let {
             it.mouseReleased(click)
             onStyleChanged() // save once the drag ends, not every frame
         }
+//#endif
     }
 
     override fun mouseScrolled(mouseX: Float, mouseY: Float, amount: Int): Boolean {
@@ -413,8 +449,10 @@ abstract class FilterPopup(
         private const val INPUT_HEIGHT = 22f
         private const val ROW_HEIGHT = 24f
         private const val MIN_THUMB_HEIGHT = 20f
+//#if CHEAT
         private const val CHIP_WIDTH = 42f
         private const val CHIP_HEIGHT = 16f
         private const val SWATCH = 16f
+//#endif
     }
 }
