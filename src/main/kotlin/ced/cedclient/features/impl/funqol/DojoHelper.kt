@@ -5,6 +5,8 @@ import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
+import ced.cedclient.render.pipeline.CustomRenderType
+import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.state.Sidebar
 import ced.cedclient.utils.HumanLook
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -20,6 +22,7 @@ import net.minecraft.world.entity.monster.zombie.Zombie
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Items
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -45,8 +48,9 @@ object DojoHelper : Module(
     private val discipline = BooleanSetting("Discipline Sword Swap", true, "Pick the sword that matches the helmet of the zombie you look at.")
     private val control = BooleanSetting("Control Aim", true, "Keep your aim on the moving Wither Skeleton, not the dummies.")
     private val swiftness = BooleanSetting("Swiftness Auto Walk", true, "Walk and jump onto each new green wool block by itself.")
-    private val prediction = NumberSetting("Prediction Ticks", 2.0, 0.0, 6.0, 0.5, "Aim this many ticks ahead of the skeleton's movement.")
-    private val range = NumberSetting("Control Range", 12.0, 4.0, 30.0, 1.0, "Only aim at Wither Skeletons this close, so it stays off things outside the arena.")
+    private val prediction = NumberSetting("Prediction Ticks", 6.0, 0.0, 20.0, 0.5, "Aim this many ticks ahead of the skeleton's movement.")
+    private val swiftDebug = BooleanSetting("Swiftness Debug", false, "Draw what Swiftness sees (wool, path, gaps) and say each decision in chat.")
+    private val range = NumberSetting("Control Range", 22.0, 4.0, 30.0, 1.0, "Only aim at Wither Skeletons this close, so it stays off things outside the arena.")
     // New name so configs saved with the old 60 ms snappy default pick up the smoother one.
     private val smoothnessMs = NumberSetting("Aim Smoothness", 220.0, 40.0, 600.0, 10.0, "Milliseconds to settle on the target; higher is smoother.")
 
@@ -66,12 +70,22 @@ object DojoHelper : Module(
     /** Wither Skeleton id -> how much it has moved lately (decaying sum of per-tick distance). */
     private val movement = HashMap<Int, Double>()
 
+    // Swiftness debug: what the last tick saw, drawn in the world; the last chat line so only changes get sent.
+    private var dbgWool = emptyList<BlockPos>()
+    private var dbgTarget: BlockPos? = null
+    private var dbgUnder: BlockPos? = null
+    private val dbgSamples = ArrayList<Pair<Vec3, Boolean>>()
+    private var dbgLast = ""
+
     init {
-        addSettings(discipline, control, swiftness, range, smoothnessMs, prediction)
+        addSettings(discipline, control, swiftness, swiftDebug, range, smoothnessMs, prediction)
 
         ClientTickEvents.END_CLIENT_TICK.register { if (isEnabled) tick() }
         // Aim and sword checks every rendered frame, so they don't step at 20 Hz.
         LevelRenderEvents.START_MAIN.register { if (isEnabled) frame() }
+        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { ctx ->
+            if (isEnabled && swiftDebug.value && challenge("Swiftness")) drawDebug(ctx.poseStack(), ctx.bufferSource(), ctx.gameRenderer().mainCamera.position())
+        })
     }
 
     override fun onDisable() {
@@ -117,13 +131,25 @@ object DojoHelper : Module(
         val level = mc.level ?: return
         val feet = player.blockPosition()
         val under = BlockPos.containing(player.x, player.y - 0.2, player.z)
-        val target = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6))
-            .filter { it != under && level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }
-            .minByOrNull { it.distToCenterSqr(player.position()) }?.immutable()
+        val wool = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6))
+            .filter { level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }.map { it.immutable() }
+        val target = wool.filter { it != under }.minByOrNull { it.distToCenterSqr(player.position()) }
+        if (swiftDebug.value) {
+            dbgWool = wool
+            dbgTarget = target
+            dbgUnder = under
+            dbgSamples.clear()
+        }
         val dx = (target?.x ?: 0) + 0.5 - player.x
         val dz = (target?.z ?: 0) + 0.5 - player.z
         val dist = sqrt(dx * dx + dz * dz)
         if (target == null || dist < 0.05) {
+            if (swiftDebug.value) {
+                val nearby = BlockPos.betweenClosed(under.offset(-3, -1, -3), under.offset(3, 0, 3))
+                    .map { level.getBlockState(it).block.name.string }.toSet()
+                debug(if (target == null) "§cno green wool within 6 §7under: ${level.getBlockState(under).block.name.string} §8| near: ${nearby.joinToString()}"
+                      else "§7standing on target ${target.toShortString()}")
+            }
             stopWalking()
             return
         }
@@ -155,8 +181,17 @@ object DojoHelper : Module(
         }
         pressDirection(dir?.let { Mth.wrapDegrees(it) })
         mc.options.keySprint.setDown(go && gap >= 2)
-        mc.options.keyJump.setDown(lined && (atEdge && gap > 0 || up) && player.onGround())
+        val jump = lined && (atEdge && gap > 0 || up) && player.onGround()
+        mc.options.keyJump.setDown(jump)
         walking = true
+        if (swiftDebug.value) {
+            val keys = listOf("W" to mc.options.keyUp, "A" to mc.options.keyLeft, "S" to mc.options.keyDown, "D" to mc.options.keyRight)
+                .filter { it.second.isDown }.joinToString("") { it.first }.ifEmpty { "-" }
+            debug("§a${target.toShortString()} §7${level.getBlockState(target).block.name.string} gap=$gap keys=$keys" +
+                (if (go && gap >= 2) " §bsprint" else "") + (if (jump) " §ejump" else "") + (if (brake) " §cbrake" else "") +
+                (if (!lined) " §6turning" else "") + (if (atEdge) " §dedge" else "") + (if (up) " §dup" else "") +
+                " §8ground=${player.onGround()} under=${level.getBlockState(under).block.name.string}@${under.y}")
+        }
     }
 
     /** Hold the WASD keys for [dir] degrees relative to where the player faces (0 = W, 90 = D), or none for null. */
@@ -174,7 +209,9 @@ object DojoHelper : Module(
         while (t < dist - 0.3) {
             val x = player.x + nx * t
             val z = player.z + nz * t
-            if (!solid(x, y, z)) missing.add(BlockPos.asLong(floor(x).toInt(), y, floor(z).toInt()))
+            val ok = solid(x, y, z)
+            if (!ok) missing.add(BlockPos.asLong(floor(x).toInt(), y, floor(z).toInt()))
+            if (swiftDebug.value) dbgSamples.add(Vec3(x, y + 1.0, z) to ok)
             t += 0.2
         }
         return missing.size
@@ -184,6 +221,45 @@ object DojoHelper : Module(
         val level = mc.level ?: return false
         val pos = BlockPos(floor(x).toInt(), y, floor(z).toInt())
         return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty
+    }
+
+    /** Chat line for the debug, only when it says something new. */
+    private fun debug(msg: String) {
+        if (msg == dbgLast) return
+        dbgLast = msg
+        mc.player?.sendSystemMessage(ChatPrefix.msg("§8[swift] $msg"))
+    }
+
+    private fun drawDebug(pose: com.mojang.blaze3d.vertex.PoseStack, buffers: net.minecraft.client.renderer.MultiBufferSource.BufferSource, cam: Vec3) {
+        val buf = buffers.getBuffer(CustomRenderType.LINES_ESP)
+        fun line(a: Vec3, b: Vec3, rgb: Int) {
+            val m = pose.last().pose()
+            val n = b.subtract(a).normalize()
+            val r = (rgb shr 16 and 255) / 255f
+            val g = (rgb shr 8 and 255) / 255f
+            val bl = (rgb and 255) / 255f
+            for (p in listOf(a.subtract(cam), b.subtract(cam)))
+                buf.addVertex(m, p.x.toFloat(), p.y.toFloat(), p.z.toFloat()).setColor(r, g, bl, 1f)
+                    .setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat()).setLineWidth(2f)
+        }
+        fun box(bb: AABB, rgb: Int) {
+            val xs = listOf(bb.minX, bb.maxX)
+            val ys = listOf(bb.minY, bb.maxY)
+            val zs = listOf(bb.minZ, bb.maxZ)
+            for (y in ys) for (z in zs) line(Vec3(bb.minX, y, z), Vec3(bb.maxX, y, z), rgb)
+            for (x in xs) for (z in zs) line(Vec3(x, bb.minY, z), Vec3(x, bb.maxY, z), rgb)
+            for (x in xs) for (y in ys) line(Vec3(x, y, bb.minZ), Vec3(x, y, bb.maxZ), rgb)
+        }
+        // Yellow: every green wool seen. White: block underfoot. Cyan: target, with a line from your feet.
+        // Path samples on the floor: green = floor there, red = no floor (lava / air).
+        for (w in dbgWool) box(AABB(w).inflate(0.01), 0xFFFF55)
+        dbgUnder?.let { box(AABB(it).inflate(0.03), 0xFFFFFF) }
+        dbgTarget?.let { t ->
+            box(AABB(t).inflate(0.05), 0x55FFFF)
+            mc.player?.let { p -> line(p.position().add(0.0, 0.05, 0.0), Vec3(t.x + 0.5, t.y + 1.0, t.z + 0.5), 0x55FFFF) }
+        }
+        for ((p, ok) in dbgSamples) box(AABB(p, p).inflate(0.06), if (ok) 0x55FF55 else 0xFF5555)
+        buffers.endBatch()
     }
 
     private fun stopWalking() {
