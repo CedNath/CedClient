@@ -249,6 +249,19 @@ object CedClientCommand {
 //#if CHEAT
                 ClientCommands.literal("coralot").requires { ced.cedclient.utils.DevAccess.isFriend }
                     .then(
+                        ClientCommands.literal("debug").executes { ctx ->
+                            CoralotHelper.debug = !CoralotHelper.debug
+                            ctx.source.sendFeedback(Component.literal("Coralot / fish debug ${if (CoralotHelper.debug) "on" else "off"}"))
+                            1
+                        }
+                    )
+                    .then(
+                        ClientCommands.literal("status").executes { ctx ->
+                            CoralotHelper.status().forEach { ctx.source.sendFeedback(Component.literal(it)) }
+                            1
+                        }
+                    )
+                    .then(
                         ClientCommands.literal("netname")
                             .then(
                                 ClientCommands.argument("name", StringArgumentType.greedyString())
