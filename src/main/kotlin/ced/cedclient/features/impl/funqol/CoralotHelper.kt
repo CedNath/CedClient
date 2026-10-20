@@ -41,10 +41,21 @@ object CoralotHelper : Module(
     private val mc = Minecraft.getInstance()
 
     /** "The Sepialot didn't notice your presence thanks to your Stealth enchantment!" -- any creature name. */
-    private val STEALTH_MESSAGE = Regex("^The (.+?) didn't notice your presence thanks to your Stealth enchantment!$")
+    // No end anchor: chat-stacking mods can append " (x12)".
+    private val STEALTH_MESSAGE = Regex("^The (.+?) didn't notice your presence thanks to your Stealth enchantment!")
     private const val STEALTH_RESOLVE_MS = 400L
-    /** When each received Stealth message should be resolved to a creature. */
-    private val stealthPending = ArrayDeque<Long>()
+    // Icons popped at 5.6-16.8m in the logs, Stealth msgs came with the nearest axolotl at 4.4-11.7m.
+    private const val SILENT_RANGE = 10f
+    private const val SILENT_MS = 3000L
+    private val SCARED_MESSAGE = Regex("""^\w+ got scared!""")
+    /** A Stealth message with no matching creature yet (e.g. still out of range) is dropped after this. */
+    private const val STEALTH_EXPIRE_MS = 5000L
+    /** When each still-unresolved Stealth message arrived. */
+    private val stealthPending = ArrayList<Long>()
+    /** Queued from a Stealth message: if one gets a warning icon after all, it was the wrong pick and the message is retried. */
+    private val stealthQueued = HashSet<Axolotl>()
+    /** Axolotls whose warning icon is showing this tick (each named armor stand counts for its nearest axolotl only). */
+    private var withHolo: Set<Axolotl> = emptySet()
 
     // --- settings ---
     private val detectRange = NumberSetting("Detect Range (blocks)", 15.0, 1.0, 25.0, 0.5)
@@ -75,15 +86,48 @@ object CoralotHelper : Module(
     val canCatch get() = !requireKeybind.value || armed
 
     /**
-     * TropicalFishHelper waits while this is true: axolotls come first, fish only once none are in range
-     * (with a warning icon or not) and nothing is queued / mid-catch. [range] widens the axolotl check to the fish
-     * helper's own range, so it never throws near an axolotl Coralot can't see yet (one still showing its warning).
+     * TropicalFishHelper waits while this is true: an axolotl is queued / mid-catch, or a fresh Stealth message is
+     * still being matched. Axolotls still showing their warning icon don't count, so fish get netted meanwhile and
+     * the fish helper drops its target the tick one becomes catchable.
      */
-    fun hasWork(player: LocalPlayer, range: Double): Boolean {
+    fun hasWork(): Boolean {
         if (!isEnabled) return false
-        if (state != CoralotState.IDLE || readyQueue.isNotEmpty() || hologramTracked.isNotEmpty()) return true
-        val r = maxOf(range, detectRange.value)
-        return mc.level?.entitiesForRendering()?.any { it is Axolotl && it.isAlive && player.distanceTo(it) <= r } == true
+        val now = System.currentTimeMillis()
+        return state != CoralotState.IDLE || readyQueue.isNotEmpty() || stealthPending.any { now - it < STEALTH_RESOLVE_MS }
+    }
+
+    /** /cc coralot debug: prints each detection / catch step to chat. */
+    var debug = false
+    /** Set while [dbg] prints, so our own lines never count as a Stealth or catch message. */
+    private var printing = false
+
+    fun dbg(msg: String) {
+        if (!debug) return
+        printing = true
+        try { mc.player?.sendSystemMessage(Component.literal("§8[CH] §7$msg")) } finally { printing = false }
+    }
+
+    /** /cc coralot status: one line per axolotl in range plus the queue / Stealth state. */
+    fun status(): List<String> {
+        val player = mc.player ?: return listOf("Not in a world")
+        val out = mutableListOf(
+            "§fstate §e$state §farmed §e$armed §fcanCatch §e$canCatch §fqueue §e${readyQueue.size} " +
+                    "§fstealthPending §e${stealthPending.size} §fstealthQueued §e${stealthQueued.size}"
+        )
+        mc.level?.entitiesForRendering()?.filterIsInstance<Axolotl>()
+            ?.filter { it.isAlive && player.distanceTo(it) <= detectRange.value + 3.0 }
+            ?.sortedBy { player.distanceTo(it) }
+            ?.forEach { out += "§7#${it.id} §f${"%.1f".format(player.distanceTo(it))}m" + describe(player, it) }
+        return out
+    }
+
+    private fun describe(player: LocalPlayer, axo: Axolotl) = buildString {
+        if (player.distanceTo(axo) > detectRange.value) append(" §8out-of-range")
+        if (axo in withHolo) append(" §cicon")
+        if (hologramTracked[axo] == true) append(" §6tracked")
+        if (axo in readyQueue) append(" §aqueued")
+        if (axo in stealthQueued) append(" §bstealth")
+        if (axo === target) append(" §dtarget")
     }
 
     // --- customizable via chat commands (see CedClientCommand) ---
@@ -157,23 +201,37 @@ object CoralotHelper : Module(
         }
 
         ClientReceiveMessageEvents.GAME.register { message, _ ->
-            if (!isEnabled) return@register
+            if (!isEnabled || printing) return@register
 
             // Stealth enchant: the creature never shows its warning icon, so the icon-cleared trigger below never
             // fires -- this message (any mob name) means it can be caught right away. Anchored to the start of
             // the line so the same text pasted in party/guild chat doesn't trigger it.
             val plain = message.string.replace(CODES, "").trim()
-            STEALTH_MESSAGE.matchEntire(plain)?.let {
+            STEALTH_MESSAGE.find(plain)?.let {
+                // Other critters (Timil, Blue Jay...) send it too; only the axolotl ones (Coralot, Sepialot, Goldolot) end in "lot".
+                if (!it.groupValues[1].endsWith("lot", ignoreCase = true)) {
+                    dbg("Stealth msg (${it.groupValues[1]}) ignored: not an axolotl")
+                    return@register
+                }
                 // Resolved a moment later (see tick): Stealth procs per creature, so the ones that DID notice you
                 // need a few ticks to get their warning icon -- only then can we tell which one is the stealthed one.
-                stealthPending.addLast(System.currentTimeMillis() + STEALTH_RESOLVE_MS)
+                stealthPending.add(System.currentTimeMillis())
+                lastStealthMsgAt = System.currentTimeMillis()
+                dbg("Stealth msg (${it.groupValues[1]}), pending ${stealthPending.size}, axolotls: ${axolotlDistances()}")
                 return@register
             }
 
             if (state != CoralotState.CONFIRMING) return@register
 
+            // Thrown while its icon was still up: it ran off, so stop waiting for a catch message.
+            if (SCARED_MESSAGE.containsMatchIn(plain)) {
+                dbg("#${target?.id} got scared")
+                return@register reset()
+            }
+
             val msg = message.string.lowercase()
             if (catchKeywords.any { msg.contains(it.lowercase()) }) {
+                dbg("Confirmed #${target?.id}")
                 onCatchConfirmed()
             }
         }
@@ -183,18 +241,52 @@ object CoralotHelper : Module(
         val player = mc.player ?: return
 
         pollCatchKey()
+        val level = mc.level ?: return
+        val now = System.currentTimeMillis()
+        // A few blocks past the range, so an icon of an axolotl just outside isn't pinned on one inside.
+        val around = level.entitiesForRendering().filterIsInstance<Axolotl>()
+            .filter { it.isAlive && player.distanceTo(it) <= detectRange.value + 3.0 }
+        withHolo = hologramOwners(around)
+        val nearby = around.filter { player.distanceTo(it) <= detectRange.value }
         // Scanning always runs, so with the key off the queue is still up to date the moment it's pressed.
-        updateHologramTracking(player)
+        updateHologramTracking(player, nearby)
+        if (debug) reportSilent(player, nearby, now)
         // Queued while not catching: drop ones that got their warning icon back or swam out of range.
-        readyQueue.removeAll { !it.isAlive || player.distanceTo(it) > detectRange.value || findHologramNear(it) != null }
-        while (stealthPending.isNotEmpty() && System.currentTimeMillis() >= stealthPending.first()) {
-            stealthPending.removeFirst()
-            queueStealthTarget(player)
+        readyQueue.removeAll {
+            val drop = !it.isAlive || player.distanceTo(it) > detectRange.value || it in withHolo
+            // A Stealth pick that shows an icon now noticed you, so the stealthed one is another: retry right away.
+            if (drop && stealthQueued.remove(it) && it.isAlive && it in withHolo) {
+                stealthPending.add(now - STEALTH_RESOLVE_MS)
+                dbg("Stealth pick #${it.id} got an icon, retrying")
+            } else if (drop) dbg("Unqueued #${it.id}")
+            drop
+        }
+        stealthQueued.retainAll { it in readyQueue }
+        if (stealthPending.removeAll { now - it > STEALTH_EXPIRE_MS }) dbg("Stealth msg expired: no icon-free axolotl in range")
+        // Waits for the creatures that DID notice you to get their icon, then keeps retrying until one fits or it expires.
+        // One message can cover several axolotls, so one resolve may queue more than one; each queued uses up a message.
+        val ready = stealthPending.filter { now - it >= STEALTH_RESOLVE_MS }.sorted()
+        if (ready.isNotEmpty()) {
+            val queued = queueStealthTargets(player, nearby)
+            ready.take(queued).forEach { stealthPending.remove(it) }
         }
 
         if (state == CoralotState.CONFIRMING && System.currentTimeMillis() > confirmDeadline) {
             // never heard a confirmation message back — bail out safely rather than getting stuck
+            dbg("No confirm for #${target?.id} in ${confirmTimeoutMs.value.toLong()}ms")
             reset()
+        }
+
+        // Debug: say once why a queued axolotl isn't being started.
+        val waitReason = when {
+            readyQueue.isEmpty() -> null
+            !canCatch -> "catching is off (Catch Key)"
+            state != CoralotState.IDLE -> "busy: $state on #${target?.id}"
+            else -> null
+        }
+        if (waitReason != lastWaitReason) {
+            waitReason?.let { dbg("Queue of ${readyQueue.size} waiting: $it") }
+            lastWaitReason = waitReason
         }
 
         when (state) {
@@ -204,6 +296,7 @@ object CoralotHelper : Module(
                 if (!next.isAlive) return
 
                 target = next
+                dbg("Target #${next.id} ${"%.1f".format(player.distanceTo(next))}m, ${readyQueue.size} left")
                 humanLook = HumanLook(
                     smoothTimeSeconds = (smoothnessMs.value / 1000.0).toFloat(),
                     maxDegreesPerSecond = maxTurnSpeed.value.toFloat(),
@@ -231,6 +324,42 @@ object CoralotHelper : Module(
     }
 
     /** Catch Key: toggles catching (only outside menus). Turning it off mid-aim lets go of the camera right away. */
+    private var lastWaitReason: String? = null
+    private var lastStealthMsgAt = 0L
+
+    /** Debug: when each close axolotl was first seen with no icon and nothing queued for it; -1 once reported. */
+    private val silentSince = HashMap<Axolotl, Long>()
+
+    /**
+     * Debug: an axolotl within [SILENT_RANGE] for [SILENT_MS] that never got an icon nor a Stealth pick -- likely one
+     * where Hypixel sent no message (e.g. another player already near it). Reported once per axolotl.
+     */
+    private fun reportSilent(player: LocalPlayer, nearby: List<Axolotl>, now: Long) {
+        val quiet = nearby.filter {
+            player.distanceTo(it) <= SILENT_RANGE && it !in withHolo && hologramTracked[it] != true &&
+                    it !in readyQueue && it !== target
+        }.toSet()
+        silentSince.keys.retainAll(quiet)
+        for (axo in quiet) {
+            val since = silentSince.getOrPut(axo) { now }
+            if (since < 0 || now - since < SILENT_MS) continue
+            val others = mc.level?.players()?.filter { it !== player && it.distanceTo(axo) <= 16f }
+                ?.joinToString { "${it.name.string} ${"%.1f".format(it.distanceTo(axo))}m" }?.ifEmpty { "none" }
+            dbg("Silent #${axo.id} at ${"%.1f".format(player.distanceTo(axo))}m: no icon, no Stealth msg for ${SILENT_MS / 1000}s (players near it: $others)")
+            silentSince[axo] = -1
+        }
+    }
+
+    /** Debug: every axolotl within detect range + 3, nearest first, e.g. "3.6m, 7.2m icon". */
+    private fun axolotlDistances(): String {
+        val player = mc.player ?: return "-"
+        return mc.level?.entitiesForRendering()?.filterIsInstance<Axolotl>()
+            ?.filter { it.isAlive && player.distanceTo(it) <= detectRange.value + 3.0 }
+            ?.sortedBy { player.distanceTo(it) }
+            ?.joinToString { "%.1fm".format(player.distanceTo(it)) + if (it in withHolo) " icon" else "" }
+            ?.ifEmpty { "none" } ?: "-"
+    }
+
     private fun pollCatchKey() {
         val code = catchKey.value
         val window = GLFW.glfwGetCurrentContext()
@@ -250,23 +379,22 @@ object CoralotHelper : Module(
      * to be caught — this is what lets multiple axolotls that clear around the same
      * time all get caught in turn, instead of only the one we happened to be looking at.
      */
-    private fun updateHologramTracking(player: LocalPlayer) {
-        val level = mc.level ?: return
-
-        val nearby = level.entitiesForRendering()
-            .filterIsInstance<Axolotl>()
-            .filter { it.isAlive && player.distanceTo(it) <= detectRange.value }
-            .toSet()
-
+    private fun updateHologramTracking(player: LocalPlayer, nearby: List<Axolotl>) {
         // stop tracking anything that's no longer nearby/alive, so it doesn't
         // falsely trigger "ready" if it wanders back into range later
         hologramTracked.keys.retainAll { it in nearby }
 
         for (axo in nearby) {
-            val holoPresent = findHologramNear(axo) != null
+            val holoPresent = axo in withHolo
             val hadHolo = hologramTracked[axo] ?: false
 
             if (holoPresent) {
+                // Debug: the distance an icon pops up at is the notice range.
+                if (!hadHolo) {
+                    val since = System.currentTimeMillis() - lastStealthMsgAt
+                    dbg("Icon on #${axo.id} at ${"%.1f".format(player.distanceTo(axo))}m" +
+                            if (since <= STEALTH_EXPIRE_MS) ", ${since}ms after Stealth msg" else "")
+                }
                 hologramTracked[axo] = true
             } else if (hadHolo) {
                 hologramTracked.remove(axo)
@@ -274,6 +402,7 @@ object CoralotHelper : Module(
                     val slotFree = target == null && readyQueue.isEmpty()
                     if (catchMultipleTargets.value || slotFree) {
                         readyQueue.addLast(axo)
+                        dbg("Icon cleared #${axo.id}, queued")
                     }
                 }
             }
@@ -284,26 +413,45 @@ object CoralotHelper : Module(
      * Picks the creature the Stealth message was about: one in range that has NOT got a warning icon (the others
      * noticed you, so they show one and are on cooldown), isn't already being caught, preferring the closest.
      */
-    private fun queueStealthTarget(player: LocalPlayer) {
-        val level = mc.level ?: return
+    /**
+     * Queues the creatures a Stealth message was about: ones in range with NO warning icon (the rest noticed you and
+     * are on cooldown). Every axolotl inside the notice range either shows an icon or was stealthed, and the farthest
+     * one with an icon shows that range, so every icon-free one within it is queued. Beyond it only the nearest
+     * icon-free one is taken. Returns how many were queued.
+     */
+    private fun queueStealthTargets(player: LocalPlayer, nearby: List<Axolotl>): Int {
         val busy = target != null || readyQueue.isNotEmpty()
-        if (busy && !catchMultipleTargets.value) return
-        val axo = level.entitiesForRendering()
-            .filterIsInstance<Axolotl>()
-            .filter {
-                it.isAlive && it !== target && it !in readyQueue && player.distanceTo(it) <= detectRange.value &&
-                        hologramTracked[it] != true && findHologramNear(it) == null
-            }
-            .minByOrNull { player.distanceTo(it) } ?: return
-        readyQueue.addLast(axo)
+        if (busy && !catchMultipleTargets.value) return 0
+        val free = nearby.filter { it !== target && it !in readyQueue && it !in withHolo }
+            .sortedBy { player.distanceTo(it) }
+        if (free.isEmpty()) return 0
+        val noticeRange = nearby.filter { it in withHolo }.maxOfOrNull { player.distanceTo(it) } ?: 0f
+        dbg("Stealth resolve: icon-free at ${free.joinToString { "%.1f".format(player.distanceTo(it)) }}m, " +
+                if (noticeRange > 0f) "with icon up to ${"%.1f".format(noticeRange)}m" else "none with an icon (range unknown, taking nearest)")
+        val picks = free.filter { player.distanceTo(it) <= noticeRange }.ifEmpty { listOf(free.first()) }
+            .let { if (catchMultipleTargets.value) it else it.take(1) }
+        for (axo in picks) {
+            readyQueue.addLast(axo)
+            stealthQueued.add(axo)
+            dbg("Stealth -> #${axo.id} ${"%.1f".format(player.distanceTo(axo))}m (notice range ${"%.1f".format(noticeRange)}m, ${free.size} icon-free)")
+        }
+        return picks.size
     }
 
-    private fun findHologramNear(axo: Axolotl): ArmorStand? {
-        val level = mc.level ?: return null
-        val box = axo.boundingBox.inflate(0.6, 2.0, 0.6)
-
-        return level.getEntitiesOfClass(ArmorStand::class.java, box) { it.customName != null }
-            .firstOrNull()
+    /**
+     * Which axolotls show a warning icon. Each named armor stand counts only for the axolotl nearest to it
+     * (horizontally), so in a packed group one creature's icon doesn't hide its stealthed / cleared neighbour.
+     */
+    private fun hologramOwners(axolotls: List<Axolotl>): Set<Axolotl> {
+        val level = mc.level ?: return emptySet()
+        val owners = HashSet<Axolotl>()
+        for (axo in axolotls) {
+            for (stand in level.getEntitiesOfClass(ArmorStand::class.java, axo.boundingBox.inflate(0.6, 2.0, 0.6)) { it.customName != null }) {
+                axolotls.minByOrNull { (it.x - stand.x).let { dx -> dx * dx } + (it.z - stand.z).let { dz -> dz * dz } }
+                    ?.let(owners::add)
+            }
+        }
+        return owners
     }
 
     /** Runs every rendered frame while CATCH_DELAY, using real elapsed time. */
@@ -351,6 +499,7 @@ object CoralotHelper : Module(
         val slotBeforeSwitch = player.inventory.selectedSlot
 
         if (!switchToNet(player)) {
+            dbg("No \"$netItemName\" in hotbar")
             reset()
             return
         }
@@ -360,6 +509,7 @@ object CoralotHelper : Module(
 
         mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         player.swing(InteractionHand.MAIN_HAND)
+        dbg("Threw at #${axo.id}, aimed=${isLookingAt(player, axo, aimToleranceDeg.value.toFloat())}")
 
         state = CoralotState.CONFIRMING
         confirmDeadline = System.currentTimeMillis() + confirmTimeoutMs.value.toLong()

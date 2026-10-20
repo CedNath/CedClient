@@ -17,19 +17,21 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.network.chat.Component
 import net.minecraft.world.InteractionHand
+import net.minecraft.world.entity.animal.axolotl.Axolotl
 import net.minecraft.world.entity.animal.fish.TropicalFish
+import net.minecraft.world.phys.Vec3
 import org.lwjgl.glfw.GLFW
 import kotlin.random.Random
 
 /**
- * CoralotHelper for tropical fish. Fish have no warning icon, so there's nothing to wait for: the nearest fish
- * in range is aimed at (same HumanLook turning), netted after a random delay, and the next one is picked.
+ * CoralotHelper for tropical fish. Fish have no warning icon, so there's nothing to wait for: a fish in range is
+ * aimed at (same HumanLook turning), netted after a random delay, and the next one is picked. The first is the one
+ * nearest you; after that it's the one nearest the last fish thrown at, so the camera sweeps through a group
+ * instead of jumping around.
  * A fish that's still there after a throw is retried after [RETRY_MS]. Uses CoralotHelper's net item name.
  *
- * With CoralotHelper also on, the two work as one: fish are only caught while no axolotl is in Coralot's range,
- * and CoralotHelper's Catch Key (Require Keybind) switches both on / off.
- *
- * With CoralotHelper also on, the two work as one: fish are only caught while no axolotl is in Coralot's range,
+ * With CoralotHelper also on, the two work as one: fish are caught while no axolotl is catchable (ones still
+ * showing their warning icon don't block it), the moment one is the fish is dropped for it,
  * and CoralotHelper's Catch Key (Require Keybind) switches both on / off.
  */
 object TropicalFishHelper : Module(
@@ -56,6 +58,10 @@ object TropicalFishHelper : Module(
         .withDependency { requireKeybind.value }
 
     private const val RETRY_MS = 2000L
+    /** How long a fish with an axolotl in the net's path is left alone. */
+    private const val SKIP_MS = 7000L
+    private const val NET_RANGE = 20.0
+    private const val NET_OVERSHOOT = 2.0
 
     private var armed = false
     private var keyWas = false
@@ -71,6 +77,8 @@ object TropicalFishHelper : Module(
     private var previousSlot: Int? = null
     /** Entity id -> when we last threw at it, so a miss isn't retried every tick. */
     private val tried = HashMap<Int, Long>()
+    /** Where the last thrown-at fish was; the next target is the fish nearest this. Cleared once none are left. */
+    private var lastPos: Vec3? = null
 
     init {
         listOf(smoothnessMs, maxTurnSpeed, aimJitter, aimToleranceDeg, maxAimWaitMs, restorePreviousItem).forEach { it.advanced = true }
@@ -97,7 +105,7 @@ object TropicalFishHelper : Module(
     private fun tick() {
         val player = mc.player ?: return finish()
         if (!combo) pollCatchKey()
-        if (combo && CoralotHelper.hasWork(player, detectRange.value + 3.0)) {
+        if (combo && CoralotHelper.hasWork()) {
             target = null
             return
         }
@@ -109,8 +117,13 @@ object TropicalFishHelper : Module(
             if (!canCatch) return
             val next = mc.level?.entitiesForRendering()?.filterIsInstance<TropicalFish>()
                 ?.filter { it.isAlive && it.id !in tried && player.distanceTo(it) <= detectRange.value }
-                ?.minByOrNull { player.distanceTo(it) }
-            if (next == null) return restoreSlot()
+                ?.minByOrNull { fish -> lastPos?.let { fish.distanceToSqr(it) } ?: player.distanceToSqr(fish) }
+            if (next == null) {
+                lastPos = null
+                return restoreSlot()
+            }
+            CoralotHelper.dbg("Fish #${next.id}: ${"%.1f".format(player.distanceTo(next))}m from you" +
+                    (lastPos?.let { ", ${"%.1f".format(next.position().distanceTo(it))}m from last fish" } ?: ", nearest you"))
             startTarget(next)
             return
         }
@@ -147,8 +160,23 @@ object TropicalFishHelper : Module(
             return
         }
         if (restorePreviousItem.value && previousSlot == null && before != player.inventory.selectedSlot) previousSlot = before
+        // Measured: the net flies straight along the crosshair (no gravity) for ~20 blocks. Checked out to a bit past
+        // the fish, since a net that just misses it keeps going.
+        val from = player.eyePosition
+        val to = from.add(player.lookAngle.scale(minOf(from.distanceTo(fish.boundingBox.center) + NET_OVERSHOOT, NET_RANGE)))
+        val blocker = mc.level?.entitiesForRendering()?.filterIsInstance<Axolotl>()?.firstOrNull {
+            it.isAlive && it.boundingBox.inflate(0.6).let { box -> box.contains(from) || box.clip(from, to).isPresent }
+        }
+        if (blocker != null) {
+            CoralotHelper.dbg("Skipped fish #${fish.id}: axolotl #${blocker.id} in the way")
+            // Stamped ahead so the RETRY_MS cleanup frees it after SKIP_MS instead.
+            tried[fish.id] = System.currentTimeMillis() + SKIP_MS - RETRY_MS
+            target = null
+            return
+        }
         mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         player.swing(InteractionHand.MAIN_HAND)
+        lastPos = fish.position()
         tried[fish.id] = System.currentTimeMillis()
         target = null
     }
@@ -199,6 +227,7 @@ object TropicalFishHelper : Module(
     private fun finish() {
         target = null
         humanLook = null
+        lastPos = null
         restoreSlot()
     }
 }
