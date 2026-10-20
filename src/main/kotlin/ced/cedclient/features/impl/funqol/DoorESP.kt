@@ -11,6 +11,7 @@ import ced.cedclient.render.LineBox
 import ced.cedclient.render.pipeline.CustomRenderType
 import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonState
+import ced.cedclient.state.HotbarDungeonMap
 import ced.cedclient.utils.Color
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
@@ -25,17 +26,21 @@ import net.minecraft.world.phys.Vec3
 /**
  * Door ESP: boxes the wither doors (coal) and the blood door (red terracotta) through walls during clear.
  *
- * NoammAddons' version only draws doors its dungeon-map scanner has tied to the room you're standing in, so it
- * shows nothing whenever that scan is off. This reads the blocks straight from the world instead: every door
+ * The blocks are read straight from the world, so it works without a map scan: every door
  * sits on the fixed dungeon grid (tile centers at -185 + 16 * n, door tiles = exactly one odd index), 3x3 wide
  * and 4 tall from y 69. A door whose blocks are gone (opened) simply stops showing.
  *
- * "Next door" and the fairy door come from DungeonScanner's route from your room to blood: the next door is the
- * first still-locked door on it, the fairy door the (open) door on it into the fairy room, shown until you are in
- * the fairy room or past it. While that route isn't fully loaded yet, the next door falls back to the nearest one of the key's type.
+ * Which doors: before the run starts (Mort's map line, or
+ * the hotbar map lining up) every locked door; after it only the ones the hotbar map shows (HotbarDungeonMap),
+ * plus the locked door out of the fairy room while you're in the room before it, unless Highlight All Doors is on.
+ * Every shown door of a type goes green while the party holds a key of that type.
  *
- * Key tracking comes from the Hypixel pickup / open chat lines, so "Only With Key" and the key color know
- * whether the party holds a key for that door.
+ * The tracer and the fairy door come from DungeonScanner's route from your room to blood: the tracer goes to the
+ * first still-locked door on it, the fairy door is the (open) door on it into the fairy room, shown until you are
+ * in the fairy room or past it. While that route isn't fully loaded yet, the tracer falls back to the nearest door.
+ *
+ * Keys are counted from the Hypixel pickup / open chat lines (two wither keys = two doors), so "Only With Key"
+ * and the key color know whether the party holds a key for that door.
  */
 object DoorESP : Module(
     "Door ESP",
@@ -48,8 +53,9 @@ object DoorESP : Module(
     private val bloodColor = ColorSetting("Blood Door Color", Color(255, 40, 40), "Blood door color until the blood key is picked up.")
     private val fairyDoor = BooleanSetting("Fairy Door", true, "Box the open fairy room door on the way to blood (until you walk through). Green once the wither key for the door after the fairy room is picked up.")
     private val fairyColor = ColorSetting("Fairy Door Color", Color(255, 40, 40), "Fairy room door color.")
-    private val keyColor = ColorSetting("Next Door Color", Color(60, 255, 60), "Once a key is picked up, the next door on the way to blood gets this color.")
-    private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show the next door once its key is picked up (and the fairy door).")
+    private val keyColor = ColorSetting("Has Key Color", Color(60, 255, 60), "Doors of a type the party holds a key for get this color.")
+    private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show doors whose key the party holds (and the fairy door).")
+    private val highlightAll = BooleanSetting("Highlight All Doors", false, "After the run starts, still box every locked door instead of only the ones the dungeon map shows.")
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Outline")
     private val tracers = BooleanSetting("Tracers", false, "Draws a line to the next door to open on the way to blood.")
     private val onlyInDungeon = BooleanSetting("Only In Dungeons", true, "Off: also scan outside dungeons (e.g. a copied map).")
@@ -58,6 +64,7 @@ object DoorESP : Module(
     private val keyPickupRegex = Regex("""^(?:(?:\[.+?] )?\w+ has obtained|A) (?<type>Wither|Blood) Key(?: was picked up)?!$""")
     private val witherOpenedRegex = Regex("""^(?:\[.+?] )?\w+ opened a WITHER door!$""")
     private const val BLOOD_OPENED = "The BLOOD DOOR has been opened!"
+    private const val RUN_STARTED = "[NPC] Mort: Here, I found this map when I first entered the dungeon."
 
     /** Door tile centers (x, z) on the 11x11 dungeon grid. */
     private val DOOR_SPOTS: List<Pair<Int, Int>> = (0..10).flatMap { i -> (0..10).map { j -> i to j } }
@@ -75,23 +82,27 @@ object DoorESP : Module(
     }
 
     @Volatile private var doors: List<Door> = emptyList()
-    private var witherKey = false
-    private var bloodKey = false
+    private var witherKeys = 0
+    private var bloodKeys = 0
+    private var runStarted = false
+    /** World (x, z) of the door out of the fairy room while the fairy exception applies, else null. */
+    private var fairyExit: Pair<Int, Int>? = null
     private var lastLevel: ClientLevel? = null
     private var scanDelay = 0
 
     private val mc get() = Minecraft.getInstance()
 
     init {
-        addSettings(witherDoors, witherColor, bloodDoor, bloodColor, fairyDoor, fairyColor, keyColor, onlyWithKey, style, tracers, onlyInDungeon)
+        addSettings(witherDoors, witherColor, bloodDoor, bloodColor, fairyDoor, fairyColor, keyColor, onlyWithKey, highlightAll, style, tracers, onlyInDungeon)
 
         ClientTickEvents.END_CLIENT_TICK.register { scan() }
 
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
-            keyPickupRegex.find(plain)?.let { if (it.groups["type"]!!.value == "Wither") witherKey = true else bloodKey = true }
-            if (witherOpenedRegex.matches(plain)) witherKey = false
-            if (plain == BLOOD_OPENED) bloodKey = false
+            keyPickupRegex.find(plain)?.let { if (it.groups["type"]!!.value == "Wither") witherKeys++ else bloodKeys++ }
+            if (witherOpenedRegex.matches(plain)) witherKeys = maxOf(0, witherKeys - 1)
+            if (plain == BLOOD_OPENED) bloodKeys = maxOf(0, bloodKeys - 1)
+            if (plain == RUN_STARTED) runStarted = true
         }
 
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
@@ -111,17 +122,25 @@ object DoorESP : Module(
                     (it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL)
             }
             fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
-            val nextDoor = if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
+            val tracerTo = if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
                 else nearest(Kind.WITHER) ?: nearest(Kind.BLOOD)
-            val keyForNext = when (nextDoor?.kind) { Kind.WITHER -> witherKey; Kind.BLOOD -> bloodKey; Kind.FAIRY -> witherKey; null -> false }
-            val greenDoor = nextDoor?.takeIf { keyForNext }
-            val tracerTo = nextDoor
+            val hideUndiscovered = (runStarted || HotbarDungeonMap.calibrated) && !highlightAll.value
+            // Fairy exception: the door between the fairy room and the room after it shows early while you're
+            // in the room before the fairy room (route starts with the door into fairy) or have just walked from there
+            // into the fairy room (route now starts with that same door).
+            val path = DungeonScanner.bloodPath
+            if (path.firstOrNull()?.intoFairy == true) fairyExit = path.getOrNull(1)?.let { it.x to it.z }
+            else if (path.firstOrNull()?.let { it.x to it.z } != fairyExit) fairyExit = null
+            val pastFairy = fairyExit
 
             val shown = current.mapNotNull { door ->
-                val isNext = door === greenDoor
-                if (onlyWithKey.value && !isNext && door.kind != Kind.FAIRY) return@mapNotNull null
+                // The fairy door goes green with the wither key for the door after the fairy room.
+                val hasKey = if (door.kind == Kind.BLOOD) bloodKeys > 0 else witherKeys > 0
+                if (onlyWithKey.value && !hasKey && door.kind != Kind.FAIRY) return@mapNotNull null
+                if (hideUndiscovered && door.kind != Kind.FAIRY && (door.x to door.z) !in HotbarDungeonMap.discoveredDoors &&
+                    (door.x to door.z) != pastFairy) return@mapNotNull null
                 val c = when {
-                    isNext -> keyColor.value
+                    hasKey -> keyColor.value
                     door.kind == Kind.FAIRY -> fairyColor.value
                     door.kind == Kind.BLOOD -> bloodColor.value
                     else -> witherColor.value
@@ -147,9 +166,12 @@ object DoorESP : Module(
         val level = mc.level
         if (level !== lastLevel) {
             lastLevel = level
-            witherKey = false
-            bloodKey = false
+            witherKeys = 0
+            bloodKeys = 0
+            runStarted = false
+            fairyExit = null
             DungeonScanner.reset()
+            HotbarDungeonMap.reset()
         }
         if (!isEnabled || level == null || (onlyInDungeon.value && (!DungeonState.inDungeon || DungeonState.inBoss))) {
             if (doors.isNotEmpty()) doors = emptyList()
@@ -157,7 +179,11 @@ object DoorESP : Module(
         }
         val player = mc.player
         // Every 10 ticks, so the route follows you right after a leap.
-        if (player != null && scanDelay-- <= 0) { scanDelay = 10; DungeonScanner.scan(level, player.x, player.z) }
+        if (player != null && scanDelay-- <= 0) {
+            scanDelay = 10
+            DungeonScanner.scan(level, player.x, player.z)
+            HotbarDungeonMap.update(level, player)
+        }
         val pos = BlockPos.MutableBlockPos()
         val found = DOOR_SPOTS.mapNotNull { (x, z) ->
             val state = level.getBlockState(pos.set(x, 69, z))
