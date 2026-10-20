@@ -129,17 +129,23 @@ object DungeonSplits : Module(
     private val CLEAR = Regex("""^\s*☠ Defeated (.+) in """)
 
     // Floor-independent: the Watcher's first line (or the blood door) opens blood, "You have proven yourself" clears
-    // it, and the first non-Watcher boss line is the boss entry.
+    // it. The boss entry is the floor boss's first line: the Watcher's blood mobs include earlier floors' bosses that
+    // talk as [BOSS] too (Scarf in F4 blood), so "any non-Watcher [BOSS] line" ended Portal mid blood clear.
     private val bloodOpen = SegDef("Blood Open", 0xAA0000, 30.0) { it == "The BLOOD DOOR has been opened!" || it.startsWith("[BOSS] The Watcher:") }
     private val bloodClear = SegDef("Blood Clear", 0xFF5555, 65.0, starts("[BOSS] The Watcher: You have proven yourself"))
-    private val portal = SegDef("Portal", 0xFF55FF, 10.0) { it.startsWith("[BOSS] ") && !it.startsWith("[BOSS] The Watcher") }
+    private fun portal(boss: String?) = SegDef(PORTAL, 0xFF55FF, 10.0) {
+        if (boss != null) it.startsWith("[BOSS] $boss:") else it.startsWith("[BOSS] ") && !it.startsWith("[BOSS] The Watcher")
+    }
+    private const val PORTAL = "Portal"
+    /** Who speaks first on entering each floor's boss (F1..F7). */
+    private val FLOOR_BOSS = listOf("Bonzo", "Scarf", "The Professor", "Thorn", "Livid", "Sadan", "Maxor")
 
     private fun boss(name: String, color: Int, estimate: Double) = SegDef(name, color, estimate, null)
 
     private fun segmentsFor(floor: String): List<SegDef> {
         val n = floor.drop(1).toIntOrNull()
         val master = floor.startsWith("M")
-        val common = listOf(bloodOpen, bloodClear, portal)
+        val common = listOf(bloodOpen, bloodClear, portal(n?.let { FLOOR_BOSS.getOrNull(it - 1) }))
         return when (n) {
             null -> listOf(bloodOpen, SegDef("Blood Clear", 0xFF5555, 30.0, null)) // Entrance: the Watcher is the end
             1 -> common + boss("Bonzo", 0x00AAAA, 30.0)
@@ -486,16 +492,23 @@ object DungeonSplits : Module(
         val rows = ArrayList<Row>()
 
         // Boss Entry (cumulative time to the boss) sits right under Portal, the split that ends on entering it.
-        val bossIdx = list.indexOfFirst { it.def === portal }
+        val bossIdx = list.indexOfFirst { it.def.name == PORTAL }
         val bossEntryRow = if (showBossEntry.value && bossIdx >= 0 && !(onlyStarted.value && !preview && list[bossIdx].end < 0)) {
             val bossSeg = list[bossIdx]
             val entry = bossSeg.end
             val pbEntry = pb?.let { p -> list.take(bossIdx + 1).sumOf { p.segments[it.def.name] ?: return@let null } }
-            Row(
-                "Boss Entry", nameColor(0x5555FF), if (entry >= 0) fmtTotal(entry) else pbEntry?.let(::fmtTotal) ?: "-",
-                if (entry >= 0) WHITE else GREY,
-                if (tickMode && bossSeg.endTick >= 0) fmtSecs(bossSeg.endTick * 50) else null, TICK,
-            )
+            // Same colouring as the splits: green / red against the PB's entry, or the difference in the second column.
+            val entryColor = when {
+                entry < 0 -> GREY
+                showDeltas.value && pbEntry != null -> if (entry <= pbEntry) GREEN else RED
+                else -> WHITE
+            }
+            val (second, secondColor) = when {
+                tickMode -> (if (bossSeg.endTick >= 0) fmtSecs(bossSeg.endTick * 50) else null) to TICK
+                diffMode && entry >= 0 && pbEntry != null -> (entry - pbEntry).let { deltaText(it, chat = false) to (if (it <= 0) GREEN else RED) }
+                else -> null to 0
+            }
+            Row("Boss Entry", nameColor(0x5555FF), if (entry >= 0) fmtTotal(entry) else pbEntry?.let(::fmtTotal) ?: "-", entryColor, second, secondColor)
         } else null
 
         for (seg in list) {
@@ -514,7 +527,7 @@ object DungeonSplits : Module(
                 else -> null to 0
             }
             rows += Row(seg.def.name, nameColor(seg.def.color), timeText, timeColor, second, secondColor)
-            if (seg.def === portal) bossEntryRow?.let { rows += it }
+            if (seg.def.name == PORTAL) bossEntryRow?.let { rows += it }
 
             // Terminal sections under Terminals, once it has started.
             if (seg.def.name == "Terminals" && terminalSplits.value && (seg.start >= 0 || preview)) {
