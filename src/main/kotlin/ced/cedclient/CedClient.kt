@@ -73,6 +73,7 @@ import ced.cedclient.features.impl.render.CosmeticBlocks
 //$import ced.cedclient.features.impl.render.StarredMobHighlight
 //#endif
 import ced.cedclient.features.impl.render.FloorDrops
+import ced.cedclient.features.impl.render.PestHighlighter
 import ced.cedclient.features.impl.render.Fullbright
 import ced.cedclient.features.impl.render.HardcodedCosmetics
 import ced.cedclient.features.impl.render.ItemCooldowns
@@ -178,6 +179,7 @@ class CedClient : ClientModInitializer {
         // Render: highlights, then world visuals, then camera
         ModuleManager.register(StarredMobHighlight)
         ModuleManager.register(FloorDrops)
+        ModuleManager.register(PestHighlighter)
         ModuleManager.register(Fullbright)
         ModuleManager.register(CleanView)
         ModuleManager.register(RenderOptimizer)
