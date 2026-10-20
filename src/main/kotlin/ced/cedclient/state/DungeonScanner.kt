@@ -6,7 +6,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.Blocks
 
 /**
- * Dungeon layout from the world blocks, NoammAddons / Odin style. The Catacombs grid is 11x11 cells 16 blocks apart
+ * Dungeon layout from the world blocks. The Catacombs grid is 11x11 cells 16 blocks apart
  * from -185: both indices even = a room tile (identified by its core via CosmeticRooms), exactly one odd = the
  * spot between two room tiles. A spot whose top block is at a door roof height (73 / 74 / 81 / 82) is a door,
  * typed by the block at y 69; any other top block means both tiles are one room; nothing there = a wall.

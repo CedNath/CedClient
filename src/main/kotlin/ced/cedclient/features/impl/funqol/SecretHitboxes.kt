@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.Shapes
 import net.minecraft.world.phys.shapes.VoxelShape
 
 /**
- * Secret Hitboxes (NoammAddons-style): bigger hitboxes on levers, buttons, skulls and mushrooms so secrets are
+ * Secret Hitboxes: bigger hitboxes on levers, buttons, skulls and mushrooms so secrets are
  * easier to click. Only the outline / click shape changes; collision stays vanilla.
  *
  * F7 / M7 second device (the 5x4 lights grid): the 14 levers that are never used keep their normal lever
@@ -49,7 +49,7 @@ object SecretHitboxes : Module(
     )
     private val onlyDungeons = BooleanSetting("Only In Dungeons", true, "Off: also works outside dungeons (e.g. a copied map).")
 
-    /** The 14 levers on the lights device that are never part of the solution (same list as NoammAddons). */
+    /** The 14 levers on the lights device that are never part of the solution. */
     private val UNUSED_DEVICE_LEVERS: Set<Long> = listOf(
         BlockPos(61, 136, 142), BlockPos(60, 136, 142), BlockPos(59, 136, 142),
         BlockPos(62, 135, 142), BlockPos(61, 135, 142), BlockPos(59, 135, 142), BlockPos(58, 135, 142),
