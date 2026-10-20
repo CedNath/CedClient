@@ -117,10 +117,8 @@ object DoorESP : Module(
             val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
 
             // The fairy door counts as the next door while it is ahead; it goes green with the wither key from the room before it.
-            val pathNext = DungeonScanner.bloodPath.firstOrNull {
-                it.spot == DungeonScanner.Spot.WITHER || it.spot == DungeonScanner.Spot.BLOOD ||
-                    (it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL)
-            }
+            val fairy = neededFairyDoor()
+            val pathNext = DungeonScanner.bloodPath.firstOrNull { it === fairy || it.locked }
             fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
             val tracerTo = if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
                 else nearest(Kind.WITHER) ?: nearest(Kind.BLOOD)
@@ -162,6 +160,18 @@ object DoorESP : Module(
         })
     }
 
+    private val DungeonScanner.PathDoor.locked get() = spot == DungeonScanner.Spot.WITHER || spot == DungeonScanner.Spot.BLOOD
+
+    /**
+     * The open door into the fairy room on the route to blood, but only while a locked door still follows it: with
+     * everything behind the fairy room open (walking back after blood), the route passing through fairy needs no box.
+     */
+    private fun neededFairyDoor(): DungeonScanner.PathDoor? {
+        val path = DungeonScanner.bloodPath
+        val i = path.indexOfFirst { it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL }
+        return path.getOrNull(i)?.takeIf { path.drop(i + 1).any { it.locked } }
+    }
+
     private fun scan() {
         val level = mc.level
         if (level !== lastLevel) {
@@ -193,7 +203,7 @@ object DoorESP : Module(
                 else -> null
             }
         }
-        val fairy = DungeonScanner.bloodPath.firstOrNull { it.intoFairy && it.spot == DungeonScanner.Spot.NORMAL }
+        val fairy = neededFairyDoor()
         doors = if (fairy != null && fairyDoor.value) found + Door(fairy.x, fairy.z, Kind.FAIRY) else found
     }
 }
