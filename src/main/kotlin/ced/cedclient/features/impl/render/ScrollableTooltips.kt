@@ -67,7 +67,7 @@ object ScrollableTooltips : Module(
     @JvmStatic
     fun position(pos: Vector2ic, screenW: Int, screenH: Int, w: Int, h: Int): Vector2ic {
         drawScale = 1f
-        if (!isEnabled || mc.screen is ChatScreen) return pos
+        if (!isEnabled || mc.gui.screen() is ChatScreen) return pos
         lastTooltipAt = System.currentTimeMillis()
         val key = tooltipKey(w, h)
         if (key != lastKey) {

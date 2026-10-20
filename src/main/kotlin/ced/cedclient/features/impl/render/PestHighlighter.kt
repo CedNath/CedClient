@@ -65,13 +65,14 @@ object PestHighlighter : Module(
             pests = scan()
         }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        // 26.2: no BufferSource, boxes go through submitCustomGeometry in COLLECT_SUBMITS (see FloorDrops).
+        LevelRenderEvents.COLLECT_SUBMITS.register { context ->
             val current = pests
-            if (!shouldProcess() || current.isEmpty()) return@AfterSolidFeatures
+            if (!shouldProcess() || current.isEmpty()) return@register
 
             val poseStack = context.poseStack()
-            val cam = context.gameRenderer().mainCamera.position()
-            val bufferSource = context.bufferSource()
+            val cam = context.gameRenderer().mainCamera().position()
+            val submit = context.submitNodeCollector()
             val partial = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
             // Pest hitboxes are tiny (silverfish 0.4 x 0.3), so pad them to stay visible.
             val shown = current.filter { it.isAlive }.map { e ->
@@ -84,18 +85,14 @@ object PestHighlighter : Module(
 //#else
 //$            val through = false
 //#endif
-            if (style.value != "Outline") {
-                val fill = bufferSource.getBuffer(if (through) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED)
+            if (style.value != "Outline") submit.submitCustomGeometry(poseStack, if (through) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, fill ->
                 // Fill at 40% of the colour's opacity so the pest stays visible, like DoorESP.
-                for (box in shown) FilledBox.draw(poseStack, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
-                bufferSource.endBatch()
+                for (box in shown) FilledBox.draw(pose, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
             }
-            if (style.value != "Filled") {
-                val buffer = bufferSource.getBuffer(if (through) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
-                for (box in shown) LineBox.draw(poseStack, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-                bufferSource.endBatch()
+            if (style.value != "Filled") submit.submitCustomGeometry(poseStack, if (through) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                for (box in shown) LineBox.draw(pose, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
             }
-        })
+        }
     }
 
     override fun onDisable() {
