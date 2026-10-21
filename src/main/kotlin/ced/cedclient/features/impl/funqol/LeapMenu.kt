@@ -7,6 +7,15 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.state.DungeonState.DungeonClass
 import ced.cedclient.utils.TabListCache
+//#if CHEAT
+import ced.cedclient.data.ClickType
+import ced.cedclient.events.ItemClickEvent
+import ced.cedclient.events.core.on
+import ced.cedclient.state.DungeonState
+import ced.cedclient.utils.ChatPrefix
+import ced.cedclient.utils.skyblockId
+import net.minecraft.world.InteractionHand
+//#endif
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -24,6 +33,11 @@ import net.minecraft.world.item.Items
  * straight out as a middle click on the head's slot (no item lands on the cursor), at most once per 400 ms.
  * Teammates are always in the same order (by class, then name), so a box's spot stays put run to run.
  * Whoever opened the last wither door gets a gold box, until blood opens or the world changes.
+//#if CHEAT
+ *
+ * Quick Leap: left-click with the leap item opens the menu (a right-click) and picks the door opener through the
+ * same early-pick path, so the leap goes out the frame their head arrives.
+//#endif
  */
 object LeapMenu : Module(
     "Leap Menu",
@@ -32,6 +46,13 @@ object LeapMenu : Module(
 ) {
     private val numberKeys = BooleanSetting("Number Keys", true, "1-4 leap to the top-left, top-right, bottom-left, bottom-right box.")
     private val highlightOpener = BooleanSetting("Highlight Door Opener", true, "Gold box on whoever opened the last wither door (cleared once blood opens).")
+//#if CHEAT
+    private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
+    private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
+    /** Quick Leap target, waiting for the menu it opened (until [quickUntil]). */
+    private var quickTarget: String? = null
+    private var quickUntil = 0L
+//#endif
 
     private val TITLES = setOf("Spirit Leap", "Teleport to Player")
     private val CODES = Regex("§.")
@@ -58,7 +79,21 @@ object LeapMenu : Module(
     private var openerLevel: ClientLevel? = null
 
     init {
-        addSettings(numberKeys, highlightOpener)
+//#if CHEAT
+        addSettings(numberKeys, highlightOpener, quickLeap)
+        on<ItemClickEvent> { event ->
+            if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
+            if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
+            val target = doorOpener.takeIf { openerLevel === mc.level }
+            if (target == null) { mc.player?.sendSystemMessage(ChatPrefix.msg("§cNo wither door opened yet")); return@on }
+            val player = mc.player ?: return@on
+            quickTarget = target
+            quickUntil = System.currentTimeMillis() + 2000
+            mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
+        }
+//#else
+//$        addSettings(numberKeys, highlightOpener)
+//#endif
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
             WITHER_OPENED.find(plain)?.let { doorOpener = it.groupValues[1]; openerLevel = mc.level }
@@ -118,10 +153,17 @@ object LeapMenu : Module(
     fun render(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         val mates = mates(screen)
         val id = screen.menu.containerId
+//#if CHEAT
+        // The menu Quick Leap opened: its target becomes an early pick.
+        quickTarget?.let { target ->
+            quickTarget = null
+            if (System.currentTimeMillis() < quickUntil) { pending = target; pendingContainer = id }
+        }
+//#endif
         // An early pick goes out the frame its head shows up.
         pending?.let { name ->
             if (pendingContainer != id) pending = null
-            else mates.firstOrNull { it.name == name && it.slot >= 0 }?.let { leap(screen, it) }
+            else mates.firstOrNull { it.name.equals(name, ignoreCase = true) && it.slot >= 0 }?.let { leap(screen, it) }
         }
         val loaded = loaded(screen)
         val hovered = indexAt(screen, mouseX.toDouble(), mouseY.toDouble())
