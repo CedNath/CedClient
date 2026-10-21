@@ -1,6 +1,7 @@
 package ced.cedclient.state
 
 import ced.cedclient.render.cosmetic.CosmeticRooms
+import ced.cedclient.render.cosmetic.RoomInfo
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.Blocks
@@ -13,7 +14,7 @@ import net.minecraft.world.level.block.Blocks
  *
  * From that it finds the route from the room you stand in to blood ([bloodPath]), so doors behind you (even ones
  * opened while unloaded, still cached as locked) never count after a leap. Results stay cached for the run, so a
- * part of the dungeon that unloads later keeps its last known state. Call [scan] from a tick, [reset] on world change.
+ * part of the dungeon that unloads later keeps its last known state. Call [scan] from a tick; a new world resets it.
  */
 object DungeonScanner {
     enum class Spot { SEPARATOR, WITHER, BLOOD, ENTRANCE, NORMAL }
@@ -25,7 +26,7 @@ object DungeonScanner {
     private val DOOR_HEIGHTS = setOf(73, 74, 81, 82)
     private val NEIGHBOURS = listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)
 
-    private val roomTypes = arrayOfNulls<String>(36)
+    private val rooms = arrayOfNulls<RoomInfo>(36)
     private val spots = arrayOfNulls<Spot>(121)
 
     /** Doors from your room (outside the grid: the entrance) to the blood room, in order. Empty until the route is loaded. */
@@ -33,20 +34,28 @@ object DungeonScanner {
         private set
 
     private val pos = BlockPos.MutableBlockPos()
+    private var lastLevel: ClientLevel? = null
+
+    /** Identified room on tile ([i], [j]) of the 6x6 grid (i along x, j along z), null = not seen yet. */
+    fun room(i: Int, j: Int): RoomInfo? = rooms[i * 6 + j]
+
+    /** What sits between room tiles on the 11x11 grid spot ([i], [j]) (exactly one index odd), null = wall / not seen. */
+    fun spot(i: Int, j: Int): Spot? = spots[i * 11 + j]
 
     fun reset() {
-        roomTypes.fill(null)
+        rooms.fill(null)
         spots.fill(null)
         bloodPath = emptyList()
     }
 
     fun scan(level: ClientLevel, playerX: Double, playerZ: Double) {
+        if (level !== lastLevel) { lastLevel = level; reset() }
         for (i in 0..10) for (j in 0..10) {
             val x = START + 16 * i
             val z = START + 16 * j
             if (i % 2 == 0 && j % 2 == 0) {
                 val r = (i / 2) * 6 + j / 2
-                if (roomTypes[r] == null) roomTypes[r] = CosmeticRooms.roomInfoAt(level, x, z)?.type
+                if (rooms[r] == null) rooms[r] = CosmeticRooms.roomInfoAt(level, x, z)
             } else if ((i % 2 == 1) != (j % 2 == 1)) {
                 val top = highestY(level, x, z)
                 if (top == 0) continue // wall, or not loaded yet: keep what was seen before
@@ -63,19 +72,19 @@ object DungeonScanner {
         }
         val ri = Math.floorDiv(playerX.toInt() - START + 16, 32)
         val rj = Math.floorDiv(playerZ.toInt() - START + 16, 32)
-        bloodPath = findPath(if (ri in 0..5 && rj in 0..5) ri * 6 + rj else roomTypes.indexOf("ENTRANCE"))
+        bloodPath = findPath(if (ri in 0..5 && rj in 0..5) ri * 6 + rj else rooms.indexOfFirst { it?.type == "ENTRANCE" })
     }
 
     /** Breadth-first from room tile [start] to a blood tile over doors and same-room joins. */
     private fun findPath(start: Int): List<PathDoor> {
-        if (start < 0 || "BLOOD" !in roomTypes) return emptyList()
+        if (start < 0 || rooms.none { it?.type == "BLOOD" }) return emptyList()
         val parent = IntArray(36) { -1 }
         parent[start] = start
         val queue = ArrayDeque(listOf(start))
         var end = -1
         while (queue.isNotEmpty()) {
             val r = queue.removeFirst()
-            if (roomTypes[r] == "BLOOD") { end = r; break }
+            if (rooms[r]?.type == "BLOOD") { end = r; break }
             for ((di, dj) in NEIGHBOURS) {
                 val ni = r / 6 + di; val nj = r % 6 + dj
                 if (ni !in 0..5 || nj !in 0..5) continue
@@ -94,7 +103,7 @@ object DungeonScanner {
             val spot = spots[spotIndex(from, r)]!!
             if (spot != Spot.SEPARATOR) {
                 // The spot's grid index is the sum of the two room indices on each axis.
-                doors += PathDoor(START + 16 * (from / 6 + r / 6), START + 16 * (from % 6 + r % 6), spot, roomTypes[r] == "FAIRY")
+                doors += PathDoor(START + 16 * (from / 6 + r / 6), START + 16 * (from % 6 + r % 6), spot, rooms[r]?.type == "FAIRY")
             }
             r = from
         }

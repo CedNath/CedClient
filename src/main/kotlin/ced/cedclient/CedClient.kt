@@ -208,6 +208,7 @@ class CedClient : ClientModInitializer {
 //#else
 //$        // Skyblock: dungeons
 //#endif
+        ModuleManager.register(ced.cedclient.features.impl.funqol.DungeonMap)
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
         ModuleManager.register(F7SoundCap)
@@ -281,6 +282,11 @@ class CedClient : ClientModInitializer {
             ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
         }
 //#endif
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "dungeon_map")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.DungeonMap.render(graphics, tickCounter)
+        }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")
         ) { graphics, tickCounter ->
