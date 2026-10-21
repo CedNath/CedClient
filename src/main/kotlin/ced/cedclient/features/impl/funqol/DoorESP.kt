@@ -183,7 +183,7 @@ object DoorESP : Module(
             DungeonScanner.reset()
             HotbarDungeonMap.reset()
         }
-        if (!isEnabled || level == null || (onlyInDungeon.value && (!DungeonState.inDungeon || DungeonState.inBoss))) {
+        if (!isEnabled || level == null || (onlyInDungeon.value && (!DungeonState.active || DungeonState.inBoss))) {
             if (doors.isNotEmpty()) doors = emptyList()
             return
         }

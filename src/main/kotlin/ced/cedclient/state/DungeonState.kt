@@ -70,6 +70,8 @@ object DungeonState {
     // happens later, on Mort's map message). This is the primary/authoritative
     // source for playerClass now -- unlike floor, there's no need for a
     // sidebar fallback here since this message is confirmed reliable.
+    private val startingRegex = Regex("""Starting in \d+ seconds?\.""")
+
     private val classSelectRegex =
         Regex("""You have selected the (?<name>Healer|Mage|Berserk|Archer|Tank) Dungeon Class!""")
 
@@ -155,6 +157,13 @@ object DungeonState {
      */
     fun bossRoomBox(floorNum: Int): AABB? = bossRoomBounds.getOrNull(floorNum - 1)
 
+    /** The run's "Starting in N seconds" countdown is on: in the dungeon instance, before Mort's line flips [inDungeon]. */
+    var preRun: Boolean = false
+        private set
+
+    /** In a dungeon instance, counting the pre-run countdown. */
+    val active: Boolean get() = inDungeon || preRun
+
     var inDungeon: Boolean = false
         private set
 
@@ -214,8 +223,11 @@ object DungeonState {
         on<ChatMessageEvent> { event ->
             if (Debug.enabled) Debug.log("[DungeonState] chat: '${event.unformattedText}'", interval = 1)
 
+            if (startingRegex.matches(event.unformattedText.trim())) preRun = true
+
             if (event.unformattedText.trim() == DUNGEON_START_MESSAGE) {
                 inDungeon = true
+                preRun = false
                 // Fresh run -- clear any stage state left over from a
                 // previous dungeon in case something above missed the
                 // level-change reset (defensive; level should already have
@@ -328,6 +340,7 @@ object DungeonState {
 
         if (currentLevel !== lastLevel) {
             lastLevel = currentLevel
+            preRun = false
             if (inDungeon) {
                 // Level swapped out from under us -- run's over (success, fail,
                 // or a disconnect), one way or another we're not in that

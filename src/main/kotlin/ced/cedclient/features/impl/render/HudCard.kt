@@ -18,13 +18,16 @@ object HudCard {
 
     val font get() = NVGRenderer.defaultFont
 
-    fun draw(g: GuiGraphicsExtractor, x: Int, y: Int, content: () -> Unit) {
-        NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = {
+    /** [behindLeap]: while the Leap Menu is open the panel is drawn inside its pass, under its dim backdrop and boxes. */
+    fun draw(g: GuiGraphicsExtractor, x: Int, y: Int, behindLeap: Boolean = false, content: () -> Unit) {
+        val full = {
             val ratio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
             NVGRenderer.scale(ratio, ratio)
             NVGRenderer.translate(x.toFloat(), y.toFloat())
             content()
-        })
+        }
+        if (behindLeap && ced.cedclient.features.impl.funqol.LeapMenu.defer(full)) return
+        NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = full)
     }
 
     fun card(width: Float, height: Float, scale: Float, alpha: Float = 1f) {

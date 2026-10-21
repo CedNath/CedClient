@@ -456,7 +456,7 @@ object DungeonSplits : Module(
         fun text(str: String, x: Float, y: Float, sz: Float, color: Int) =
             if (shadow) NVGRenderer.textShadow(str, x, y, sz, color, font) else NVGRenderer.text(str, x, y, sz, color, font)
 
-        NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = {
+        val full = {
             val ratio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
             NVGRenderer.scale(ratio, ratio)
             NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
@@ -476,7 +476,9 @@ object DungeonSplits : Module(
                 }
                 y += lineH
             }
-        })
+        }
+        if (LeapMenu.defer(full)) return
+        NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = full)
     }
 
     private val tickMode get() = secondColumn.value == "Tick Time"

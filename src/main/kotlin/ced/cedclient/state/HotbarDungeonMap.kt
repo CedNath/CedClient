@@ -25,6 +25,10 @@ object HotbarDungeonMap {
     var calibrated = false
         private set
 
+    /** Bumped whenever [calibrated], [roomStates] or [discoveredDoors] change, so callers can cache what they derive. */
+    var version = 0
+        private set
+
     /** World (x, z) of every door the map shows. */
     val discoveredDoors = HashSet<Pair<Int, Int>>()
 
@@ -53,9 +57,12 @@ object HotbarDungeonMap {
         discoveredDoors.clear()
         roomStates.clear()
         markers = emptyList()
+        version++
+        lastSample = Long.MIN_VALUE
     }
 
     private var lastLevel: ClientLevel? = null
+    private var lastSample = Long.MIN_VALUE
 
     fun update(level: ClientLevel, player: LocalPlayer) {
         if (level !== lastLevel) { lastLevel = level; reset() }
@@ -65,6 +72,9 @@ object HotbarDungeonMap {
         if (colors.size < 128 * 128) return
         if (!calibrated && !calibrate(colors)) return
         readMarkers(data)
+        // Rooms and doors change slowly: sampling the grid every 3rd tick is as good as every tick.
+        if (level.gameTime - lastSample in 0..2) return
+        lastSample = level.gameTime
 
         val halfRoom = roomSize / 2
         val halfTile = halfRoom + 2
@@ -77,19 +87,20 @@ object HotbarDungeonMap {
                 val center = colors[mapZ * 128 + mapX].toInt()
                 if (center == 0) continue
                 val base = colors[(mapZ - halfRoom + 1) * 128 + mapX - halfRoom + 1].toInt()
-                roomStates[i / 2 to j / 2] = when {
+                val state = when {
                     base == 85 -> RoomState.UNEXPLORED
                     center == 34 -> RoomState.CLEARED
                     center == 30 && base != 30 -> RoomState.GREEN
                     center == 18 && base != 18 -> RoomState.FAILED
                     else -> RoomState.OPENED
                 }
+                if (roomStates.put(i / 2 to j / 2, state) != state) version++
                 continue
             }
             val center = colors[mapZ * 128 + mapX].toInt()
             // Sideways from the passage: a door is narrow (empty there), a room joining two tiles is not.
             val side = colors.getOrNull(if (j % 2 == 1) mapZ * 128 + mapX - 4 else (mapZ - 4) * 128 + mapX)?.toInt() ?: 0
-            if (center in DOOR_COLORS && side == 0) discoveredDoors += (START + 16 * i) to (START + 16 * j)
+            if (center in DOOR_COLORS && side == 0 && discoveredDoors.add((START + 16 * i) to (START + 16 * j))) version++
         }
     }
 
@@ -130,6 +141,7 @@ object HotbarDungeonMap {
         cornerX = x
         cornerZ = z
         calibrated = true
+        version++
         return true
     }
 }
