@@ -3,6 +3,7 @@ package ced.cedclient.state
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.component.DataComponents
+import net.minecraft.world.level.saveddata.maps.MapDecorationTypes
 
 /**
  * Reads the Catacombs map in hotbar slot 9: the
@@ -32,8 +33,11 @@ object HotbarDungeonMap {
     /** Room tiles (i, j) on the 6x6 grid (i along x) the map shows anything on, with what the map says about them. */
     val roomStates = HashMap<Pair<Int, Int>, RoomState>()
 
-    /** World (x, z) of every player icon on the map (you included), refreshed each [update]. */
-    var markers: List<Pair<Double, Double>> = emptyList()
+    /** One player icon on the map: world position, facing (yaw, degrees), [self] = your own (frame) icon. */
+    class Marker(val x: Double, val z: Double, val yaw: Float, val self: Boolean)
+
+    /** Every player icon on the map, in the map's order (teammates follow the party order), refreshed each [update]. */
+    var markers: List<Marker> = emptyList()
         private set
 
     /** Map pixel of the grid's top-left room corner, and the map's room size (16, or 18 on small floors). */
@@ -95,7 +99,11 @@ object HotbarDungeonMap {
         markers = data.decorations.map { d ->
             val px = (d.x() + 128) / 2.0
             val pz = (d.y() + 128) / 2.0
-            START + (px - cornerX - roomSize / 2) * blocksPerPixel to START + (pz - cornerZ - roomSize / 2) * blocksPerPixel
+            Marker(
+                START + (px - cornerX - roomSize / 2) * blocksPerPixel, START + (pz - cornerZ - roomSize / 2) * blocksPerPixel,
+                // 16 rotation steps, 0 = facing +z like player yaw.
+                d.rot() * 22.5f, d.type().value() === MapDecorationTypes.FRAME.value(),
+            )
         }
     }
 
