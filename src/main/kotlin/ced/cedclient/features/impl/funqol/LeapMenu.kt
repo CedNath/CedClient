@@ -5,6 +5,8 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.impl.render.HudCard
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
+import ced.cedclient.features.settings.DropdownSetting
+import ced.cedclient.features.settings.RenderableSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.state.DungeonState.DungeonClass
 import ced.cedclient.state.DungeonTeam
@@ -34,13 +36,14 @@ import net.minecraft.world.item.Items
  * Speed: the boxes come from the tab list, so they are there the frame the menu opens, before the chest's items
  * arrive. A pick made that early is kept and clicked the first frame the teammate's head shows up. The click goes
  * straight out as a middle click on the head's slot (no item lands on the cursor), at most once per 400 ms.
- * Teammates are always in the same order (by class, then name), so a box's spot stays put run to run.
+ * Teammates are always in the same order (by class, then name), so a box's spot stays put run to run. Each box owns
+ * its whole quarter of the screen, so a click that misses the box still leaps.
  * Whoever opened the last wither door gets a gold box, until blood opens or the world changes. Leap Announce says
  * who you leap to in party chat. All options sit in the "Leap Options" popup.
 //#if CHEAT
  *
  * Quick Leap: left-click with the leap item opens the menu (a right-click) and picks the door opener through the
- * same early-pick path, so the leap goes out the frame their head arrives.
+ * same early-pick path, after the Quick Leap Speed delay (Fast = the frame their head arrives).
 //#endif
  */
 object LeapMenu : Module(
@@ -53,6 +56,7 @@ object LeapMenu : Module(
     private val announce = BooleanSetting("Leap Announce", false, "Says \"Leaping to <name>\" in party chat when you leap.")
 //#if CHEAT
     private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
+    private val quickSpeed = DropdownSetting("Quick Leap Speed", listOf("Slow", "Normal", "Fast"), "Normal", "How long the menu stays open before Quick Leap clicks: Slow 350 ms, Normal 150 ms, Fast at once.")
     private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
     /** Quick Leap target, waiting for the menu it opened (until [quickUntil]). */
     private var quickTarget: String? = null
@@ -77,13 +81,15 @@ object LeapMenu : Module(
     /** A pick made before the heads arrived: the teammate's name, for this container id. */
     private var pending: String? = null
     private var pendingContainer = -1
+    /** The early pick isn't sent before this (Quick Leap Speed). */
+    private var pendingNotBefore = 0L
     private var lastClick = 0L
     private var doorOpener: String? = null
     private var openerLevel: ClientLevel? = null
 
     init {
 //#if CHEAT
-        addPopupSettings("Menu" to listOf(numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap))
+        addPopupSettings("Menu" to listOf(numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
@@ -105,7 +111,7 @@ object LeapMenu : Module(
     }
 
     /** One "Leap Options" button in the panel; [sections] open in a popup from it. */
-    private fun addPopupSettings(vararg sections: Pair<String, List<BooleanSetting>>) {
+    private fun addPopupSettings(vararg sections: Pair<String, List<RenderableSetting<*>>>) {
         addSettings(ActionSetting("Leap Options", "Number keys, door opener highlight, leap announce.") {
             (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Leap Menu", sections.map { (title, list) -> listOf(SettingsPopup.Section(title, list)) }))
         })
@@ -149,10 +155,9 @@ object LeapMenu : Module(
         return x to y
     }
 
-    private fun indexAt(screen: AbstractContainerScreen<*>, mx: Double, my: Double): Int = (0 until 4).firstOrNull { i ->
-        val (x, y) = boxAt(i, screen.width, screen.height)
-        mx >= x && mx < x + BOX_W && my >= y && my < y + BOX_H
-    } ?: -1
+    /** The box whose quarter of the screen ([mx], [my]) is in: left/right of the centre, then top/bottom. */
+    private fun indexAt(screen: AbstractContainerScreen<*>, mx: Double, my: Double): Int =
+        (if (mx < screen.width / 2.0) 0 else 1) + (if (my < screen.height / 2.0) 0 else 2)
 
     fun render(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         val mates = mates(screen)
@@ -161,13 +166,18 @@ object LeapMenu : Module(
         // The menu Quick Leap opened: its target becomes an early pick.
         quickTarget?.let { target ->
             quickTarget = null
-            if (System.currentTimeMillis() < quickUntil) { pending = target; pendingContainer = id }
+            if (System.currentTimeMillis() < quickUntil) {
+                pending = target
+                pendingContainer = id
+                pendingNotBefore = System.currentTimeMillis() + when (quickSpeed.value) { "Slow" -> 350L; "Normal" -> 150L; else -> 0L }
+            }
         }
 //#endif
         // An early pick goes out the frame its head shows up.
         pending?.let { name ->
             if (pendingContainer != id) pending = null
-            else mates.firstOrNull { it.name.equals(name, ignoreCase = true) && it.slot >= 0 }?.let { leap(screen, it) }
+            else if (System.currentTimeMillis() >= pendingNotBefore)
+                mates.firstOrNull { it.name.equals(name, ignoreCase = true) && it.slot >= 0 }?.let { leap(screen, it) }
         }
         val loaded = loaded(screen)
         val hovered = indexAt(screen, mouseX.toDouble(), mouseY.toDouble())
@@ -220,7 +230,7 @@ object LeapMenu : Module(
         val mate = mates(screen).getOrNull(index) ?: return
         if (mate.dead) return
         if (mate.slot >= 0) leap(screen, mate)
-        else if (!loaded(screen)) { pending = mate.name; pendingContainer = screen.menu.containerId }
+        else if (!loaded(screen)) { pending = mate.name; pendingContainer = screen.menu.containerId; pendingNotBefore = 0L }
     }
 
     private fun leap(screen: AbstractContainerScreen<*>, mate: Mate) {

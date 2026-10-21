@@ -138,6 +138,21 @@ object NVGRenderer {
         nvgStroke(vg)
     }
 
+    /** Open path through [xy] (x0, y0, x1, y1, ...) with round caps and joins, so corners stay smooth. */
+    fun strokePath(xy: FloatArray, thickness: Float, color: Int) {
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, xy[0], xy[1])
+        for (i in 2 until xy.size step 2) nvgLineTo(vg, xy[i], xy[i + 1])
+        nvgLineCap(vg, NVG_ROUND)
+        nvgLineJoin(vg, NVG_ROUND)
+        nvgStrokeWidth(vg, thickness)
+        color(color)
+        nvgStrokeColor(vg, nvgColor)
+        nvgStroke(vg)
+        nvgLineCap(vg, NVG_BUTT)
+        nvgLineJoin(vg, NVG_MITER)
+    }
+
     /** Filled polygon through [xy] (x0, y0, x1, y1, ...) with an [outline]-wide border in [outlineColor] (0 = none). */
     fun polygon(xy: FloatArray, color: Int, outline: Float = 0f, outlineColor: Int = 0) {
         nvgBeginPath(vg)

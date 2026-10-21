@@ -3,10 +3,15 @@ package ced.cedclient.features.impl.funqol
 import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.features.impl.render.HudCard
 import ced.cedclient.features.impl.render.HudElement
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
+import ced.cedclient.features.settings.ColorSetting
+import ced.cedclient.features.settings.DropdownSetting
+import ced.cedclient.features.settings.NumberSetting
+import ced.cedclient.features.settings.RenderableSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonScanner.Spot
@@ -16,6 +21,7 @@ import ced.cedclient.state.HotbarDungeonMap
 import ced.cedclient.state.HotbarDungeonMap.RoomState
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.clickgui.SettingsPopup
+import ced.cedclient.utils.Color
 import com.google.gson.Gson
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
@@ -24,19 +30,19 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.PlayerFaceExtractor
 import net.minecraft.client.multiplayer.ClientLevel
-import net.minecraft.world.entity.player.Player
 import java.io.File
 import kotlin.math.cos
 import kotlin.math.sin
 
 /**
  * Dungeon Map HUD: the room grid DungeonScanner reads from the world blocks, drawn as a minimap in the HUD card
- * style. Rooms are coloured by type (same colours as the in-game map), same-room tiles are joined, doors are coloured
- * by key type, plus your own position and facing.
+ * style. Rooms are coloured by type (colours are settings), same-room tiles are joined, doors are coloured by key type.
  *
  * Only rooms and doors the vanilla map in slot 9 has shown are drawn (HotbarDungeonMap), so it shows nothing more
  * than the real map: rooms it still has grey are grey here too, without a name. Checkmarks (cleared / all secrets /
- * failed) also come from that map. Teammates in render distance get their head, the rest a dot from the map's icons.
+ * failed) also come from that map; found secrets come from the action bar's "x/y Secrets" while you stand in a room.
+ * Players are arrows (class colour, you green) or skin heads: in render distance from the player entity, further away
+ * from the map's icons, which follow the party order (your own icon is the frame one).
 //#if CHEAT
  * "Show Undiscovered" also draws everything the scanner has loaded (darkened until the map shows it), "Blood Route"
  * the way from you to blood until the blood door opens.
@@ -50,37 +56,63 @@ object DungeonMap : Module(
 ), HudElement {
     private val roomNames = BooleanSetting("Room Names", true, "Write each room's name on the map.")
     private val checkmarks = BooleanSetting("Checkmarks", true, "Cleared (white), all secrets (green) and failed (red) rooms, from the dungeon map.")
+    private val secrets = BooleanSetting("Secrets", true, "Found / total secrets under each room's name (found counts once you've been in the room).")
     private val playerMarker = BooleanSetting("Player Marker", true, "Show where you are and which way you face.")
-    private val teammates = BooleanSetting("Teammate Heads", true, "Teammates' heads where they stand; out of render distance, a dot from the dungeon map.")
+    private val teammates = BooleanSetting("Teammates", true, "Show where your teammates are.")
+    private val markerStyle = DropdownSetting("Marker Style", listOf("Arrow", "Head"), "Arrow", "Arrows (teammates in their class colour) or skin heads with a class-coloured border.")
 //#if CHEAT
     private val showUndiscovered = BooleanSetting("Show Undiscovered", false, "Also draw rooms and doors the dungeon map hasn't shown yet (everything loaded so far).")
     private val bloodRoute = BooleanSetting("Blood Route", false, "Line from you through the doors to the blood room.")
 //#endif
+    private val background = BooleanSetting("Background", true, "Dark card behind the map.")
+    private val backgroundOpacity = NumberSetting("Background Opacity", 90.0, 0.0, 100.0, 5.0, "How see-through the card is (percent).")
+    private val border = BooleanSetting("Border", true, "Accent-coloured border around the card.")
+    private val normalColor = ColorSetting("Normal Room", Color(107, 58, 17))
+    private val puzzleColor = ColorSetting("Puzzle Room", Color(117, 0, 157))
+    private val trapColor = ColorSetting("Trap Room", Color(216, 127, 51))
+    private val minibossColor = ColorSetting("Miniboss Room", Color(254, 223, 0))
+    private val bloodColor = ColorSetting("Blood Room", Color(224, 0, 0))
+    private val entranceColor = ColorSetting("Entrance Room", Color(20, 133, 0))
+    private val fairyColor = ColorSetting("Fairy Room", Color(224, 0, 255))
+    private val unopenedColor = ColorSetting("Unopened Room", Color(64, 64, 64))
+    private val witherDoorColor = ColorSetting("Wither Door", Color(10, 10, 10))
 
     private const val START = -185
-    /** Room square size, gap between tiles, tile pitch, door width across the gap, padding: map units (scaled by panelScale). */
+    /** Room square size, gap between tiles, tile pitch, door width across the gap: map units (scaled by panelScale). */
     private const val ROOM = 16f
     private const val GAP = 4f
     private const val PITCH = ROOM + GAP
     private const val DOOR = 6f
     /** Card size: the vanilla map's 128 x 128, rooms where that map draws them. */
     private const val CARD = 128f
-    private const val UNEXPLORED_COLOR = 0xFF404040.toInt()
+    private const val CHECK_H = 6f
     private val CODES = Regex("§.")
+    private val SECRETS = Regex("""(\d+)/(\d+) Secrets""")
     /** The world the blood door was opened in (Blood Route stops there). */
     private var bloodOpenLevel: ClientLevel? = null
+    /** Room name -> secrets found, from the action bar, for [secretsLevel]. */
+    private val secretsFound = HashMap<String, Int>()
+    private var secretsLevel: ClientLevel? = null
 
     private val mc get() = Minecraft.getInstance()
     private var scanDelay = 0
 
     init {
 //#if CHEAT
-        addPopupSettings("Rooms" to listOf(roomNames, checkmarks, showUndiscovered), "Players" to listOf(playerMarker, teammates, bloodRoute))
+        addPopupSettings(
+            listOf("Rooms" to listOf(roomNames, checkmarks, secrets, showUndiscovered), "Players" to listOf(playerMarker, teammates, markerStyle, bloodRoute)),
+            listOf("Card" to listOf(background, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor)),
+        )
 //#else
-//$        addPopupSettings("Rooms" to listOf(roomNames, checkmarks), "Players" to listOf(playerMarker, teammates))
+//$        addPopupSettings(
+//$            listOf("Rooms" to listOf(roomNames, checkmarks, secrets), "Players" to listOf(playerMarker, teammates, markerStyle)),
+//$            listOf("Card" to listOf(background, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor)),
+//$        )
 //#endif
-        ClientReceiveMessageEvents.GAME.register { message, _ ->
-            if (message.string.replace(CODES, "").trim() == "The BLOOD DOOR has been opened!") bloodOpenLevel = mc.level
+        ClientReceiveMessageEvents.GAME.register { message, overlay ->
+            val plain = message.string.replace(CODES, "").trim()
+            if (plain == "The BLOOD DOOR has been opened!") bloodOpenLevel = mc.level
+            if (overlay) SECRETS.find(plain)?.let { onSecrets(it.groupValues[1].toInt()) }
         }
         ClientTickEvents.END_CLIENT_TICK.register {
             val level = mc.level ?: return@register
@@ -94,14 +126,25 @@ object DungeonMap : Module(
         }
     }
 
-    /** One "Map Options" button in the panel; [sections] open in a popup from it. */
-    private fun addPopupSettings(vararg sections: Pair<String, List<BooleanSetting>>) {
-        addSettings(ActionSetting("Map Options", "Room names, checkmarks, player and teammate markers.") {
-            (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Dungeon Map", sections.map { (title, list) -> listOf(SettingsPopup.Section(title, list)) }))
+    /** One "Map Options" button in the panel; each column's sections open in a popup from it. */
+    private fun addPopupSettings(vararg columns: List<Pair<String, List<RenderableSetting<*>>>>) {
+        addSettings(ActionSetting("Map Options", "Rooms, players, card style and colours.") {
+            (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Dungeon Map", columns.map { col -> col.map { (title, list) -> SettingsPopup.Section(title, list) } }, height = 650f))
         })
-        val all = sections.flatMap { it.second }
+        val all = columns.flatMap { col -> col.flatMap { it.second } }
         addSettings(*all.toTypedArray())
         all.forEach { it.inPopup = true }
+    }
+
+    /** "x/y Secrets" in the action bar: the count for the room you stand in. */
+    private fun onSecrets(found: Int) {
+        val player = mc.player ?: return
+        if (secretsLevel !== mc.level) { secretsLevel = mc.level; secretsFound.clear() }
+        val i = Math.floorDiv(player.x.toInt() - START + 16, 32)
+        val j = Math.floorDiv(player.z.toInt() - START + 16, 32)
+        if (i !in 0..5 || j !in 0..5) return
+        val name = DungeonScanner.room(i, j)?.name ?: return
+        secretsFound[name] = maxOf(found, secretsFound[name] ?: 0)
     }
 
 //#if CHEAT
@@ -123,7 +166,7 @@ object DungeonMap : Module(
     private fun tileColor(i: Int, j: Int): Int = when {
         explored(i, j) -> roomColor(room(i, j)!!.type)
         all -> darken(roomColor(room(i, j)!!.type))
-        else -> UNEXPLORED_COLOR
+        else -> unopenedColor.value.rgba
     }
 
     private fun darken(argb: Int): Int {
@@ -131,26 +174,36 @@ object DungeonMap : Module(
         return (argb and 0xFF000000.toInt()) or ch(16) or ch(8) or ch(0)
     }
 
-    /** Door / separator on grid spot ([i], [j]) if it may be drawn. */
-    private fun spot(i: Int, j: Int) = DungeonScanner.spot(i, j)?.takeIf {
-        all || if (it == Spot.SEPARATOR) true else (START + 16 * i to START + 16 * j) in HotbarDungeonMap.discoveredDoors
+    /**
+     * Door / separator on grid spot ([i], [j]) if it may be drawn. A "separator" between two different rooms is a
+     * door whose roof isn't at a door height (the entrance's): drawn as a door, green when it leads out of the entrance.
+     */
+    private fun spot(i: Int, j: Int): Spot? {
+        var spot = DungeonScanner.spot(i, j) ?: return null
+        if (spot == Spot.SEPARATOR) {
+            val (a, b) = if (i % 2 == 1) DungeonScanner.room((i - 1) / 2, j / 2) to DungeonScanner.room((i + 1) / 2, j / 2)
+                else DungeonScanner.room(i / 2, (j - 1) / 2) to DungeonScanner.room(i / 2, (j + 1) / 2)
+            if (a != null && b != null && a.name != b.name) spot = if (a.type == "ENTRANCE" || b.type == "ENTRANCE") Spot.ENTRANCE else Spot.NORMAL
+        }
+        if (all || spot == Spot.SEPARATOR || (START + 16 * i to START + 16 * j) in HotbarDungeonMap.discoveredDoors) return spot
+        return null
     }
 
     private fun roomColor(type: String): Int = when (type) {
-        "PUZZLE" -> 0xFF75009D.toInt()
-        "TRAP" -> 0xFFD87F33.toInt()
-        "CHAMPION" -> 0xFFFEDF00.toInt()
-        "BLOOD" -> 0xFFE00000.toInt()
-        "ENTRANCE" -> 0xFF148500.toInt()
-        "FAIRY" -> 0xFFE000FF.toInt()
-        else -> 0xFF6B3A11.toInt()
-    }
+        "PUZZLE" -> puzzleColor
+        "TRAP" -> trapColor
+        "CHAMPION" -> minibossColor
+        "BLOOD" -> bloodColor
+        "ENTRANCE" -> entranceColor
+        "FAIRY" -> fairyColor
+        else -> normalColor
+    }.value.rgba
 
     private fun doorColor(spot: Spot): Int = when (spot) {
-        Spot.WITHER -> 0xFF0A0A0A.toInt()
-        Spot.BLOOD -> 0xFFE00000.toInt()
-        Spot.ENTRANCE -> 0xFF148500.toInt()
-        else -> 0xFF6B3A11.toInt()
+        Spot.WITHER -> witherDoorColor.value.rgba
+        Spot.BLOOD -> bloodColor.value.rgba
+        Spot.ENTRANCE -> entranceColor.value.rgba
+        else -> normalColor.value.rgba
     }
 
     /** World x / z to map units (tile i's centre, world START + 32 i, sits at i * PITCH + ROOM / 2). */
@@ -160,6 +213,9 @@ object DungeonMap : Module(
         if (!isEnabled || mc.options.hideGui || !DungeonState.inDungeon || DungeonState.inBoss) return
         renderInternal(g)
     }
+
+    /** A player to draw: world position, yaw, name (for the skin), marker colour. */
+    private class Mark(val x: Double, val z: Double, val yaw: Float, val name: String, val color: Int)
 
     override fun renderInternal(g: GuiGraphicsExtractor) {
         val seen = (0..5).flatMap { i -> (0..5).map { j -> i to j } }.filter { (i, j) -> room(i, j) != null }
@@ -183,10 +239,15 @@ object DungeonMap : Module(
             ox = (CARD - w * k) / 2
             oy = (CARD - h * k) / 2
         }
-        val heads = if (teammates.value && seen.isNotEmpty()) loadedTeammates() else emptyList()
+        val marks = if (seen.isEmpty()) emptyList() else marks()
+        val heads = markerStyle.value == "Head"
         HudCard.draw(g, panelX, panelY) {
             NVGRenderer.scale(s, s)
-            HudCard.card(CARD, CARD, 1f)
+            if (background.value) {
+                val a = (backgroundOpacity.value / 100 * 255).toInt().coerceIn(0, 255)
+                NVGRenderer.rect(0f, 0f, CARD, CARD, (a shl 24) or (HudCard.BACKGROUND and 0xFFFFFF), 8f)
+            }
+            if (border.value) NVGRenderer.hollowRect(0f, 0f, CARD, CARD, 1f, Theme.hudBorderRgba, 8f)
             if (seen.isEmpty()) {
                 val text = "Dungeon Map"
                 HudCard.text(text, (CARD - HudCard.width(text, 8f)) / 2, (CARD - 8f) / 2, 8f, 0xFFBBBBBB.toInt())
@@ -195,25 +256,43 @@ object DungeonMap : Module(
             NVGRenderer.translate(ox, oy)
             NVGRenderer.scale(k, k)
             drawRooms(seen)
-            val groups = groups(seen)
-            if (roomNames.value || checkmarks.value) drawLabels(groups)
+            if (roomNames.value || checkmarks.value || secrets.value) drawLabels(groups(seen))
 //#if CHEAT
             if (bloodRoute.value && bloodOpenLevel !== mc.level) drawBloodRoute()
 //#endif
-            if (teammates.value) drawFarTeammates(heads)
-            if (playerMarker.value) drawPlayer()
+            if (!heads) for (m in marks) drawArrow(toMap(m.x), toMap(m.z), m.yaw, m.color)
         }
-        if (heads.isEmpty()) return
+        if (!heads || marks.isEmpty()) return
         // Heads are vanilla sprites: a stratum above the NanoVG card so they land on top of it.
         g.nextStratum()
         val size = maxOf(4, (7 * s * k).toInt())
-        for ((player, color) in heads) {
-            val skin = mc.connection?.getPlayerInfo(player.gameProfile.name)?.skin ?: continue
-            val x = (panelX + (ox + toMap(player.x) * k) * s).toInt() - size / 2
-            val y = (panelY + (oy + toMap(player.z) * k) * s).toInt() - size / 2
-            g.fill(x - 1, y - 1, x + size + 1, y + size + 1, color)
+        for (m in marks) {
+            val skin = mc.connection?.getPlayerInfo(m.name)?.skin ?: continue
+            val x = (panelX + (ox + toMap(m.x) * k) * s).toInt() - size / 2
+            val y = (panelY + (oy + toMap(m.z) * k) * s).toInt() - size / 2
+            g.fill(x - 1, y - 1, x + size + 1, y + size + 1, m.color)
             PlayerFaceExtractor.extractRenderState(g, skin, x, y, size)
         }
+    }
+
+    /**
+     * Teammates first (so you draw on top), then you. A teammate in render distance uses their entity; otherwise the
+     * map icon at their place in the party order (living teammates, tab order, your own frame icon left out).
+     */
+    private fun marks(): List<Mark> {
+        val self = mc.player ?: return emptyList()
+        val out = ArrayList<Mark>()
+        if (teammates.value) {
+            val icons = HotbarDungeonMap.markers.filter { !it.self }
+            DungeonTeam.members().filter { !it.dead }.forEachIndexed { i, m ->
+                val color = DungeonTeam.classColor(m.cls)
+                val entity = mc.level?.players()?.firstOrNull { it !== self && it.gameProfile.name.equals(m.name, ignoreCase = true) }
+                if (entity != null) out += Mark(entity.x, entity.z, entity.yRot, m.name, color)
+                else icons.getOrNull(i)?.let { out += Mark(it.x, it.z, it.yaw, m.name, color) }
+            }
+        }
+        if (playerMarker.value) out += Mark(self.x, self.z, self.yRot, self.gameProfile.name, 0xFF55FF55.toInt())
+        return out
     }
 
     private fun drawRooms(seen: List<Pair<Int, Int>>) {
@@ -233,7 +312,7 @@ object DungeonMap : Module(
             } else {
                 val off = (ROOM - DOOR) / 2
                 val known = (START + 16 * si to START + 16 * sj) in HotbarDungeonMap.discoveredDoors
-                val color = if (known) doorColor(spot) else darken(doorColor(spot))
+                val color = if (known || spot == Spot.ENTRANCE) doorColor(spot) else darken(doorColor(spot))
                 NVGRenderer.rect(if (alongX) gx else gx + off, if (alongX) gy + off else gy, if (alongX) GAP else DOOR, if (alongX) DOOR else GAP, color)
             }
         }
@@ -272,7 +351,7 @@ object DungeonMap : Module(
         return out
     }
 
-    /** Name and checkmark per room: in the middle of a straight room, else on its most central tile. */
+    /** Name, secrets and checkmark per room: in the middle of a straight room, else on its most central tile. */
     private fun drawLabels(groups: List<List<Pair<Int, Int>>>) {
         for (tiles in groups) {
             val (si, sj) = tiles.first()
@@ -288,26 +367,29 @@ object DungeonMap : Module(
             val spanH = if (straight) (tiles.maxOf { it.second } - tiles.minOf { it.second } + 1) * PITCH - GAP else ROOM
             val states = tiles.mapNotNull { HotbarDungeonMap.roomStates[it] }
             val state = listOf(RoomState.FAILED, RoomState.GREEN, RoomState.CLEARED).firstOrNull { it in states }
-            val named = roomNames.value && !hidden(si, sj)
+            val info = room(si, sj)!!
+            val shown = !hidden(si, sj)
             val check = checkmarks.value && state != null
-            if (!named) {
-                if (check) drawCheck(cx, cy, state!!)
-                continue
-            }
-            val (lines, size) = fit(room(si, sj)!!.name, spanW - 2f, spanH - 2f - if (check) CHECK_H else 0f)
+            val secretLine = if (secrets.value && shown && info.secrets > 0) "${secretsFound[info.name]?.toString() ?: "?"}/${info.secrets}" else null
+            val nameLines = if (roomNames.value && shown) info.name else null
+            val secretH = if (secretLine != null) 4f else 0f
+            val (lines, size) = if (nameLines != null) fit(nameLines, spanW - 2f, spanH - 2f - secretH - if (check) CHECK_H else 0f) else emptyList<String>() to 0f
             val lineH = size * 1.1f
-            val blockH = lines.size * lineH + if (check) CHECK_H else 0f
+            val blockH = lines.size * lineH + secretH + if (check) CHECK_H else 0f
             var y = cy - blockH / 2
             val color = if (explored(si, sj)) -1 else 0xFF9A9A9A.toInt()
             for (line in lines) {
                 HudCard.text(line, cx - HudCard.width(line, size) / 2, y, size, color)
                 y += lineH
             }
+            if (secretLine != null) {
+                val done = (secretsFound[info.name] ?: 0) >= info.secrets || state == RoomState.GREEN
+                HudCard.text(secretLine, cx - HudCard.width(secretLine, 3.5f) / 2, y, 3.5f, if (done) 0xFF55FF55.toInt() else 0xFFCCCCCC.toInt())
+                y += secretH
+            }
             if (check) drawCheck(cx, y + CHECK_H / 2, state!!)
         }
     }
-
-    private const val CHECK_H = 6f
 
     /** [name] word-wrapped into [maxW] x [maxH]: the biggest size from 4.5 down that fits, as lines + size. */
     private fun fit(name: String, maxW: Float, maxH: Float): Pair<List<String>, Float> {
@@ -325,16 +407,16 @@ object DungeonMap : Module(
         }
     }
 
+    /** One stroke with round joins, so the tick has no seam. */
     private fun drawCheck(x: Float, y: Float, state: RoomState) {
         if (state == RoomState.FAILED) {
             val red = 0xFFFF4040.toInt()
-            NVGRenderer.line(x - 2.5f, y - 2.5f, x + 2.5f, y + 2.5f, 1.4f, red)
-            NVGRenderer.line(x - 2.5f, y + 2.5f, x + 2.5f, y - 2.5f, 1.4f, red)
+            NVGRenderer.strokePath(floatArrayOf(x - 2.2f, y - 2.2f, x + 2.2f, y + 2.2f), 1.3f, red)
+            NVGRenderer.strokePath(floatArrayOf(x - 2.2f, y + 2.2f, x + 2.2f, y - 2.2f), 1.3f, red)
             return
         }
         val color = if (state == RoomState.GREEN) 0xFF55FF55.toInt() else -1
-        NVGRenderer.line(x - 3f, y, x - 1f, y + 2.2f, 1.4f, color)
-        NVGRenderer.line(x - 1f, y + 2.2f, x + 3f, y - 2.5f, 1.4f, color)
+        NVGRenderer.strokePath(floatArrayOf(x - 2.6f, y + 0.1f, x - 0.8f, y + 1.9f, x + 2.6f, y - 1.9f), 1.3f, color)
     }
 
 //#if CHEAT
@@ -346,47 +428,24 @@ object DungeonMap : Module(
         val points = listOf(toMap(player.x) to toMap(player.z)) +
             path.map { toMap(it.x.toDouble()) to toMap(it.z.toDouble()) } +
             (blood.first * PITCH + ROOM / 2 to blood.second * PITCH + ROOM / 2)
-        points.zipWithNext { (x1, y1), (x2, y2) -> NVGRenderer.line(x1, y1, x2, y2, 1.2f, 0xFFFF3030.toInt()) }
+        NVGRenderer.strokePath(points.flatMap { listOf(it.first, it.second) }.toFloatArray(), 1.2f, 0xFFFF3030.toInt())
     }
 //#endif
 
-    /** Teammates in render distance, with their class colour. */
-    private fun loadedTeammates(): List<Pair<Player, Int>> {
-        val level = mc.level ?: return emptyList()
-        val team = DungeonTeam.members().associateBy { it.name.lowercase() }
-        return level.players().mapNotNull { p ->
-            val member = team[p.gameProfile.name.lowercase()] ?: return@mapNotNull null
-            if (p === mc.player || member.dead) null else p to DungeonTeam.classColor(member.cls)
-        }
-    }
-
-    /** Dungeon map icons that are neither you nor a teammate drawn with a head: teammates out of render distance. */
-    private fun drawFarTeammates(heads: List<Pair<Player, Int>>) {
-        val self = mc.player ?: return
-        val near = heads.map { it.first.x to it.first.z } + (self.x to self.z)
-        for ((x, z) in HotbarDungeonMap.markers) {
-            if (near.any { (nx, nz) -> (nx - x) * (nx - x) + (nz - z) * (nz - z) < 6 * 6 }) continue
-            NVGRenderer.circle(toMap(x), toMap(z), 2f, 0xFFDDDDDD.toInt())
-        }
-    }
-
-    /** You: a green arrow (dark outline) pointing where you look. */
-    private fun drawPlayer() {
-        val player = mc.player ?: return
-        val x = toMap(player.x)
-        val y = toMap(player.z)
-        // Yaw 0 faces +z (down on the map), 90 faces -x.
-        val yaw = Math.toRadians(player.yRot.toDouble())
-        val fx = -sin(yaw).toFloat()
-        val fy = cos(yaw).toFloat()
-        // Tip ahead, two back corners to the sides, a notch just behind the centre.
+    /**
+     * Arrow pointing along [yaw] (0 = +z, down on the map). A plain triangle: NanoVG fills concave shapes through
+     * the stencil buffer, which the HUD canvas doesn't have, so a notched arrow came out as its bounding box.
+     */
+    private fun drawArrow(x: Float, y: Float, yaw: Float, color: Int) {
+        val r = Math.toRadians(yaw.toDouble())
+        val fx = -sin(r).toFloat()
+        val fy = cos(r).toFloat()
         val xy = floatArrayOf(
             x + fx * 4f, y + fy * 4f,
-            x - fx * 3f - fy * 3f, y - fy * 3f + fx * 3f,
-            x - fx * 1.5f, y - fy * 1.5f,
-            x - fx * 3f + fy * 3f, y - fy * 3f - fx * 3f,
+            x - fx * 2.5f - fy * 2.8f, y - fy * 2.5f + fx * 2.8f,
+            x - fx * 2.5f + fy * 2.8f, y - fy * 2.5f - fx * 2.8f,
         )
-        NVGRenderer.polygon(xy, 0xFF55FF55.toInt(), 0.8f, 0xFF0A0A0A.toInt())
+        NVGRenderer.polygon(xy, color, 0.7f, 0xFF0A0A0A.toInt())
     }
 
     override val label = "Dungeon Map"
