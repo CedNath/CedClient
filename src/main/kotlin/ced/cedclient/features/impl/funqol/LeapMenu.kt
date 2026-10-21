@@ -8,6 +8,7 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.RenderableSetting
+import ced.cedclient.features.settings.TextSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.state.DungeonState.DungeonClass
 import ced.cedclient.state.DungeonTeam
@@ -59,7 +60,10 @@ object LeapMenu : Module(
     private val numberKeys = BooleanSetting("Number Keys", true, "1-4 leap to the top-left, top-right, bottom-left, bottom-right box.")
     private val highlightOpener = BooleanSetting("Highlight Door Opener", true, "Gold box on whoever opened the last wither door (cleared once blood opens).")
     private val menuScale = NumberSetting("Menu Size", 1.0, 0.5, 2.0, 0.05, "Size of the leap boxes (the click areas stay the screen quarters).")
-    private val announce = BooleanSetting("Leap Announce", false, "Says \"Leaping to <name>\" in party chat when you leap.")
+    private val announce = BooleanSetting("Leap Announce", false, "Says the Announce Message in party chat when you leap.")
+    private val announceText = TextSetting("Announce Message", "Leaping to {name}", "Party chat line; {name} = who you leap to, {class} = their class.", 64)
+    private val sortBy = DropdownSetting("Sort By", listOf("Class", "Name", "Tab List"), "Class", "Box order (top-left, top-right, bottom-left, bottom-right).")
+    private val classOrder = TextSetting("Class Order", "ABHMT", "For Sort By Class: first letters of the classes in box order (Archer Berserk Healer Mage Tank).", 5)
 //#if CHEAT
     private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
     private val quickSpeed = DropdownSetting("Quick Leap Speed", listOf("Slow", "Normal", "Fast"), "Normal", "How long the menu stays open before Quick Leap clicks: Slow 350 ms, Normal 150 ms, Fast 50 ms.")
@@ -74,7 +78,6 @@ object LeapMenu : Module(
     private val WITHER_OPENED = Regex("""^(?:\[.+?] )?(\w+) opened a WITHER door!$""")
     private const val BLOOD_OPENED = "The BLOOD DOOR has been opened!"
     private const val OPENER_COLOR = 0xFFFFD700.toInt()
-    private val ORDER = listOf(DungeonClass.ARCHER, DungeonClass.BERSERK, DungeonClass.HEALER, DungeonClass.MAGE, DungeonClass.TANK)
 
     private const val BOX_W = 170f
     private const val BOX_H = 56f
@@ -114,7 +117,7 @@ object LeapMenu : Module(
             InteractionResult.PASS
         })
 //#if CHEAT
-        addPopupSettings("Menu" to listOf(menuScale, numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap, quickSpeed))
+        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, numberKeys, highlightOpener), "Leaping" to listOf(announce, announceText, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
@@ -127,7 +130,7 @@ object LeapMenu : Module(
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         }
 //#else
-//$        addPopupSettings("Menu" to listOf(menuScale, numberKeys, highlightOpener), "Leaping" to listOf(announce))
+//$        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, numberKeys, highlightOpener), "Leaping" to listOf(announce, announceText))
 //#endif
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
@@ -159,7 +162,7 @@ object LeapMenu : Module(
     /** Up to four teammates in box order, with the slot of their head once the chest has items. */
     private fun mates(screen: AbstractContainerScreen<*>): List<Mate> {
         val mates = DungeonTeam.members().map { Mate(it.name, it.cls, it.dead) }
-            .sortedWith(compareBy<Mate>({ ORDER.indexOf(it.cls).let { i -> if (i < 0) 99 else i } }, { it.name.lowercase() }))
+            .let { sorted(it) }
             .toMutableList()
 
         val menu = screen.menu
@@ -173,6 +176,17 @@ object LeapMenu : Module(
             mate.slot = i
         }
         return mates.take(4)
+    }
+
+    /** Sort By: class (in Class Order, then name), name, or the tab list's order as is. */
+    private fun sorted(mates: List<Mate>): List<Mate> = when (sortBy.value) {
+        "Name" -> mates.sortedBy { it.name.lowercase() }
+        "Tab List" -> mates
+        else -> {
+            val order = classOrder.value.uppercase()
+            fun rank(cls: DungeonClass?) = cls?.let { order.indexOf(it.name[0]) }?.takeIf { it >= 0 } ?: 99
+            mates.sortedWith(compareBy<Mate>({ rank(it.cls) }, { it.name.lowercase() }))
+        }
     }
 
     private fun loaded(screen: AbstractContainerScreen<*>) =
@@ -278,7 +292,10 @@ object LeapMenu : Module(
         lastClick = now
         val player = mc.player ?: return
         mc.gameMode?.handleContainerInput(screen.menu.containerId, mate.slot, 2, ContainerInput.CLONE, player)
-        if (announce.value) player.connection.sendCommand("pc Leaping to ${mate.name}")
+        if (announce.value) {
+            val cls = mate.cls?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+            player.connection.sendCommand("pc " + announceText.value.replace("{name}", mate.name).replace("{class}", cls))
+        }
         if (debug) {
             fun ms(from: Long, to: Long) = if (from == 0L || to == 0L) "?" else "${to - from}ms"
             player.sendSystemMessage(ChatPrefix.msg(

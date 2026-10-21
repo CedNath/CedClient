@@ -127,6 +127,7 @@ class CedClient : ClientModInitializer {
 
         CedClientCommand.register()
         TabListCache.register()
+        ced.cedclient.state.DungeonRunInfo.register()
 
         // One small launch ping (username, UUID, mod + MC version) so the dev can see
         // who uses the mod. Opt out via config/cedclient-usage.properties (shareUsage=false).
