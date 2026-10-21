@@ -23,6 +23,10 @@ import ced.cedclient.state.DungeonState
 import net.minecraft.world.InteractionHand
 //#endif
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
+import net.fabricmc.fabric.api.event.player.UseBlockCallback
+import net.fabricmc.fabric.api.event.player.UseEntityCallback
+import net.minecraft.world.InteractionResult
+import net.minecraft.world.item.ItemStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -99,9 +103,16 @@ object LeapMenu : Module(
     private var openerLevel: ClientLevel? = null
 
     init {
-        on<ItemClickEvent> { event ->
-            if (debug && event.clickType == ClickType.RIGHT_CLICK && event.itemInHand?.skyblockId in LEAP_ITEMS) usedAt = System.currentTimeMillis()
-        }
+        // Debug "use" time: a right-click aimed at a block or a player never reaches useItem (ItemClickEvent).
+        on<ItemClickEvent> { event -> if (event.clickType == ClickType.RIGHT_CLICK) markUse(event.itemInHand) }
+        UseBlockCallback.EVENT.register(UseBlockCallback { player, level, hand, _ ->
+            if (level.isClientSide) markUse(player.getItemInHand(hand))
+            InteractionResult.PASS
+        })
+        UseEntityCallback.EVENT.register(UseEntityCallback { player, level, hand, _, _ ->
+            if (level.isClientSide) markUse(player.getItemInHand(hand))
+            InteractionResult.PASS
+        })
 //#if CHEAT
         addPopupSettings("Menu" to listOf(menuScale, numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
@@ -133,6 +144,10 @@ object LeapMenu : Module(
         val all = sections.flatMap { it.second }
         addSettings(*all.toTypedArray())
         all.forEach { it.inPopup = true }
+    }
+
+    private fun markUse(stack: ItemStack?) {
+        if (debug && stack?.skyblockId in LEAP_ITEMS) usedAt = System.currentTimeMillis()
     }
 
     /** Last wither door opener in this world, if the highlight is on. */
