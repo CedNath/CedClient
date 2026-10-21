@@ -27,7 +27,7 @@ public abstract class LeapMenuMixin {
     private void ced$leapClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
         if (!LeapMenu.INSTANCE.handles(self)) return;
-        LeapMenu.INSTANCE.mouseClicked(self, event.x(), event.y());
+        LeapMenu.INSTANCE.mouseClicked(self, event.x(), event.y(), event.button());
         cir.setReturnValue(true);
     }
 

@@ -44,8 +44,9 @@ import net.minecraft.world.item.Items
  * straight out as a middle click on the head's slot (no item lands on the cursor), at most once per 400 ms.
  * Teammates are always in the same order (by class, then name), so a box's spot stays put run to run. Each box owns
  * its whole quarter of the screen, so a click that misses the box still leaps.
- * Whoever opened the last wither door gets a gold box, until blood opens or the world changes. Leap Announce says
- * who you leap to in party chat. All options sit in the "Leap Options" popup.
+ * Whoever opened the last wither door gets a gold box, until blood opens or the world changes. Leap Announce and
+ * Hide Players go off Hypixel's "You have teleported to X!", so they only happen when a leap went through.
+ * All options sit in the "Leap Options" popup.
 //#if CHEAT
  *
  * Quick Leap: left-click with the leap item opens the menu (a right-click) and picks the door opener through the
@@ -57,13 +58,20 @@ object LeapMenu : Module(
     Category.Skyblock,
     "Replaces the Spirit Leap menu with big teammate boxes. Click one or press 1-4."
 ) {
-    private val numberKeys = BooleanSetting("Number Keys", true, "1-4 leap to the top-left, top-right, bottom-left, bottom-right box.")
+    private val numberKeys = BooleanSetting("Number Keys", true, "Number keys leap (see Key Mode).")
+    private val keyMode = DropdownSetting("Key Mode", listOf("Corners", "Class"), "Corners", "Corners: 1-4 = top-left, top-right, bottom-left, bottom-right. Class: 1 Archer, 2 Berserk, 3 Healer, 4 Mage, 5 Tank.")
+    private val leftClickOnly = BooleanSetting("Left Click Only", false, "Only a left click leaps (right / middle clicks do nothing).")
+    private val tintDead = BooleanSetting("Tint Dead Players", true, "Grey out dead teammates' boxes.")
+    private val hidePlayers = BooleanSetting("Hide Players", false, "Hide other players for a moment after you leap, so they don't block your view.")
+    private val hideTime = NumberSetting("Hide Time", 3.5, 0.5, 5.0, 0.1, "Seconds players stay hidden after a leap.")
     private val highlightOpener = BooleanSetting("Highlight Door Opener", true, "Gold box on whoever opened the last wither door (cleared once blood opens).")
     private val menuScale = NumberSetting("Menu Size", 1.0, 0.5, 2.0, 0.05, "Size of the leap boxes (the click areas stay the screen quarters).")
     private val announce = BooleanSetting("Leap Announce", false, "Says the Announce Message in party chat when you leap.")
     private val announceText = TextSetting("Announce Message", "Leaping to {name}", "Party chat line; {name} = who you leap to, {class} = their class.", 64)
-    private val sortBy = DropdownSetting("Sort By", listOf("Class", "Name", "Tab List"), "Class", "Box order (top-left, top-right, bottom-left, bottom-right).")
-    private val classOrder = TextSetting("Class Order", "ABHMT", "For Sort By Class: first letters of the classes in box order (Archer Berserk Healer Mage Tank).", 5)
+    private val sortBy = DropdownSetting("Sort By", listOf("Class Order", "A-Z Class", "A-Z Name", "Custom", "No Sorting"), "Class Order",
+        "Box order (top-left, top-right, bottom-left, bottom-right). No Sorting = the tab list's order.")
+    private val classOrder = TextSetting("Class Order", "ABHMT", "For Sort By Class Order: first letters of the classes in box order (Archer Berserk Healer Mage Tank).", 5)
+    private val customOrder = TextSetting("Custom Order", "", "For Sort By Custom: names, comma separated, in box order. Anyone not listed fills the rest A-Z.", 80)
 //#if CHEAT
     private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
     private val quickSpeed = DropdownSetting("Quick Leap Speed", listOf("Slow", "Normal", "Fast"), "Normal", "How long the menu stays open before Quick Leap clicks: Slow 350 ms, Normal 150 ms, Fast 50 ms.")
@@ -75,6 +83,7 @@ object LeapMenu : Module(
     private val TITLES = setOf("Spirit Leap", "Teleport to Player")
     private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
     private val CODES = Regex("§.")
+    private val TELEPORTED = Regex("""^You have teleported to (\w+)!?$""")
     private val WITHER_OPENED = Regex("""^(?:\[.+?] )?(\w+) opened a WITHER door!$""")
     private const val BLOOD_OPENED = "The BLOOD DOOR has been opened!"
     private const val OPENER_COLOR = 0xFFFFD700.toInt()
@@ -104,6 +113,8 @@ object LeapMenu : Module(
     private var seenContainer = -1
     private var doorOpener: String? = null
     private var openerLevel: ClientLevel? = null
+    /** Hide Players: other players stay hidden until this time (ms). */
+    private var hideUntil = 0L
 
     init {
         // Debug "use" time: a right-click aimed at a block or a player never reaches useItem (ItemClickEvent).
@@ -117,7 +128,7 @@ object LeapMenu : Module(
             InteractionResult.PASS
         })
 //#if CHEAT
-        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, numberKeys, highlightOpener), "Leaping" to listOf(announce, announceText, quickLeap, quickSpeed))
+        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, announce, announceText, hidePlayers, hideTime, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
@@ -130,12 +141,13 @@ object LeapMenu : Module(
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         }
 //#else
-//$        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, numberKeys, highlightOpener), "Leaping" to listOf(announce, announceText))
+//$        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, announce, announceText, hidePlayers, hideTime))
 //#endif
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
             WITHER_OPENED.find(plain)?.let { doorOpener = it.groupValues[1]; openerLevel = mc.level }
             if (plain == BLOOD_OPENED) doorOpener = null
+            TELEPORTED.find(plain)?.let { onTeleported(it.groupValues[1]) }
         }
     }
 
@@ -148,6 +160,21 @@ object LeapMenu : Module(
         addSettings(*all.toTypedArray())
         all.forEach { it.inPopup = true }
     }
+
+    /** A leap went through: announce it and start hiding players. */
+    private fun onTeleported(name: String) {
+        if (!isEnabled) return
+        if (hidePlayers.value) hideUntil = System.currentTimeMillis() + (hideTime.value * 1000).toLong()
+        if (!announce.value) return
+        val cls = DungeonTeam.members().firstOrNull { it.name.equals(name, ignoreCase = true) }?.cls
+            ?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+        mc.player?.connection?.sendCommand("pc " + announceText.value.replace("{name}", name).replace("{class}", cls))
+    }
+
+    /** Hide Players: true for other players right after a leap (EntityRenderDispatcherMixin skips them). */
+    @JvmStatic
+    fun hideEntity(entity: net.minecraft.world.entity.Entity): Boolean =
+        hideUntil != 0L && entity is net.minecraft.world.entity.player.Player && entity !== mc.player && System.currentTimeMillis() < hideUntil
 
     private fun markUse(stack: ItemStack?) {
         if (debug && stack?.skyblockId in LEAP_ITEMS) usedAt = System.currentTimeMillis()
@@ -178,10 +205,15 @@ object LeapMenu : Module(
         return mates.take(4)
     }
 
-    /** Sort By: class (in Class Order, then name), name, or the tab list's order as is. */
+    /** Sort By: Class Order (then name), A-Z by class or name, a custom name list, or the tab list as is. */
     private fun sorted(mates: List<Mate>): List<Mate> = when (sortBy.value) {
-        "Name" -> mates.sortedBy { it.name.lowercase() }
-        "Tab List" -> mates
+        "A-Z Name" -> mates.sortedBy { it.name.lowercase() }
+        "A-Z Class" -> mates.sortedWith(compareBy<Mate>({ it.cls?.name ?: "~" }, { it.name.lowercase() }))
+        "No Sorting" -> mates
+        "Custom" -> {
+            val order = customOrder.value.split(',').map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+            mates.sortedWith(compareBy<Mate>({ order.indexOf(it.name.lowercase()).let { i -> if (i < 0) 99 else i } }, { it.name.lowercase() }))
+        }
         else -> {
             val order = classOrder.value.uppercase()
             fun rank(cls: DungeonClass?) = cls?.let { order.indexOf(it.name[0]) }?.takeIf { it >= 0 } ?: 99
@@ -243,7 +275,8 @@ object LeapMenu : Module(
             mates.forEachIndexed { i, mate ->
                 val (x, y) = boxAt(i, screen.width, screen.height)
                 // Once the heads are in, a teammate without one can't be leaped to.
-                val usable = !mate.dead && (!loaded || mate.slot >= 0)
+                // Dead teammates still can't be picked; Tint Dead Players only decides whether they look it.
+                val usable = !(mate.dead && tintDead.value) && (!loaded || mate.slot >= 0)
                 val accent = DungeonTeam.classColor(mate.cls)
                 val isOpener = mate.name.equals(opener, ignoreCase = true)
                 NVGRenderer.rect(x, y, BOX_W, BOX_H, if (i == hovered && usable) 0xF0303040.toInt() else HudCard.BACKGROUND, 8f)
@@ -257,23 +290,33 @@ object LeapMenu : Module(
                     else -> mate.cls?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
                 }
                 HudCard.text(sub, x + 20f, y + 32f, 10f, if (usable) accent else 0xFF777777.toInt())
-                if (numberKeys.value) HudCard.text("${i + 1}", x + BOX_W - 16f, y + 8f, 10f, 0xFF888888.toInt())
+                val key = if (keyMode.value == "Class") mate.cls?.let { CLASS_KEYS.indexOf(it) + 1 } else i + 1
+                if (numberKeys.value && key != null) HudCard.text("$key", x + BOX_W - 16f, y + 8f, 10f, 0xFF888888.toInt())
                 if (isOpener) HudCard.text("Door opener", x + BOX_W - 8f - HudCard.width("Door opener", 9f), y + BOX_H - 16f, 9f, OPENER_COLOR)
             }
         }
     }
 
-    fun mouseClicked(screen: AbstractContainerScreen<*>, mx: Double, my: Double) = pick(screen, indexAt(screen, mx, my))
+    fun mouseClicked(screen: AbstractContainerScreen<*>, mx: Double, my: Double, button: Int) {
+        if (leftClickOnly.value && button != 0) return
+        pick(screen, indexAt(screen, mx, my))
+    }
 
-    /** 1-4 (number row or numpad) leap; anything else goes on to the screen (Escape closes). */
+    private val CLASS_KEYS = listOf(DungeonClass.ARCHER, DungeonClass.BERSERK, DungeonClass.HEALER, DungeonClass.MAGE, DungeonClass.TANK)
+
+    /** Number keys (row or numpad) leap; anything else goes on to the screen (Escape closes). */
     fun keyPressed(screen: AbstractContainerScreen<*>, key: Int): Boolean {
         if (!numberKeys.value) return false
-        val index = when (key) {
-            in 49..52 -> key - 49 // GLFW_KEY_1..4
-            in 321..324 -> key - 321 // GLFW_KEY_KP_1..4
+        val n = when (key) {
+            in 49..53 -> key - 49 // GLFW_KEY_1..5
+            in 321..325 -> key - 321 // GLFW_KEY_KP_1..5
             else -> return false
         }
-        pick(screen, index)
+        if (keyMode.value == "Class") {
+            val cls = CLASS_KEYS[n]
+            val index = mates(screen).indexOfFirst { it.cls == cls }
+            if (index >= 0) pick(screen, index)
+        } else if (n < 4) pick(screen, n)
         return true
     }
 
@@ -292,10 +335,6 @@ object LeapMenu : Module(
         lastClick = now
         val player = mc.player ?: return
         mc.gameMode?.handleContainerInput(screen.menu.containerId, mate.slot, 2, ContainerInput.CLONE, player)
-        if (announce.value) {
-            val cls = mate.cls?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
-            player.connection.sendCommand("pc " + announceText.value.replace("{name}", mate.name).replace("{class}", cls))
-        }
         if (debug) {
             fun ms(from: Long, to: Long) = if (from == 0L || to == 0L) "?" else "${to - from}ms"
             player.sendSystemMessage(ChatPrefix.msg(
