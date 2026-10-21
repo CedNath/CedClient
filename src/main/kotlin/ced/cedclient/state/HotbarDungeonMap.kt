@@ -36,9 +36,13 @@ object HotbarDungeonMap {
     var markers: List<Pair<Double, Double>> = emptyList()
         private set
 
-    private var cornerX = 0
-    private var cornerZ = 0
-    private var roomSize = 16
+    /** Map pixel of the grid's top-left room corner, and the map's room size (16, or 18 on small floors). */
+    var cornerX = 0
+        private set
+    var cornerZ = 0
+        private set
+    var roomSize = 16
+        private set
 
     fun reset() {
         calibrated = false
