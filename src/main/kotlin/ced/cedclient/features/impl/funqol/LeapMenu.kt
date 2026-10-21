@@ -13,13 +13,13 @@ import ced.cedclient.state.DungeonState.DungeonClass
 import ced.cedclient.state.DungeonTeam
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.clickgui.SettingsPopup
-//#if CHEAT
 import ced.cedclient.data.ClickType
 import ced.cedclient.events.ItemClickEvent
 import ced.cedclient.events.core.on
-import ced.cedclient.state.DungeonState
 import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.utils.skyblockId
+//#if CHEAT
+import ced.cedclient.state.DungeonState
 import net.minecraft.world.InteractionHand
 //#endif
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
@@ -59,13 +59,13 @@ object LeapMenu : Module(
 //#if CHEAT
     private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
     private val quickSpeed = DropdownSetting("Quick Leap Speed", listOf("Slow", "Normal", "Fast"), "Normal", "How long the menu stays open before Quick Leap clicks: Slow 350 ms, Normal 150 ms, Fast 50 ms.")
-    private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
     /** Quick Leap target, waiting for the menu it opened (until [quickUntil]). */
     private var quickTarget: String? = null
     private var quickUntil = 0L
 //#endif
 
     private val TITLES = setOf("Spirit Leap", "Teleport to Player")
+    private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
     private val CODES = Regex("§.")
     private val WITHER_OPENED = Regex("""^(?:\[.+?] )?(\w+) opened a WITHER door!$""")
     private const val BLOOD_OPENED = "The BLOOD DOOR has been opened!"
@@ -86,10 +86,22 @@ object LeapMenu : Module(
     /** The early pick isn't sent before this (Quick Leap Speed). */
     private var pendingNotBefore = 0L
     private var lastClick = 0L
+
+    /** "/cc dev leap": a chat line per leap with how long each step took. */
+    var debug = false
+    /** Debug timestamps (ms): leap item used, menu's first frame, heads in, your pick; [seenContainer] = that menu. */
+    private var usedAt = 0L
+    private var openedAt = 0L
+    private var headsAt = 0L
+    private var pickedAt = 0L
+    private var seenContainer = -1
     private var doorOpener: String? = null
     private var openerLevel: ClientLevel? = null
 
     init {
+        on<ItemClickEvent> { event ->
+            if (debug && event.clickType == ClickType.RIGHT_CLICK && event.itemInHand?.skyblockId in LEAP_ITEMS) usedAt = System.currentTimeMillis()
+        }
 //#if CHEAT
         addPopupSettings("Menu" to listOf(menuScale, numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
@@ -100,6 +112,7 @@ object LeapMenu : Module(
             val player = mc.player ?: return@on
             quickTarget = target
             quickUntil = System.currentTimeMillis() + 2000
+            pickedAt = quickUntil - 2000
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         }
 //#else
@@ -164,6 +177,8 @@ object LeapMenu : Module(
     fun render(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         val mates = mates(screen)
         val id = screen.menu.containerId
+        if (id != seenContainer) { seenContainer = id; openedAt = System.currentTimeMillis(); headsAt = 0L }
+        if (headsAt == 0L && loaded(screen)) headsAt = System.currentTimeMillis()
 //#if CHEAT
         // The menu Quick Leap opened: its target becomes an early pick.
         quickTarget?.let { target ->
@@ -234,6 +249,7 @@ object LeapMenu : Module(
     }
 
     private fun pick(screen: AbstractContainerScreen<*>, index: Int) {
+        pickedAt = System.currentTimeMillis()
         val mate = mates(screen).getOrNull(index) ?: return
         if (mate.dead) return
         if (mate.slot >= 0) leap(screen, mate)
@@ -248,5 +264,12 @@ object LeapMenu : Module(
         val player = mc.player ?: return
         mc.gameMode?.handleContainerInput(screen.menu.containerId, mate.slot, 2, ContainerInput.CLONE, player)
         if (announce.value) player.connection.sendCommand("pc Leaping to ${mate.name}")
+        if (debug) {
+            fun ms(from: Long, to: Long) = if (from == 0L || to == 0L) "?" else "${to - from}ms"
+            player.sendSystemMessage(ChatPrefix.msg(
+                "§7Leap §f${mate.name}§7: menu §f${ms(usedAt, openedAt)}§7 after use, heads §f${ms(openedAt, headsAt)}§7 after open, " +
+                    "you picked §f${ms(openedAt, pickedAt)}§7 after open, sent §f${ms(pickedAt, now)}§7 after pick, §e${ms(usedAt, now)}§7 total"))
+            usedAt = 0L
+        }
     }
 }
