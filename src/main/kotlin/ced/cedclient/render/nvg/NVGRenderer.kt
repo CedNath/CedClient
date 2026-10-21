@@ -138,6 +138,22 @@ object NVGRenderer {
         nvgStroke(vg)
     }
 
+    /** Filled polygon through [xy] (x0, y0, x1, y1, ...) with an [outline]-wide border in [outlineColor] (0 = none). */
+    fun polygon(xy: FloatArray, color: Int, outline: Float = 0f, outlineColor: Int = 0) {
+        nvgBeginPath(vg)
+        nvgMoveTo(vg, xy[0], xy[1])
+        for (i in 2 until xy.size step 2) nvgLineTo(vg, xy[i], xy[i + 1])
+        nvgClosePath(vg)
+        color(color)
+        nvgFillColor(vg, nvgColor)
+        nvgFill(vg)
+        if (outline <= 0f) return
+        nvgStrokeWidth(vg, outline)
+        color(outlineColor)
+        nvgStrokeColor(vg, nvgColor)
+        nvgStroke(vg)
+    }
+
     fun drawHalfRoundedRect(x: Float, y: Float, w: Float, h: Float, color: Int, radius: Float, roundTop: Boolean) {
         nvgBeginPath(vg)
 

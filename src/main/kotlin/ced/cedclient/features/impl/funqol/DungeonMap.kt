@@ -18,10 +18,12 @@ import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.clickgui.SettingsPopup
 import com.google.gson.Gson
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.PlayerFaceExtractor
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.player.Player
 import java.io.File
 import kotlin.math.cos
@@ -36,7 +38,8 @@ import kotlin.math.sin
  * than the real map: rooms it still has grey are grey here too, without a name. Checkmarks (cleared / all secrets /
  * failed) also come from that map. Teammates in render distance get their head, the rest a dot from the map's icons.
 //#if CHEAT
- * "Show Undiscovered" draws everything the scanner has loaded instead, "Blood Route" the way from you to blood.
+ * "Show Undiscovered" also draws everything the scanner has loaded (darkened until the map shows it), "Blood Route"
+ * the way from you to blood until the blood door opens.
 //#endif
  * All options sit in the "Map Options" popup.
  */
@@ -62,6 +65,9 @@ object DungeonMap : Module(
     private const val DOOR = 6f
     private const val PAD = 6f
     private const val UNEXPLORED_COLOR = 0xFF404040.toInt()
+    private val CODES = Regex("§.")
+    /** The world the blood door was opened in (Blood Route stops there). */
+    private var bloodOpenLevel: ClientLevel? = null
 
     private val mc get() = Minecraft.getInstance()
     private var scanDelay = 0
@@ -72,6 +78,9 @@ object DungeonMap : Module(
 //#else
 //$        addPopupSettings("Rooms" to listOf(roomNames, checkmarks), "Players" to listOf(playerMarker, teammates))
 //#endif
+        ClientReceiveMessageEvents.GAME.register { message, _ ->
+            if (message.string.replace(CODES, "").trim() == "The BLOOD DOOR has been opened!") bloodOpenLevel = mc.level
+        }
         ClientTickEvents.END_CLIENT_TICK.register {
             val level = mc.level ?: return@register
             val player = mc.player ?: return@register
@@ -104,10 +113,22 @@ object DungeonMap : Module(
     private fun room(i: Int, j: Int) =
         DungeonScanner.room(i, j)?.takeIf { all || (i to j) in HotbarDungeonMap.roomStates }
 
-    /** The map still shows tile ([i], [j]) grey: drawn grey and unnamed unless everything is shown anyway. */
-    private fun hidden(i: Int, j: Int) = !all && HotbarDungeonMap.roomStates[i to j] == RoomState.UNEXPLORED
+    /** The dungeon map shows tile ([i], [j]) as an opened room (not grey, not missing). */
+    private fun explored(i: Int, j: Int) = HotbarDungeonMap.roomStates[i to j].let { it != null && it != RoomState.UNEXPLORED }
 
-    private fun tileColor(i: Int, j: Int): Int = if (hidden(i, j)) UNEXPLORED_COLOR else roomColor(room(i, j)!!.type)
+    /** Not opened yet and only known from the map's grey: drawn grey and unnamed (Show Undiscovered: darkened instead). */
+    private fun hidden(i: Int, j: Int) = !all && !explored(i, j)
+
+    private fun tileColor(i: Int, j: Int): Int = when {
+        explored(i, j) -> roomColor(room(i, j)!!.type)
+        all -> darken(roomColor(room(i, j)!!.type))
+        else -> UNEXPLORED_COLOR
+    }
+
+    private fun darken(argb: Int): Int {
+        fun ch(shift: Int) = ((argb ushr shift and 0xFF) * 0.35f).toInt() shl shift
+        return (argb and 0xFF000000.toInt()) or ch(16) or ch(8) or ch(0)
+    }
 
     /** Door / separator on grid spot ([i], [j]) if it may be drawn. */
     private fun spot(i: Int, j: Int) = DungeonScanner.spot(i, j)?.takeIf {
@@ -141,8 +162,10 @@ object DungeonMap : Module(
 
     override fun renderInternal(g: GuiGraphicsExtractor) {
         val seen = (0..5).flatMap { i -> (0..5).map { j -> i to j } }.filter { (i, j) -> room(i, j) != null }
-        val cols = (seen.maxOfOrNull { it.first } ?: 5) + 1
-        val rows = (seen.maxOfOrNull { it.second } ?: 5) + 1
+        // Sized to the whole dungeon the scanner has found, not just the rooms shown so far, so it doesn't grow mid-run.
+        val scanned = (0..5).flatMap { i -> (0..5).map { j -> i to j } }.filter { (i, j) -> DungeonScanner.room(i, j) != null }
+        val cols = (scanned.maxOfOrNull { it.first } ?: 5) + 1
+        val rows = (scanned.maxOfOrNull { it.second } ?: 5) + 1
         val width = cols * PITCH - GAP + PAD * 2
         val height = rows * PITCH - GAP + PAD * 2
         lastWidth = width.toInt()
@@ -162,7 +185,7 @@ object DungeonMap : Module(
             val groups = groups(seen)
             if (roomNames.value || checkmarks.value) drawLabels(groups)
 //#if CHEAT
-            if (bloodRoute.value) drawBloodRoute()
+            if (bloodRoute.value && bloodOpenLevel !== mc.level) drawBloodRoute()
 //#endif
             if (teammates.value) drawFarTeammates(heads)
             if (playerMarker.value) drawPlayer()
@@ -196,7 +219,9 @@ object DungeonMap : Module(
                 NVGRenderer.rect(gx, gy, if (alongX) GAP else ROOM, if (alongX) ROOM else GAP, tileColor(ri, rj))
             } else {
                 val off = (ROOM - DOOR) / 2
-                NVGRenderer.rect(if (alongX) gx else gx + off, if (alongX) gy + off else gy, if (alongX) GAP else DOOR, if (alongX) DOOR else GAP, doorColor(spot))
+                val known = (START + 16 * si to START + 16 * sj) in HotbarDungeonMap.discoveredDoors
+                val color = if (known) doorColor(spot) else darken(doorColor(spot))
+                NVGRenderer.rect(if (alongX) gx else gx + off, if (alongX) gy + off else gy, if (alongX) GAP else DOOR, if (alongX) DOOR else GAP, color)
             }
         }
         // Middle of a 2x2 room: the four gaps around it are all separators.
@@ -245,17 +270,45 @@ object DungeonMap : Module(
             val straight = tiles.size == 4 && tiles.map { it.first }.toSet().size == 2 || tiles.all { it.first == ti } || tiles.all { it.second == tj }
             val cx = (if (straight) mx else ti.toFloat()) * PITCH + ROOM / 2
             val cy = (if (straight) my else tj.toFloat()) * PITCH + ROOM / 2
+            // Room the text may use: the whole room for straight ones, one tile for L rooms.
+            val spanW = if (straight) (tiles.maxOf { it.first } - tiles.minOf { it.first } + 1) * PITCH - GAP else ROOM
+            val spanH = if (straight) (tiles.maxOf { it.second } - tiles.minOf { it.second } + 1) * PITCH - GAP else ROOM
             val states = tiles.mapNotNull { HotbarDungeonMap.roomStates[it] }
             val state = listOf(RoomState.FAILED, RoomState.GREEN, RoomState.CLEARED).firstOrNull { it in states }
             val named = roomNames.value && !hidden(si, sj)
             val check = checkmarks.value && state != null
-            val size = 4.5f
-            if (named) {
-                val name = room(si, sj)!!.name
-                val y = if (check) cy - size else cy - size / 2
-                NVGRenderer.textShadow(name, cx - HudCard.width(name, size) / 2, y, size, -1, HudCard.font)
+            if (!named) {
+                if (check) drawCheck(cx, cy, state!!)
+                continue
             }
-            if (check) drawCheck(cx, if (named) cy + 3f else cy, state!!)
+            val (lines, size) = fit(room(si, sj)!!.name, spanW - 2f, spanH - 2f - if (check) CHECK_H else 0f)
+            val lineH = size * 1.1f
+            val blockH = lines.size * lineH + if (check) CHECK_H else 0f
+            var y = cy - blockH / 2
+            val color = if (explored(si, sj)) -1 else 0xFF9A9A9A.toInt()
+            for (line in lines) {
+                HudCard.text(line, cx - HudCard.width(line, size) / 2, y, size, color)
+                y += lineH
+            }
+            if (check) drawCheck(cx, y + CHECK_H / 2, state!!)
+        }
+    }
+
+    private const val CHECK_H = 6f
+
+    /** [name] word-wrapped into [maxW] x [maxH]: the biggest size from 4.5 down that fits, as lines + size. */
+    private fun fit(name: String, maxW: Float, maxH: Float): Pair<List<String>, Float> {
+        val words = name.split(' ')
+        var size = 4.5f
+        while (true) {
+            val lines = ArrayList<String>()
+            for (word in words) {
+                val joined = lines.lastOrNull()?.let { "$it $word" }
+                if (joined != null && HudCard.width(joined, size) <= maxW) lines[lines.size - 1] = joined else lines += word
+            }
+            val fits = lines.all { HudCard.width(it, size) <= maxW } && lines.size * size * 1.1f <= maxH
+            if (fits || size <= 2.5f) return lines to size
+            size -= 0.25f
         }
     }
 
@@ -304,14 +357,23 @@ object DungeonMap : Module(
         }
     }
 
+    /** You: a green arrow (dark outline) pointing where you look. */
     private fun drawPlayer() {
         val player = mc.player ?: return
         val x = toMap(player.x)
         val y = toMap(player.z)
         // Yaw 0 faces +z (down on the map), 90 faces -x.
         val yaw = Math.toRadians(player.yRot.toDouble())
-        NVGRenderer.line(x, y, x - sin(yaw).toFloat() * 5f, y + cos(yaw).toFloat() * 5f, 1.2f, -1)
-        NVGRenderer.circle(x, y, 2.2f, 0xFF00FF00.toInt())
+        val fx = -sin(yaw).toFloat()
+        val fy = cos(yaw).toFloat()
+        // Tip ahead, two back corners to the sides, a notch just behind the centre.
+        val xy = floatArrayOf(
+            x + fx * 4f, y + fy * 4f,
+            x - fx * 3f - fy * 3f, y - fy * 3f + fx * 3f,
+            x - fx * 1.5f, y - fy * 1.5f,
+            x - fx * 3f + fy * 3f, y - fy * 3f - fx * 3f,
+        )
+        NVGRenderer.polygon(xy, 0xFF55FF55.toInt(), 0.8f, 0xFF0A0A0A.toInt())
     }
 
     override val label = "Dungeon Map"
