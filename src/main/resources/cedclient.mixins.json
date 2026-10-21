@@ -57,6 +57,8 @@
     "screen.InventoryCraftingGridMixin",
     "screen.InventoryCraftingSlotMixin",
     "screen.AbstractContainerScreenMixin",
+    "screen.LeapMenuMixin",
+    "screen.LeapMenuBackgroundMixin",
     "screen.ScreenTooltipMixin",
     "screen.GuiMixin",
     "scoreboard.PlayerTeamMixin",

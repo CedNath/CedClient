@@ -209,6 +209,7 @@ class CedClient : ClientModInitializer {
 //$        // Skyblock: dungeons
 //#endif
         ModuleManager.register(ced.cedclient.features.impl.funqol.DungeonMap)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.LeapMenu)
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
         ModuleManager.register(F7SoundCap)
