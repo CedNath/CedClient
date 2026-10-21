@@ -7,10 +7,12 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.state.DungeonState.DungeonClass
 import ced.cedclient.utils.TabListCache
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.Items
 
@@ -21,6 +23,7 @@ import net.minecraft.world.item.Items
  * arrive. A pick made that early is kept and clicked the first frame the teammate's head shows up. The click goes
  * straight out as a middle click on the head's slot (no item lands on the cursor), at most once per 400 ms.
  * Teammates are always in the same order (by class, then name), so a box's spot stays put run to run.
+ * Whoever opened the last wither door gets a gold box, until blood opens or the world changes.
  */
 object LeapMenu : Module(
     "Leap Menu",
@@ -28,9 +31,13 @@ object LeapMenu : Module(
     "Replaces the Spirit Leap menu with big teammate boxes. Click one or press 1-4."
 ) {
     private val numberKeys = BooleanSetting("Number Keys", true, "1-4 leap to the top-left, top-right, bottom-left, bottom-right box.")
+    private val highlightOpener = BooleanSetting("Highlight Door Opener", true, "Gold box on whoever opened the last wither door (cleared once blood opens).")
 
     private val TITLES = setOf("Spirit Leap", "Teleport to Player")
     private val CODES = Regex("§.")
+    private val WITHER_OPENED = Regex("""^(?:\[.+?] )?(\w+) opened a WITHER door!$""")
+    private const val BLOOD_OPENED = "The BLOOD DOOR has been opened!"
+    private const val OPENER_COLOR = 0xFFFFD700.toInt()
     /** Dungeon tab row: "[312] Name ♲ (Mage XXV)" -> name, class ("DEAD" / "EMPTY" when not playing). */
     private val TAB_ROW = Regex("""^\[\d+] (\w{1,16})\b.*\((\w+)(?: [IVXLCDM]+)?\)$""")
     private val ORDER = listOf(DungeonClass.ARCHER, DungeonClass.BERSERK, DungeonClass.HEALER, DungeonClass.MAGE, DungeonClass.TANK)
@@ -47,10 +54,20 @@ object LeapMenu : Module(
     private var pending: String? = null
     private var pendingContainer = -1
     private var lastClick = 0L
+    private var doorOpener: String? = null
+    private var openerLevel: ClientLevel? = null
 
     init {
-        addSettings(numberKeys)
+        addSettings(numberKeys, highlightOpener)
+        ClientReceiveMessageEvents.GAME.register { message, _ ->
+            val plain = message.string.replace(CODES, "").trim()
+            WITHER_OPENED.find(plain)?.let { doorOpener = it.groupValues[1]; openerLevel = mc.level }
+            if (plain == BLOOD_OPENED) doorOpener = null
+        }
     }
+
+    /** Last wither door opener in this world, if the highlight is on. */
+    private fun opener(): String? = doorOpener.takeIf { highlightOpener.value && openerLevel === mc.level }
 
     fun handles(screen: AbstractContainerScreen<*>): Boolean =
         isEnabled && screen is ContainerScreen && screen.title.string in TITLES
@@ -108,6 +125,7 @@ object LeapMenu : Module(
         }
         val loaded = loaded(screen)
         val hovered = indexAt(screen, mouseX.toDouble(), mouseY.toDouble())
+        val opener = opener()
         HudCard.draw(g, 0, 0) {
             NVGRenderer.rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat(), 0x88000000.toInt())
             if (mates.isEmpty()) {
@@ -120,8 +138,10 @@ object LeapMenu : Module(
                 // Once the heads are in, a teammate without one can't be leaped to.
                 val usable = !mate.dead && (!loaded || mate.slot >= 0)
                 val accent = classColor(mate.cls)
+                val isOpener = mate.name.equals(opener, ignoreCase = true)
                 NVGRenderer.rect(x, y, BOX_W, BOX_H, if (i == hovered && usable) 0xF0303040.toInt() else HudCard.BACKGROUND, 8f)
-                NVGRenderer.hollowRect(x, y, BOX_W, BOX_H, if (pending == mate.name) 2f else 1f, if (usable) accent else 0xFF555555.toInt(), 8f)
+                val border = if (!usable) 0xFF555555.toInt() else if (isOpener) OPENER_COLOR else accent
+                NVGRenderer.hollowRect(x, y, BOX_W, BOX_H, if (pending == mate.name || isOpener) 2f else 1f, border, 8f)
                 NVGRenderer.rect(x + 8f, y + 10f, 4f, BOX_H - 20f, if (usable) accent else 0xFF555555.toInt(), 2f)
                 HudCard.text(mate.name, x + 20f, y + 12f, 14f, if (usable) -1 else 0xFF777777.toInt())
                 val sub = when {
@@ -131,6 +151,7 @@ object LeapMenu : Module(
                 }
                 HudCard.text(sub, x + 20f, y + 32f, 10f, if (usable) accent else 0xFF777777.toInt())
                 if (numberKeys.value) HudCard.text("${i + 1}", x + BOX_W - 16f, y + 8f, 10f, 0xFF888888.toInt())
+                if (isOpener) HudCard.text("Door opener", x + BOX_W - 8f - HudCard.width("Door opener", 9f), y + BOX_H - 16f, 9f, OPENER_COLOR)
             }
         }
     }
