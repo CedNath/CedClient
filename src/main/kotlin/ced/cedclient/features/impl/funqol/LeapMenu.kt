@@ -6,6 +6,7 @@ import ced.cedclient.features.impl.render.HudCard
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.DropdownSetting
+import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.RenderableSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.state.DungeonState.DungeonClass
@@ -53,6 +54,7 @@ object LeapMenu : Module(
 ) {
     private val numberKeys = BooleanSetting("Number Keys", true, "1-4 leap to the top-left, top-right, bottom-left, bottom-right box.")
     private val highlightOpener = BooleanSetting("Highlight Door Opener", true, "Gold box on whoever opened the last wither door (cleared once blood opens).")
+    private val menuScale = NumberSetting("Menu Size", 1.0, 0.5, 2.0, 0.05, "Size of the leap boxes (the click areas stay the screen quarters).")
     private val announce = BooleanSetting("Leap Announce", false, "Says \"Leaping to <name>\" in party chat when you leap.")
 //#if CHEAT
     private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
@@ -89,7 +91,7 @@ object LeapMenu : Module(
 
     init {
 //#if CHEAT
-        addPopupSettings("Menu" to listOf(numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap, quickSpeed))
+        addPopupSettings("Menu" to listOf(menuScale, numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
@@ -101,7 +103,7 @@ object LeapMenu : Module(
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         }
 //#else
-//$        addPopupSettings("Menu" to listOf(numberKeys, highlightOpener), "Leaping" to listOf(announce))
+//$        addPopupSettings("Menu" to listOf(menuScale, numberKeys, highlightOpener), "Leaping" to listOf(announce))
 //#endif
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
@@ -184,6 +186,11 @@ object LeapMenu : Module(
         val opener = opener()
         HudCard.draw(g, 0, 0) {
             NVGRenderer.rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat(), 0x88000000.toInt())
+            // Menu Size: scale the boxes around the screen centre.
+            val sc = menuScale.value.toFloat()
+            NVGRenderer.translate(screen.width / 2f, screen.height / 2f)
+            NVGRenderer.scale(sc, sc)
+            NVGRenderer.translate(-screen.width / 2f, -screen.height / 2f)
             if (mates.isEmpty()) {
                 val text = if (loaded) "No one to leap to" else "Loading..."
                 HudCard.text(text, (screen.width - HudCard.width(text, 12f)) / 2, screen.height / 2f - 6f, 12f, 0xFFBBBBBB.toInt())
