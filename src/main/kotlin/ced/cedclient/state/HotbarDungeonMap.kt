@@ -10,8 +10,8 @@ import net.minecraft.core.component.DataComponents
  * of the 11x11 grid cells is sampled at its center. A cell is a door when its center has a door color and the pixel
  * 4 px to the side of the passage is empty (otherwise it's a room joining two tiles).
  *
- * [discoveredDoors] only grows during a run: a door the map showed once counts as discovered.
- * Call [update] from a tick, [reset] on world change.
+ * [discoveredDoors] and [discoveredRooms] only grow during a run: whatever the map showed once counts as discovered.
+ * Call [update] from a tick; a new world resets it.
  */
 object HotbarDungeonMap {
     private const val START = -185
@@ -25,6 +25,9 @@ object HotbarDungeonMap {
     /** World (x, z) of every door the map shows. */
     val discoveredDoors = HashSet<Pair<Int, Int>>()
 
+    /** Room tiles (i, j) on the 6x6 grid (i along x) the map shows anything on. */
+    val discoveredRooms = HashSet<Pair<Int, Int>>()
+
     private var cornerX = 0
     private var cornerZ = 0
     private var roomSize = 16
@@ -32,9 +35,13 @@ object HotbarDungeonMap {
     fun reset() {
         calibrated = false
         discoveredDoors.clear()
+        discoveredRooms.clear()
     }
 
+    private var lastLevel: ClientLevel? = null
+
     fun update(level: ClientLevel, player: LocalPlayer) {
+        if (level !== lastLevel) { lastLevel = level; reset() }
         val id = player.inventory.getItem(8).get(DataComponents.MAP_ID) ?: return
         val colors = level.getMapData(id)?.colors ?: return
         if (colors.size < 128 * 128) return
@@ -43,10 +50,14 @@ object HotbarDungeonMap {
         val halfRoom = roomSize / 2
         val halfTile = halfRoom + 2
         for (i in 0..10) for (j in 0..10) {
-            if ((i % 2 == 1) == (j % 2 == 1)) continue // room tile or pillar, not a door spot
+            if (i % 2 == 1 && j % 2 == 1) continue // pillar between four tiles
             val mapX = cornerX + halfRoom + i * halfTile
             val mapZ = cornerZ + halfRoom + j * halfTile
             if (mapX >= 128 || mapZ >= 128) continue
+            if (i % 2 == 0 && j % 2 == 0) {
+                if (colors[mapZ * 128 + mapX].toInt() != 0) discoveredRooms += i / 2 to j / 2
+                continue
+            }
             val center = colors[mapZ * 128 + mapX].toInt()
             // Sideways from the passage: a door is narrow (empty there), a room joining two tiles is not.
             val side = colors.getOrNull(if (j % 2 == 1) mapZ * 128 + mapX - 4 else (mapZ - 4) * 128 + mapX)?.toInt() ?: 0
