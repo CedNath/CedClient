@@ -32,6 +32,15 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.PlayerFaceExtractor
 import net.minecraft.client.multiplayer.ClientLevel
 import java.io.File
+//#if CHEAT
+import ced.cedclient.render.LineBox
+import ced.cedclient.render.pipeline.CustomRenderType
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.block.entity.BlockEntityType
+import net.minecraft.world.level.chunk.status.ChunkStatus
+import net.minecraft.world.phys.AABB
+//#endif
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -46,7 +55,7 @@ import kotlin.math.sin
  * from the map's icons, which follow the party order (your own icon is the frame one).
 //#if CHEAT
  * "Show Undiscovered" also draws everything the scanner has loaded (darkened until the map shows it), "Blood Route"
- * the way from you to blood until the blood door opens.
+ * the way from you to blood until the blood door opens. "Mimic Room" / "Mimic ESP" find the mimic chest (F6 / F7).
 //#endif
  * All options sit in the "Map Options" popup.
  */
@@ -65,6 +74,11 @@ object DungeonMap : Module(
 //#if CHEAT
     private val showUndiscovered = BooleanSetting("Show Undiscovered", false, "Also draw rooms and doors the dungeon map hasn't shown yet (everything loaded so far).")
     private val bloodRoute = BooleanSetting("Blood Route", false, "Line from you through the doors to the blood room.")
+    private val mimicRoom = BooleanSetting("Mimic Room", false, "F6 / F7: the room with the mimic chest is tinted red on the map.")
+    private val mimicEsp = BooleanSetting("Mimic ESP", false, "F6 / F7: box around the mimic chest through walls.")
+    /** World positions of mimic chests: trapped chests above what their room always has. Cleared once the mimic dies. */
+    @Volatile private var mimicChests: List<BlockPos> = emptyList()
+    private var mimicDelay = 0
 //#endif
     private val background = BooleanSetting("Background", true, "Dark card behind the map.")
     private val backgroundOpacity = NumberSetting("Background Opacity", 90.0, 0.0, 100.0, 5.0, "How see-through the card is (percent).")
@@ -104,7 +118,7 @@ object DungeonMap : Module(
     init {
 //#if CHEAT
         addPopupSettings(
-            listOf("Rooms" to listOf(roomNames, checkmarks, secrets, runInfo, showUndiscovered), "Players" to listOf(playerMarker, teammates, markerStyle, bloodRoute)),
+            listOf("Rooms" to listOf(roomNames, checkmarks, secrets, runInfo, showUndiscovered, mimicRoom, mimicEsp), "Players" to listOf(playerMarker, teammates, markerStyle, bloodRoute)),
             listOf("Card" to listOf(background, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor)),
         )
 //#else
@@ -128,6 +142,9 @@ object DungeonMap : Module(
             if (scanDelay-- > 0) return@register
             scanDelay = 10
             DungeonScanner.scan(level, player.x, player.z)
+//#if CHEAT
+            if (mimicDelay-- <= 0) { mimicDelay = 2; scanMimic(level) }
+//#endif
         }
     }
 
@@ -263,6 +280,9 @@ object DungeonMap : Module(
             NVGRenderer.translate(ox, oy)
             NVGRenderer.scale(k, k)
             drawRooms(seen)
+//#if CHEAT
+            if (mimicRoom.value) drawMimicRoom()
+//#endif
             if (roomNames.value || checkmarks.value || secrets.value) drawLabels(groups(seen))
 //#if CHEAT
             if (bloodRoute.value && bloodOpenLevel !== mc.level) drawBloodRoute()
@@ -439,6 +459,62 @@ object DungeonMap : Module(
             path.map { toMap(it.x.toDouble()) to toMap(it.z.toDouble()) } +
             (blood.first * PITCH + ROOM / 2 to blood.second * PITCH + ROOM / 2)
         NVGRenderer.strokePath(points.flatMap { listOf(it.first, it.second) }.toFloatArray(), 1.2f, 0xFFFF3030.toInt())
+    }
+//#endif
+
+//#if CHEAT
+    /**
+     * Mimic: F6 / F7 only. Every trapped chest in the loaded grid is counted per room; a room with more than its
+     * rooms.json trappedChests holds the mimic. The chest block goes when the mimic is found, so the box follows.
+     */
+    private fun scanMimic(level: ClientLevel) {
+        val floor = DungeonState.floor?.drop(1)?.toIntOrNull()
+        if ((!mimicRoom.value && !mimicEsp.value) || (floor != 6 && floor != 7) || DungeonRunInfo.mimic) {
+            mimicChests = emptyList()
+            return
+        }
+        val byRoom = HashMap<String, MutableList<BlockPos>>()
+        val chunks = ((START - 16) shr 4)..((START + 5 * 32 + 15) shr 4)
+        for (cx in chunks) for (cz in chunks) {
+            val chunk = level.chunkSource.getChunk(cx, cz, ChunkStatus.FULL, false) ?: continue
+            for ((pos, be) in chunk.blockEntities) {
+                if (be.type != BlockEntityType.TRAPPED_CHEST) continue
+                val i = Math.floorDiv(pos.x - START + 16, 32)
+                val j = Math.floorDiv(pos.z - START + 16, 32)
+                if (i !in 0..5 || j !in 0..5) continue
+                val room = DungeonScanner.room(i, j) ?: continue
+                byRoom.getOrPut(room.name) { ArrayList() } += pos
+            }
+        }
+        mimicChests = byRoom.filter { (name, chests) ->
+            val expected = (0..5).flatMap { i -> (0..5).map { j -> DungeonScanner.room(i, j) } }.firstOrNull { it?.name == name }?.trappedChests ?: 0
+            chests.size > expected
+        }.values.flatten()
+    }
+
+    /** Red tint over every tile (and the joins between them) of the room the mimic chest is in. */
+    private fun drawMimicRoom() {
+        val tiles = mimicChests.map { Math.floorDiv(it.x - START + 16, 32) to Math.floorDiv(it.z - START + 16, 32) }.toSet()
+        val names = tiles.mapNotNull { (i, j) -> DungeonScanner.room(i, j)?.name }.toSet()
+        if (names.isEmpty()) return
+        val red = 0x88FF2020.toInt()
+        for (i in 0..5) for (j in 0..5) {
+            if (DungeonScanner.room(i, j)?.name !in names) continue
+            NVGRenderer.rect(i * PITCH, j * PITCH, ROOM, ROOM, red)
+            if (i < 5 && DungeonScanner.room(i + 1, j)?.name in names && spot(i * 2 + 1, j * 2) == Spot.SEPARATOR) NVGRenderer.rect(i * PITCH + ROOM, j * PITCH, GAP, ROOM, red)
+            if (j < 5 && DungeonScanner.room(i, j + 1)?.name in names && spot(i * 2, j * 2 + 1) == Spot.SEPARATOR) NVGRenderer.rect(i * PITCH, j * PITCH + ROOM, ROOM, GAP, red)
+        }
+    }
+
+    init {
+        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+            val chests = mimicChests
+            if (!isEnabled || !mimicEsp.value || chests.isEmpty()) return@AfterSolidFeatures
+            val cam = context.gameRenderer().mainCamera.position()
+            val buffer = context.bufferSource().getBuffer(CustomRenderType.LINES_ESP)
+            for (pos in chests) LineBox.draw(context.poseStack(), buffer, AABB(pos).move(-cam.x, -cam.y, -cam.z), 1f, 0.15f, 0.15f, 1f)
+            context.bufferSource().endBatch()
+        })
     }
 //#endif
 
