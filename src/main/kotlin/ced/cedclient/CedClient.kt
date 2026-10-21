@@ -127,6 +127,7 @@ class CedClient : ClientModInitializer {
         CedClientCommand.register()
         TabListCache.register()
         ced.cedclient.state.DungeonRunInfo.register()
+        ced.cedclient.state.DungeonClears.register()
 
         // One small launch ping (username, UUID, mod + MC version) so the dev can see
         // who uses the mod. Opt out via config/cedclient-usage.properties (shareUsage=false).
@@ -218,6 +219,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CritterSafari)
         ModuleManager.register(VampireSlayer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RoomTimes)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SecretHighlight)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ExplosiveShotDamage)
         ModuleManager.register(SearchOverlay)
         ModuleManager.register(ced.cedclient.features.impl.misc.AuctionPriceInput)
@@ -288,6 +291,11 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_map")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.DungeonMap.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "room_times")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.RoomTimes.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")

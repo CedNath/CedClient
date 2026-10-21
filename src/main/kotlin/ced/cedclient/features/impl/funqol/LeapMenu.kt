@@ -30,6 +30,7 @@ import net.minecraft.world.InteractionResult
 import net.minecraft.world.item.ItemStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.components.PlayerFaceExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.client.multiplayer.ClientLevel
@@ -58,9 +59,11 @@ object LeapMenu : Module(
     Category.Skyblock,
     "Replaces the Spirit Leap menu with big teammate boxes. Click one or press 1-4."
 ) {
-    private val numberKeys = BooleanSetting("Number Keys", true, "Number keys leap (see Key Mode).")
+    private val numberKeys = BooleanSetting("Number Keys", false, "Number keys leap (see Key Mode).")
     private val keyMode = DropdownSetting("Key Mode", listOf("Corners", "Class"), "Corners", "Corners: 1-4 = top-left, top-right, bottom-left, bottom-right. Class: 1 Archer, 2 Berserk, 3 Healer, 4 Mage, 5 Tank.")
+    private val queueClicks = BooleanSetting("Queue Clicks While Laggy", false, "A click made while the server is stalling is held and sent as soon as the server catches up, instead of getting lost.")
     private val leftClickOnly = BooleanSetting("Left Click Only", false, "Only a left click leaps (right / middle clicks do nothing).")
+    private val showHeads = BooleanSetting("Player Heads", false, "Show each teammate's skin head in their box.")
     private val tintDead = BooleanSetting("Tint Dead Players", true, "Grey out dead teammates' boxes.")
     private val hidePlayers = BooleanSetting("Hide Players", false, "Hide other players for a moment after you leap, so they don't block your view.")
     private val hideTime = NumberSetting("Hide Time", 3.5, 0.5, 5.0, 0.1, "Seconds players stay hidden after a leap.")
@@ -68,7 +71,7 @@ object LeapMenu : Module(
     private val menuScale = NumberSetting("Menu Size", 1.0, 0.5, 2.0, 0.05, "Size of the leap boxes (the click areas stay the screen quarters).")
     private val announce = BooleanSetting("Leap Announce", false, "Says the Announce Message in party chat when you leap.")
     private val announceText = TextSetting("Announce Message", "Leaping to {name}", "Party chat line; {name} = who you leap to, {class} = their class.", 64)
-    private val sortBy = DropdownSetting("Sort By", listOf("Class Order", "A-Z Class", "A-Z Name", "Custom", "No Sorting"), "Class Order",
+    private val sortBy = DropdownSetting("Sort By", listOf("Class Order", "A-Z Class", "A-Z Name", "Custom", "No Sorting"), "A-Z Class",
         "Box order (top-left, top-right, bottom-left, bottom-right). No Sorting = the tab list's order.")
     private val classOrder = TextSetting("Class Order", "ABHMT", "For Sort By Class Order: first letters of the classes in box order (Archer Berserk Healer Mage Tank).", 5)
     private val customOrder = TextSetting("Custom Order", "", "For Sort By Custom: names, comma separated, in box order. Anyone not listed fills the rest A-Z.", 80)
@@ -81,7 +84,7 @@ object LeapMenu : Module(
 //#endif
 
     private val TITLES = setOf("Spirit Leap", "Teleport to Player")
-    private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
+    val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
     private val CODES = Regex("§.")
     private val TELEPORTED = Regex("""^You have teleported to (\w+)!?$""")
     private val WITHER_OPENED = Regex("""^(?:\[.+?] )?(\w+) opened a WITHER door!$""")
@@ -90,6 +93,7 @@ object LeapMenu : Module(
 
     private const val BOX_W = 170f
     private const val BOX_H = 56f
+    private const val HEAD = 32f
     private const val GAP = 8f
 
     private class Mate(val name: String, val cls: DungeonClass?, val dead: Boolean, var slot: Int = -1)
@@ -128,7 +132,7 @@ object LeapMenu : Module(
             InteractionResult.PASS
         })
 //#if CHEAT
-        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, announce, announceText, hidePlayers, hideTime, quickLeap, quickSpeed))
+        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead, showHeads), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, queueClicks, announce, announceText, hidePlayers, hideTime, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
@@ -141,7 +145,7 @@ object LeapMenu : Module(
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         }
 //#else
-//$        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, announce, announceText, hidePlayers, hideTime))
+//$        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead, showHeads), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, queueClicks, announce, announceText, hidePlayers, hideTime))
 //#endif
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
@@ -186,6 +190,17 @@ object LeapMenu : Module(
     fun handles(screen: AbstractContainerScreen<*>): Boolean =
         isEnabled && screen is ContainerScreen && screen.title.string in TITLES
 
+    /** HUD panels deferred by [defer]: drawn first in the menu's own NVG pass, so they sit under its backdrop and boxes. */
+    private val behind = ArrayList<() -> Unit>()
+
+    /** While the menu is open: queues [draw] (a full-canvas NVG draw) to render behind the menu; false when it isn't open. */
+    fun defer(draw: () -> Unit): Boolean {
+        val screen = mc.screen as? AbstractContainerScreen<*> ?: return false
+        if (!handles(screen)) return false
+        behind += draw
+        return true
+    }
+
     /** Up to four teammates in box order, with the slot of their head once the chest has items. */
     private fun mates(screen: AbstractContainerScreen<*>): List<Mate> {
         val mates = DungeonTeam.members().map { Mate(it.name, it.cls, it.dead) }
@@ -221,6 +236,9 @@ object LeapMenu : Module(
         }
     }
 
+    /** No server tick packet for over 150 ms (they normally come every 50). */
+    private fun laggy() = ced.cedclient.utils.TpsTracker.msSinceTick() > 150
+
     private fun loaded(screen: AbstractContainerScreen<*>) =
         (0 until screen.menu.slots.size - 36).any { !screen.menu.slots[it].item.isEmpty }
 
@@ -254,13 +272,17 @@ object LeapMenu : Module(
         // An early pick goes out the frame its head shows up.
         pending?.let { name ->
             if (pendingContainer != id) pending = null
-            else if (System.currentTimeMillis() >= pendingNotBefore)
+            else if (System.currentTimeMillis() >= pendingNotBefore && !(queueClicks.value && laggy()))
                 mates.firstOrNull { it.name.equals(name, ignoreCase = true) && it.slot >= 0 }?.let { leap(screen, it) }
         }
         val loaded = loaded(screen)
         val hovered = indexAt(screen, mouseX.toDouble(), mouseY.toDouble())
         val opener = opener()
         HudCard.draw(g, 0, 0) {
+            // The queued panels expect a fresh full canvas (they scale by the GUI ratio themselves).
+            val ratio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
+            for (panel in behind) { NVGRenderer.push(); NVGRenderer.scale(1 / ratio, 1 / ratio); panel(); NVGRenderer.pop() }
+            behind.clear()
             NVGRenderer.rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat(), 0x88000000.toInt())
             // Menu Size: scale the boxes around the screen centre.
             val sc = menuScale.value.toFloat()
@@ -283,18 +305,33 @@ object LeapMenu : Module(
                 val border = if (!usable) 0xFF555555.toInt() else if (isOpener) OPENER_COLOR else accent
                 NVGRenderer.hollowRect(x, y, BOX_W, BOX_H, if (pending == mate.name || isOpener) 2f else 1f, border, 8f)
                 NVGRenderer.rect(x + 8f, y + 10f, 4f, BOX_H - 20f, if (usable) accent else 0xFF555555.toInt(), 2f)
-                HudCard.text(mate.name, x + 20f, y + 12f, 14f, if (usable) -1 else 0xFF777777.toInt())
+                val textX = if (showHeads.value) x + 20f + HEAD + 8f else x + 20f
+                HudCard.text(mate.name, textX, y + 12f, 14f, if (usable) -1 else 0xFF777777.toInt())
                 val sub = when {
                     mate.dead -> "Dead"
                     loaded && mate.slot < 0 -> "Not in menu"
                     else -> mate.cls?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
                 }
-                HudCard.text(sub, x + 20f, y + 32f, 10f, if (usable) accent else 0xFF777777.toInt())
+                HudCard.text(sub, textX, y + 32f, 10f, if (usable) accent else 0xFF777777.toInt())
                 val key = if (keyMode.value == "Class") mate.cls?.let { CLASS_KEYS.indexOf(it) + 1 } else i + 1
                 if (numberKeys.value && key != null) HudCard.text("$key", x + BOX_W - 16f, y + 8f, 10f, 0xFF888888.toInt())
                 if (isOpener) HudCard.text("Door opener", x + BOX_W - 8f - HudCard.width("Door opener", 9f), y + BOX_H - 16f, 9f, OPENER_COLOR)
             }
         }
+        if (!showHeads.value || mates.isEmpty()) return
+        // Heads are vanilla sprites: a stratum above the NanoVG boxes so they land on top of them.
+        g.nextStratum()
+        val sc = menuScale.value.toFloat()
+        g.pose().pushMatrix()
+        g.pose().translate(screen.width / 2f, screen.height / 2f)
+        g.pose().scale(sc, sc)
+        g.pose().translate(-screen.width / 2f, -screen.height / 2f)
+        mates.forEachIndexed { i, mate ->
+            val skin = mc.connection?.getPlayerInfo(mate.name)?.skin ?: return@forEachIndexed
+            val (x, y) = boxAt(i, screen.width, screen.height)
+            PlayerFaceExtractor.extractRenderState(g, skin, (x + 20f).toInt(), (y + (BOX_H - HEAD) / 2).toInt(), HEAD.toInt())
+        }
+        g.pose().popMatrix()
     }
 
     fun mouseClicked(screen: AbstractContainerScreen<*>, mx: Double, my: Double, button: Int) {
@@ -324,7 +361,11 @@ object LeapMenu : Module(
         pickedAt = System.currentTimeMillis()
         val mate = mates(screen).getOrNull(index) ?: return
         if (mate.dead) return
-        if (mate.slot >= 0) leap(screen, mate)
+        if (mate.slot >= 0) {
+            // Server stalling: hold the click (drawn as a picked box) and let render() send it once ticks flow again.
+            if (queueClicks.value && laggy()) { pending = mate.name; pendingContainer = screen.menu.containerId; pendingNotBefore = 0L }
+            else leap(screen, mate)
+        }
         else if (!loaded(screen)) { pending = mate.name; pendingContainer = screen.menu.containerId; pendingNotBefore = 0L }
     }
 

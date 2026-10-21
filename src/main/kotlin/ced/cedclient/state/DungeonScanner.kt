@@ -33,6 +33,10 @@ object DungeonScanner {
     var bloodPath: List<PathDoor> = emptyList()
         private set
 
+    /** Bumped whenever a room or spot changes, so callers can cache what they derive. */
+    var version = 0
+        private set
+
     private val pos = BlockPos.MutableBlockPos()
     private var lastLevel: ClientLevel? = null
 
@@ -46,20 +50,33 @@ object DungeonScanner {
         rooms.fill(null)
         spots.fill(null)
         bloodPath = emptyList()
+        version++
+        lastScanTick = Long.MIN_VALUE
     }
+
+    private var lastScanTick = Long.MIN_VALUE
 
     fun scan(level: ClientLevel, playerX: Double, playerZ: Double) {
         if (level !== lastLevel) { lastLevel = level; reset() }
+        // Door ESP and the map both scan every 10 ticks: the second caller within 4 ticks would only repeat the work.
+        val now = level.gameTime
+        if (now - lastScanTick in 0..3) return
+        lastScanTick = now
         for (i in 0..10) for (j in 0..10) {
             val x = START + 16 * i
             val z = START + 16 * j
             if (i % 2 == 0 && j % 2 == 0) {
                 val r = (i / 2) * 6 + j / 2
-                if (rooms[r] == null) rooms[r] = CosmeticRooms.roomInfoAt(level, x, z)
+                if (rooms[r] == null) {
+                    rooms[r] = CosmeticRooms.roomInfoAt(level, x, z)
+                    if (rooms[r] != null) version++
+                }
             } else if ((i % 2 == 1) != (j % 2 == 1)) {
+                // Two tiles of one room stay joined for the run: no need to look again.
+                if (spots[i * 11 + j] == Spot.SEPARATOR) continue
                 val top = highestY(level, x, z)
                 if (top == 0) continue // wall, or not loaded yet: keep what was seen before
-                spots[i * 11 + j] = if (top !in DOOR_HEIGHTS) Spot.SEPARATOR else {
+                val spot = if (top !in DOOR_HEIGHTS) Spot.SEPARATOR else {
                     val state = level.getBlockState(pos.set(x, 69, z))
                     when {
                         state.`is`(Blocks.COAL_BLOCK) -> Spot.WITHER
@@ -68,6 +85,7 @@ object DungeonScanner {
                         else -> Spot.NORMAL
                     }
                 }
+                if (spots[i * 11 + j] != spot) { spots[i * 11 + j] = spot; version++ }
             }
         }
         val ri = Math.floorDiv(playerX.toInt() - START + 16, 32)

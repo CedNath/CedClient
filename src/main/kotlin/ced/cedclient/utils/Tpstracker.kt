@@ -27,6 +27,10 @@ object TpsTracker {
         lastTickMs = now
     }
 
+    /** Ms since the last server tick packet came in (0 before the first one): a big number = the server (or link) is stalling. */
+    @JvmStatic
+    fun msSinceTick(): Long = if (lastTickMs < 0) 0L else System.currentTimeMillis() - lastTickMs
+
     @JvmStatic
     fun reset() {
         tickIdx = 0
