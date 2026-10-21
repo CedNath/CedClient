@@ -54,6 +54,13 @@ object DevAccess {
                 }
             1
         })
+        // Leap Menu timing lines in chat (until restart).
+        .then(ClientCommands.literal("leap").executes { ctx ->
+            val leap = ced.cedclient.features.impl.funqol.LeapMenu
+            leap.debug = !leap.debug
+            ctx.source.sendFeedback(Component.literal("§7Leap Menu debug: ${if (leap.debug) "§aon" else "§coff"}"))
+            1
+        })
         .then(ClientCommands.literal("held").executes { ctx ->
             val stack = Minecraft.getInstance().player?.mainHandItem ?: return@executes 0
             ctx.source.sendFeedback(Component.literal("§7${stack.item} §f${stack.hoverName.string}"))
