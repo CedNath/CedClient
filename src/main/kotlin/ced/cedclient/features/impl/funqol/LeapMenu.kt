@@ -3,10 +3,13 @@ package ced.cedclient.features.impl.funqol
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.impl.render.HudCard
+import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.state.DungeonState.DungeonClass
-import ced.cedclient.utils.TabListCache
+import ced.cedclient.state.DungeonTeam
+import ced.cedclient.ui.clickgui.ClickGUI
+import ced.cedclient.ui.clickgui.SettingsPopup
 //#if CHEAT
 import ced.cedclient.data.ClickType
 import ced.cedclient.events.ItemClickEvent
@@ -32,7 +35,8 @@ import net.minecraft.world.item.Items
  * arrive. A pick made that early is kept and clicked the first frame the teammate's head shows up. The click goes
  * straight out as a middle click on the head's slot (no item lands on the cursor), at most once per 400 ms.
  * Teammates are always in the same order (by class, then name), so a box's spot stays put run to run.
- * Whoever opened the last wither door gets a gold box, until blood opens or the world changes.
+ * Whoever opened the last wither door gets a gold box, until blood opens or the world changes. Leap Announce says
+ * who you leap to in party chat. All options sit in the "Leap Options" popup.
 //#if CHEAT
  *
  * Quick Leap: left-click with the leap item opens the menu (a right-click) and picks the door opener through the
@@ -46,6 +50,7 @@ object LeapMenu : Module(
 ) {
     private val numberKeys = BooleanSetting("Number Keys", true, "1-4 leap to the top-left, top-right, bottom-left, bottom-right box.")
     private val highlightOpener = BooleanSetting("Highlight Door Opener", true, "Gold box on whoever opened the last wither door (cleared once blood opens).")
+    private val announce = BooleanSetting("Leap Announce", false, "Says \"Leaping to <name>\" in party chat when you leap.")
 //#if CHEAT
     private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
     private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
@@ -59,8 +64,6 @@ object LeapMenu : Module(
     private val WITHER_OPENED = Regex("""^(?:\[.+?] )?(\w+) opened a WITHER door!$""")
     private const val BLOOD_OPENED = "The BLOOD DOOR has been opened!"
     private const val OPENER_COLOR = 0xFFFFD700.toInt()
-    /** Dungeon tab row: "[312] Name ♲ (Mage XXV)" -> name, class ("DEAD" / "EMPTY" when not playing). */
-    private val TAB_ROW = Regex("""^\[\d+] (\w{1,16})\b.*\((\w+)(?: [IVXLCDM]+)?\)$""")
     private val ORDER = listOf(DungeonClass.ARCHER, DungeonClass.BERSERK, DungeonClass.HEALER, DungeonClass.MAGE, DungeonClass.TANK)
 
     private const val BOX_W = 170f
@@ -80,7 +83,7 @@ object LeapMenu : Module(
 
     init {
 //#if CHEAT
-        addSettings(numberKeys, highlightOpener, quickLeap)
+        addPopupSettings("Menu" to listOf(numberKeys, highlightOpener), "Leaping" to listOf(announce, quickLeap))
         on<ItemClickEvent> { event ->
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
@@ -92,7 +95,7 @@ object LeapMenu : Module(
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         }
 //#else
-//$        addSettings(numberKeys, highlightOpener)
+//$        addPopupSettings("Menu" to listOf(numberKeys, highlightOpener), "Leaping" to listOf(announce))
 //#endif
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
@@ -101,24 +104,25 @@ object LeapMenu : Module(
         }
     }
 
+    /** One "Leap Options" button in the panel; [sections] open in a popup from it. */
+    private fun addPopupSettings(vararg sections: Pair<String, List<BooleanSetting>>) {
+        addSettings(ActionSetting("Leap Options", "Number keys, door opener highlight, leap announce.") {
+            (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Leap Menu", sections.map { (title, list) -> listOf(SettingsPopup.Section(title, list)) }))
+        })
+        val all = sections.flatMap { it.second }
+        addSettings(*all.toTypedArray())
+        all.forEach { it.inPopup = true }
+    }
+
     /** Last wither door opener in this world, if the highlight is on. */
     private fun opener(): String? = doorOpener.takeIf { highlightOpener.value && openerLevel === mc.level }
 
     fun handles(screen: AbstractContainerScreen<*>): Boolean =
         isEnabled && screen is ContainerScreen && screen.title.string in TITLES
 
-    private fun classOf(word: String) = DungeonClass.entries.firstOrNull { it.name.equals(word, ignoreCase = true) }
-
     /** Up to four teammates in box order, with the slot of their head once the chest has items. */
     private fun mates(screen: AbstractContainerScreen<*>): List<Mate> {
-        val self = mc.player?.gameProfile?.name
-        val mates = TabListCache.entries.mapNotNull { e ->
-            val m = TAB_ROW.find(e.stripped.trim()) ?: return@mapNotNull null
-            val name = m.groupValues[1]
-            if (name.equals(self, ignoreCase = true)) return@mapNotNull null
-            val word = m.groupValues[2]
-            Mate(name, classOf(word), word.equals("DEAD", ignoreCase = true))
-        }.distinctBy { it.name.lowercase() }
+        val mates = DungeonTeam.members().map { Mate(it.name, it.cls, it.dead) }
             .sortedWith(compareBy<Mate>({ ORDER.indexOf(it.cls).let { i -> if (i < 0) 99 else i } }, { it.name.lowercase() }))
             .toMutableList()
 
@@ -179,7 +183,7 @@ object LeapMenu : Module(
                 val (x, y) = boxAt(i, screen.width, screen.height)
                 // Once the heads are in, a teammate without one can't be leaped to.
                 val usable = !mate.dead && (!loaded || mate.slot >= 0)
-                val accent = classColor(mate.cls)
+                val accent = DungeonTeam.classColor(mate.cls)
                 val isOpener = mate.name.equals(opener, ignoreCase = true)
                 NVGRenderer.rect(x, y, BOX_W, BOX_H, if (i == hovered && usable) 0xF0303040.toInt() else HudCard.BACKGROUND, 8f)
                 val border = if (!usable) 0xFF555555.toInt() else if (isOpener) OPENER_COLOR else accent
@@ -196,15 +200,6 @@ object LeapMenu : Module(
                 if (isOpener) HudCard.text("Door opener", x + BOX_W - 8f - HudCard.width("Door opener", 9f), y + BOX_H - 16f, 9f, OPENER_COLOR)
             }
         }
-    }
-
-    private fun classColor(cls: DungeonClass?): Int = when (cls) {
-        DungeonClass.ARCHER -> 0xFFFFAA00.toInt()
-        DungeonClass.BERSERK -> 0xFFFF5555.toInt()
-        DungeonClass.HEALER -> 0xFFFF55FF.toInt()
-        DungeonClass.MAGE -> 0xFF55FFFF.toInt()
-        DungeonClass.TANK -> 0xFF55FF55.toInt()
-        null -> 0xFFBBBBBB.toInt()
     }
 
     fun mouseClicked(screen: AbstractContainerScreen<*>, mx: Double, my: Double) = pick(screen, indexAt(screen, mx, my))
@@ -235,5 +230,6 @@ object LeapMenu : Module(
         lastClick = now
         val player = mc.player ?: return
         mc.gameMode?.handleContainerInput(screen.menu.containerId, mate.slot, 2, ContainerInput.CLONE, player)
+        if (announce.value) player.connection.sendCommand("pc Leaping to ${mate.name}")
     }
 }

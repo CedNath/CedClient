@@ -10,7 +10,9 @@ import net.minecraft.core.component.DataComponents
  * of the 11x11 grid cells is sampled at its center. A cell is a door when its center has a door color and the pixel
  * 4 px to the side of the passage is empty (otherwise it's a room joining two tiles).
  *
- * [discoveredDoors] and [discoveredRooms] only grow during a run: whatever the map showed once counts as discovered.
+ * [discoveredDoors] and [roomStates] only grow during a run: whatever the map showed once counts as discovered.
+ * A room's state comes from two pixels: its corner (grey 85 = not opened yet) and its centre, where Hypixel draws
+ * the checkmark (white 34 = cleared, green 30 = all secrets, red 18 = failed). [markers] are the map's player icons.
  * Call [update] from a tick; a new world resets it.
  */
 object HotbarDungeonMap {
@@ -25,8 +27,14 @@ object HotbarDungeonMap {
     /** World (x, z) of every door the map shows. */
     val discoveredDoors = HashSet<Pair<Int, Int>>()
 
-    /** Room tiles (i, j) on the 6x6 grid (i along x) the map shows anything on. */
-    val discoveredRooms = HashSet<Pair<Int, Int>>()
+    enum class RoomState { UNEXPLORED, OPENED, CLEARED, GREEN, FAILED }
+
+    /** Room tiles (i, j) on the 6x6 grid (i along x) the map shows anything on, with what the map says about them. */
+    val roomStates = HashMap<Pair<Int, Int>, RoomState>()
+
+    /** World (x, z) of every player icon on the map (you included), refreshed each [update]. */
+    var markers: List<Pair<Double, Double>> = emptyList()
+        private set
 
     private var cornerX = 0
     private var cornerZ = 0
@@ -35,7 +43,8 @@ object HotbarDungeonMap {
     fun reset() {
         calibrated = false
         discoveredDoors.clear()
-        discoveredRooms.clear()
+        roomStates.clear()
+        markers = emptyList()
     }
 
     private var lastLevel: ClientLevel? = null
@@ -43,9 +52,11 @@ object HotbarDungeonMap {
     fun update(level: ClientLevel, player: LocalPlayer) {
         if (level !== lastLevel) { lastLevel = level; reset() }
         val id = player.inventory.getItem(8).get(DataComponents.MAP_ID) ?: return
-        val colors = level.getMapData(id)?.colors ?: return
+        val data = level.getMapData(id) ?: return
+        val colors = data.colors
         if (colors.size < 128 * 128) return
         if (!calibrated && !calibrate(colors)) return
+        readMarkers(data)
 
         val halfRoom = roomSize / 2
         val halfTile = halfRoom + 2
@@ -55,13 +66,32 @@ object HotbarDungeonMap {
             val mapZ = cornerZ + halfRoom + j * halfTile
             if (mapX >= 128 || mapZ >= 128) continue
             if (i % 2 == 0 && j % 2 == 0) {
-                if (colors[mapZ * 128 + mapX].toInt() != 0) discoveredRooms += i / 2 to j / 2
+                val center = colors[mapZ * 128 + mapX].toInt()
+                if (center == 0) continue
+                val base = colors[(mapZ - halfRoom + 1) * 128 + mapX - halfRoom + 1].toInt()
+                roomStates[i / 2 to j / 2] = when {
+                    base == 85 -> RoomState.UNEXPLORED
+                    center == 34 -> RoomState.CLEARED
+                    center == 30 && base != 30 -> RoomState.GREEN
+                    center == 18 && base != 18 -> RoomState.FAILED
+                    else -> RoomState.OPENED
+                }
                 continue
             }
             val center = colors[mapZ * 128 + mapX].toInt()
             // Sideways from the passage: a door is narrow (empty there), a room joining two tiles is not.
             val side = colors.getOrNull(if (j % 2 == 1) mapZ * 128 + mapX - 4 else (mapZ - 4) * 128 + mapX)?.toInt() ?: 0
             if (center in DOOR_COLORS && side == 0) discoveredDoors += (START + 16 * i) to (START + 16 * j)
+        }
+    }
+
+    /** Player icons: decoration x / y are half map pixels from the centre; map pixels go back to blocks via the grid. */
+    private fun readMarkers(data: net.minecraft.world.level.saveddata.maps.MapItemSavedData) {
+        val blocksPerPixel = 32.0 / (roomSize + 4)
+        markers = data.decorations.map { d ->
+            val px = (d.x() + 128) / 2.0
+            val pz = (d.y() + 128) / 2.0
+            START + (px - cornerX - roomSize / 2) * blocksPerPixel to START + (pz - cornerZ - roomSize / 2) * blocksPerPixel
         }
     }
 
