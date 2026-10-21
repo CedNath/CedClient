@@ -63,7 +63,8 @@ object DungeonMap : Module(
     private const val GAP = 4f
     private const val PITCH = ROOM + GAP
     private const val DOOR = 6f
-    private const val PAD = 6f
+    /** Card size: the vanilla map's 128 x 128, rooms where that map draws them. */
+    private const val CARD = 128f
     private const val UNEXPLORED_COLOR = 0xFF404040.toInt()
     private val CODES = Regex("§.")
     /** The world the blood door was opened in (Blood Route stops there). */
@@ -162,25 +163,37 @@ object DungeonMap : Module(
 
     override fun renderInternal(g: GuiGraphicsExtractor) {
         val seen = (0..5).flatMap { i -> (0..5).map { j -> i to j } }.filter { (i, j) -> room(i, j) != null }
-        // Sized to the whole dungeon the scanner has found, not just the rooms shown so far, so it doesn't grow mid-run.
-        val scanned = (0..5).flatMap { i -> (0..5).map { j -> i to j } }.filter { (i, j) -> DungeonScanner.room(i, j) != null }
-        val cols = (scanned.maxOfOrNull { it.first } ?: 5) + 1
-        val rows = (scanned.maxOfOrNull { it.second } ?: 5) + 1
-        val width = cols * PITCH - GAP + PAD * 2
-        val height = rows * PITCH - GAP + PAD * 2
-        lastWidth = width.toInt()
-        lastHeight = height.toInt()
+        lastWidth = CARD.toInt()
+        lastHeight = CARD.toInt()
         val s = panelScale
+        // Fixed card like the vanilla map: once it lines up, rooms go where it draws them (its corner, 16 or 18 px
+        // rooms); before that the scanned grid is centred.
+        val k: Float
+        val ox: Float
+        val oy: Float
+        if (HotbarDungeonMap.calibrated) {
+            k = (HotbarDungeonMap.roomSize + GAP) / PITCH
+            ox = HotbarDungeonMap.cornerX.toFloat()
+            oy = HotbarDungeonMap.cornerZ.toFloat()
+        } else {
+            val scanned = (0..5).flatMap { i -> (0..5).map { j -> i to j } }.filter { (i, j) -> DungeonScanner.room(i, j) != null }
+            val w = ((scanned.maxOfOrNull { it.first } ?: 5) + 1) * PITCH - GAP
+            val h = ((scanned.maxOfOrNull { it.second } ?: 5) + 1) * PITCH - GAP
+            k = minOf(1f, (CARD - 8f) / maxOf(w, h))
+            ox = (CARD - w * k) / 2
+            oy = (CARD - h * k) / 2
+        }
         val heads = if (teammates.value && seen.isNotEmpty()) loadedTeammates() else emptyList()
         HudCard.draw(g, panelX, panelY) {
             NVGRenderer.scale(s, s)
-            HudCard.card(width, height, 1f)
-            NVGRenderer.translate(PAD, PAD)
+            HudCard.card(CARD, CARD, 1f)
             if (seen.isEmpty()) {
                 val text = "Dungeon Map"
-                HudCard.text(text, (width - PAD * 2 - HudCard.width(text, 8f)) / 2, (height - PAD * 2 - 8f) / 2, 8f, 0xFFBBBBBB.toInt())
+                HudCard.text(text, (CARD - HudCard.width(text, 8f)) / 2, (CARD - 8f) / 2, 8f, 0xFFBBBBBB.toInt())
                 return@draw
             }
+            NVGRenderer.translate(ox, oy)
+            NVGRenderer.scale(k, k)
             drawRooms(seen)
             val groups = groups(seen)
             if (roomNames.value || checkmarks.value) drawLabels(groups)
@@ -193,11 +206,11 @@ object DungeonMap : Module(
         if (heads.isEmpty()) return
         // Heads are vanilla sprites: a stratum above the NanoVG card so they land on top of it.
         g.nextStratum()
-        val size = maxOf(4, (7 * s).toInt())
+        val size = maxOf(4, (7 * s * k).toInt())
         for ((player, color) in heads) {
             val skin = mc.connection?.getPlayerInfo(player.gameProfile.name)?.skin ?: continue
-            val x = (panelX + (PAD + toMap(player.x)) * s).toInt() - size / 2
-            val y = (panelY + (PAD + toMap(player.z)) * s).toInt() - size / 2
+            val x = (panelX + (ox + toMap(player.x) * k) * s).toInt() - size / 2
+            val y = (panelY + (oy + toMap(player.z) * k) * s).toInt() - size / 2
             g.fill(x - 1, y - 1, x + size + 1, y + size + 1, color)
             PlayerFaceExtractor.extractRenderState(g, skin, x, y, size)
         }
