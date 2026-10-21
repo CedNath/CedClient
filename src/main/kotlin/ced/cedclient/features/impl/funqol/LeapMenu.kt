@@ -44,7 +44,7 @@ import net.minecraft.world.item.Items
 //#if CHEAT
  *
  * Quick Leap: left-click with the leap item opens the menu (a right-click) and picks the door opener through the
- * same early-pick path, after the Quick Leap Speed delay (Fast = the frame their head arrives).
+ * same early-pick path, after the Quick Leap Speed delay (Slow 350, Normal 150, Fast 50 ms).
 //#endif
  */
 object LeapMenu : Module(
@@ -58,7 +58,7 @@ object LeapMenu : Module(
     private val announce = BooleanSetting("Leap Announce", false, "Says \"Leaping to <name>\" in party chat when you leap.")
 //#if CHEAT
     private val quickLeap = BooleanSetting("Quick Leap", false, "Left-click with Spirit Leap / Infinileap leaps straight to whoever opened the last wither door.")
-    private val quickSpeed = DropdownSetting("Quick Leap Speed", listOf("Slow", "Normal", "Fast"), "Normal", "How long the menu stays open before Quick Leap clicks: Slow 350 ms, Normal 150 ms, Fast at once.")
+    private val quickSpeed = DropdownSetting("Quick Leap Speed", listOf("Slow", "Normal", "Fast"), "Normal", "How long the menu stays open before Quick Leap clicks: Slow 350 ms, Normal 150 ms, Fast 50 ms.")
     private val LEAP_ITEMS = setOf("SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP")
     /** Quick Leap target, waiting for the menu it opened (until [quickUntil]). */
     private var quickTarget: String? = null
@@ -171,7 +171,7 @@ object LeapMenu : Module(
             if (System.currentTimeMillis() < quickUntil) {
                 pending = target
                 pendingContainer = id
-                pendingNotBefore = System.currentTimeMillis() + when (quickSpeed.value) { "Slow" -> 350L; "Normal" -> 150L; else -> 0L }
+                pendingNotBefore = System.currentTimeMillis() + when (quickSpeed.value) { "Slow" -> 350L; "Normal" -> 150L; else -> 50L }
             }
         }
 //#endif
