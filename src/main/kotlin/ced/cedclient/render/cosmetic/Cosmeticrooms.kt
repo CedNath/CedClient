@@ -19,9 +19,11 @@ private class RoomJsonEntry {
     var cores: List<Int>? = null
     var secrets: Int? = null
     var shape: String? = null
+    var trappedChests: Int? = null
 }
 
-class RoomInfo(val name: String, val type: String, val cores: List<Int>, val secrets: Int, val shape: String)
+/** [trappedChests]: trapped chests the room always has (one more = the mimic's). */
+class RoomInfo(val name: String, val type: String, val cores: List<Int>, val secrets: Int, val shape: String, val trappedChests: Int = 0)
 
 data class RoomTile(val x: Int, val z: Int)
 
@@ -69,7 +71,7 @@ object CosmeticRooms {
             val map = HashMap<Int, RoomInfo>()
             for (e in entries) {
                 val cores = e.cores ?: continue
-                val info = RoomInfo(e.name ?: continue, e.type ?: "NORMAL", cores, e.secrets ?: 0, e.shape ?: "1x1")
+                val info = RoomInfo(e.name ?: continue, e.type ?: "NORMAL", cores, e.secrets ?: 0, e.shape ?: "1x1", e.trappedChests ?: 0)
                 for (c in cores) map[c] = info
             }
             coreToRoom = map
