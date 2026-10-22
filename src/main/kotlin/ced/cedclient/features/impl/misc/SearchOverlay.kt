@@ -18,6 +18,7 @@ import net.minecraft.nbt.TagParser
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryOps
 import net.minecraft.world.item.ItemStack
+import ced.cedclient.features.impl.render.VanillaTextures
 import net.minecraft.world.item.Items
 import net.minecraft.world.level.block.entity.SignBlockEntity
 import java.net.URI
@@ -62,7 +63,7 @@ object SearchOverlay : Module(
 
     enum class Location { BAZAAR, AUCTION }
 
-    class Entry(val name: String, val display: String, val id: String, val legacyItem: String, val vanilla: Boolean = false)
+    class Entry(val name: String, val display: String, val id: String, val legacyItem: String, val vanilla: Boolean = false, val skull: String? = null)
 
     @Volatile
     private var bazaarItems: List<Entry> = emptyList()
@@ -71,6 +72,14 @@ object SearchOverlay : Module(
     @Volatile
     private var overlayFiles: Map<String, Path> = emptyMap()
     private val icons = HashMap<String, ItemStack>()
+
+    /** Every non-vanilla item of the NEU repo, by name (the invbutton editor offers them as icons). */
+    @Volatile var allItems: List<Entry> = emptyList()
+        private set
+    @Volatile private var allById: Map<String, Entry> = emptyMap()
+
+    /** The icon stack of SkyBlock item [id], null while the repo is not loaded or the item is unknown. */
+    fun stackFor(id: String): ItemStack? = allById[id]?.let { icon(it) }
 
     private val repoDir: Path get() = FabricLoader.getInstance().configDir.resolve("notenoughupdates/repo")
 
@@ -127,7 +136,12 @@ object SearchOverlay : Module(
             .take(limit).map { it.second }.toList()
     }
 
-    fun icon(e: Entry): ItemStack = icons.getOrPut(e.id) { overlayStack(e.id) ?: legacyStack(e.legacyItem) }
+    fun icon(e: Entry): ItemStack = icons.getOrPut(e.id) { overlayStack(e.id) ?: skullStack(e) ?: legacyStack(e.legacyItem) }
+
+    /** Custom heads have no modern item file (their old id is "skull", which would end up as paper): build the head from the repo's skin texture. */
+    private fun skullStack(e: Entry): ItemStack? = e.skull?.let { tex ->
+        ItemStack(Items.PLAYER_HEAD).also { it.set(DataComponents.PROFILE, VanillaTextures.profileFor(tex)) }
+    }
 
     private fun overlayStack(id: String): ItemStack? {
         val path = overlayFiles[id] ?: return null
@@ -163,6 +177,9 @@ object SearchOverlay : Module(
             files.forEach { f -> runCatching { neuEntry(JsonParser.parseString(Files.readString(f)).asJsonObject) }.getOrNull()?.let { byId[it.id] = it } }
         }
 
+        allById = byId
+        allItems = byId.values.filter { !it.vanilla }.sortedBy { it.name }
+
         val bazaarIds = fetchIds(BAZAAR_URL) { it.getAsJsonObject("products").keySet() }
         val auctionIds = fetchIds(LOWEST_BIN_URL) { it.keySet() }
 
@@ -175,6 +192,8 @@ object SearchOverlay : Module(
         auctionItems = dedupe((auctionIds?.map { api -> neuIdCandidates(api).firstNotNullOfOrNull(byId::get) } ?: byId.values).filter { it?.vanilla == false })
     }
 
+    private val SKULL_VALUE = Regex("""Value:"([^"]+)"""")
+
     private fun neuEntry(o: JsonObject): Entry? {
         val id = o["internalname"].asString
         val legacy = o["itemid"]?.asString ?: ""
@@ -186,7 +205,9 @@ object SearchOverlay : Module(
         }
         val name = display.replace(CODES, "").trim()
         val vanilla = o["vanilla"]?.asBoolean == true
-        return if (name.isEmpty()) null else Entry(name, display, id, legacy, vanilla)
+        // Custom heads: the skin texture sits in the item's nbttag (SkullOwner.Properties.textures[0].Value).
+        val skull = o["nbttag"]?.takeIf { it.isJsonPrimitive }?.asString?.let { SKULL_VALUE.find(it)?.groupValues?.get(1) }
+        return if (name.isEmpty()) null else Entry(name, display, id, legacy, vanilla, skull)
     }
 
     private fun dedupe(entries: Iterable<Entry?>): List<Entry> {

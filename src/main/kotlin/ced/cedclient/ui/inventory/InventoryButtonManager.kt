@@ -45,22 +45,7 @@ object InventoryButtonManager {
             configFile.parentFile.mkdirs()
 
             // ⭐ Manual JSON map so we can serialize ResourceLocation safely
-            val jsonList = buttons.map { btn ->
-                mapOf(
-                    "name" to btn.name,
-                    "xOff" to btn.xOff,
-                    "yOff" to btn.yOff,
-                    "width" to btn.width,
-                    "height" to btn.height,
-                    "command" to btn.command,
-                    "icon" to btn.icon?.toString(),
-                    "iconIsItem" to btn.iconIsItem,
-                    "showTextOnHover" to btn.showTextOnHover,
-                    "hideBlankName" to btn.hideBlankName
-                )
-            }
-
-            val json = gson.toJson(jsonList)
+            val json = gson.toJson(buttons.map { toMap(it) })
 
             Debug.log("JSON SAVE CONTENT = $json")
 
@@ -91,27 +76,7 @@ object InventoryButtonManager {
 
             buttons.clear()
 
-            for (entry in rawList) {
-                val iconStr = entry["icon"] as? String
-                val icon = iconStr?.let {
-                    runCatching { Identifier.parse(it) }.getOrNull()
-                }
-
-                val btn = InvButton(
-                    name = entry["name"] as String,
-                    xOff = (entry["xOff"] as Number).toInt(),
-                    yOff = (entry["yOff"] as Number).toInt(),
-                    width = (entry["width"] as Number).toInt(),
-                    height = (entry["height"] as Number).toInt(),
-                    command = entry["command"] as String,
-                    icon = icon,
-                    iconIsItem = entry["iconIsItem"] as? Boolean ?: false,
-                    showTextOnHover = entry["showTextOnHover"] as? Boolean ?: true,
-                    hideBlankName = entry["hideBlankName"] as? Boolean ?: true
-                )
-
-                buttons += btn
-            }
+            for (entry in rawList) buttons += fromMap(entry)
 
             Debug.log("InventoryButtonManager: Loaded ${buttons.size} buttons")
         } catch (e: Exception) {
@@ -119,6 +84,35 @@ object InventoryButtonManager {
             e.printStackTrace()
         }
     }
+
+    /** One button as the plain map the json files hold (the Identifier as text). Shared with the presets. */
+    fun toMap(btn: InvButton): Map<String, Any?> = mapOf(
+        "name" to btn.name,
+        "xOff" to btn.xOff,
+        "yOff" to btn.yOff,
+        "width" to btn.width,
+        "height" to btn.height,
+        "command" to btn.command,
+        "icon" to btn.icon?.toString(),
+        "iconIsItem" to btn.iconIsItem,
+        "showTextOnHover" to btn.showTextOnHover,
+        "hideBlankName" to btn.hideBlankName,
+        "sbItem" to btn.sbItem
+    )
+
+    fun fromMap(entry: Map<String, Any?>) = InvButton(
+        name = entry["name"] as String,
+        xOff = (entry["xOff"] as Number).toInt(),
+        yOff = (entry["yOff"] as Number).toInt(),
+        width = (entry["width"] as Number).toInt(),
+        height = (entry["height"] as Number).toInt(),
+        command = entry["command"] as String,
+        icon = (entry["icon"] as? String)?.let { runCatching { Identifier.parse(it) }.getOrNull() },
+        iconIsItem = entry["iconIsItem"] as? Boolean ?: false,
+        showTextOnHover = entry["showTextOnHover"] as? Boolean ?: true,
+        hideBlankName = entry["hideBlankName"] as? Boolean ?: true,
+        sbItem = entry["sbItem"] as? String
+    )
 
     // ───────────────────────── RUNTIME HELPERS ─────────────────────────
 

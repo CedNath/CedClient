@@ -10,6 +10,7 @@ import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonState
 import ced.cedclient.ui.clickgui.SettingsPopup
 import ced.cedclient.utils.Color
+import ced.cedclient.utils.safely
 import com.google.gson.Gson
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.DeltaTracker
@@ -64,7 +65,7 @@ object SecretHud : HudElement {
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
         if (!isEnabled || mc.gui.hud.isHidden() || !DungeonState.active || DungeonState.inBoss || !live()) return
         if (hideDone.value && found >= total) return
-        renderInternal(g)
+        safely("Secret HUD") { renderInternal(g) }
     }
 
     private fun text(f: Int, t: Int) = when (format.value) {
@@ -102,11 +103,12 @@ object SecretHud : HudElement {
     }
 
     override val label = "Secret HUD"
-    private const val DEFAULT_X = 1140
-    private const val DEFAULT_Y = 360
+    private const val DEFAULT_X = 621
+    private const val DEFAULT_Y = 375
+    private const val DEFAULT_SCALE = 1.3f
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y
-    override var panelScale = 1f
+    override var panelScale = DEFAULT_SCALE
     override var lastWidth = 0
         private set
     override var lastHeight = 0
@@ -126,6 +128,6 @@ object SecretHud : HudElement {
         runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }
     }
 
-    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = 1f }
+    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = DEFAULT_SCALE }
     override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 }

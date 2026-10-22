@@ -113,9 +113,9 @@ object ChatChannelHud : Module(
     private val fontStyle: Style = Style.EMPTY.withFont(FontDescription.Resource(fontId))
 
     override var panelX: Int = 0
-    override var panelY: Int = 690
+    override var panelY: Int = 689
     override var panelScale: Float = 1.0f
-    override fun resetPosition() { panelX = 0; panelY = 690; panelScale = 1.0f }
+    override fun resetPosition() { panelX = 0; panelY = 689; panelScale = 1.0f }
 
     override var lastWidth: Int = 60
         private set

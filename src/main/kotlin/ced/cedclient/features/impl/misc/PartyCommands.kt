@@ -19,6 +19,7 @@ import ced.cedclient.utils.PingTracker
 import ced.cedclient.utils.PlayerUtils
 import ced.cedclient.utils.TpsTracker
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.ClickEvent
@@ -112,11 +113,14 @@ object PartyCommands : Module(
     }
 
     // Sending: one line every few ticks so a burst of commands can't get us muted.
-    private val outbox = ArrayDeque<String>()
+    // Each entry waits REPLY_DELAY before it is sent: other mods answer the same !command (!help ...) in the same tick, and a
+    // burst of party messages makes Hypixel rate-limit (and cut) the connection, so ours goes out after theirs.
+    private const val REPLY_DELAY = 1800L
+    private val outbox = ArrayDeque<Pair<Long, String>>()
     private var cooldown = 0
     private var saveTick = 0
-    private fun say(text: String) { outbox += "pc $text" }
-    private fun run(command: String) { outbox += command }
+    private fun say(text: String) { outbox += System.currentTimeMillis() + REPLY_DELAY to "pc $text" }
+    private fun run(command: String) { outbox += System.currentTimeMillis() + REPLY_DELAY to command }
 
     private fun me() = PlayerUtils.getName() ?: ""
     private fun isLeader() = PartyApi.partyLeader.equals(me(), ignoreCase = true)
@@ -136,6 +140,8 @@ object PartyCommands : Module(
     private val friendRemovedAlt = Regex("""^You removed (?:\[[^\]]+] )?(\w{1,16}) from your friends list""", RegexOption.MULTILINE)
     private val profileHover = Regex("""Click here to view (?:\[[^\]]+] )?(\w{1,16})'s profile""")
     private val plainName = Regex("""\w{1,16}""")
+    private val codes = Regex("§.")
+    private val friendLine = Regex("""^(?:\[[^\]]+] )?(\w{1,16}) (?:is|was) """, RegexOption.MULTILINE)
     private var refreshing = false
 
     /** Adds every friend named by a /viewprofile link in [message] (a "/friend list" page); returns how many it found. */
@@ -151,6 +157,12 @@ object PartyCommands : Module(
             }
             java.util.Optional.empty<Unit>()
         }, Style.EMPTY)
+        // No clickable names found: read the "Name is ..." lines of the page itself (names may carry a rank, or only a colour).
+        // The text can carry literal colour codes ("§bwhatmr §cis currently offline"), so strip them before matching.
+        val plainText = message.string.replace(codes, "")
+        if (found == 0 && friendHeader.containsMatchIn(plainText)) {
+            for (m in friendLine.findAll(plainText)) { friends += m.groupValues[1].lowercase(); found++ }
+        }
         return found
     }
 
@@ -160,11 +172,37 @@ object PartyCommands : Module(
     private var syncStarted = 0L
     private var lastSyncMsg = 0L
     private const val PAGE_DELAY = 2500L
+    private var quietUntil = 0L
+    private var doneAt = 0L
     private var nextPage = 0
     private var nextPageAt = 0L
     private val friendEntry = Regex("""^(?:\[[^\]]+] )?\w{1,16} (?:is|was) """)
 
+    private var confirmUntil = 0L
+    private var friendsBackup: Set<String> = emptySet()
+
+    /** The Refresh Friends button: asks first (click again within 5 s), and while a sync runs a click stops it. */
+    private fun onRefreshClick() {
+        val now = System.currentTimeMillis()
+        if (refreshing) { cancelSync(); return }
+        if (now > confirmUntil) {
+            confirmUntil = now + 5000
+            mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§eThis reads your whole friend list and takes about a minute. Click Refresh Friends again within 5 seconds to start."))
+            return
+        }
+        confirmUntil = 0
+        refreshFriends()
+    }
+
+    /** Stops a running sync and puts back the friend list you had before it started. */
+    private fun cancelSync() {
+        refreshing = false; hideSync = false; nextPage = 0; quietUntil = 0
+        friends.clear(); friends += friendsBackup
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§7Friend sync stopped, your old list (§f${friends.size}§7 friends) is kept"))
+    }
+
     private fun refreshFriends() {
+        friendsBackup = friends.toSet()
         friends.clear()
         refreshing = true
         hideSync = !syncedFlag.exists()
@@ -179,8 +217,9 @@ object PartyCommands : Module(
     /** Chat hook: friend list pages while the first sync runs (the dash lines only right next to one). */
     @JvmStatic
     fun hideChat(text: String): Boolean {
-        if (!isEnabled || !refreshing || !hideSync) return false
-        val t = text.trim()
+        // The last page is hidden too: the sync is already "done" when its message reaches this check, hence quietUntil.
+        if (!isEnabled || !((refreshing && hideSync) || System.currentTimeMillis() < quietUntil)) return false
+        val t = text.replace(codes, "").trim()
         if (friendHeader.containsMatchIn(t) || friendEntry.containsMatchIn(t)) { lastSyncMsg = System.currentTimeMillis(); return true }
         return t.startsWith("-----") && System.currentTimeMillis() - lastSyncMsg < 4000
     }
@@ -188,9 +227,9 @@ object PartyCommands : Module(
     private fun finishSync() {
         refreshing = false
         saveFriends()
-        if (hideSync) runCatching { syncedFlag.writeText("1") }
+        if (hideSync) { if (friends.isNotEmpty()) runCatching { syncedFlag.writeText("1") }; quietUntil = System.currentTimeMillis() + 2500 }
         hideSync = false
-        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§aSynced §f${friends.size} §afriends"))
+        doneAt = System.currentTimeMillis() + 700 // said from the tick, once the last page has gone by
     }
 
     private fun allowed(perm: String, sender: String) = when (perm) {
@@ -201,7 +240,11 @@ object PartyCommands : Module(
     }
 
     // !dt
-    private val downtime = LinkedHashSet<String>()
+    private val downtime = LinkedHashMap<String, String>() // player -> reason
+
+    // The reason is typed by another player and only shown to you, but keep it plain anyway (no colour codes or odd symbols), 24 characters at most.
+    private val reasonJunk = Regex("[^A-Za-z0-9 ',-]")
+    private fun cleanReason(raw: String) = raw.replace(reasonJunk, "").replace(Regex("\\s+"), " ").trim().take(24).trim()
     private var wasEnded = false
 
     private val eightBall = listOf("It is certain.", "Without a doubt.", "Yes, definitely.", "Most likely.", "Ask again later.",
@@ -220,7 +263,7 @@ object PartyCommands : Module(
             mc.player?.let { say("x: ${it.blockX}, y: ${it.blockY}, z: ${it.blockZ}") }
         }
         cmd("time", "Your local time.") { _, _ -> say("It is ${LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))} for ${me()}.") }
-        cmd("song", "The song playing on your PC (Spotify module).") { _, _ ->
+        cmd("song", "The song playing on your PC, from Spotify or Apple Music (the Spotify module must be on).") { _, _ ->
             say(Spotify.currentTrack()?.let { "Now playing: $it" } ?: "No song detected.")
         }
         // Fun
@@ -228,8 +271,10 @@ object PartyCommands : Module(
         cmd("8ball", "Magic 8-ball.") { _, _ -> say(eightBall.random()) }
         cmd("dice", "Rolls a die.") { _, _ -> say("Rolled a ${(1..6).random()}!") }
         cmd("dt", "Adds the sender to the downtime list, announced when the run ends.", listOf("downtime")) { s, a ->
-            downtime += s
-            say("Downtime needed for $s" + if (a.isNotEmpty()) " (${a.joinToString(" ")})" else "")
+            // Like NoammAddons: the reason is kept and shown to you only, never sent to party chat.
+            val reason = cleanReason(a.joinToString(" "))
+            downtime[s] = reason
+            mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§f$s §7needs downtime" + if (reason.isNotEmpty()) " §8($reason)" else ""))
         }
         // Party (leader only)
         cmd("invite", "Invites a player.", listOf("inv"), leader = true) { _, a -> a.firstOrNull()?.let { run("p $it") } }
@@ -256,7 +301,7 @@ object PartyCommands : Module(
         loadCustom()
         addSettings(
             ActionSetting("Configure Commands", "Choose who may use each command.") { openPopup() },
-            ActionSetting("Refresh Friends", "Reads your Hypixel friend list (needed for the Friends permission).") { refreshFriends() },
+            ActionSetting("Refresh Friends", "Reads your Hypixel friend list (needed for the Friends permission). Asks to confirm; click it again while it runs to stop.") { onRefreshClick() },
         )
         cmds.forEach { addSettings(it.perm) }
 
@@ -279,7 +324,7 @@ object PartyCommands : Module(
 
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
             if (overlay || !isEnabled) return@register
-            val t = message.string
+            val t = message.string.replace(codes, "")
             if (t.contains("Friends")) {
                 if (readFriendList(message) > 0) saveFriends()
                 friendHeader.find(t)?.let { m ->
@@ -295,8 +340,17 @@ object PartyCommands : Module(
             (friendRemoved.find(t) ?: friendRemovedAlt.find(t))?.let { friends -= it.groupValues[1].lowercase(); saveFriends() }
         }
 
+        // A queued reply (or the rest of a friend sync) belongs to the server it was triggered on: never send it after a disconnect / into a new lobby.
+        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> outbox.clear(); nextPage = 0; doneAt = 0L }
+        ClientPlayConnectionEvents.JOIN.register { _, _, _ -> outbox.clear(); nextPage = 0 }
+
         ClientTickEvents.END_CLIENT_TICK.register {
             if (++saveTick % 40 == 0) saveCustom()
+            if (doneAt != 0L && System.currentTimeMillis() >= doneAt) {
+                doneAt = 0L
+                mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands",
+                    if (friends.isEmpty()) "§cDone, but no friends were read. Press Refresh Friends to try again." else "§aSynced §f${friends.size} §afriends"))
+            }
             if (refreshing && nextPage > 0 && System.currentTimeMillis() >= nextPageAt) { run("friend list $nextPage"); nextPage = 0 }
             // No page for 30 s: give up.
             if (refreshing && System.currentTimeMillis() - syncStarted > 30_000) {
@@ -305,10 +359,15 @@ object PartyCommands : Module(
                 mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§cFriend sync timed out, press Refresh Friends to try again"))
             }
             if (cooldown > 0) cooldown--
-            if (isEnabled && cooldown == 0) outbox.removeFirstOrNull()?.let { mc.player?.connection?.sendCommand(it); cooldown = 12 }
+            if (isEnabled && cooldown == 0 && outbox.firstOrNull()?.let { System.currentTimeMillis() >= it.first } == true) {
+                mc.player?.connection?.sendCommand(outbox.removeFirst().second); cooldown = 24
+            }
             val ended = DungeonState.runEnded
             if (isEnabled && ended && !wasEnded && downtime.isNotEmpty()) {
-                say("Downtime needed by: ${downtime.joinToString(", ")}")
+                // Party gets the names only; the reasons stay in your own chat.
+                say("Downtime needed by: ${downtime.keys.joinToString(", ")}")
+                mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§7Players needing DT: §f" +
+                    downtime.entries.joinToString("§7, §f") { (name, why) -> if (why.isEmpty()) name else "$name §8($why)§f" }))
                 downtime.clear()
             }
             wasEnded = ended

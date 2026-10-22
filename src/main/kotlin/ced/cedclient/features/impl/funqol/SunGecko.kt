@@ -267,8 +267,8 @@ object SunGecko : Module(
     }
 
     override val label = "Sun Gecko"
-    private const val DEFAULT_X = 556
-    private const val DEFAULT_Y = 120
+    private const val DEFAULT_X = 579
+    private const val DEFAULT_Y = 35
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y
     override var panelScale = 1f

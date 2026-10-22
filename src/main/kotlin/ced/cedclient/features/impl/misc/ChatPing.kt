@@ -286,8 +286,8 @@ object ChatPing : HudElement {
     override val label = "Chat Alerts"
     private const val MAX_HUD_LINES = 5
     private const val FADE_MS = 400L
-    private const val DEFAULT_X = 564
-    private const val DEFAULT_Y = 148
+    private const val DEFAULT_X = 574
+    private const val DEFAULT_Y = 146
     private const val DEFAULT_SCALE = 2.3f
 
     override var panelX = DEFAULT_X

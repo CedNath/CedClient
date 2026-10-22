@@ -143,7 +143,7 @@ object VanillaTextures : Module(
         return (stack as VanillaTextureCache).`cedclient$vtProfile`() ?: original
     }
 
-    private fun profileFor(texture: String): ResolvableProfile {
+    fun profileFor(texture: String): ResolvableProfile {
         val uuid = UUID.nameUUIDFromBytes("cedclient\$vt\$$texture".toByteArray())
         val props = PropertyMap(ImmutableMultimap.of("textures", Property("textures", texture)))
         return ResolvableProfile.createResolved(GameProfile(uuid, "CedClient", props))

@@ -164,11 +164,12 @@ object LeapCounter : Module(
     }
 
     override val label = "Leap Counter"
-    private const val DEFAULT_X = 450
-    private const val DEFAULT_Y = 300
+    private const val DEFAULT_X = 560
+    private const val DEFAULT_Y = 202
+    private const val DEFAULT_SCALE = 1.8f
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y
-    override var panelScale = 1f
+    override var panelScale = DEFAULT_SCALE
     override var lastWidth = 0
         private set
     override var lastHeight = 0
@@ -188,6 +189,6 @@ object LeapCounter : Module(
         runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }
     }
 
-    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = 1f }
+    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = DEFAULT_SCALE }
     override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 }

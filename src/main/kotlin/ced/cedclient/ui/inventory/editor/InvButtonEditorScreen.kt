@@ -27,6 +27,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.resources.Identifier
 import net.minecraft.world.item.Item
+import ced.cedclient.features.impl.misc.SearchOverlay
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.lwjgl.glfw.GLFW
@@ -79,7 +80,7 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
     private lateinit var searchField: EditBox
 
     // ───────────────────────── Icon search ─────────────────────────
-    private data class IconEntry(val id: Identifier, val item: Item)
+    private data class IconEntry(val id: Identifier, val item: Item, val sb: SearchOverlay.Entry? = null)
 
     private var allIcons: List<IconEntry> = emptyList()
     private var searchResults: List<IconEntry> = emptyList()
@@ -121,7 +122,9 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
             val id = BuiltInRegistries.ITEM.getKey(item) ?: continue
             list += IconEntry(id, item)
         }
-        allIcons = list.sortedBy { it.id.toString() }
+        // Vanilla items first, then the SkyBlock items of the NEU repo (when it is loaded).
+        val sbMarker = Identifier.fromNamespaceAndPath("skyblock", "item")
+        allIcons = list.sortedBy { it.id.toString() } + SearchOverlay.allItems.map { IconEntry(sbMarker, Items.PAPER, it) }
     }
 
     private fun applySearch() {
@@ -130,8 +133,8 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
             allIcons
         } else {
             allIcons.filter {
-                it.id.path.lowercase().contains(query) ||
-                        it.id.path.replace('_', ' ').lowercase().contains(query)
+                it.sb?.name?.lowercase()?.contains(query)
+                    ?: (it.id.path.lowercase().contains(query) || it.id.path.replace('_', ' ').lowercase().contains(query))
             }
         }
         iconScrollRow = 0
@@ -245,7 +248,7 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
                 val ix = gridX + col * iconSlot
                 val iy = gridY + row * iconSlot
                 val hovered = mouseX in ix..(ix + 18) && mouseY in iy..(iy + 18)
-                val isCurrentIcon = btn.iconIsItem && btn.icon == entry.id
+                val isCurrentIcon = if (entry.sb != null) btn.sbItem == entry.sb.id else btn.sbItem == null && btn.iconIsItem && btn.icon == entry.id
 
                 val bg = when {
                     isCurrentIcon -> ClickGUI.clickGUIColor.rgba
@@ -294,14 +297,14 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
 
                 val ix = gridX + col * iconSlot
                 val iy = gridY + row * iconSlot
-                g.item(ItemStack(entry.item), ix + 1, iy + 1)
+                g.item(entry.sb?.let { SearchOverlay.icon(it) } ?: ItemStack(entry.item), ix + 1, iy + 1)
             }
         }
     }
 
     private fun renderBottomBarChrome(mouseX: Int, mouseY: Int) {
         val x0 = 10
-        var y = this.height - 78
+        var y = this.height - 98
 
         val snapText = "Grid Snap (S): " + if (InventoryButtons.snapEnabled) "ON" else "OFF"
         NVGRenderer.text(snapText, x0.toFloat(), y.toFloat(), 8f, if (InventoryButtons.snapEnabled) 0xFF55FF55.toInt() else 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont)
@@ -315,6 +318,11 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
         val pasteHover = mouseX in x0..(x0 + 150) && mouseY in y..(y + 16)
         NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (pasteHover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
         NVGRenderer.text("Load preset from Clipboard", x0 + 6f, y + 4f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        y += 20
+
+        val presetHover = mouseX in x0..(x0 + 150) && mouseY in y..(y + 16)
+        NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (presetHover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
+        NVGRenderer.text("Preset: ${InventoryButtons.currentPreset()} (click: next)", x0 + 6f, y + 4f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
         y += 20
 
         if (System.currentTimeMillis() < statusUntil) {
@@ -416,8 +424,8 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
             if (col in 0 until iconCols && row in 0 until gridRowsVisible) {
                 val index = iconScrollRow * iconCols + row * iconCols + col
                 searchResults.getOrNull(index)?.let { entry ->
-                    btn.icon = entry.id
-                    btn.iconIsItem = true
+                    if (entry.sb != null) { btn.sbItem = entry.sb.id; btn.icon = null; btn.iconIsItem = false }
+                    else { btn.sbItem = null; btn.icon = entry.id; btn.iconIsItem = true }
                     InventoryButtonManager.save()
                 }
             }
@@ -439,7 +447,7 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
 
     private fun handleBottomBarClick(mx: Int, my: Int): Boolean {
         val x0 = 10
-        var y = this.height - 78
+        var y = this.height - 98
 
         if (mx in x0..(x0 + 150) && my in y..(y + 16)) {
             InventoryButtons.snapEnabled = !InventoryButtons.snapEnabled
@@ -455,6 +463,13 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
 
         if (mx in x0..(x0 + 150) && my in y..(y + 16)) {
             importFromClipboard()
+            return true
+        }
+        y += 20
+
+        if (mx in x0..(x0 + 150) && my in y..(y + 16)) {
+            setStatus("Preset: ${InventoryButtons.cyclePreset()}")
+            selected = null
             return true
         }
 
@@ -557,20 +572,7 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
     private fun exportToClipboard() {
         try {
             val gson = Gson()
-            val jsonList = InventoryButtonManager.buttons.map { btn ->
-                mapOf(
-                    "name" to btn.name,
-                    "xOff" to btn.xOff,
-                    "yOff" to btn.yOff,
-                    "width" to btn.width,
-                    "height" to btn.height,
-                    "command" to btn.command,
-                    "icon" to btn.icon?.toString(),
-                    "iconIsItem" to btn.iconIsItem,
-                    "showTextOnHover" to btn.showTextOnHover,
-                    "hideBlankName" to btn.hideBlankName
-                )
-            }
+            val jsonList = InventoryButtonManager.buttons.map { InventoryButtonManager.toMap(it) }
             val encoded = Base64.getEncoder().encodeToString(gson.toJson(jsonList).toByteArray(Charsets.UTF_8))
             mc.keyboardHandler.clipboard = encoded
             setStatus("Copied to clipboard!")
@@ -618,7 +620,8 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
                     icon = icon,
                     iconIsItem = obj.get("iconIsItem")?.asBoolean ?: (icon != null),
                     showTextOnHover = obj.get("showTextOnHover")?.asBoolean ?: true,
-                    hideBlankName = obj.get("hideBlankName")?.asBoolean ?: true
+                    hideBlankName = obj.get("hideBlankName")?.asBoolean ?: true,
+                    sbItem = obj.get("sbItem")?.takeUnless { it.isJsonNull }?.asString
                 )
             }
 

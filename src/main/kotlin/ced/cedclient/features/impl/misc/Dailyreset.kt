@@ -152,10 +152,10 @@ object DailyReset : Module(
     // own time zone -- see the class doc comment above.
     private val EASTERN: ZoneId = ZoneId.of("America/New_York")
 
-    override var panelX: Int = 1102
+    override var panelX: Int = 1104
     override var panelY: Int = 163
     override var panelScale: Float = 0.6f
-    override fun resetPosition() { panelX = 1102; panelY = 163; panelScale = 0.6f }
+    override fun resetPosition() { panelX = 1104; panelY = 163; panelScale = 0.6f }
 
     override var lastWidth: Int = 120
         private set

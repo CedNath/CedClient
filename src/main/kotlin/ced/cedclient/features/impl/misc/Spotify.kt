@@ -29,10 +29,14 @@ import com.sun.jna.ptr.IntByReference
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.ChatScreen
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
@@ -70,11 +74,14 @@ object Spotify : Module(
     // Now-playing HUD (all in the "HUD Options" popup).
     private val showHud = BooleanSetting("Show HUD", true, "A now-playing card. Open chat to click its buttons.")
     private val visibility = DropdownSetting("Visible", listOf("Always", "Chat Open Only"), "Always", "When the card is shown.")
+    private val clickInventory = BooleanSetting("Click In Inventory", true, "Also lets you click the buttons while an inventory or container screen is open, not only chat. (Chat Open Only then counts those screens too.)")
     private val style = DropdownSetting("Style", listOf("Card", "Compact"), "Card", "Card: song, artist and buttons stacked. Compact: one line.")
     private val showIcon = BooleanSetting("Icon", true, "Little equalizer icon (still while paused).")
     private val showArtist = BooleanSetting("Artist Line", true, "Artist on its own line (Card style).")
+    private val showProgress = BooleanSetting("Progress Bar", true, "A thin line at the bottom of the card showing how far into the song you are. Runs a small background PowerShell (the Windows media session).")
     private val maxWidth = NumberSetting("Text Width", 150.0, 60.0, 400.0, 10.0, "Longest the song / artist text gets before it scrolls or is cut off.")
     private val scroll = BooleanSetting("Scroll Long Titles", true, "Scroll text that does not fit (off: cut off with ...).")
+    private val scrollSpeed = NumberSetting("Scroll Speed", 40.0, 10.0, 200.0, 5.0, "How fast long titles scroll, in pixels per second.").withDependency { scroll.value }
     private val textSize = NumberSetting("Text Size", 10.0, 6.0, 24.0, 1.0, "Size of the text (you can also scale the whole HUD in the HUD editor).")
     private val showButtons = BooleanSetting("Buttons", true, "Previous / play-pause / next. Clickable while chat is open.")
     private val showShare = BooleanSetting("Share Button", true, "Puts \"Now playing: ...\" in your chat box.").withDependency { showButtons.value }
@@ -85,7 +92,7 @@ object Spotify : Module(
     private val accentColor = ColorSetting("Accent Color", Color(30, 215, 96), "Icon and buttons.")
     private val hoverColor = ColorSetting("Hover Color", Color(255, 255, 255), "A button under your cursor.")
     private val dimPaused = BooleanSetting("Dim When Paused", true, "Fades the card and shows a play button while nothing is playing.")
-    private val showCover = BooleanSetting("Cover Art", false, "Shows the album cover. Looked up by song name on Apple's public iTunes search (itunes.apple.com), so it can differ from the cover in Spotify.")
+    private val showCover = BooleanSetting("Cover Art", true, "Shows the album cover. Looked up by song name on Apple's public iTunes search (itunes.apple.com), so it can differ from the cover in Spotify.")
     private val coverSize = NumberSetting("Cover Size", 32.0, 16.0, 96.0, 2.0, "Size of the cover.").withDependency { showCover.value }
     private val coverSide = DropdownSetting("Cover Side", listOf("Left", "Right"), "Left", "Which side of the card the cover is on.").withDependency { showCover.value }
     private val coverRound = BooleanSetting("Rounded Cover", true, "Rounded corners on the cover.").withDependency { showCover.value }
@@ -149,12 +156,22 @@ object Spotify : Module(
     // track also comes from the media session, through a long-running "watch" script that prints a line a second.
     @Volatile private var smtcTrack: String? = null
     @Volatile private var smtcPlaying = false
+    /** Song position (ms, as of [smtcUpdatedMs]), its length, and whether the session is Apple Music. */
+    @Volatile private var smtcPosMs = 0L
+    @Volatile private var smtcEndMs = 0L
+    @Volatile private var smtcUpdatedMs = 0L
+    @Volatile private var smtcApple = false
     private var watcher: Process? = null
+    private var watcherApp = ""
 
     private fun ensureWatcher() {
-        if (user32 == null || watcher?.isAlive == true) return
+        if (user32 == null) return
+        val app = when (source.value) { "Spotify" -> "Spotify"; "Apple Music" -> "AppleMusic|iTunes"; else -> "Spotify|AppleMusic|iTunes" }
+        if (watcher?.isAlive == true && watcherApp == app) return
+        if (watcher != null) stopWatcher() // the Player setting changed
         runCatching {
-            val p = ProcessBuilder(psExe(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ctlScript.absolutePath, "-Action", "watch", "-App", "AppleMusic|iTunes")
+            watcherApp = app
+            val p = ProcessBuilder(psExe(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ctlScript.absolutePath, "-Action", "watch", "-App", app)
                 .redirectErrorStream(true).start()
             p.outputStream.close()
             watcher = p
@@ -167,14 +184,20 @@ object Spotify : Module(
                             val title = f[2].trim()
                             smtcTrack = if (title.isBlank()) null else if (artist.isBlank()) title else "$artist - $title"
                             smtcPlaying = f[3] == "Playing"
-                        } else { smtcTrack = null; smtcPlaying = false }
+                            if (f.size >= 10) {
+                                smtcPosMs = f[6].toLongOrNull() ?: 0L
+                                smtcEndMs = f[7].toLongOrNull() ?: 0L
+                                smtcUpdatedMs = f[8].toLongOrNull() ?: 0L
+                                smtcApple = f[9].contains("Apple", ignoreCase = true) || f[9].contains("iTunes", ignoreCase = true)
+                            }
+                        } else { smtcTrack = null; smtcPlaying = false; smtcEndMs = 0L }
                     }
                 }
             }, "CedClient-Spotify-watch").apply { isDaemon = true; start() }
         }
     }
 
-    private fun stopWatcher() { watcher?.destroyForcibly(); watcher = null; smtcTrack = null; smtcPlaying = false }
+    private fun stopWatcher() { watcher?.destroyForcibly(); watcher = null; smtcTrack = null; smtcPlaying = false; smtcEndMs = 0L }
 
     /** Runs the script with [action] ("state", "shuffle" or "repeat") and keeps the state it prints. One at a time. */
     private fun runCtl(action: String) {
@@ -226,7 +249,7 @@ object Spotify : Module(
         addSettings(source, songMessage, keybinds, prevKey, pauseKey, nextKey)
         val columns = listOf(
             listOf(
-                SettingsPopup.Section("Card", listOf(showHud, visibility, style, showIcon, showArtist, maxWidth, scroll, textSize)),
+                SettingsPopup.Section("Card", listOf(showHud, visibility, clickInventory, style, showIcon, showArtist, showProgress, maxWidth, scroll, scrollSpeed, textSize)),
                 SettingsPopup.Section("Buttons", listOf(showButtons, showModes, showShare, buttonSize)),
             ),
             listOf(
@@ -240,6 +263,13 @@ object Spotify : Module(
         val all = columns.flatten().flatMap { it.settings }
         addSettings(*all.toTypedArray())
         all.forEach { it.inPopup = true }
+
+        // Chat clicks come through ChatScreenMenuMixin; inventories through the screen's own click event (false = swallow the click).
+        ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
+            if (screen is AbstractContainerScreen<*>) ScreenMouseEvents.allowMouseClick(screen).register { _, event ->
+                !(clickInventory.value && onChatClick(event.x(), event.y(), event.button()))
+            }
+        }
 
         ClientTickEvents.END_CLIENT_TICK.register {
             if (!isEnabled) return@register
@@ -295,7 +325,8 @@ object Spotify : Module(
         poller = Thread({
             while (isEnabled) {
                 runCatching {
-                    if (source.value == "Spotify") { if (watcher != null) stopWatcher() } else ensureWatcher()
+                    // The watcher is Apple Music's track source and everyone's song position (Progress Bar).
+                    if (source.value == "Spotify" && !showProgress.value) { if (watcher != null) stopWatcher() } else ensureWatcher()
                     val found = readTrack()
                     if (found != null) track = found
                     playing = found != null
@@ -322,14 +353,14 @@ object Spotify : Module(
             val pid = IntByReference().also { u.GetWindowThreadProcessId(hwnd, it) }.value
             val cmd = ProcessHandle.of(pid.toLong()).flatMap { it.info().command() }.orElse("")
             if (!wants(cmd)) return@EnumProc true
-            // Spotify has several Chromium windows; only the main one has "Artist - Song" as its title.
-            if (cmd.contains("Spotify", ignoreCase = true) && !title.contains(" - ")) return@EnumProc true
+            // Both apps have helper windows ("PopupHost", Chromium ones ...); only a song window reads "Artist - Song".
+            if (!title.contains(" - ") && !title.contains(" — ")) return@EnumProc true
             found = title.replace(" — ", " - "); false
         }, null)
         // Apple Music: the media session wins (its window titles are no use); in Auto it only fills in when no window had a song.
         val st = smtcTrack
         if (source.value != "Spotify" && st != null && (source.value == "Apple Music" || found == null)) {
-            appleActive = true
+            appleActive = smtcApple
             if (smtcPlaying) return st
             track = st // paused: keep showing it, dimmed
             return null
@@ -338,7 +369,7 @@ object Spotify : Module(
         return found
     }
 
-    private val IDLE_TITLES = setOf("Spotify", "Spotify Free", "Spotify Premium", "Apple Music", "iTunes", "Default IME", "MSCTFIME UI")
+    private val IDLE_TITLES = setOf("Spotify", "Spotify Free", "Spotify Premium", "Apple Music", "iTunes", "PopupHost", "Default IME", "MSCTFIME UI")
 
     override fun onDisable() { poller = null; down.clear(); buttons = emptyList(); stopWatcher() }
 
@@ -368,7 +399,8 @@ object Spotify : Module(
     /** Clickable buttons of the last frame, in GUI coordinates. */
     @Volatile private var buttons: List<Btn> = emptyList()
 
-    private fun inChat() = mc.gui.screen() is ChatScreen
+    /** A screen the buttons can be clicked in: chat, or (Click In Inventory) an inventory / container. */
+    private fun inClickScreen() = mc.gui.screen().let { it is ChatScreen || (clickInventory.value && it is AbstractContainerScreen<*>) }
 
     /** Mouse in GUI units (the same space as the HUD panel). */
     private fun mouseX() = mc.mouseHandler.xpos() * mc.window.guiScaledWidth / mc.window.screenWidth
@@ -390,11 +422,22 @@ object Spotify : Module(
         return true
     }
 
+    /** The player inventory: the card is drawn in front of it (renderOnTop); other containers keep the normal HUD layer, still clickable. */
+    private fun inInventory() = clickInventory.value && mc.gui.screen() is InventoryScreen
+
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || !showHud.value || mc.gui.hud.isHidden() || track == null || (visibility.value == "Chat Open Only" && !inChat())) {
+        if (!isEnabled || !showHud.value || mc.gui.hud.isHidden() || track == null || (visibility.value == "Chat Open Only" && !inClickScreen())) {
             buttons = emptyList()
             return
         }
+        if (inInventory()) return // drawn in front of the screen by renderOnTop instead, so it isn't dimmed or covered
+        renderInternal(g)
+    }
+
+    /** Called at the end of an inventory / container screen's render (AbstractContainerScreen mixin): the card in front of the screen. */
+    @JvmStatic
+    fun renderOnTop(g: GuiGraphicsExtractor) {
+        if (!isEnabled || !showHud.value || mc.gui.hud.isHidden() || track == null || !inInventory()) return
         renderInternal(g)
     }
 
@@ -424,30 +467,37 @@ object Spotify : Module(
         val secondLine = if (!compact && showArtist.value && artist.isNotEmpty()) artist else ""
         val firstW = HudCard.width(firstLine, ts)
         val secondW = if (secondLine.isEmpty()) 0f else HudCard.width(secondLine, ts)
-        val textW = minOf(maxOf(firstW, secondW), limit)
+        // One fixed size: the text area is always Text Width wide, and rows / buttons are reserved whether or not there is
+        // an artist, a progress bar or shuffle / repeat (Apple Music hides those) right now.
+        val textW = limit
 
         val shareW = if (withButtons && showShare.value) HudCard.width("Share", ts * 0.9f) + 8f * s else 0f
         val modes = withButtons && showModes.value && !appleActive
         val btnCount = if (withButtons) 3 + (if (modes) 2 else 0) else 0
         val btnRowW = if (btnCount == 0) 0f else btnCount * bs + (btnCount - 1) * gap + (if (shareW > 0f) gap + shareW else 0f)
+        val fullBtnCount = if (withButtons) 3 + (if (showModes.value) 2 else 0) else 0
+        val fullBtnRowW = if (fullBtnCount == 0) 0f else fullBtnCount * bs + (fullBtnCount - 1) * gap + (if (shareW > 0f) gap + shareW else 0f)
 
         val cs = if (showCover.value) coverSize.value.toFloat() * s else 0f
         val coverW = if (cs > 0f) cs + gap * 2 else 0f
         val coverLeft = coverSide.value == "Left"
-        val rowH = maxOf(lineH, if (compact && btnCount > 0) bs else 0f, if (compact) cs else 0f)
-        val textRows = lineH + (if (secondLine.isNotEmpty()) lineH else 0f)
-        val innerH = if (compact) rowH else textRows + (if (btnCount > 0) bs + gap else 0f)
+        val rowH = maxOf(lineH, if (compact && withButtons) bs else 0f, if (compact) cs else 0f)
+        val textRows = lineH + (if (!compact && showArtist.value) lineH else 0f)
+        val innerH = if (compact) rowH else textRows + (if (withButtons) bs + gap else 0f)
         val boxH = maxOf(innerH, cs)
         val yOff = (boxH - innerH) / 2
-        val width = if (compact) pad * 2 + coverW + iconW + iconGap + textW + (if (btnCount > 0) gap * 2 + btnRowW else 0f)
-            else pad * 2 + coverW + iconW + iconGap + maxOf(textW, btnRowW)
-        val height = pad * 2 + boxH
+        val width = if (compact) pad * 2 + coverW + iconW + iconGap + textW + (if (withButtons) gap * 2 + fullBtnRowW else 0f)
+            else pad * 2 + coverW + iconW + iconGap + maxOf(textW, fullBtnRowW)
+        val frac = progressFraction()
+        val barH = if (showProgress.value) 2f * s else 0f
+        val barGap = if (showProgress.value) 4f * s else 0f
+        val height = pad * 2 + boxH + barGap + barH
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
 
         val mx = mouseX() - panelX
         val my = mouseY() - panelY
-        val chat = inChat()
+        val chat = inClickScreen()
         val accent = accentColor.value.rgba or (0xFF shl 24)
         val hover = hoverColor.value.rgba or (0xFF shl 24)
         val rects = ArrayList<Btn>()
@@ -491,9 +541,23 @@ object Spotify : Module(
                 if (modes) place(Act.REPEAT, bs)
                 if (shareW > 0f) place(Act.SHARE, shareW)
             }
+            if (frac >= 0f) {
+                val by = pad + boxH + barGap
+                NVGRenderer.rect(pad, by, width - pad * 2, barH, 0x22FFFFFF, barH / 2)
+                if (frac > 0f) NVGRenderer.rect(pad, by, (width - pad * 2) * frac, barH, (accent and 0x00FFFFFF) or (0x99 shl 24), barH / 2)
+            }
             NVGRenderer.globalAlpha(1f)
         }
         buttons = if (chat) rects else emptyList()
+    }
+
+    /** How far into the song, 0..1 (extrapolated from the last position the player reported); -1 = no bar. Sample value in the HUD editor. */
+    private fun progressFraction(): Float {
+        if (!showProgress.value) return -1f
+        if (track == null) return 0.4f
+        if (smtcEndMs <= 0) return -1f
+        val extra = if (smtcPlaying) System.currentTimeMillis() - smtcUpdatedMs else 0L
+        return ((smtcPosMs + extra).toFloat() / smtcEndMs).coerceIn(0f, 1f)
     }
 
     /** The cover at ([x], [y]), or a dim placeholder while it loads / when none was found. Runs inside the NVG frame. */
@@ -516,7 +580,7 @@ object Spotify : Module(
         if (fullW <= maxW + 0.5f) { HudCard.text(text, x, y, size, color); return }
         if (!scroll.value) { HudCard.text(NVGRenderer.truncate(text, maxW, size, HudCard.font), x, y, size, color); return }
         val loop = fullW + size * 2
-        val off = (System.currentTimeMillis() / 25 % loop.toLong().coerceAtLeast(1L)).toFloat()
+        val off = (System.currentTimeMillis() * scrollSpeed.value / 1000.0 % loop.toDouble().coerceAtLeast(1.0)).toFloat()
         NVGRenderer.pushScissor(x, y - 1f, maxW, size * 1.4f)
         HudCard.text(text, x - off, y, size, color)
         HudCard.text(text, x - off + loop, y, size, color)
@@ -574,11 +638,12 @@ object Spotify : Module(
     }
 
     override val label = "Spotify"
-    private const val DEFAULT_X = 10
-    private const val DEFAULT_Y = 300
+    private const val DEFAULT_X = 1144
+    private const val DEFAULT_Y = 433
+    private const val DEFAULT_SCALE = 0.7f
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y
-    override var panelScale = 1f
+    override var panelScale = DEFAULT_SCALE
     override var lastWidth = 0
         private set
     override var lastHeight = 0
@@ -598,6 +663,6 @@ object Spotify : Module(
         runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }
     }
 
-    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = 1f }
+    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = DEFAULT_SCALE }
     override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 }
