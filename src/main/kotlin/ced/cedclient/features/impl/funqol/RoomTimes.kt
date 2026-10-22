@@ -47,6 +47,7 @@ object RoomTimes : Module(
     private val onlyPb = BooleanSetting("Only On PB", false, "Times In Chat: only when the room's time beats your best for that room.").withDependency { chatTimes.value }
     private val resetButton = ActionSetting("Reset Saved Times", "Deletes every saved best room time (click twice within 5 seconds).") { resetPbs() }
     private val openListButton = ActionSetting("Room Time List", "Opens the list of every room this run with its secret splits (same as /cc room time list).") { openList = true }
+    private val debug = BooleanSetting("Debug", false, "Prints to chat (only to you) every room change, own action and secret count, and why a room got marked shared.")
     private val fromFirstSecret get() = startTimer.value == "First Secret"
 
     /** One room of the run. [found] = when each secret was found (ms, in order). */
@@ -56,6 +57,8 @@ object RoomTimes : Module(
         /** A secret was found that wasn't yours (no click / hit / pickup of yours, or several at once, e.g. some were already done when you came in): the times aren't counted. */
         var shared = false
         var reported = false
+        /** When [shared] was last set by a secret that might still turn out to be yours (the pickup packet can land just after the action bar), else 0. */
+        var maybeSharedAt = 0L
         val done get() = total > 0 && found.size >= total
 
         /** When this room's timer started: stepping in, or the first secret (Start Timer); null until that happens. */
@@ -77,6 +80,36 @@ object RoomTimes : Module(
     /** Last thing you did that can pick up a secret (click a block / entity, hit something, gain an item), ms. */
     private var lastOwnAction = 0L
     private var lastItems = 0
+    private var lastOwnSource = "none"
+    /** Times of recent own actions, to tell how many secrets in one action bar update can be yours. */
+    private val ownTimes = ArrayDeque<Long>()
+
+    /** A room change waits SWITCH_DELAY before it counts (name null = left every room): standing on a room edge must not flip rooms. */
+    private var pendingName: String? = null
+    private var pendingSince = 0L
+    private var hasPending = false
+    private const val SWITCH_DELAY = 450L
+
+    /** The action bar lags a room change by a couple of seconds and keeps showing the old room's count: that count is ignored. */
+    private var lastBarFound = -1
+    private var lastBarTotal = -1
+    private var staleFound = -1
+    private var staleTotal = -1
+    private var staleUntil = 0L
+    private const val STALE_MS = 3000L
+
+    private fun dbg(msg: String) {
+        if (debug.value) mc.player?.sendSystemMessage(ChatPrefix.msgFor("Room Times", "§8[debug] §7$msg"))
+    }
+
+    private fun own(source: String) {
+        val now = System.currentTimeMillis()
+        lastOwnAction = now
+        lastOwnSource = source
+        ownTimes.addLast(now)
+        while (ownTimes.isNotEmpty() && now - ownTimes.first() > 3000) ownTimes.removeFirst()
+        dbg("own action: $source")
+    }
     @Volatile private var openList = false
 
     private val CODES = Regex("§.")
@@ -86,7 +119,8 @@ object RoomTimes : Module(
     private val mc get() = Minecraft.getInstance()
 
     init {
-        addSettings(hud, startTimer, chatTimes, onlyPb, openListButton, resetButton)
+        SecretSignals.ensure()
+        addSettings(hud, startTimer, chatTimes, onlyPb, openListButton, resetButton, debug)
 
         ClientTickEvents.END_CLIENT_TICK.register {
             if (openList) { openList = false; mc.setScreen(RoomTimesScreen()) }
@@ -96,42 +130,74 @@ object RoomTimes : Module(
             if (level !== runLevel) { runLevel = level; rooms.clear(); current = null }
             if (scanDelay-- <= 0) { scanDelay = 10; DungeonScanner.scan(level, player.x, player.z) }
             val info = DungeonScanner.room(Math.floorDiv(player.x.toInt() - START + 16, 32), Math.floorDiv(player.z.toInt() - START + 16, 32))
-            if (info == null || info.secrets <= 0) { current = null; return@register }
-            if (current?.name != info.name) current = rooms.getOrPut(info.name) { Room(info.name, info.secrets, System.currentTimeMillis()) }
+            val target = info?.takeIf { it.secrets > 0 }
+            if (target?.name == current?.name) { hasPending = false; return@register }
+            val now = System.currentTimeMillis()
+            if (!hasPending || pendingName != target?.name) { hasPending = true; pendingName = target?.name; pendingSince = now; return@register }
+            if (now - pendingSince < SWITCH_DELAY) return@register
+            hasPending = false
+            staleFound = lastBarFound; staleTotal = lastBarTotal; staleUntil = now + STALE_MS
+            current = target?.let { t -> rooms.getOrPut(t.name) { Room(t.name, t.secrets, pendingSince) } }
+            if (target != null) dbg("in room ${target.name} (${target.secrets} secrets, shared=${current?.shared}, found=${current?.found?.size})")
         }
         // Items picked up are the other way a secret reaches you (the count only goes up).
         ClientTickEvents.END_CLIENT_TICK.register {
             val inv = mc.player?.inventory ?: return@register
             val items = (0 until 41).sumOf { inv.getItem(it).count }
-            if (items > lastItems) lastOwnAction = System.currentTimeMillis()
+            if (items > lastItems) own("inventory +${items - lastItems}")
             lastItems = items
         }
         UseBlockCallback.EVENT.register(UseBlockCallback { _, level, _, _ ->
-            if (level.isClientSide) lastOwnAction = System.currentTimeMillis()
+            if (level.isClientSide) own("block click")
             InteractionResult.PASS
         })
         UseEntityCallback.EVENT.register(UseEntityCallback { _, level, _, _, _ ->
-            if (level.isClientSide) lastOwnAction = System.currentTimeMillis()
+            if (level.isClientSide) own("entity use")
             InteractionResult.PASS
         })
         AttackEntityCallback.EVENT.register(AttackEntityCallback { _, level, _, _, _ ->
-            if (level.isClientSide) lastOwnAction = System.currentTimeMillis()
+            if (level.isClientSide) own("entity hit")
             InteractionResult.PASS
         })
 
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
             if (!overlay || !isEnabled) return@register
-            val room = current ?: return@register
             val m = SECRETS.find(message.string.replace(CODES, "")) ?: return@register
-            room.total = m.groupValues[2].toInt()
             val found = m.groupValues[1].toInt()
+            val barTotal = m.groupValues[2].toInt()
+            lastBarFound = found; lastBarTotal = barTotal
+            val room = current ?: return@register
             val now = System.currentTimeMillis()
+            // Room change under way, or the bar still showing the room you just left: not this room's count.
+            if (hasPending) return@register
+            if (now < staleUntil && ((room.total > 0 && barTotal != room.total) || (found == staleFound && barTotal == staleTotal))) {
+                dbg("action bar $found/$barTotal ignored (old room's count)")
+                return@register
+            }
+            room.total = barTotal
             // A new secret you didn't just reach for (click, hit, pick up) was someone else's: cancel the room's times.
-            val own = now - lastOwnAction < 2500
-            if (found > room.found.size && (!own || found - room.found.size > 1)) room.shared = true
+            // Several can land between two bar updates, as long as you did at least as many actions.
+            val delta = found - room.found.size
+            val recent = ownTimes.count { now - it < 2500 }
+            if (delta != 0) dbg("action bar $found/$barTotal (had ${room.found.size}); last own action: $lastOwnSource ${now - lastOwnAction}ms ago, $recent own in 2.5s -> " +
+                if (delta < 0) "no new secret" else if (recent == 0) "SHARED: no own action in 2.5s" else if (delta > recent) "SHARED: $delta secrets but only $recent own actions" else "yours")
+            if (delta > 0 && (recent == 0 || delta > recent)) {
+                if (!room.shared && delta == 1) room.maybeSharedAt = now
+                room.shared = true
+            }
             while (room.found.size < found) room.found += now
             if (room.done && !room.reported) onDone(room)
         }
+    }
+
+    /** A secret item / bat reached you (see SecretSignals), whatever your inventory says. */
+    fun onOwnSecret(source: String) {
+        if (!isEnabled) return
+        val now = System.currentTimeMillis()
+        lastOwnAction = now
+        lastOwnSource = source
+        dbg("own action: $source")
+        current?.let { if (it.shared && now - it.maybeSharedAt < 1500) { it.shared = false; it.maybeSharedAt = 0L } }
     }
 
     private val pbFile: File by lazy { CedPaths.file("room_times_pb.json") }
@@ -148,14 +214,14 @@ object RoomTimes : Module(
         val now = System.currentTimeMillis()
         if (now - resetAskedAt > 5000) {
             resetAskedAt = now
-            mc.player?.sendSystemMessage(ChatPrefix.msg("§eClick Reset Saved Times again within 5 seconds to delete ${pbs.size} saved room time(s)"))
+            mc.player?.sendSystemMessage(ChatPrefix.msgFor("Room Times", "§eClick Reset Saved Times again within 5 seconds to delete ${pbs.size} saved room time(s)"))
             return
         }
         resetAskedAt = 0L
         val count = pbs.size
         pbs.clear()
         runCatching { pbFile.delete() }
-        mc.player?.sendSystemMessage(ChatPrefix.msg("§7Deleted §f$count §7saved room time(s)"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Room Times", "§7Deleted §f$count §7saved room time(s)"))
     }
 
     /** All secrets of a room found: keep the PB (only when the time is all yours) and say it in chat if asked. */
@@ -171,7 +237,7 @@ object RoomTimes : Module(
         if (!chatTimes.value || (onlyPb.value && !pb)) return
         fun sec(ms: Long) = "%.1fs".format(ms / 1000.0)
         val note = if (pb) " §d(New PB" + (old?.let { ", was ${sec(it)}" } ?: "") + ")" else " §8(PB ${sec(old!!)})"
-        mc.player?.sendSystemMessage(ChatPrefix.msg("§f${room.name} §7done in §e${sec(time)}$note"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Room Times", "§f${room.name} §7done in §e${sec(time)}$note"))
     }
 
     /** Label of the [i]th split (0-based) for the current Start Timer mode. */
@@ -194,7 +260,7 @@ object RoomTimes : Module(
             ClientCommands.literal("time")
                 .executes { ctx -> print(ctx.source); 1 }
                 .then(ClientCommands.literal("list").executes { ctx ->
-                    if (!isEnabled) ctx.source.sendFeedback(ChatPrefix.msg("§cRoom Times is off")) else openList = true
+                    if (!isEnabled) ctx.source.sendFeedback(ChatPrefix.msgFor("Room Times", "§cRoom Times is off")) else openList = true
                     1
                 })
         )
@@ -202,14 +268,14 @@ object RoomTimes : Module(
     private fun print(source: FabricClientCommandSource) {
         val room = current
         when {
-            !isEnabled -> source.sendFeedback(ChatPrefix.msg("§cRoom Times is off"))
-            room == null -> source.sendFeedback(ChatPrefix.msg("§7Not in a room with secrets (§f/cc room time list §7for the run)"))
-            room.shared -> source.sendFeedback(ChatPrefix.msg("§f${room.name} §7- a secret here wasn't yours, not timed"))
+            !isEnabled -> source.sendFeedback(ChatPrefix.msgFor("Room Times", "§cRoom Times is off"))
+            room == null -> source.sendFeedback(ChatPrefix.msgFor("Room Times", "§7Not in a room with secrets (§f/cc room time list §7for the run)"))
+            room.shared -> source.sendFeedback(ChatPrefix.msgFor("Room Times", "§f${room.name} §7- a secret here wasn't yours, not timed"))
             else -> {
                 val now = System.currentTimeMillis()
                 val start = room.startedAt
                 val time = if (start == null) "waiting for the first secret" else fmt(if (room.done) room.totalTime!! else now - start)
-                source.sendFeedback(ChatPrefix.msg("§f${room.name} §7- §e$time §7in room, §a${room.found.size}§7/${room.total} secrets" + if (room.done) " §a(done)" else ""))
+                source.sendFeedback(ChatPrefix.msgFor("Room Times", "§f${room.name} §7- §e$time §7in room, §a${room.found.size}§7/${room.total} secrets" + if (room.done) " §a(done)" else ""))
                 if (room.found.isNotEmpty()) source.sendFeedback(net.minecraft.network.chat.Component.literal(
                     "§7Splits: " + room.splits.mapIndexed { i, s -> "§8#${i + 1} §f${fmt(s)}" }.joinToString("§7, ")))
             }

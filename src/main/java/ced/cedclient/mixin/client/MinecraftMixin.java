@@ -56,12 +56,10 @@ public class MinecraftMixin {
     // up rejecting internally (e.g. attack still on cooldown) -- same
     // approximation useItem() already makes for right-clicks. Acceptable
     // since the chat fallback still corrects the real remaining time.
-//#if CHEAT
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
-//#else
-//$    @Inject(method = "startAttack", at = @At("HEAD"))
-//#endif
     private void cedclient$onStartAttack(CallbackInfoReturnable<Boolean> cir) {
+        // Left Click Secrets: a left-click on a dungeon secret becomes a right-click and never starts mining.
+        if (ced.cedclient.features.impl.funqol.LeftClickSecrets.INSTANCE.handleAttack()) { cir.setReturnValue(true); return; }
 //#if CHEAT
         // Slayer Helper is mid Holy Ice / Healing Melon swap: drop your clicks so they don't land on the wrong item.
         if (SlayerCheats.INSTANCE.blocksAttack()) { cir.setReturnValue(false); return; }

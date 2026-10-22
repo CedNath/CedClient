@@ -30,7 +30,7 @@ object ExplosiveShotDamage : Module(
         on<ChatMessageEvent> { e ->
             if (!isEnabled) return@on
             val (hits, each) = perEnemy(e.unformattedText) ?: return@on
-            Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§6Explosive Shot §e$each §7per enemy §8($hits hit)"))
+            Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msgFor("Explosive Shot Damage", "§6Explosive Shot §e$each §7per enemy §8($hits hit)"))
         }
         // Self-check on the example line: 6,066,269,716.9 / 6.
         check(perEnemy("Your Explosive Shot hit 6 enemies for 6,066,269,716.9 damage.") == 6 to "%,.1f".format(1_011_044_952.8167))

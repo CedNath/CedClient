@@ -137,7 +137,7 @@ object LeapMenu : Module(
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
             val target = doorOpener.takeIf { openerLevel === mc.level }
-            if (target == null) { mc.player?.sendSystemMessage(ChatPrefix.msg("§cNo wither door opened yet")); return@on }
+            if (target == null) { mc.player?.sendSystemMessage(ChatPrefix.msgFor("Leap Menu", "§cNo wither door opened yet")); return@on }
             val player = mc.player ?: return@on
             quickTarget = target
             quickUntil = System.currentTimeMillis() + 2000
@@ -378,7 +378,7 @@ object LeapMenu : Module(
         mc.gameMode?.handleContainerInput(screen.menu.containerId, mate.slot, 2, ContainerInput.CLONE, player)
         if (debug) {
             fun ms(from: Long, to: Long) = if (from == 0L || to == 0L) "?" else "${to - from}ms"
-            player.sendSystemMessage(ChatPrefix.msg(
+            player.sendSystemMessage(ChatPrefix.msgFor("Leap Menu", 
                 "§7Leap §f${mate.name}§7: menu §f${ms(usedAt, openedAt)}§7 after use, heads §f${ms(openedAt, headsAt)}§7 after open, " +
                     "you picked §f${ms(openedAt, pickedAt)}§7 after open, sent §f${ms(pickedAt, now)}§7 after pick, §e${ms(usedAt, now)}§7 total"))
             usedAt = 0L

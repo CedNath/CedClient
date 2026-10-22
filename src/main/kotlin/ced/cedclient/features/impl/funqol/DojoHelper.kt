@@ -291,7 +291,7 @@ object DojoHelper : Module(
     private fun debug(msg: String) {
         if (msg == dbgLast) return
         dbgLast = msg
-        mc.player?.sendSystemMessage(ChatPrefix.msg("§8[swift] $msg"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Dojo Helper", "§8[swift] $msg"))
     }
 
     private fun drawDebug(pose: com.mojang.blaze3d.vertex.PoseStack.Pose, buf: com.mojang.blaze3d.vertex.VertexConsumer, cam: Vec3) {

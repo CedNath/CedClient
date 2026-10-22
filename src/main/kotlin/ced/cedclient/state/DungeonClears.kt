@@ -113,7 +113,7 @@ object DungeonClears {
         val chat = Minecraft.getInstance().gui?.chat ?: return
         val shown = stats.values.filter { it.solo.isNotEmpty() || it.stacked.isNotEmpty() || it.deaths.isNotEmpty() }
         if (shown.isEmpty()) return
-        chat.addClientSystemMessage(ChatPrefix.msg("§6Clear breakdown"))
+        chat.addClientSystemMessage(ChatPrefix.msgFor("Dungeon Clears", "§6Clear breakdown"))
         for (s in shown) {
             val rooms = s.solo.size + s.stacked.size
             val range = if (s.stacked.isEmpty()) "${s.solo.size}" else "${s.solo.size}-$rooms"

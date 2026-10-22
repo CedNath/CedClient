@@ -235,7 +235,7 @@ object PositionalMessages : Module(
             if (!canSend || teammateAlreadySaid(a.message, now)) continue
             st.sentThisRun = true
             st.lastSent = now
-            if (testMode.value) player.sendSystemMessage(ChatPrefix.msg("§7(test) §9Party > §f${player.name.string}: ${a.message}"))
+            if (testMode.value) player.sendSystemMessage(ChatPrefix.msgFor("Positional Messages", "§7(test) §9Party > §f${player.name.string}: ${a.message}"))
             else player.connection.sendCommand("pc ${a.message}")
         }
     }

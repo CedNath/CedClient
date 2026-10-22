@@ -26,6 +26,6 @@ public abstract class ItemStackHoverNameMixin {
             at = @At("RETURN")
     )
     private Component cedclient$applyCustomNametag(Component original) {
-        return CustomNametagText.INSTANCE.transformItemText(original);
+        return ced.cedclient.features.impl.render.OldStars.transform(CustomNametagText.INSTANCE.transformItemText(original));
     }
 }

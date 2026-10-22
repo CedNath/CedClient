@@ -48,6 +48,13 @@
     "render.TooltipBlitMixin",
     "render.TooltipScrollMixin",
     "render.ShaderPreprocessorMixin",
+    "render.CrosshairMixin",
+    "render.HideArmorLayerMixin",
+    "render.HideCustomHeadMixin",
+    "render.ChatHudHideMixin",
+    "render.ParticleEngineMixin",
+    "render.ItemDecorationsMixin",
+    "client.PackCompatibilityMixin",
 
     "item.ItemStackHoverNameMixin",
     "item.ItemStackVanillaTextureMixin",

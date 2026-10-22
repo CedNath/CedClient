@@ -249,7 +249,7 @@ object CustomNametagText {
     }
 
     /** Appends the `[from, to)` slice of the flattened text, split back along the original run boundaries so each piece keeps its own style. */
-    private fun appendSlice(result: MutableComponent, runs: List<Run>, from: Int, to: Int) {
+    private fun appendSlice(result: MutableComponent, runs: List<Run>, from: Int, to: Int, restyle: ((Style) -> Style)? = null) {
         if (from >= to) return
         for (run in runs) {
             val runEnd = run.start + run.text.length
@@ -258,7 +258,7 @@ object CustomNametagText {
             val localStart = (from - run.start).coerceIn(0, run.text.length)
             val localEnd = (to - run.start).coerceIn(0, run.text.length)
             if (localEnd > localStart) {
-                result.append(Component.literal(run.text.substring(localStart, localEnd)).withStyle(run.style))
+                result.append(Component.literal(run.text.substring(localStart, localEnd)).withStyle(restyle?.invoke(run.style) ?: run.style))
             }
         }
     }
@@ -313,13 +313,40 @@ object CustomNametagText {
         val result: MutableComponent = Component.literal("")
         var cursor = 0
         for (hit in hits) {
-            appendSlice(result, runs, cursor, hit.start)
+            appendBefore(result, runs, fullText, cursor, hit.start, levelColorFor(hit.key))
             val replacement = replacements.entries.first { it.key.equals(hit.key, ignoreCase = true) }.value
             result.append(replacement)
             cursor = hit.end
         }
         appendSlice(result, runs, cursor, fullText.length)
         return result
+    }
+
+    private val levelToken = Regex("""\[\d{1,4}]""")
+
+    /** Color stops to recolor [ign]'s level prefix with (two or more = a gradient), or null to leave it. Synced entries first, then your own setting. */
+    private fun levelColorFor(ign: String): List<Int>? {
+        if (HardcodedCosmetics.isEnabled) CosmeticSync_levelColor(ign)?.let { return it }
+        val local = Minecraft.getInstance().user?.name
+        if (CustomNametag.isEnabled && local != null && ign.equals(local, ignoreCase = true)) return CustomNametag.ownLevelColor()
+        return null
+    }
+
+    private fun CosmeticSync_levelColor(ign: String): List<Int>? = CosmeticsSync.getOverride(ign)?.levelColor
+
+    /** Appends fullText[from, to) with the last "[300]"-style token in it recolored (the text itself stays as is). */
+    private fun appendBefore(result: MutableComponent, runs: List<Run>, fullText: String, from: Int, to: Int, color: List<Int>?) {
+        val token = if (color != null && from < to) levelToken.findAll(fullText.substring(from, to)).lastOrNull() else null
+        if (token == null) { appendSlice(result, runs, from, to); return }
+        val s = from + token.range.first
+        val e = from + token.range.last + 1
+        appendSlice(result, runs, from, s)
+        val len = e - s
+        for (k in 0 until len) {
+            val c = NametagFormatting.gradientAt(color!!, if (len == 1) 0f else k.toFloat() / (len - 1))
+            appendSlice(result, runs, s + k, s + k + 1) { it.withColor(c) }
+        }
+        appendSlice(result, runs, e, to)
     }
 
     private fun spliceOverName(original: Component, needle: String, replacement: Component): Component? =
@@ -460,7 +487,8 @@ object CustomNametagText {
         // --- tab-list extras, all prebuilt so per-row work never compiles a regex ---
         val cosmetics: List<CosmeticEntry>,
         val localNameRegex: Regex?,
-        val ownTagComponent: Component?
+        val ownTagComponent: Component?,
+        val ownLevel: List<Int>? = null
     )
 
     /** One synced IGN with everything the tab-list fallback needs, built once. */
@@ -485,6 +513,7 @@ object CustomNametagText {
             cached.cosmeticsOn == cosmeticsOn &&
             cached.nametagOn == nametagOn &&
             cached.ownTag == ownTag &&
+            cached.ownLevel == CustomNametag.ownLevelColor() &&
             cached.localName == localName
         ) return cached
 
@@ -499,7 +528,7 @@ object CustomNametagText {
         val rebuilt = Replacements(
             tagsRef, cosmeticsOn, nametagOn, ownTag, localName,
             map, if (map.isEmpty()) null else compileRegex(map),
-            cosmetics, localNameRegex, ownTagComponent
+            cosmetics, localNameRegex, ownTagComponent, CustomNametag.ownLevelColor()
         )
         cachedReplacements = rebuilt
         return rebuilt

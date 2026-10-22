@@ -35,6 +35,6 @@ object CosmeticConfig {
 /** Chat output shared by every cosmetic tool. */
 object CosmeticChat {
     fun say(text: String) {
-        Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§f$text"))
+        Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msgFor("Cosmetic Blocks", "§f$text"))
     }
 }

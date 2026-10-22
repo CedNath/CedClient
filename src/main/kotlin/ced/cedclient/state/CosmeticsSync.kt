@@ -18,6 +18,7 @@ import java.time.Duration
  *   - tag == null          -> leave this IGN's name/nametag alone
  *   - scaleX/Y/Z all == 1f -> leave this IGN's model size alone
  *   - halo == null         -> no halo ring (else its 0xRRGGBB color, see HaloLayer)
+ *   - levelColor == null   -> leave the level prefix color alone (else one or more 0xRRGGBB stops = a gradient; the level number never changes)
  *   - haloAnim / haloParticles: bit flags (HALO_ANIMS / HALO_PARTICLES order), 0 = none
  */
 data class CosmeticOverride(
@@ -27,7 +28,9 @@ data class CosmeticOverride(
     val scaleZ: Float = 1f,
     val halo: Int? = null,
     val haloAnim: Int = 0,
-    val haloParticles: Int = 0
+    val haloParticles: Int = 0,
+    /** 0xRRGGBB for the SkyBlock level prefix ("[300]") in this IGN's name, null = keep the server's color. */
+    val levelColor: List<Int>? = null
 )
 
 /** Site names for the halo flags; bit i = entry i. */
@@ -41,7 +44,7 @@ val HALO_PARTICLES = listOf("sparkle", "heart", "flame", "dust")
  *   1. The CedClient Cloudflare Worker (GET /cosmetics) -- edited from the owner
  *      dashboard. Answers with 304 when nothing changed. Anything it sends is treated
  *      as untrusted: IGNs must look like IGNs, tags are length-limited and stripped of
- *      control characters, and sizes are clamped to 0.1..5.0.
+ *      control characters, and sizes only have to be finite and above zero (no upper limit).
  *   2. The GitHub cosmetics.json described below -- used only when the Worker is
  *      unreachable, errors, answers 404 (nothing published yet) or sends invalid data.
  *      Behaves exactly as before.
@@ -93,8 +96,7 @@ object CosmeticsSync {
 
     // Limits applied to anything that comes from the Worker (it also enforces them).
     private const val MAX_TAG_LENGTH = 128
-    private const val MIN_SCALE = 0.1f
-    private const val MAX_SCALE = 5.0f
+    private const val MIN_SCALE = 0.01f // a size of 0 would collapse the model; there is no upper limit
     private const val MAX_WORKER_BODY_CHARS = 1_000_000
     private val ignPattern = Regex("^\\w{1,16}$")
     private val haloPattern = Regex("^#[0-9a-fA-F]{6}$")
@@ -331,7 +333,7 @@ object CosmeticsSync {
     }
 
     private fun clampScale(v: Float): Float =
-        if (v.isNaN() || v.isInfinite()) 1f else v.coerceIn(MIN_SCALE, MAX_SCALE)
+        if (v.isNaN() || v.isInfinite()) 1f else if (v < 0f) v.coerceAtMost(-MIN_SCALE) else v.coerceAtLeast(MIN_SCALE) // negative = mirrored
 
     /**
      * Returns true if the payload was valid and applied.
@@ -368,6 +370,11 @@ object CosmeticsSync {
                     // "#rrggbb"; anything else = no halo
                     halo = obj.get("halo")?.takeIf { it.isJsonPrimitive }?.asString
                         ?.takeIf { haloPattern.matches(it) }?.substring(1)?.toInt(16),
+                    // "#rrggbb" or a gradient "#rrggbb:#rrggbb:..." (up to 6 colors)
+                    levelColor = obj.get("levelColor")?.takeIf { it.isJsonPrimitive }?.asString
+                        ?.split(':')?.map { it.trim() }
+                        ?.takeIf { it.size in 1..6 && it.all { h -> haloPattern.matches(h) } }
+                        ?.map { it.substring(1).toInt(16) },
                     haloAnim = flags(obj.get("haloAnim"), HALO_ANIMS),
                     haloParticles = flags(obj.get("haloParticles"), HALO_PARTICLES)
                 )
@@ -412,6 +419,7 @@ object CosmeticsSync {
                 entry.addProperty("scaleX", override.scaleX)
                 entry.addProperty("scaleY", override.scaleY)
                 entry.addProperty("scaleZ", override.scaleZ)
+                if (override.levelColor != null) entry.addProperty("levelColor", override.levelColor.joinToString(":") { "#%06x".format(it) })
                 if (override.halo != null) entry.addProperty("halo", "#%06x".format(override.halo))
                 if (override.haloAnim != 0) entry.addProperty("haloAnim", HALO_ANIMS.filterIndexed { i, _ -> override.haloAnim shr i and 1 == 1 }.joinToString(","))
                 if (override.haloParticles != 0) entry.addProperty("haloParticles", HALO_PARTICLES.filterIndexed { i, _ -> override.haloParticles shr i and 1 == 1 }.joinToString(","))

@@ -25,13 +25,15 @@ object PlayerScale : Module(
     Category.Cosmetic,
     "Scales your own player model per-axis. Names with a synced scale pushed via CosmeticsSync always render at that fixed size, independent of these sliders and this toggle."
 ) {
-    private val scaleX = NumberSetting("Scale X", 1.0, 0.1, 5.0, 0.05)
-    private val scaleY = NumberSetting("Scale Y", 1.0, 0.1, 5.0, 0.05)
-    private val scaleZ = NumberSetting("Scale Z", 1.0, 0.1, 5.0, 0.05)
+    private val scaleX = NumberSetting("Scale X", 1.0, -10.0, 10.0, 0.05, "Type a bigger number for sizes past the slider. Negative flips the model on this axis.", uncapped = true)
+    private val scaleY = NumberSetting("Scale Y", 1.0, -10.0, 10.0, 0.05, "Type a bigger number for sizes past the slider. Negative flips the model on this axis.", uncapped = true)
+    private val scaleZ = NumberSetting("Scale Z", 1.0, -10.0, 10.0, 0.05, "Type a bigger number for sizes past the slider. Negative flips the model on this axis.", uncapped = true)
 
-    val scaleFactorX: Float get() = scaleX.value.toFloat()
-    val scaleFactorY: Float get() = scaleY.value.toFloat()
-    val scaleFactorZ: Float get() = scaleZ.value.toFloat()
+    // A size of 0 would collapse the model, so it is nudged to the smallest size; the sign (the flip) is kept.
+    private fun axis(v: Double): Float = (if (v < 0.0) v.coerceAtMost(-0.01) else v.coerceAtLeast(0.01)).toFloat()
+    val scaleFactorX: Float get() = axis(scaleX.value)
+    val scaleFactorY: Float get() = axis(scaleY.value)
+    val scaleFactorZ: Float get() = axis(scaleZ.value)
 
     init {
         addSettings(scaleX, scaleY, scaleZ)

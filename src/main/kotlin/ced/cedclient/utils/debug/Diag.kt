@@ -192,8 +192,9 @@ object Diag {
             val level = e.level
             val text = e.message?.formattedMessage ?: return
             val thrown = e.thrown
+            // The saved Hypixel pack is named cedclient/hypixel_pack, but its broken files are Hypixel's, not ours.
             val ours = e.loggerName.contains("cedclient", ignoreCase = true) ||
-                text.contains("cedclient", ignoreCase = true) || mentionsUs(thrown)
+                (text.contains("cedclient", ignoreCase = true) && !text.contains("cedclient/hypixel_pack")) || mentionsUs(thrown)
             val isError = level.isMoreSpecificThan(Level.ERROR)
             // Mixin problems are only WARN, but a broken injector means a feature silently does nothing.
             val mixinWarn = level == Level.WARN && e.loggerName.contains("mixin", ignoreCase = true)
