@@ -461,6 +461,12 @@ object NVGRenderer {
         return image
     }
 
+    /** Registers an [image] built from bytes in memory (e.g. a downloaded cover). Render thread only; free it with [deleteImage]. */
+    fun createImage(image: Image): Image {
+        images.getOrPut(image) { NVGImage(0, loadImage(image)) }.count++
+        return image
+    }
+
     // lowers reference count by 1, if it reaches 0 it gets deleted from mem
     fun deleteImage(image: Image) {
         val nvgImage = images[image] ?: return

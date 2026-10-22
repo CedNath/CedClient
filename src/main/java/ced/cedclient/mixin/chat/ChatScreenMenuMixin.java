@@ -19,6 +19,7 @@ public class ChatScreenMenuMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void cedclient$menuClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (event.button() == 0 && ced.cedclient.features.impl.misc.Spotify.onChatClick(event.x(), event.y(), event.button())) { cir.setReturnValue(true); return; }
         if (ChatFeatures.Menu.onClick((ChatScreen) (Object) this, event.x(), event.y(), event.button(), event.hasControlDown())) cir.setReturnValue(true);
     }
 

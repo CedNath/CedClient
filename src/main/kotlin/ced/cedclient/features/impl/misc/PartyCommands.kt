@@ -1,7 +1,6 @@
 package ced.cedclient.features.impl.misc
 
 import ced.cedclient.config.CedPaths
-import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.chat.PartyChatEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
@@ -20,7 +19,12 @@ import ced.cedclient.utils.PingTracker
 import ced.cedclient.utils.PlayerUtils
 import ced.cedclient.utils.TpsTracker
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.Style
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -123,19 +127,70 @@ object PartyCommands : Module(
         friendsFile.takeIf { it.exists() }?.readLines()?.map { it.trim().lowercase() }?.filter { it.isNotEmpty() }?.toMutableSet() ?: mutableSetOf()
     }
     private fun saveFriends() { runCatching { friendsFile.writeText(friends.sorted().joinToString("\n")) } }
-    private var inFriendList = false
-    private val friendLine = Regex("""^(?:\[[^\]]+] )?(\w{1,16}) (?:is|was) .*""")
-    private val friendHeader = Regex("""^Friends \(Page (\d+) of (\d+)\)""")
-    private val friendAdded = Regex("""^You are now friends with (?:\[[^\]]+] )?(\w{1,16})""")
-    private val friendRemoved = Regex("""^You are no longer friends with (?:\[[^\]]+] )?(\w{1,16})""")
-    private val friendRemovedAlt = Regex("""^You removed (?:\[[^\]]+] )?(\w{1,16}) from your friends list""")
+    // Like SkyHanni: the friend list is read from the clickable names in the "/friend list" message itself (/viewprofile <uuid>
+    // with the name in its hover text), whenever it shows up (typed by you or by Refresh Friends); adds / removes are
+    // picked up from their chat lines. A message can hold several lines, so these match per line.
+    private val friendHeader = Regex("""Friends \(Page (\d+) of (\d+)\)""")
+    private val friendAdded = Regex("""^You are now friends with (?:\[[^\]]+] )?(\w{1,16})""", RegexOption.MULTILINE)
+    private val friendRemoved = Regex("""^You are no longer friends with (?:\[[^\]]+] )?(\w{1,16})""", RegexOption.MULTILINE)
+    private val friendRemovedAlt = Regex("""^You removed (?:\[[^\]]+] )?(\w{1,16}) from your friends list""", RegexOption.MULTILINE)
+    private val profileHover = Regex("""Click here to view (?:\[[^\]]+] )?(\w{1,16})'s profile""")
+    private val plainName = Regex("""\w{1,16}""")
     private var refreshing = false
+
+    /** Adds every friend named by a /viewprofile link in [message] (a "/friend list" page); returns how many it found. */
+    private fun readFriendList(message: Component): Int {
+        var found = 0
+        message.visit({ style, text ->
+            val command = (style.clickEvent as? ClickEvent.RunCommand)?.command()
+            if (command != null && command.startsWith("/viewprofile")) {
+                val hover = (style.hoverEvent as? HoverEvent.ShowText)?.value()?.string
+                val name = hover?.let { profileHover.find(it)?.groupValues?.get(1) }
+                    ?: text.trim().substringAfterLast(' ').takeIf { plainName.matches(it) }
+                if (name != null) { friends += name.lowercase(); found++ }
+            }
+            java.util.Optional.empty<Unit>()
+        }, Style.EMPTY)
+        return found
+    }
+
+    // The first full sync walks every page of the friend list; its chat output is hidden that one time (later syncs show it).
+    private val syncedFlag by lazy { CedPaths.file("friends_synced.flag") }
+    private var hideSync = false
+    private var syncStarted = 0L
+    private var lastSyncMsg = 0L
+    private const val PAGE_DELAY = 2500L
+    private var nextPage = 0
+    private var nextPageAt = 0L
+    private val friendEntry = Regex("""^(?:\[[^\]]+] )?\w{1,16} (?:is|was) """)
 
     private fun refreshFriends() {
         friends.clear()
         refreshing = true
+        hideSync = !syncedFlag.exists()
+        syncStarted = System.currentTimeMillis()
+        lastSyncMsg = syncStarted
         run("friend list")
-        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§7Reading your friend list..."))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands",
+            if (hideSync) "§eSyncing your friends for the first time, this takes about a minute. The friend list stays out of chat while it loads."
+            else "§7Reading your friend list..."))
+    }
+
+    /** Chat hook: friend list pages while the first sync runs (the dash lines only right next to one). */
+    @JvmStatic
+    fun hideChat(text: String): Boolean {
+        if (!isEnabled || !refreshing || !hideSync) return false
+        val t = text.trim()
+        if (friendHeader.containsMatchIn(t) || friendEntry.containsMatchIn(t)) { lastSyncMsg = System.currentTimeMillis(); return true }
+        return t.startsWith("-----") && System.currentTimeMillis() - lastSyncMsg < 4000
+    }
+
+    private fun finishSync() {
+        refreshing = false
+        saveFriends()
+        if (hideSync) runCatching { syncedFlag.writeText("1") }
+        hideSync = false
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§aSynced §f${friends.size} §afriends"))
     }
 
     private fun allowed(perm: String, sender: String) = when (perm) {
@@ -222,25 +277,33 @@ object PartyCommands : Module(
             c.run(e.cleanAuthor, parts.drop(1))
         }
 
-        on<ChatMessageEvent> { e ->
-            if (!isEnabled) return@on
-            val t = e.unformattedText.trim()
-            if (t.startsWith("-----")) { inFriendList = false; return@on }
-            friendHeader.find(t)?.let { m ->
-                inFriendList = true
-                val page = m.groupValues[1].toInt()
-                val pages = m.groupValues[2].toInt()
-                if (refreshing && page < pages) run("friend list ${page + 1}")
-                else if (refreshing) { refreshing = false; saveFriends() }
-                return@on
+        ClientReceiveMessageEvents.GAME.register { message, overlay ->
+            if (overlay || !isEnabled) return@register
+            val t = message.string
+            if (t.contains("Friends")) {
+                if (readFriendList(message) > 0) saveFriends()
+                friendHeader.find(t)?.let { m ->
+                    val page = m.groupValues[1].toInt()
+                    val pages = m.groupValues[2].toInt()
+                    if (refreshing) syncStarted = System.currentTimeMillis()
+                    // One page every 2.5 s: a burst of commands could get the player kicked for spam.
+                    if (refreshing && page < pages) { nextPage = page + 1; nextPageAt = System.currentTimeMillis() + PAGE_DELAY }
+                    else if (refreshing) finishSync()
+                }
             }
-            if (inFriendList) friendLine.matchEntire(t)?.let { friends += it.groupValues[1].lowercase(); return@on }
             friendAdded.find(t)?.let { friends += it.groupValues[1].lowercase(); saveFriends() }
             (friendRemoved.find(t) ?: friendRemovedAlt.find(t))?.let { friends -= it.groupValues[1].lowercase(); saveFriends() }
         }
 
         ClientTickEvents.END_CLIENT_TICK.register {
             if (++saveTick % 40 == 0) saveCustom()
+            if (refreshing && nextPage > 0 && System.currentTimeMillis() >= nextPageAt) { run("friend list $nextPage"); nextPage = 0 }
+            // No page for 30 s: give up.
+            if (refreshing && System.currentTimeMillis() - syncStarted > 30_000) {
+                nextPage = 0
+                refreshing = false; hideSync = false
+                mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§cFriend sync timed out, press Refresh Friends to try again"))
+            }
             if (cooldown > 0) cooldown--
             if (isEnabled && cooldown == 0) outbox.removeFirstOrNull()?.let { mc.player?.connection?.sendCommand(it); cooldown = 12 }
             val ended = DungeonState.runEnded

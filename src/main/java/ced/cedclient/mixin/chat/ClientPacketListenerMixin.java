@@ -105,7 +105,8 @@ public class ClientPacketListenerMixin {
         // NOTE: ChatFilter hiding doesn't call ci.cancel() -- it sets ChatHide.pending and
         // ChatComponentMixin drops the line at display time instead, so other mods hooking
         // handleSystemChat (NoammAddons' key/door detection) still see it.
-        if (ChatFilter.INSTANCE.shouldHide(content.getString()) || CritterSafari.hideChat(content.getString())) {
+        if (ChatFilter.INSTANCE.shouldHide(content.getString()) || CritterSafari.hideChat(content.getString())
+                || ced.cedclient.features.impl.misc.PartyCommands.hideChat(content.getString())) {
             // Hiding the line skips vanilla's own chat-log call inside
             // ChatComponent.addMessage() (that's where the "[CHAT] ..." log
             // lines come from), since addMessage() gets cancelled. Log it
