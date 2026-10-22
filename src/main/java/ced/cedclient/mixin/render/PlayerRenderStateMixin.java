@@ -60,6 +60,19 @@ public class PlayerRenderStateMixin
         cedclient$isSelf = value;
     }
 
+    @Unique
+    private boolean cedclient$shrunk = false;
+
+    @Override
+    public boolean cedclient$isShrunk() {
+        return cedclient$shrunk;
+    }
+
+    @Override
+    public void cedclient$setShrunk(boolean value) {
+        cedclient$shrunk = value;
+    }
+
     @Override
     public boolean cedclient$isHardcodedTarget() {
         return cedclient$isHardcodedTarget;

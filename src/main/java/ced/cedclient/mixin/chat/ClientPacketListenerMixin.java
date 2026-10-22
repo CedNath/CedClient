@@ -20,6 +20,7 @@ import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.network.protocol.game.ClientboundTakeItemEntityPacket;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -183,6 +184,13 @@ public class ClientPacketListenerMixin {
     private void cedclient$onSetTitleText(ClientboundSetTitleTextPacket packet, CallbackInfo ci) {
         if (cedclient$offThread()) return;
         if (new TitleEvent(packet.text().getString()).post()) ci.cancel();
+    }
+
+    // Dungeon secret items: Hypixel may not put them in your inventory, but the pickup packet still names you.
+    @Inject(method = "handleTakeItemEntity", at = @At("HEAD"))
+    private void cedclient$onTakeItem(ClientboundTakeItemEntityPacket packet, CallbackInfo ci) {
+        if (cedclient$offThread()) return;
+        ced.cedclient.features.impl.funqol.SecretSignals.onTake(packet.getItemId());
     }
 
     /**

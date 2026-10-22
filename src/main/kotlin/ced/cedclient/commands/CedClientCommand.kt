@@ -93,6 +93,7 @@ object CedClientCommand {
             .executes(openGuiExecutes)   // bare /cedclient or /cc opens GUI
             .then(PositionalMessages.commandTree())
             .then(ced.cedclient.features.impl.funqol.RoomTimes.commandTree())
+            .then(ced.cedclient.features.impl.misc.Spotify.commandTree())
             .then(ced.cedclient.utils.DevAccess.commandTree())
 
             .then(

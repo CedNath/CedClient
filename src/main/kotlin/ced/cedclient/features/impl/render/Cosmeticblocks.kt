@@ -546,7 +546,7 @@ object CosmeticBlocks : Module(
     // ------------------------------------------------------------------
 
     private fun feedback(src: FabricClientCommandSource, text: String) =
-        src.sendFeedback(ChatPrefix.msg("§f$text"))
+        src.sendFeedback(ChatPrefix.msgFor("Cosmetic Blocks", "§f$text"))
 
     private fun word(ctx: CommandContext<FabricClientCommandSource>, name: String) =
         StringArgumentType.getString(ctx, name)

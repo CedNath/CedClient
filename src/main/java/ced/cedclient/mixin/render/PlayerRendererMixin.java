@@ -1,6 +1,7 @@
 package ced.cedclient.mixin.render;
 
 import ced.cedclient.features.impl.funqol.PlayerScale;
+import ced.cedclient.features.impl.render.Hiders;
 import ced.cedclient.features.impl.render.HardcodedCosmetics;
 import ced.cedclient.features.impl.render.nametag.CustomNametag;
 import ced.cedclient.features.impl.render.nametag.CustomNametagText;
@@ -71,6 +72,7 @@ public abstract class PlayerRendererMixin {
                         && Minecraft.getInstance().player != null
                         && entity == Minecraft.getInstance().player;
 
+        accessor.cedclient$setShrunk(Hiders.shrinks(entity));
         accessor.cedclient$setHardcodedTarget(isHardcodedTarget);
         accessor.cedclient$setSelf(isSelf);
         accessor.cedclient$setHaloColor(override != null && override.getHalo() != null ? override.getHalo() : -1);
@@ -115,7 +117,7 @@ public abstract class PlayerRendererMixin {
             // excess scale) -- doesn't touch the already-correct shrink case.
             // Tune EXTRA_LIFT_PER_SCALE below if it's still off in-game.
             double extraLift = scaleY > 1.0F ? (scaleY - 1.0F) * EXTRA_LIFT_PER_SCALE : 0.0;
-            state.nameTagAttachment = new net.minecraft.world.phys.Vec3(v.x, v.y * scaleY + extraLift, v.z);
+            state.nameTagAttachment = new net.minecraft.world.phys.Vec3(v.x, v.y * Math.abs(scaleY) + extraLift, v.z); // flipped (negative) models keep the tag above the feet
         }
 
         /*
@@ -188,11 +190,18 @@ public abstract class PlayerRendererMixin {
          * Synced cosmetic scale takes priority.
          */
         if (accessor.cedclient$isHardcodedTarget()) {
-            poseStack.scale(
+            cedclient$scaleLifted(
+                    poseStack,
                     accessor.cedclient$getSyncedScaleX(),
                     accessor.cedclient$getSyncedScaleY(),
                     accessor.cedclient$getSyncedScaleZ()
             );
+            return;
+        }
+
+        // Hiders > Shrink: nearby real players.
+        if (accessor.cedclient$isShrunk()) {
+            poseStack.scale(Hiders.shrinkX(), Hiders.shrinkY(), Hiders.shrinkZ());
             return;
         }
 
@@ -211,7 +220,23 @@ public abstract class PlayerRendererMixin {
         if (scaleX != 1.0F
                 || scaleY != 1.0F
                 || scaleZ != 1.0F) {
-            poseStack.scale(scaleX, scaleY, scaleZ);
+            cedclient$scaleLifted(poseStack, scaleX, scaleY, scaleZ);
         }
+    }
+
+    /**
+     * Scales the model. A negative Y flips it around the feet, which would sink it into the ground, so it is lifted by
+     * its (scaled) height first: the flipped player hangs from the spot the feet were, head where the feet were
+     * (the pose is in the renderer's y-down model space, hence the negative offset).
+     */
+    private static void cedclient$scaleLifted(PoseStack poseStack, float x, float y, float z) {
+        if (y < 0.0F) {
+            // The player model is 32 px = 2.0 units tall in this (already 0.9375-scaled) space; y makes it follow the size.
+            poseStack.translate(0.0F, 2.0F * y, 0.0F);
+            // Flip X as well (a 180 degree turn like vanilla's upside-down players, not a mirror): a lone Y mirror
+            // would reverse the cape's swing and push it through the body.
+            x = -x;
+        }
+        poseStack.scale(x, y, z);
     }
 }

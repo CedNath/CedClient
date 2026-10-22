@@ -47,13 +47,18 @@ internal object SlayerBosses {
         private set
     var skulls: List<AABB> = emptyList()
         private set
+    /** Seconds left of the Voidgloom laser phase, null when it isn't running. */
+    var laser: Float? = null
+        private set
+    private var laserTicks = 0
+    private const val LASER_TICKS = 160
     private var firePitsWarned = false
     private var ticks = 0
     private var placed: List<AABB> = emptyList()
 
     fun reset() {
         label = null; body = null; name = null; hp = 0.0; maxHp = 0.0; attunement = null; hits = null
-        pillar = null; beacons = emptyList(); placed = emptyList(); skulls = emptyList(); firePitsWarned = false
+        pillar = null; laser = null; laserTicks = 0; beacons = emptyList(); placed = emptyList(); skulls = emptyList(); firePitsWarned = false
     }
 
     private fun parseHp(text: String): Double? {
@@ -90,12 +95,15 @@ internal object SlayerBosses {
         pillar = stands.filter { it.hasCustomName() }.firstNotNullOfOrNull { PILLAR.matchEntire(it.customName!!.string.trim())?.groupValues?.get(1)?.toFloatOrNull() }
 
         if (name == "Voidgloom Seraph") {
+            // Laser phase: the boss rides an armor stand for 8 s (same trigger Skyblocker uses).
+            if (body?.vehicle is ArmorStand) laser = (LASER_TICKS - laserTicks++).coerceAtLeast(0) / 20f
+            else { laser = null; laserTicks = 0 }
             val flying = stands.filter { it.getItemBySlot(EquipmentSlot.HEAD).hoverName.string == "Beacon" && it.distanceToSqr(l) < 30.0 * 30.0 }
                 .map { it.boundingBox.inflate(0.2) }
             if (++ticks % 10 == 0) placed = placedBeacons(l.blockPosition())
             beacons = flying + placed
             skulls = stands.filter { skin(it)?.contains(NUKEKUBI_SKIN) == true }.map { it.boundingBox.inflate(0.2) }
-        } else { beacons = emptyList(); skulls = emptyList() }
+        } else { beacons = emptyList(); skulls = emptyList(); laser = null; laserTicks = 0 }
     }
 
     /** Beacon blocks the boss has set down around it. */

@@ -440,7 +440,7 @@ object TinyDancerHelper : Module(
         // Local-only chat line (never sent to the server), same approach as DailyReset.
         // Always hop to the main thread: touching chat/GUI from any other thread crashes the connection.
         mc.execute {
-            mc.gui?.chat?.addClientSystemMessage(ChatPrefix.msg("TinyDancer §7» $message"))
+            mc.gui?.chat?.addClientSystemMessage(ChatPrefix.msgFor("TinyDancerHelper", "TinyDancer §7» $message"))
         }
     }
 }

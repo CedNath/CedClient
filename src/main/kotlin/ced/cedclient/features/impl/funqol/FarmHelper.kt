@@ -239,7 +239,7 @@ object FarmHelper : Module(
     }
 
     @JvmStatic fun msg(text: String) {
-        mc.player?.sendSystemMessage(ChatPrefix.msg("§6[FarmHelper] §r$text"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("FarmHelper", "§6[FarmHelper] §r$text"))
     }
 
     // ---- values for the port

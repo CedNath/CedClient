@@ -173,7 +173,7 @@ object SunGecko : Module(
         val newPb = pb == null || time < pb
         if (newPb) { bests[key] = time; saveBests() }
         lastResult = format(time) + if (newPb) "  NEW PB" else "  (PB ${format(pb!!)})"
-        if (pbMessage.value) mc.player?.sendSystemMessage(ChatPrefix.msg(
+        if (pbMessage.value) mc.player?.sendSystemMessage(ChatPrefix.msgFor("Sun Gecko", 
             "§eSun Gecko §f${format(time)}" + if (newPb) " §a§lNEW PB" + (pb?.let { " §7(was ${format(it)})" } ?: "") else " §7PB ${format(pb!!)}"))
     }
 

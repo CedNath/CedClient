@@ -15,7 +15,7 @@ import net.minecraft.network.chat.TextColor
  *   &l &o &n &m &k             bold / italic / underline / strikethrough / obfuscated
  *   &r                         reset color + all styles
  *   &#RRGGBB                   any RGB color, e.g. &#ff8800
- *   <gradient:#RRGGBB:#RRGGBB>text</gradient>
+ *   <gradient:#RRGGBB:#RRGGBB[:#RRGGBB...]>text</gradient>  (two or more colors, spread evenly)
  *                               smoothly blends between two colors across the text
  *   <rainbow>text</rainbow>
  *                               cycles through hues; drifts over real time, so
@@ -107,11 +107,11 @@ object NametagFormatting {
                 if (headerEnd != -1) {
                     val header = raw.substring(i + "<gradient:".length, headerEnd)
                     val colors = header.split(":").mapNotNull { parseHexColor(it) }
-                    if (colors.size == 2) {
+                    if (colors.size >= 2) {
                         val closeTag = "</gradient>"
                         val closeIdx = raw.indexOf(closeTag, headerEnd + 1)
                         val contentEnd = if (closeIdx == -1) raw.length else closeIdx
-                        appendGradient(result, raw.substring(headerEnd + 1, contentEnd), colors[0], colors[1], style)
+                        appendGradient(result, raw.substring(headerEnd + 1, contentEnd), colors, style)
                         i = if (closeIdx == -1) raw.length else closeIdx + closeTag.length
                         continue
                     }
@@ -135,13 +135,13 @@ object NametagFormatting {
         return result
     }
 
-    private fun appendGradient(target: MutableComponent, text: String, from: TextColor, to: TextColor, base: RunStyle) {
+    private fun appendGradient(target: MutableComponent, text: String, stops: List<TextColor>, base: RunStyle) {
         if (text.isEmpty()) return
         val len = text.length
         for (index in text.indices) {
             val t = if (len == 1) 0f else index.toFloat() / (len - 1)
             val run = base.copy()
-            run.color = lerpColor(from, to, t)
+            run.color = TextColor.fromRgb(gradientAt(stops.map { it.value }, t))
             target.append(Component.literal(text[index].toString()).withStyle(run.toStyle()))
         }
     }
@@ -157,6 +157,15 @@ object NametagFormatting {
             run.color = TextColor.fromRgb(java.awt.Color.HSBtoRGB(hue, 0.9f, 1.0f) and 0xFFFFFF)
             target.append(Component.literal(ch.toString()).withStyle(run.toStyle()))
         }
+    }
+
+    /** Color at [t] (0..1) along [stops] spread evenly (0xRRGGBB). */
+    @JvmStatic
+    fun gradientAt(stops: List<Int>, t: Float): Int {
+        if (stops.size == 1) return stops[0]
+        val pos = t.coerceIn(0f, 1f) * (stops.size - 1)
+        val i = pos.toInt().coerceAtMost(stops.size - 2)
+        return lerpColor(TextColor.fromRgb(stops[i]), TextColor.fromRgb(stops[i + 1]), pos - i).value
     }
 
     private fun lerpColor(from: TextColor, to: TextColor, t: Float): TextColor {

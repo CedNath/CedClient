@@ -15,6 +15,10 @@ public interface CedClientPlayerRenderStateAccessor {
     boolean cedclient$isSelf();
     void cedclient$setSelf(boolean value);
 
+    /** Hiders > Shrink: this render is a nearby real player to draw small. */
+    boolean cedclient$isShrunk();
+    void cedclient$setShrunk(boolean value);
+
     boolean cedclient$isHardcodedTarget();
     void cedclient$setHardcodedTarget(boolean value);
 

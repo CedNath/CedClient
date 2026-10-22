@@ -95,7 +95,7 @@ object AnvilHelper : Module(
         }
         if (!running) {
             running = true
-            player.sendSystemMessage(ChatPrefix.msg("§aAnvil Helper combining books §7(close the menu to stop)"))
+            player.sendSystemMessage(ChatPrefix.msgFor("Anvil Helper", "§aAnvil Helper combining books §7(close the menu to stop)"))
         }
         val id = screen.menu.containerId
         val click = {
@@ -111,7 +111,7 @@ object AnvilHelper : Module(
         if (!running) return
         running = false
         CursorGlide.cancel()
-        mc.player?.sendSystemMessage(ChatPrefix.msg("§cAnvil Helper off §7($reason)"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Anvil Helper", "§cAnvil Helper off §7($reason)"))
     }
 }
 //#endif

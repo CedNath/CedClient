@@ -62,7 +62,7 @@ object AutoFusion : Module(
                         closedTicks = 0
                         lastClickAt = System.currentTimeMillis()
                         lastClickTitle = cs.title.string
-                        mc.player?.sendSystemMessage(ChatPrefix.msg("§aAuto Fusion on §7(close the menu to stop)"))
+                        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Auto Fusion", "§aAuto Fusion on §7(close the menu to stop)"))
                     }
                 }
                 true
@@ -74,7 +74,7 @@ object AutoFusion : Module(
         armed = false
         lastClickTitle = null
         CursorGlide.cancel()
-        mc.player?.sendSystemMessage(ChatPrefix.msg("§cAuto Fusion off §7($reason)"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Auto Fusion", "§cAuto Fusion off §7($reason)"))
     }
 
     private fun tick() {

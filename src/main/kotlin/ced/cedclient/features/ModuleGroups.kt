@@ -9,7 +9,8 @@ object ModuleGroups {
         "Render" to listOf(
             "Highlights" to listOf("StarredMobHighlight", "FloorDrops"),
             "World" to listOf("Fullbright", "Clean View", "Render Optimizer", "Zoom"),
-            "Items & Tooltips" to listOf("Vanilla Textures", "Custom Tooltips", "Scrollable Tooltips"),
+            "Items & Tooltips" to listOf("Vanilla Textures", "Old Stars", "Custom Tooltips", "Scrollable Tooltips"),
+            "Screen" to listOf("Crosshair", "Hiders"),
         ),
         "HUD" to listOf(
             "Scoreboard & Tab" to listOf("Compact Scoreboard", "Compact Tab"),
@@ -18,10 +19,11 @@ object ModuleGroups {
         ),
         "Cosmetic" to listOf(
             "World" to listOf("Cosmetic Blocks"),
-            "Players" to listOf("Custom Nametag", "Cosmetics", "Player Scale"),
+            "Players" to listOf("Custom Nametag", "Cosmetics", "Player Scale", "Hide Armor"),
+            "Effects" to listOf("Falling Petals"),
         ),
         "Skyblock" to listOf(
-            "Dungeons" to listOf("Dungeon Map", "Leap Menu", "Dungeon Splits", "Positional Messages", "F7SoundCap", "CustomHypeSound", "Explosive Shot Damage"),
+            "Dungeons" to listOf("Dungeon Map", "Leap Menu", "Dungeon Splits", "Positional Messages", "F7SoundCap", "CustomHypeSound", "Explosive Shot Damage", "Room Times", "Leap Counter", "Secrets", "Simon Says Lines", "Dungeonbreaker Sound"),
             "Hunting" to listOf("Critter Safari"),
             "Rift" to listOf("Sun Gecko"),
             "Slayers" to listOf("Slayer Tracker"),
@@ -41,9 +43,10 @@ object ModuleGroups {
         ),
         "Misc" to listOf(
             "General" to listOf("Mod Settings", "AutoSprint", "WarpShortcuts", "InventoryButtons", "HideRecipeBook"),
-            "Chat" to listOf("Chat Features", "ChatFilter"),
-            "Window & Connection" to listOf("ScreenshotTweaks", "Borderless Fullscreen", "Keep Connection"),
-            "Panels" to listOf("Advanced Mode", "Reset Panels"),
+            "Chat" to listOf("Chat Features", "ChatFilter", "Party Commands"),
+            "Window & Connection" to listOf("ScreenshotTweaks", "Borderless Fullscreen", "Keep Connection", "Texture Pack Fix"),
+            "Media" to listOf("Spotify"),
+            "Panels" to listOf("Advanced Mode", "Reset Panels", "Chat Prefix"),
         ),
     )
 

@@ -215,6 +215,19 @@ object DungeonState {
     var f7P3Section: Int? = null
         private set
 
+    /** F7 phase (1-5) a point at height [y] is in. */
+    fun f7PhaseAt(y: Double) = when {
+        y > 210 -> 1
+        y > 155 -> 2
+        y > 100 -> 3
+        y > 45 -> 4
+        else -> 5
+    }
+
+    /** Which phase-3 section (1-4) a point is in, null outside them. */
+    fun f7P3SectionAt(x: Double, y: Double, z: Double): Int? =
+        f7P3Sections.indices.firstOrNull { f7P3Sections[it].contains(x, y, z) }?.plus(1)
+
     private var lastLevel: ClientLevel? = null
     private var rejoinCheckTicks = 0
     private var classCheckTicks = 0

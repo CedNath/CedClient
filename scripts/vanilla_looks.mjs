@@ -5,8 +5,8 @@
 //   tar xzf repo.tgz --wildcards '*/items/*'
 //   node scripts/vanilla_looks.mjs <extracted>/items
 // Output: { "ITEM_ID": "legacy_item_id:damage[:skin texture hash]" }, "=modern_item_id:0[...]" when the entry already had a
-// vanilla item_model (drills: diamond_pickaxe drawn as prismarine_shard). Entries already on Hypixel's own models are left
-// out, so those items keep Hypixel's texture.
+// vanilla item_model (drills: diamond_pickaxe drawn as prismarine_shard). Entries already on Hypixel's own models fall back to
+// their base item. Items newer than the snapshot aren't in the output, so they keep Hypixel's texture.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -21,8 +21,11 @@ for (const f of fs.readdirSync(dir).sort()) {
     if (!f.endsWith(".json")) continue;
     const o = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
     if (!o.internalname || !o.itemid) continue;
-    const model = o.nbttag?.match(MODEL);
-    if (model && model[1] !== "minecraft") continue;
+    // Entries already on one of Hypixel's models (Giant's Sword, Hellfire Rod, ...) get their plain base item.
+    const found = o.nbttag?.match(MODEL);
+    const model = found && found[1] === "minecraft" ? found : null;
+    // Those that are only paper/deadbush placeholders (keys, Summoning Eye, ...) have no real old look: skip them.
+    if (found && !model && /^minecraft:(paper|deadbush)$/.test(o.itemid)) continue;
     let look = model ? `=${model[2]}:0` : `${o.itemid.replace(/^minecraft:/, "")}:${o.damage ?? 0}`;
     const value = (o.itemid.endsWith("skull") || model?.[2] === "player_head") && o.nbttag?.match(VALUE)?.[1];
     const hash = value && Buffer.from(value, "base64").toString("utf8").match(SKIN)?.[1];

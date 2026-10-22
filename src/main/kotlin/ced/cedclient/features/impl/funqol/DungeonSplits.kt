@@ -634,7 +634,7 @@ object DungeonSplits : Module(
     }
 
     private fun say(text: String) {
-        mc.player?.sendSystemMessage(ChatPrefix.msg("$text"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Dungeon Splits", "$text"))
     }
 
     private fun load() {

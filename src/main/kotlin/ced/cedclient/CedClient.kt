@@ -189,6 +189,9 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.render.CustomTooltips)
         ModuleManager.register(ced.cedclient.features.impl.render.ScrollableTooltips)
         ModuleManager.register(Zoom)
+        ModuleManager.register(ced.cedclient.features.impl.render.CrosshairTweaks)
+        ModuleManager.register(ced.cedclient.features.impl.render.Hiders)
+        ModuleManager.register(ced.cedclient.features.impl.render.OldStars)
 
         // HUD: vanilla UI tweaks, then info overlays
         ModuleManager.register(CompactScoreboard)
@@ -204,6 +207,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CustomNametag)
         ModuleManager.register(HardcodedCosmetics)
         ModuleManager.register(PlayerScale)
+        ModuleManager.register(ced.cedclient.features.impl.render.HideArmor)
+        ModuleManager.register(ced.cedclient.features.impl.render.FallingPetals)
 
 //#if CHEAT
         // Skyblock: dungeons, sounds, menus
@@ -220,7 +225,10 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(VampireSlayer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RoomTimes)
-        ModuleManager.register(ced.cedclient.features.impl.funqol.SecretHighlight)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.LeapCounter)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.Secrets)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SimonSaysLines)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.DungeonBreakerSound)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ExplosiveShotDamage)
         ModuleManager.register(SearchOverlay)
         ModuleManager.register(ced.cedclient.features.impl.misc.AuctionPriceInput)
@@ -233,12 +241,16 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(HideRecipeBook)
         ModuleManager.register(ChatFilter)
         ModuleManager.register(ChatFeatures)
+        ModuleManager.register(ced.cedclient.features.impl.misc.PartyCommands)
         ModuleManager.register(ScreenshotTweaks)
         ModuleManager.register(BorderlessFullscreen)
         ModuleManager.register(KeepConnection)
+        ModuleManager.register(ced.cedclient.features.impl.misc.TexturePackFix)
+        ModuleManager.register(ced.cedclient.features.impl.misc.Spotify)
         ModuleManager.register(Theme)
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(ResetPanels)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ChatPrefixSettings)
 
 //#if CHEAT
         // Cheats: ESP, camera, then the auto-catch / auto-play helpers (left out of the Legit build)
@@ -294,9 +306,19 @@ class CedClient : ClientModInitializer {
             ced.cedclient.features.impl.funqol.DungeonMap.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "secret_hud")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.SecretHud.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "room_times")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.RoomTimes.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "leap_counter")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.LeapCounter.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")

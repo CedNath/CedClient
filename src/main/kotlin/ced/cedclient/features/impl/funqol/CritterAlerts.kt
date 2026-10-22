@@ -108,7 +108,7 @@ internal object CritterAlerts {
         mc.gui.setTimes(5, 50, 15)
         mc.gui.setTitle(Component.literal(title).withColor(color and 0xFFFFFF))
         mc.gui.setSubtitle(Component.literal(subtitle))
-        mc.player?.sendSystemMessage(ChatPrefix.msg("§e$title" + if (subtitle.isEmpty()) "" else " §7- §f$subtitle"))
+        mc.player?.sendSystemMessage(ChatPrefix.msgFor("Critter Safari", "§e$title" + if (subtitle.isEmpty()) "" else " §7- §f$subtitle"))
         if (CritterSafari.alertSound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
         if (setting.value == "Alert + Party") partyQueue.addLast(party)
     }

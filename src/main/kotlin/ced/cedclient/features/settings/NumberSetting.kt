@@ -33,13 +33,15 @@ class NumberSetting(
     val min: Double,
     val max: Double,
     val step: Double = 1.0,
-    description: String = ""
+    description: String = "",
+    /** Typed and arrow-key values may go past [max] (the slider still spans min..max). */
+    val uncapped: Boolean = false
 ) : RenderableSetting<Double>(name, description), Saving {
 
     override var value: Double = default
         set(newValue) {
             val snapped = if (step > 0.0) (newValue / step).roundToLong() * step else newValue
-            field = snapped.coerceIn(min, max)
+            field = if (uncapped) snapped.coerceAtLeast(min) else snapped.coerceIn(min, max)
         }
 
     private var dragging = false

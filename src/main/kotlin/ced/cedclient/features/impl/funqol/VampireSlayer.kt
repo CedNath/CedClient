@@ -84,6 +84,7 @@ object VampireSlayer : Module(
     private val beaconAlert = BooleanSetting("Voidgloom Beacons", true, "Title + boxes for the beacons the boss throws and places.")
     private val beaconColor = ColorSetting("Beacon Color", Color(255, 0, 0)).withDependency { beaconAlert.value }
     private val beaconStyle = DropdownSetting("Beacon Style", BOX_STYLES, "Outline").withDependency { beaconAlert.value }
+    private val laserTimer = BooleanSetting("Voidgloom Laser Timer", true, "Title with the 8 s countdown of the laser phase.")
     private val nukekubi = BooleanSetting("Nukekubi Skulls", true, "Boxes the Voidgloom skull heads.")
     private val nukekubiColor = ColorSetting("Skull Color", Color(255, 170, 0)).withDependency { nukekubi.value }
     private val nukekubiStyle = DropdownSetting("Skull Style", BOX_STYLES, "Outline").withDependency { nukekubi.value }
@@ -95,7 +96,7 @@ object VampireSlayer : Module(
     // Inline: the main toggles. Everything else sits in grouped popups so the panel stays short.
     private val alertSettings: List<RenderableSetting<*>> = listOf(bossSoon, bossSpawned, minibossAlert, minibossBox, minibossColor)
     private val vampireSettings: List<RenderableSetting<*>> = listOf(steakAlert, steakColor, twinclawsAlert, ichor, ichorColor, ichorSpots, ichorSpotColor, springs, springColor, effigies, effigyColor, effigyXray)
-    private val otherSettings: List<RenderableSetting<*>> = listOf(beaconAlert, beaconColor, beaconStyle, nukekubi, nukekubiColor, nukekubiStyle, attunementAlert, firePits, firePillar, hatchlings)
+    private val otherSettings: List<RenderableSetting<*>> = listOf(beaconAlert, beaconColor, beaconStyle, laserTimer, nukekubi, nukekubiColor, nukekubiStyle, attunementAlert, firePits, firePillar, hatchlings)
     private val popupSettings = alertSettings + vampireSettings + otherSettings
 
     private fun popup(title: String, vararg columns: SettingsPopup.Section) =
@@ -109,7 +110,7 @@ object VampireSlayer : Module(
             SettingsPopup.Section("Rift", listOf(ichor, ichorColor, ichorSpots, ichorSpotColor, springs, springColor, effigies, effigyColor, effigyXray)))
     }
     private val othersButton = ActionSetting("Other Slayers", "Voidgloom beacons + skulls, Inferno attunement / fire pits / pillars, Tarantula hatchlings.") {
-        popup("Other Slayers", SettingsPopup.Section("Voidgloom", listOf(beaconAlert, beaconColor, beaconStyle, nukekubi, nukekubiColor, nukekubiStyle)),
+        popup("Other Slayers", SettingsPopup.Section("Voidgloom", listOf(beaconAlert, beaconColor, beaconStyle, laserTimer, nukekubi, nukekubiColor, nukekubiStyle)),
             SettingsPopup.Section("Inferno / Tarantula", listOf(attunementAlert, firePits, firePillar, hatchlings)))
     }
 
@@ -119,7 +120,7 @@ object VampireSlayer : Module(
         "HP" to BooleanSetting("Boss HP", true), "Steak at" to BooleanSetting("Steak At", true),
         "Mania circles" to BooleanSetting("Mania Circles", true), "Twinclaws" to BooleanSetting("Twinclaws", true),
         "Attunement" to BooleanSetting("Attunement", true), "Hits left" to BooleanSetting("Hits Left", true),
-        "Fire pillar" to BooleanSetting("Fire Pillar", true), "Beacons" to BooleanSetting("Beacons", true),
+        "Fire pillar" to BooleanSetting("Fire Pillar", true), "Laser phase" to BooleanSetting("Laser Phase", true), "Beacons" to BooleanSetting("Beacons", true),
         "Last kill" to BooleanSetting("Last Kill", true), "Kills" to BooleanSetting("Kills / Hour", true),
         "Avg / best" to BooleanSetting("Avg / Best", true), "RNG meter" to BooleanSetting("RNG Meter", true),
         "Effigies" to BooleanSetting("Effigies Line", true))
@@ -332,6 +333,8 @@ object VampireSlayer : Module(
         if (firePits.value && b.firePitsNow()) alert("§c§lFIRE PITS", "", 0.8f)
         val p = b.pillar
         if (firePillar.value && p != null) title("§6§lFIRE PILLAR", "§e%.1fs".format(p))
+        val laser = b.laser
+        if (laserTimer.value && laser != null) title("§b§lLASER", "§e%.1fs".format(laser))
     }
 
     private fun ping(pitch: Float) = mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
@@ -536,6 +539,7 @@ object VampireSlayer : Module(
             b.attunement?.let { out += Triple("Attunement", it, 0xFFFFAA00.toInt()) }
             b.hits?.let { out += Triple("Hits left", it.toString(), 0xFFFF5555.toInt()) }
             b.pillar?.let { out += Triple("Fire pillar", "%.1fs".format(it), 0xFFFFAA00.toInt()) }
+            b.laser?.let { out += Triple("Laser phase", "%.1fs".format(it), 0xFF55FFFF.toInt()) }
             if (b.beacons.isNotEmpty()) out += Triple("Beacons", b.beacons.size.toString(), 0xFFFF5555.toInt())
         }
         lastKill?.let { out += Triple("Last kill", time(it), -1) }
