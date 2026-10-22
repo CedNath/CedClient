@@ -306,6 +306,11 @@ class CedClient : ClientModInitializer {
             ced.cedclient.features.impl.funqol.DungeonMap.render(graphics, tickCounter)
         }
         HudElementRegistry.addLast(
+            Identifier.fromNamespaceAndPath("cedclient", "spotify")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.misc.Spotify.render(graphics, tickCounter)
+        }
+        HudElementRegistry.addLast(
             Identifier.fromNamespaceAndPath("cedclient", "secret_hud")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.SecretHud.render(graphics, tickCounter)

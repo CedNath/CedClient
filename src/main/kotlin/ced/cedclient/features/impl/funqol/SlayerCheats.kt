@@ -167,7 +167,7 @@ object SlayerCheats : Module(
         if (iceStage != 0) return false
         val slot = hotbarSlot(match) ?: return false
         val previous = player.inventory.selectedSlot
-        player.inventory.setSelectedSlot(slot)
+        player.inventory.setSelectedSlot(slot)  
         returnSlot = if (previous != slot) previous else -1
         iceStage = 1
         iceStageAt = System.currentTimeMillis()
