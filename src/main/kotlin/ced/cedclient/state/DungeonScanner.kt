@@ -41,10 +41,10 @@ object DungeonScanner {
     private var lastLevel: ClientLevel? = null
 
     /** Identified room on tile ([i], [j]) of the 6x6 grid (i along x, j along z), null = not seen yet. */
-    fun room(i: Int, j: Int): RoomInfo? = rooms[i * 6 + j]
+    fun room(i: Int, j: Int): RoomInfo? = if (i in 0..5 && j in 0..5) rooms[i * 6 + j] else null // a player outside the grid (boss room, entrance, lobby) is not a room
 
     /** What sits between room tiles on the 11x11 grid spot ([i], [j]) (exactly one index odd), null = wall / not seen. */
-    fun spot(i: Int, j: Int): Spot? = spots[i * 11 + j]
+    fun spot(i: Int, j: Int): Spot? = if (i in 0..10 && j in 0..10) spots[i * 11 + j] else null
 
     fun reset() {
         rooms.fill(null)
