@@ -100,7 +100,7 @@ object InventoryButtons : Module(
         addSettings(openEditor, preset, loadPreset, newName, savePreset, deletePreset, nextKey)
         ClientTickEvents.END_CLIENT_TICK.register {
             val mc = Minecraft.getInstance()
-            val down = isEnabled && mc.screen == null && nextKey.value > 0 && InputConstants.isKeyDown(mc.window, nextKey.value)
+            val down = isEnabled && mc.gui.screen() == null && nextKey.value > 0 && InputConstants.isKeyDown(mc.window, nextKey.value)
             if (down && !keyHeld) cyclePreset()
             keyHeld = down
         }
