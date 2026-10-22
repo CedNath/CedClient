@@ -162,7 +162,7 @@ object DungeonMap : Module(
     /** One "Map Options" button in the panel; each column's sections open in a popup from it. */
     private fun addPopupSettings(vararg columns: List<Pair<String, List<RenderableSetting<*>>>>) {
         addSettings(ActionSetting("Map Options", "Rooms, players, card style and colours.") {
-            (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Dungeon Map", columns.map { col -> col.map { (title, list) -> SettingsPopup.Section(title, list) } }, height = 650f))
+            (mc.gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Dungeon Map", columns.map { col -> col.map { (title, list) -> SettingsPopup.Section(title, list) } }, height = 650f))
         })
         val all = columns.flatMap { col -> col.flatMap { it.second } }
         addSettings(*all.toTypedArray())
@@ -249,7 +249,7 @@ object DungeonMap : Module(
     private fun toMap(world: Double) = ((world - START) / 32 * PITCH + ROOM / 2).toFloat()
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui || !DungeonState.active || DungeonState.inBoss) return
+        if (!isEnabled || mc.gui.hud.isHidden() || !DungeonState.active || DungeonState.inBoss) return
         renderInternal(g)
     }
 
@@ -577,7 +577,7 @@ object DungeonMap : Module(
         for (cx in chunks) for (cz in chunks) {
             val chunk = level.chunkSource.getChunk(cx, cz, ChunkStatus.FULL, false) ?: continue
             for ((pos, be) in chunk.blockEntities) {
-                if (be.type != BlockEntityType.TRAPPED_CHEST) continue
+                if (be.type != net.minecraft.world.level.block.entity.BlockEntityTypes.TRAPPED_CHEST) continue
                 val i = Math.floorDiv(pos.x - START + 16, 32)
                 val j = Math.floorDiv(pos.z - START + 16, 32)
                 if (i !in 0..5 || j !in 0..5) continue
@@ -606,14 +606,15 @@ object DungeonMap : Module(
     }
 
     init {
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        // 26.2: no BufferSource, boxes go through submitCustomGeometry in COLLECT_SUBMITS (see DoorESP).
+        LevelRenderEvents.COLLECT_SUBMITS.register { context ->
             val chests = mimicChests
-            if (!isEnabled || !mimicEsp.value || chests.isEmpty()) return@AfterSolidFeatures
-            val cam = context.gameRenderer().mainCamera.position()
-            val buffer = context.bufferSource().getBuffer(CustomRenderType.LINES_ESP)
-            for (pos in chests) LineBox.draw(context.poseStack(), buffer, AABB(pos).move(-cam.x, -cam.y, -cam.z), 1f, 0.15f, 0.15f, 1f)
-            context.bufferSource().endBatch()
-        })
+            if (!isEnabled || !mimicEsp.value || chests.isEmpty()) return@register
+            val cam = context.gameRenderer().mainCamera().position()
+            context.submitNodeCollector().submitCustomGeometry(context.poseStack(), CustomRenderType.LINES_ESP) { pose, buffer ->
+                for (pos in chests) LineBox.draw(pose, buffer, AABB(pos).move(-cam.x, -cam.y, -cam.z), 1f, 0.15f, 0.15f, 1f)
+            }
+        }
     }
 //#endif
 

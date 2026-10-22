@@ -20,8 +20,8 @@ object OldStars : Module(
     Category.Render,
     "Reverts Hypixel star item names to the old colored-star layout, with master stars before normal stars."
 ) {
-    private val colors = ChatFormatting.entries.filter { it.isColor }
-        .associateBy { it.getName().split('_').joinToString(" ") { w -> w.replaceFirstChar(Char::uppercase) } }
+    private val colors = ChatFormatting.entries.take(16)
+        .associateBy { it.name.lowercase().split('_').joinToString(" ") { w -> w.replaceFirstChar(Char::uppercase) } }
     private val names = colors.keys.toList()
 
     private val normalColor = DropdownSetting("Normal Star Color", names, "Gold", "Color of the first five stars.")

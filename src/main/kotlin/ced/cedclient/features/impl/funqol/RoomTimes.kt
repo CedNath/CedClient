@@ -123,7 +123,7 @@ object RoomTimes : Module(
         addSettings(hud, startTimer, chatTimes, onlyPb, openListButton, resetButton, debug)
 
         ClientTickEvents.END_CLIENT_TICK.register {
-            if (openList) { openList = false; mc.setScreen(RoomTimesScreen()) }
+            if (openList) { openList = false; mc.gui.setScreen(RoomTimesScreen()) }
             val level = mc.level ?: return@register
             val player = mc.player ?: return@register
             if (!isEnabled || !DungeonState.active || DungeonState.inBoss) { current = null; return@register }
@@ -287,7 +287,7 @@ object RoomTimes : Module(
     // ------------------------------------------------------------------
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || !hud.value || mc.options.hideGui || !DungeonState.active || DungeonState.inBoss || current == null) return
+        if (!isEnabled || !hud.value || mc.gui.hud.isHidden() || !DungeonState.active || DungeonState.inBoss || current == null) return
         renderInternal(g)
     }
 

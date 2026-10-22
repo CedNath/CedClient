@@ -78,17 +78,18 @@ object SimonSaysLines : Module(
             InteractionResult.PASS
         })
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!active()) return@AfterSolidFeatures
+        // 26.2: no BufferSource, lines go through submitCustomGeometry in COLLECT_SUBMITS (see DoorESP).
+        LevelRenderEvents.COLLECT_SUBMITS.register { context ->
+            if (!active()) return@register
             val rest = order.drop(progress).let { if (onlyNext.value) it.take(2) else it }
-            if (rest.size < 2) return@AfterSolidFeatures
-            val cam = context.gameRenderer().mainCamera.position()
+            if (rest.size < 2) return@register
+            val cam = context.gameRenderer().mainCamera().position()
             val points = rest.map { Vec3(it.x + 0.2, it.y + 0.5, it.z + 0.5).subtract(cam) }
-            val buffer = context.bufferSource().getBuffer(CustomRenderType.LINES_DEPTH)
             val c = color.value
-            LineBox.polyline(context.poseStack(), buffer, points, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-            context.bufferSource().endBatch()
-        })
+            context.submitNodeCollector().submitCustomGeometry(context.poseStack(), CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                LineBox.polyline(pose, buffer, points, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+            }
+        }
     }
 
     override fun onDisable() = reset()

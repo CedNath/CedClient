@@ -42,7 +42,7 @@ object Hiders : Module(
     init { addSettings(hideChat, peekKey, hideParticles, particleRadius, playerMode, playerRadius, scaleX, scaleY, scaleZ) }
 
     @JvmStatic fun hideChatHud(): Boolean {
-        if (!isEnabled || !hideChat.value || mc.screen is ChatScreen) return false
+        if (!isEnabled || !hideChat.value || mc.gui.screen() is ChatScreen) return false
         val key = peekKey.value
         return key < 0 || !InputConstants.isKeyDown(mc.window, key)
     }

@@ -78,7 +78,7 @@ object Spotify : Module(
                 announced = t
                 mc.player?.sendSystemMessage(songLine(t))
             }
-            if (!keybinds.value || mc.screen != null) { down.clear(); return@register }
+            if (!keybinds.value || mc.gui.screen() != null) { down.clear(); return@register }
             if (pressed(prevKey.value)) press(VK_PREV)
             if (pressed(pauseKey.value)) press(VK_PLAY_PAUSE)
             if (pressed(nextKey.value)) press(VK_NEXT)
@@ -154,7 +154,7 @@ object Spotify : Module(
             .then(ClientCommands.literal("share").executes { ctx ->
                 val t = track
                 if (!isEnabled || t == null) ctx.source.sendFeedback(ChatPrefix.msgFor("Spotify", "§7No Spotify track has been detected yet."))
-                else mc.setScreen(net.minecraft.client.gui.screens.ChatScreen("Now playing: $t", false))
+                else mc.gui.setScreen(net.minecraft.client.gui.screens.ChatScreen("Now playing: $t", false))
                 1
             })
 }

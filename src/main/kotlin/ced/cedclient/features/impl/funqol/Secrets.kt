@@ -23,7 +23,7 @@ object Secrets : Module(
     /** A feature's on / off switch plus one "<title> Options" button that opens its settings in a popup. */
     private fun feature(toggle: BooleanSetting, title: String, desc: String, columns: List<List<SettingsPopup.Section>>, actions: List<ActionSetting> = emptyList()) {
         addSettings(toggle, ActionSetting("$title Options", desc) {
-            (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(SettingsPopup(title, columns, actions))
+            (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(SettingsPopup(title, columns, actions))
         })
         val all = columns.flatten().flatMap { it.settings }
         addSettings(*all.toTypedArray())

@@ -98,9 +98,9 @@ object SecretHighlight {
 
         on<ChatMessageEvent> {
             if (!lockedTitle.value || !active() || !it.unformattedText.trim().equals("That chest is locked!", true)) return@on
-            mc.gui.setTimes(3, (lockedSeconds.value * 20).toInt(), 10)
-            mc.gui.setTitle(Component.literal(lockedText.value).withColor(lockedColor.value.rgba and 0xFFFFFF))
-            mc.gui.setSubtitle(Component.empty())
+            mc.gui.hud.setTimes(3, (lockedSeconds.value * 20).toInt(), 10)
+            mc.gui.hud.setTitle(Component.literal(lockedText.value).withColor(lockedColor.value.rgba and 0xFFFFFF))
+            mc.gui.hud.setSubtitle(Component.empty())
         }
 
         UseBlockCallback.EVENT.register(UseBlockCallback { _, level, _, hit ->
@@ -135,24 +135,21 @@ object SecretHighlight {
             }
         }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (marks.isEmpty() || !active()) return@AfterSolidFeatures
+        // 26.2: no BufferSource, boxes go through submitCustomGeometry in COLLECT_SUBMITS (see DoorESP).
+        LevelRenderEvents.COLLECT_SUBMITS.register { context ->
+            if (marks.isEmpty() || !active()) return@register
             val poseStack = context.poseStack()
-            val cam = context.gameRenderer().mainCamera.position()
-            val bufferSource = context.bufferSource()
+            val cam = context.gameRenderer().mainCamera().position()
+            val submit = context.submitNodeCollector()
             val shown = marks.map { it.box.move(-cam.x, -cam.y, -cam.z) }
             val c = color.value
-            if (style.value != "Outline") {
-                val fill = bufferSource.getBuffer(if (throughWalls.value) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED)
-                for (box in shown) FilledBox.draw(poseStack, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
-                bufferSource.endBatch()
+            if (style.value != "Outline") submit.submitCustomGeometry(poseStack, if (throughWalls.value) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, fill ->
+                for (box in shown) FilledBox.draw(pose, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
             }
-            if (style.value != "Filled") {
-                val buffer = bufferSource.getBuffer(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
-                for (box in shown) LineBox.draw(poseStack, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-                bufferSource.endBatch()
+            if (style.value != "Filled") submit.submitCustomGeometry(poseStack, if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                for (box in shown) LineBox.draw(pose, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
             }
-        })
+        }
     }
 
     fun clear() { marks.clear(); hitBats.clear() }
