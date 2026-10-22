@@ -210,13 +210,17 @@ object UpdateChecker {
         }
     }
 
+    /** Full path: the game's PATH (a launcher's, a trimmed one) isn't guaranteed to include PowerShell. */
+    private fun powershellExe(): String =
+        File(System.getenv("SystemRoot") ?: "C:\\Windows", "System32\\WindowsPowerShell\\v1.0\\powershell.exe").takeIf { it.isFile }?.path ?: "powershell"
+
     private fun startSwapHelper(old: Path, pending: Path, final: Path) {
         val pid = ProcessHandle.current().pid()
         val windows = System.getProperty("os.name").lowercase().contains("win")
         // Single-quoted in both shells: PowerShell doubles a quote, sh closes, escapes and reopens it.
         fun q(p: Path) = p.toAbsolutePath().toString().replace("'", if (windows) "''" else "'\\''")
         val command = if (windows) listOf(
-            "powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
+            powershellExe(), "-NoProfile", "-WindowStyle", "Hidden", "-Command",
             "Wait-Process -Id $pid -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; " +
                 "Remove-Item -LiteralPath '${q(old)}' -Force -ErrorAction SilentlyContinue; " +
                 "Move-Item -LiteralPath '${q(pending)}' -Destination '${q(final)}' -Force"

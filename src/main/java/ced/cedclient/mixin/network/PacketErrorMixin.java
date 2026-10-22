@@ -24,7 +24,12 @@ public abstract class PacketErrorMixin {
     @Inject(method = "onPacketError", at = @At("HEAD"), cancellable = true)
     private void cedclient$keepConnection(Packet<?> packet, Exception cause, CallbackInfo ci) {
         if (!KeepConnection.INSTANCE.isEnabled()) return;
-        cedclient$LOGGER.error("Failed to handle packet {}, staying connected", packet, cause);
+        // A packet that lands while no world is loaded (switching worlds) is normal: drop it quietly, no error report for it.
+        if (cause instanceof NullPointerException && String.valueOf(cause.getMessage()).contains("\"this.minecraft.level\" is null")) {
+            cedclient$LOGGER.warn("Dropped {}, no world loaded", packet.getClass().getSimpleName());
+        } else {
+            cedclient$LOGGER.error("Failed to handle packet {}, staying connected", packet, cause);
+        }
         ci.cancel();
     }
 }
