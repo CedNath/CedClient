@@ -11,6 +11,7 @@ import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonState
 import ced.cedclient.utils.ChatPrefix
+import ced.cedclient.utils.safely
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import ced.cedclient.features.settings.Setting.Companion.withDependency
@@ -122,7 +123,7 @@ object RoomTimes : Module(
         SecretSignals.ensure()
         addSettings(hud, startTimer, chatTimes, onlyPb, openListButton, resetButton, debug)
 
-        ClientTickEvents.END_CLIENT_TICK.register {
+        ClientTickEvents.END_CLIENT_TICK.register { safely("Room Times") {
             if (openList) { openList = false; mc.setScreen(RoomTimesScreen()) }
             val level = mc.level ?: return@register
             val player = mc.player ?: return@register
@@ -139,7 +140,7 @@ object RoomTimes : Module(
             staleFound = lastBarFound; staleTotal = lastBarTotal; staleUntil = now + STALE_MS
             current = target?.let { t -> rooms.getOrPut(t.name) { Room(t.name, t.secrets, pendingSince) } }
             if (target != null) dbg("in room ${target.name} (${target.secrets} secrets, shared=${current?.shared}, found=${current?.found?.size})")
-        }
+        } }
         // Items picked up are the other way a secret reaches you (the count only goes up).
         ClientTickEvents.END_CLIENT_TICK.register {
             val inv = mc.player?.inventory ?: return@register
@@ -323,8 +324,8 @@ object RoomTimes : Module(
     }
 
     override val label = "Room Times"
-    private const val DEFAULT_X = 1140
-    private const val DEFAULT_Y = 300
+    private const val DEFAULT_X = 1157
+    private const val DEFAULT_Y = 683
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y
     override var panelScale = 1f

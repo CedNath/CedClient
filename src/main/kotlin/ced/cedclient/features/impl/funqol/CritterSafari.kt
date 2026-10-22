@@ -634,16 +634,16 @@ object CritterSafari : Module(
     }
 
     /** Position / scale persistence shared by the two panels (critter_hud.json). */
-    abstract class PanelHud(override val label: String, private val key: String, private val defX: Int, private val defY: Int) : HudElement {
+    abstract class PanelHud(override val label: String, private val key: String, private val defX: Int, private val defY: Int, private val defScale: Float = 1f) : HudElement {
         override var panelX = defX
         override var panelY = defY
-        override var panelScale = 1f
+        override var panelScale = defScale
         override var lastWidth = 0
         override var lastHeight = 0
 
         init { HudPositions.load(this, key) }
         override fun save() = HudPositions.save()
-        override fun resetPosition() { panelX = defX; panelY = defY; panelScale = 1f }
+        override fun resetPosition() { panelX = defX; panelY = defY; panelScale = defScale }
         override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
     }
 
@@ -667,7 +667,7 @@ object CritterSafari : Module(
         }
     }
 
-    object ProgressHud : PanelHud("Critter Progress", "progress", 2, 5) {
+    object ProgressHud : PanelHud("Critter Progress", "progress", 3, 2, 0.9f) {
         fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
             if (!isEnabled || Minecraft.getInstance().options.hideGui || !showsHere()) return
             draw(g, progressPanel(), this)
@@ -687,7 +687,7 @@ object CritterSafari : Module(
         return p
     }
 
-    object TradesHud : PanelHud("Critter Trades", "trades", 147, 6) {
+    object TradesHud : PanelHud("Critter Trades", "trades", 144, 6, 0.7f) {
         fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
             if (!isEnabled || !showTrades.value || Minecraft.getInstance().options.hideGui || !showsHere()) return
             draw(g, tradesPanel() ?: return, this)
@@ -698,7 +698,7 @@ object CritterSafari : Module(
         }
     }
 
-    object MissingHud : PanelHud("Critter Missing", "missing", 986, 4) {
+    object MissingHud : PanelHud("Critter Missing", "missing", 978, 0) {
         fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
             if (!isEnabled || !showMissing.value || Minecraft.getInstance().options.hideGui) return
             val b = biome ?: return

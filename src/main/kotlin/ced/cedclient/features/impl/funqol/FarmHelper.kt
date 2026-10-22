@@ -363,8 +363,8 @@ object FarmHelper : Module(
     }
 
     override val label = "FarmHelper"
-    private const val DEFAULT_X = 6
-    private const val DEFAULT_Y = 220
+    private const val DEFAULT_X = 4
+    private const val DEFAULT_Y = 255
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y
     override var panelScale = 1f

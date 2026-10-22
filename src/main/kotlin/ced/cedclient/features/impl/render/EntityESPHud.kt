@@ -39,9 +39,9 @@ object EntityESPHud : HudElement {
     private const val MAX_SCALE = 3.0f
 
     override var panelX: Int = 2
-    override var panelY: Int = 134
+    override var panelY: Int = 111
     override var panelScale: Float = 0.6f
-    override fun resetPosition() { panelX = 2; panelY = 134; panelScale = 0.6f }
+    override fun resetPosition() { panelX = 2; panelY = 111; panelScale = 0.6f }
 
     // logical (unscaled) size — updated every render() call, used for hit-testing
     // note: on-screen rendered size is this * panelScale

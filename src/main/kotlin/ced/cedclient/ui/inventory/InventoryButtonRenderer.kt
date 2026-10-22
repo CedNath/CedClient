@@ -1,5 +1,6 @@
 package ced.cedclient.ui.inventory
 
+import ced.cedclient.features.impl.misc.SearchOverlay
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
@@ -97,6 +98,10 @@ object InventoryButtonRenderer {
         val bx = left + btn.xOff
         val by = top + btn.yOff
 
+        btn.sbItem?.let { id ->
+            SearchOverlay.stackFor(id)?.let { g.item(it, bx + 2, by + 2) }
+            return
+        }
         if (btn.iconIsItem) {
             val iconId = btn.icon ?: return
             val item = BuiltInRegistries.ITEM.getValue(iconId)
@@ -133,6 +138,11 @@ object InventoryButtonRenderer {
         // font's metrics may read a little larger/smaller in-game than the
         // vanilla font did, so this is worth a visual once-over and a tweak
         // to taste if it looks off.
-        NVGRenderer.text(btn.name, bx + 4f, by + 4f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        // Centred above the button, on a dark pill so it stays readable over the icons and the world (below the button when it would leave the top of the screen).
+        val textW = NVGRenderer.textWidth(btn.name, 8f, NVGRenderer.defaultFont)
+        val tx = maxOf(4f, bx + btn.width / 2f - textW / 2f)
+        val ty = if (by >= 14f) by - 12f else by + btn.height + 3f
+        NVGRenderer.rect(tx - 3f, ty - 2f, textW + 6f, 11f, 0xCC000000.toInt(), 3f)
+        NVGRenderer.text(btn.name, tx, ty, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
     }
 }

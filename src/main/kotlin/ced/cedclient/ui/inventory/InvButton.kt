@@ -24,7 +24,10 @@ data class InvButton(
 
     // Behavior flags
     var showTextOnHover: Boolean = true,
-    var hideBlankName: Boolean = true
+    var hideBlankName: Boolean = true,
+
+    // A SkyBlock item (internal id) as the icon, drawn through SearchOverlay; wins over [icon]
+    var sbItem: String? = null
 ) {
 
     fun onClick() {

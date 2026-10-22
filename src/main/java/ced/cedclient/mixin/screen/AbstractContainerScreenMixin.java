@@ -51,6 +51,9 @@ public abstract class AbstractContainerScreenMixin {
             );
         }
 
+        // Spotify HUD: drawn last, in front of the inventory and its dim.
+        ced.cedclient.features.impl.misc.Spotify.renderOnTop(graphics);
+
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) (Object) this;
         ItemCooldowns.INSTANCE.renderInInventory(
                 graphics,

@@ -20,6 +20,7 @@ import ced.cedclient.state.DungeonState
 import ced.cedclient.state.DungeonTeam
 import ced.cedclient.render.cosmetic.RoomInfo
 import ced.cedclient.state.HotbarDungeonMap
+import ced.cedclient.utils.safely
 import ced.cedclient.utils.skyblockId
 import ced.cedclient.state.HotbarDungeonMap.RoomState
 import ced.cedclient.ui.clickgui.ClickGUI
@@ -147,6 +148,7 @@ object DungeonMap : Module(
             val player = mc.player ?: return@register
             if (!isEnabled || !DungeonState.active || DungeonState.inBoss) return@register
             // The map (checkmarks, player icons) every tick; the world scan every 10.
+            safely("Dungeon Map") {
             HotbarDungeonMap.update(level, player)
             if (clearSummary.value) ced.cedclient.state.DungeonClears.update(level, player)
             DungeonRunInfo.update()
@@ -156,6 +158,7 @@ object DungeonMap : Module(
 //#if CHEAT
             if (mimicDelay-- <= 0) { mimicDelay = 2; scanMimic(level) }
 //#endif
+            }
         }
     }
 
@@ -203,8 +206,8 @@ object DungeonMap : Module(
     private fun hidden(i: Int, j: Int) = !all && !explored(i, j)
 
     private fun tileColor(i: Int, j: Int): Int = when {
-        explored(i, j) -> roomColor(room(i, j)!!.type)
-        all -> darken(roomColor(room(i, j)!!.type))
+        explored(i, j) -> room(i, j)?.let { roomColor(it.type) } ?: unopenedColor.value.rgba
+        all -> room(i, j)?.let { darken(roomColor(it.type)) } ?: unopenedColor.value.rgba
         else -> unopenedColor.value.rgba
     }
 
@@ -250,7 +253,7 @@ object DungeonMap : Module(
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
         if (!isEnabled || mc.options.hideGui || !DungeonState.active || DungeonState.inBoss) return
-        renderInternal(g)
+        safely("Dungeon Map HUD") { renderInternal(g) }
     }
 
     /** A player to draw: world position, yaw, name (for the skin), marker colour. */
@@ -486,7 +489,7 @@ object DungeonMap : Module(
             val spanH = if (straight) (tiles.maxOf { it.second } - tiles.minOf { it.second } + 1) * PITCH - GAP else ROOM
             val states = tiles.mapNotNull { HotbarDungeonMap.roomStates[it] }
             val state = listOf(RoomState.FAILED, RoomState.GREEN, RoomState.CLEARED).firstOrNull { it in states }
-            val info = room(si, sj)!!
+            val info = room(si, sj) ?: continue
             val shown = !hidden(si, sj)
             val check = checkmarks.value && state != null
             val scale = labelSize.value.toFloat()
@@ -597,11 +600,13 @@ object DungeonMap : Module(
         val names = tiles.mapNotNull { (i, j) -> DungeonScanner.room(i, j)?.name }.toSet()
         if (names.isEmpty()) return
         val red = 0x88FF2020.toInt()
+        // Only rooms the map shows: an undiscovered one stays untinted (Show Undiscovered off), or the tint would give it away.
+        fun mimic(a: Int, b: Int) = DungeonScanner.room(a, b)?.name in names && !hidden(a, b)
         for (i in 0..5) for (j in 0..5) {
-            if (DungeonScanner.room(i, j)?.name !in names) continue
+            if (!mimic(i, j)) continue
             NVGRenderer.rect(i * PITCH, j * PITCH, ROOM, ROOM, red)
-            if (i < 5 && DungeonScanner.room(i + 1, j)?.name in names && spot(i * 2 + 1, j * 2) == Spot.SEPARATOR) NVGRenderer.rect(i * PITCH + ROOM, j * PITCH, GAP, ROOM, red)
-            if (j < 5 && DungeonScanner.room(i, j + 1)?.name in names && spot(i * 2, j * 2 + 1) == Spot.SEPARATOR) NVGRenderer.rect(i * PITCH, j * PITCH + ROOM, ROOM, GAP, red)
+            if (i < 5 && mimic(i + 1, j) && spot(i * 2 + 1, j * 2) == Spot.SEPARATOR) NVGRenderer.rect(i * PITCH + ROOM, j * PITCH, GAP, ROOM, red)
+            if (j < 5 && mimic(i, j + 1) && spot(i * 2, j * 2 + 1) == Spot.SEPARATOR) NVGRenderer.rect(i * PITCH, j * PITCH + ROOM, ROOM, GAP, red)
         }
     }
 
@@ -656,11 +661,12 @@ object DungeonMap : Module(
     }
 
     override val label = "Dungeon Map"
-    private const val DEFAULT_X = 1140
-    private const val DEFAULT_Y = 10
+    private const val DEFAULT_X = 2
+    private const val DEFAULT_Y = 111
+    private const val DEFAULT_SCALE = 1.9f
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y
-    override var panelScale = 1f
+    override var panelScale = DEFAULT_SCALE
     override var lastWidth = 0
         private set
     override var lastHeight = 0
@@ -680,6 +686,6 @@ object DungeonMap : Module(
         runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }
     }
 
-    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = 1f }
+    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = DEFAULT_SCALE }
     override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 }

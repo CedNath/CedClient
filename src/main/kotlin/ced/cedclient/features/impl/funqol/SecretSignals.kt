@@ -3,6 +3,7 @@ package ced.cedclient.features.impl.funqol
 import ced.cedclient.events.PlaySoundEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.state.DungeonState
+import ced.cedclient.utils.safely
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.ambient.Bat
@@ -33,7 +34,7 @@ object SecretSignals {
     fun ensure() = Unit
 
     init {
-        ClientTickEvents.END_CLIENT_TICK.register {
+        ClientTickEvents.END_CLIENT_TICK.register { safely("Secret Signals") {
             val level = mc.level
             val player = mc.player
             if (level == null || player == null || !wanted()) { nearItems.clear(); nearBats.clear(); done.clear(); return@register }
@@ -45,7 +46,7 @@ object SecretSignals {
             val bats = HashMap<Int, AABB>()
             for (b in level.getEntitiesOfClass(Bat::class.java, player.boundingBox.inflate(16.0)) { true }) bats[b.id] = b.boundingBox
             nearBats = bats
-        }
+        } }
         on<PlaySoundEvent> {
             if (!wanted() || (it.soundName != "minecraft:entity.bat.death" && it.soundName != "minecraft:entity.bat.hurt") || it.volume != 0.1f) return@on
             val eye = mc.player?.eyePosition ?: return@on

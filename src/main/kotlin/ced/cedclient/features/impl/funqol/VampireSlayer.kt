@@ -596,8 +596,8 @@ object VampireSlayer : Module(
     }
 
     override val label = "Slayer"
-    private const val DEFAULT_X = 556
-    private const val DEFAULT_Y = 25
+    private const val DEFAULT_X = 578
+    private const val DEFAULT_Y = 31
     private const val DEFAULT_SCALE = 1.1f
     override var panelX = DEFAULT_X
     override var panelY = DEFAULT_Y

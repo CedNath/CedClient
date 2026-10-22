@@ -22,7 +22,8 @@ if ($Action -eq 'watch') {
                 $i = $s.GetPlaybackInfo()
                 $sh = if ($i.IsShuffleActive) { 1 } else { 0 }
                 $rp = if ($null -ne $i.AutoRepeatMode) { [int]$i.AutoRepeatMode } else { 0 }
-                Write-Output ("track`t{0}`t{1}`t{2}`t{3}`t{4}" -f $p.Artist, $p.Title, $i.PlaybackStatus, $sh, $rp)
+                $tl = $s.GetTimelineProperties()
+                Write-Output ("track`t{0}`t{1}`t{2}`t{3}`t{4}`t{5}`t{6}`t{7}`t{8}" -f $p.Artist, $p.Title, $i.PlaybackStatus, $sh, $rp, [int64]$tl.Position.TotalMilliseconds, [int64]$tl.EndTime.TotalMilliseconds, $tl.LastUpdatedTime.ToUnixTimeMilliseconds(), $s.SourceAppUserModelId)
             }
         } catch { Write-Output 'none' }
         [Console]::Out.Flush()

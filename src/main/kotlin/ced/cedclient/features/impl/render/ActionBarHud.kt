@@ -89,7 +89,7 @@ object ActionBarHud : Module(
     }
 
     /** Vanilla's action bar sits ~68 up from the bottom; this sits a line above it, a bit smaller. */
-    object Notices : Anchored("Client Notices", 0, 84, 0.8f) {
+    object Notices : Anchored("Client Notices", 9, 113, 1.1f) {
         var text: Component? = null
         var until = 0L
 
