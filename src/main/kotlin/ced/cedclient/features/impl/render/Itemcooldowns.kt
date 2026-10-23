@@ -15,6 +15,9 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
+import net.minecraft.network.chat.Component
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.item.ItemStack
 import kotlin.math.ceil
@@ -202,6 +205,11 @@ object ItemCooldowns : Module(
         Color(255, 85, 85),
         "Color of the countdown number shown on ability items that are on cooldown."
     )
+    private val ragnarockNotifier = BooleanSetting(
+        "Ragnarock Notifier",
+        true,
+        "Title and sound when Ragnarock Axe is ready again, and when a cast gets cancelled by a hit."
+    )
     private val logUnmatched = BooleanSetting(
         "Log Unmatched Cooldown Messages",
         false,
@@ -357,7 +365,9 @@ object ItemCooldowns : Module(
                 for (ability in ItemAbility.entries) {
                     ability.clearCooldown()
                 }
+                ragnarockPhase = RagnarockPhase.NONE
             }
+            checkRagnarockReady()
 
             // flushCaptureIfDue() only actually prints once CAPTURE_WINDOW_MS
             // has passed since the click, so it needs to be polled somewhere
@@ -365,12 +375,70 @@ object ItemCooldowns : Module(
             flushCaptureIfDue()
         }
 
-        addSettings(showOnHotbar, showInInventory, showReadyIndicator, readyColor, cooldownColor, logUnmatched, logAllSounds)
+        addSettings(showOnHotbar, showInInventory, showReadyIndicator, readyColor, cooldownColor, ragnarockNotifier, logUnmatched, logAllSounds)
+    }
+
+    // ---- Ragnarock Axe (phases as in SkyHanni): cast 3 s -> buff 10 s -> 7 s cooldown, 20 s in all.
+
+    private enum class RagnarockPhase { NONE, CAST, BUFF }
+
+    private var ragnarockPhase = RagnarockPhase.NONE
+    private var ragnarockCancelledAt = 0L
+    private val ragnarock get() = ItemAbility.RAGNAROCK_AXE
+
+    /** Mixin: action bar text. "CASTING IN n" = the 3 s cast, "CASTING" = the buff, "CANCELLED" = hit during the cast. */
+    fun onActionBar(raw: String) {
+        if (!isEnabled) return
+        val text = raw.replace(Regex("§."), "")
+        when {
+            text.contains("CASTING IN") -> if (ragnarockPhase == RagnarockPhase.NONE) {
+                ragnarockPhase = RagnarockPhase.CAST
+                ragnarock.startCooldown(20.0)
+            }
+            text.contains("CASTING") -> if (ragnarockPhase != RagnarockPhase.BUFF) {
+                ragnarockPhase = RagnarockPhase.BUFF
+                ragnarock.startCooldown(17.0)
+            }
+            text.contains("CANCELLED") -> ragnarockCancelled()
+        }
+    }
+
+    private fun ragnarockCancelled() {
+        val now = System.currentTimeMillis()
+        if (now - ragnarockCancelledAt < 1500) return
+        ragnarockCancelledAt = now
+        ragnarockPhase = RagnarockPhase.NONE
+        ragnarock.startCooldown(17.0)
+        notify("Ragnarock Cancelled!", 0xFF5555, 0.6f)
+    }
+
+    /** The cooldown ran out by itself (a cleared one, e.g. a failed click, is 0 and stays quiet). */
+    private fun checkRagnarockReady() {
+        val end = ragnarock.cooldownEndMillis
+        if (end == 0L || System.currentTimeMillis() < end) return
+        ragnarock.clearCooldown()
+        ragnarockPhase = RagnarockPhase.NONE
+        if (isEnabled) notify("Ragnarock Ready!", 0x55FF55, 1.4f)
+    }
+
+    private fun notify(title: String, color: Int, pitch: Float) {
+        if (!ragnarockNotifier.value) return
+        val mc = Minecraft.getInstance()
+        if (mc.player == null) return
+        mc.gui.setTimes(5, 30, 10)
+        mc.gui.setTitle(Component.literal(title).withColor(color))
+        mc.gui.setSubtitle(Component.empty())
+        mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
     }
 
     private fun handleChatMessage(text: String) {
         if (logUnmatched.value && text.contains("cooldown", ignoreCase = true)) {
             println("[ItemCooldowns] cooldown message: \"$text\"")
+        }
+
+        if (text.contains("Ragnarock was cancelled due to being hit")) {
+            ragnarockCancelled()
+            return
         }
 
         // Check failure signals BEFORE the cooldown regexes -- a message

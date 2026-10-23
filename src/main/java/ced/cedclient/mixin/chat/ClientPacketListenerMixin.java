@@ -88,6 +88,8 @@ public class ClientPacketListenerMixin {
 
         if (!packet.overlay()) {
             new ChatMessageEvent(content.getString()).post();
+        } else {
+            ced.cedclient.features.impl.render.ItemCooldowns.INSTANCE.onActionBar(content.getString());
         }
 
         // Posted above first so IslandState.handleChat() still gets to parse
