@@ -51,7 +51,7 @@ object LeapCounter : Module(
     private val background = BooleanSetting("Background", true, "Draw the HUD card behind the text.")
     private val hideWhenDone = BooleanSetting("Hide When Done", true, "Hide the HUD a second after everyone has leaped (off: it stays while you are in the spot).")
 
-    private val newRelic = BooleanSetting("ADG Leap Spots", false, "New ADG dungeon roles: the relic spots allow 3 leaps (not 4), and a second relic spot is counted in a big box around the relic area.")
+    private val newRelic = BooleanSetting("ADG Leap Spots", false, "New ADG dungeon roles: the relic spot allows 3 leaps (not 4), and a second relic spot (1 leap) is counted in a big box around the relic area.")
     private val relicSize = NumberSetting("Relic Box Size", 5.0, 4.0, 40.0, 1.0, "ADG Leap Spots: how far (blocks, each side in x / z) the relic box reaches around the relic spot.").withDependency { newRelic.value }
 
     private class Spot(val name: String, var box: AABB, var cap: Int, val enabled: () -> Boolean = { true }, val inSection: (Vec3) -> Boolean) {
@@ -71,7 +71,7 @@ object LeapCounter : Module(
         Spot("Core", AABB(51.0, 114.0, 54.0, 58.0, 117.0, 49.0), 4) { DungeonState.f7P3SectionAt(it.x, it.y, it.z) == 4 },
         Spot("Core", AABB(51.0, 114.0, 60.0, 58.0, 117.0, 55.0), 4) { DungeonState.f7P3SectionAt(it.x, it.y, it.z) == 4 },
         Spot("Relic", AABB(46.5, 3.0, 68.5, 62.5, 8.0, 84.5), 4) { DungeonState.f7PhaseAt(it.y) == 5 },
-        Spot("Relic", relicBox(5.0), 3, { newRelic.value }) { DungeonState.f7PhaseAt(it.y) == 5 },
+        Spot("Relic", relicBox(5.0), 1, { newRelic.value }) { DungeonState.f7PhaseAt(it.y) == 5 },
     )
 
     private var current: Spot? = null

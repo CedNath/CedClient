@@ -295,11 +295,14 @@ object RoomTimes : Module(
     override fun renderInternal(g: GuiGraphicsExtractor) {
         val room = current
         val now = System.currentTimeMillis()
-        val rows = if (room == null) listOf("Mines" to "12.4s", "2/6 secrets" to "last +3.1s") else if (room.shared) listOf(
-            room.name to "shared", "${room.found.size}/${room.total} secrets" to "not timed",
+        val pb = room?.let { pbs["${it.name}|${if (fromFirstSecret) "s" else "e"}"] }
+        val pbRow = "PB" to (pb?.let { fmt(it) } ?: "-")
+        val rows = if (room == null) listOf("Mines" to "12.4s", "2/6 secrets" to "last +3.1s", "PB" to "9.8s") else if (room.shared) listOf(
+            room.name to "shared", "${room.found.size}/${room.total} secrets" to "not timed", pbRow,
         ) else listOf(
             room.name to (room.startedAt?.let { fmt(if (room.done) room.totalTime!! else now - it) } ?: "-"),
             "${room.found.size}/${room.total} secrets" to (room.splits.lastOrNull()?.let { "last +${fmt(it)}" } ?: "none yet"),
+            pbRow,
         )
         val s = panelScale
         val size = 10f * s
