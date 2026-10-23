@@ -65,7 +65,7 @@ data class WarpShortcut(
 object WarpShortcuts : Module(
     "WarpShortcuts",
     Category.Misc,
-    "Type /<alias> instead of /warp <alias>, e.g. /dh -> /warp dh",
+    "Type /<alias> instead of /warp <alias>, e.g. /dh -> /warp dh. Also /f1-f7, /m1-m7, /t1-t5 to join a floor.",
     defaultEnabled = false
 ) {
 
@@ -91,7 +91,14 @@ object WarpShortcuts : Module(
     private val defaultEntries: List<WarpShortcut> =
         defaultAliases.map { WarpShortcut(it, "warp $it", enabled = true, custom = false) } +
             // Short forms that warp somewhere with a longer name.
-            listOf("saf" to "warp safari").map { (alias, target) -> WarpShortcut(alias, target, enabled = true, custom = false) }
+            listOf("saf" to "warp safari").map { (alias, target) -> WarpShortcut(alias, target, enabled = true, custom = false) } +
+            // /f7, /m7, /t5: join that dungeon floor or Kuudra tier.
+            listOf("one", "two", "three", "four", "five", "six", "seven").flatMapIndexed { i, n ->
+                listOf(
+                    WarpShortcut("f${i + 1}", "joininstance catacombs_floor_$n"),
+                    WarpShortcut("m${i + 1}", "joininstance master_catacombs_floor_$n"),
+                ) + (if (i < 5) listOf(WarpShortcut("t${i + 1}", "joininstance kuudra_${listOf("normal", "hot", "burning", "fiery", "infernal")[i]}")) else emptyList())
+            }
 
     private val entries: MutableList<WarpShortcut> = mutableListOf()
 
