@@ -105,9 +105,7 @@ object SecretHighlight {
 
         UseBlockCallback.EVENT.register(UseBlockCallback { _, level, _, hit ->
             if (level.isClientSide && active() && blocks.value) {
-                val state = level.getBlockState(hit.blockPos)
-                if (state.`is`(Blocks.CHEST) || state.`is`(Blocks.TRAPPED_CHEST) || state.`is`(Blocks.LEVER) ||
-                    state.`is`(Blocks.PLAYER_HEAD) || state.`is`(Blocks.PLAYER_WALL_HEAD))
+                if (SecretSignals.isSecretBlock(level, hit.blockPos))
                     { marks += Mark(AABB(hit.blockPos), System.currentTimeMillis() + SHOW_MS); ding() }
             }
             InteractionResult.PASS

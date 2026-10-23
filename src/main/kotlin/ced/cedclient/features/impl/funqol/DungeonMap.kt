@@ -54,7 +54,7 @@ import kotlin.math.sin
  * Only rooms and doors the vanilla map in slot 9 has shown are drawn (HotbarDungeonMap), so it shows nothing more
  * than the real map: rooms it still has grey are grey here too, without a name. Checkmarks (cleared / all secrets /
  * failed) also come from that map; found secrets come from the action bar's "x/y Secrets" while you stand in a room.
- * Players are arrows (class colour, you green) or skin heads: in render distance from the player entity, further away
+ * Players are arrows (class colour, you white) or skin heads: in render distance from the player entity, further away
  * from the map's icons, which follow the party order (your own icon is the frame one).
 //#if CHEAT
  * "Show Undiscovered" also draws everything the scanner has loaded (darkened until the map shows it), "Blood Route"
@@ -101,6 +101,21 @@ object DungeonMap : Module(
     private val fairyColor = ColorSetting("Fairy Room", Color(224, 0, 255))
     private val unopenedColor = ColorSetting("Unopened Room", Color(64, 64, 64))
     private val witherDoorColor = ColorSetting("Wither Door", Color(10, 10, 10))
+    private val selfMarkerColor = ColorSetting("Your Marker", Color(255, 255, 255), "Your own arrow / head border.")
+    private val archerColor = ColorSetting("Archer", Color(255, 170, 0), "Archer teammates' arrow / head border.")
+    private val berserkColor = ColorSetting("Berserk", Color(255, 85, 85), "Berserk teammates' arrow / head border.")
+    private val healerColor = ColorSetting("Healer", Color(255, 85, 255), "Healer teammates' arrow / head border.")
+    private val mageColor = ColorSetting("Mage", Color(85, 255, 255), "Mage teammates' arrow / head border.")
+    private val tankColor = ColorSetting("Tank", Color(85, 255, 85), "Tank teammates' arrow / head border.")
+    private val playerColors get() = listOf(selfMarkerColor, archerColor, berserkColor, healerColor, mageColor, tankColor)
+    private fun classColor(cls: DungeonState.DungeonClass?) = when (cls) {
+        DungeonState.DungeonClass.ARCHER -> archerColor.value.rgba
+        DungeonState.DungeonClass.BERSERK -> berserkColor.value.rgba
+        DungeonState.DungeonClass.HEALER -> healerColor.value.rgba
+        DungeonState.DungeonClass.MAGE -> mageColor.value.rgba
+        DungeonState.DungeonClass.TANK -> tankColor.value.rgba
+        null -> 0xFFBBBBBB.toInt()
+    }
 
     private const val START = -185
     /** Room square size, gap between tiles, tile pitch, door width across the gap: map units (scaled by panelScale). */
@@ -130,12 +145,12 @@ object DungeonMap : Module(
 //#if CHEAT
         addPopupSettings(
             listOf("Rooms" to listOf(labelMode, labelSize, checkmarks, runInfo, clearSummary, showUndiscovered, mimicRoom, mimicEsp), "Players" to listOf(playerMarker, teammates, playerNames, markerStyle, bloodRoute)),
-            listOf("Card" to listOf(background, backgroundColor, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor)),
+            listOf("Card" to listOf(background, backgroundColor, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor), "Player Colours" to playerColors),
         )
 //#else
 //$        addPopupSettings(
 //$            listOf("Rooms" to listOf(labelMode, labelSize, checkmarks, runInfo, clearSummary), "Players" to listOf(playerMarker, teammates, playerNames, markerStyle)),
-//$            listOf("Card" to listOf(background, backgroundColor, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor)),
+//$            listOf("Card" to listOf(background, backgroundColor, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor), "Player Colours" to playerColors),
 //$        )
 //#endif
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
@@ -146,6 +161,8 @@ object DungeonMap : Module(
         ClientTickEvents.END_CLIENT_TICK.register {
             val level = mc.level ?: return@register
             val player = mc.player ?: return@register
+            // A new run is a new world: the last run's secret counts must not show.
+            if (secretsLevel !== level) { secretsLevel = level; secretsFound.clear(); secretsVersion++ }
             if (!isEnabled || !DungeonState.active || DungeonState.inBoss) return@register
             // The map (checkmarks, player icons) every tick; the world scan every 10.
             safely("Dungeon Map") {
@@ -406,13 +423,13 @@ object DungeonMap : Module(
         val out = ArrayList<Mark>()
         if (teammates.value) {
             DungeonTeam.members().filter { !it.dead }.forEachIndexed { i, m ->
-                val color = DungeonTeam.classColor(m.cls)
+                val color = classColor(m.cls)
                 val entity = mc.level?.players()?.firstOrNull { it !== self && it.gameProfile.name.equals(m.name, ignoreCase = true) }
                 if (entity != null) out += ease(m.name, entity.x, entity.z, entity.yRot).withColor(color)
                 else HotbarDungeonMap.iconFor(i)?.let { out += ease(m.name, it.x, it.z, it.yaw, 5.0).withColor(color) }
             }
         }
-        if (playerMarker.value) out += Mark(self.x, self.z, self.yRot, self.gameProfile.name, 0xFF55FF55.toInt())
+        if (playerMarker.value) out += Mark(self.x, self.z, self.yRot, self.gameProfile.name, selfMarkerColor.value.rgba)
         return out
     }
 

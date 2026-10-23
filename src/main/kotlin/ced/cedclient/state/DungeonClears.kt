@@ -90,12 +90,11 @@ object DungeonClears {
     fun positions(self: LocalPlayer): List<Pair<String, Pair<Double, Double>>> {
         val out = ArrayList<Pair<String, Pair<Double, Double>>>()
         out += self.gameProfile.name to (self.x to self.z)
-        val icons = HotbarDungeonMap.markers.filter { !it.self }
         val level = Minecraft.getInstance().level ?: return out
         DungeonTeam.members().filter { !it.dead }.forEachIndexed { i, m ->
             val entity = level.players().firstOrNull { it !== self && it.gameProfile.name.equals(m.name, ignoreCase = true) }
             if (entity != null) out += m.name to (entity.x to entity.z)
-            else icons.getOrNull(i)?.let { out += m.name to (it.x to it.z) }
+            else HotbarDungeonMap.iconFor(i)?.let { out += m.name to (it.x to it.z) }
         }
         return out
     }

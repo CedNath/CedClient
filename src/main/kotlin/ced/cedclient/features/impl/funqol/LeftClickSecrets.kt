@@ -20,25 +20,46 @@ object LeftClickSecrets {
 
     val popupColumns get() = listOf(listOf(SettingsPopup.Section("Levers", listOf(waterBoard))))
 
+    private var lastHeld: BlockPos? = null
+
     /** Called from Minecraft.startAttack (every left click, before mining starts). True = click handled, cancel the attack. */
     @JvmStatic
     fun handleAttack(): Boolean {
-        if (!isEnabled || !DungeonState.inDungeon || DungeonState.inBoss) return false
+        val hit = secretHit() ?: return false
+        click(hit)
+        lastHeld = hit.blockPos
+        return true
+    }
+
+    /** Called from Minecraft.continueAttack while left click stays held: a new secret under the crosshair is used once, none of them is mined. */
+    @JvmStatic
+    fun handleHold(): Boolean {
+        val hit = secretHit()
+        if (hit == null) { lastHeld = null; return false }
+        if (hit.blockPos != lastHeld) { click(hit); lastHeld = hit.blockPos }
+        return true
+    }
+
+    private fun click(hit: BlockHitResult) {
         val mc = Minecraft.getInstance()
-        val hit = mc.hitResult as? BlockHitResult ?: return false
-        if (hit.type != HitResult.Type.BLOCK) return false
-        val pos = hit.blockPos
-        val level = mc.level ?: return false
-        val block = level.getBlockState(pos).block
-        val secret = block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST || block == Blocks.LEVER ||
-            block == Blocks.PLAYER_HEAD || block == Blocks.PLAYER_WALL_HEAD
-        if (!secret) return false
-        if (block == Blocks.LEVER && !waterBoard.value && inWaterBoard(pos)) return false
-        val gm = mc.gameMode ?: return false
-        val lp = mc.player ?: return false
+        val gm = mc.gameMode ?: return
+        val lp = mc.player ?: return
         gm.useItemOn(lp, InteractionHand.MAIN_HAND, hit)
         lp.swing(InteractionHand.MAIN_HAND)
-        return true
+    }
+
+    /** The secret under the crosshair, or null when the click should act normally. */
+    private fun secretHit(): BlockHitResult? {
+        if (!isEnabled || !DungeonState.inDungeon || DungeonState.inBoss) return null
+        val mc = Minecraft.getInstance()
+        val hit = mc.hitResult as? BlockHitResult ?: return null
+        if (hit.type != HitResult.Type.BLOCK) return null
+        val pos = hit.blockPos
+        val level = mc.level ?: return null
+        val block = level.getBlockState(pos).block
+        if (!SecretSignals.isSecretBlock(level, pos)) return null
+        if (block == Blocks.LEVER && !waterBoard.value && inWaterBoard(pos)) return null
+        return hit
     }
 
     private fun inWaterBoard(pos: BlockPos): Boolean {

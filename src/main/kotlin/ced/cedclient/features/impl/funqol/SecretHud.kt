@@ -93,7 +93,7 @@ object SecretHud : HudElement {
         lastHeight = (height / s).toInt()
         val done = t > 0 && f >= t
         val color = (if (done) doneColor.value else textColor.value).rgba or (0xFF shl 24)
-        HudCard.draw(g, panelX, panelY) {
+        HudCard.draw(g, panelX, panelY, behindLeap = true) {
             if (background.value > 0.0) HudCard.card(width, height, s, background.value.toFloat())
             lines.forEachIndexed { i, line ->
                 val isCount = i == lines.lastIndex

@@ -322,7 +322,8 @@ object CustomNametagText {
         return result
     }
 
-    private val levelToken = Regex("""\[\d{1,4}]""")
+    // Literal colour codes can sit inside the brackets ("[§d336§8]"), so allow them.
+    private val levelToken = Regex("""\[(?:§.)*\d{1,4}(?:§.)*]""")
 
     /** Color stops to recolor [ign]'s level prefix with (two or more = a gradient), or null to leave it. Synced entries first, then your own setting. */
     private fun levelColorFor(ign: String): List<Int>? {
@@ -341,10 +342,13 @@ object CustomNametagText {
         val s = from + token.range.first
         val e = from + token.range.last + 1
         appendSlice(result, runs, from, s)
-        val len = e - s
-        for (k in 0 until len) {
-            val c = NametagFormatting.gradientAt(color!!, if (len == 1) 0f else k.toFloat() / (len - 1))
-            appendSlice(result, runs, s + k, s + k + 1) { it.withColor(c) }
+        // The visible characters only: literal "§x" pairs inside the token are dropped, the colour replaces them.
+        val visible = ArrayList<Int>()
+        var i = s
+        while (i < e) { if (fullText[i] == '§' && i + 1 < e) i += 2 else visible += i++ }
+        for ((k, idx) in visible.withIndex()) {
+            val c = NametagFormatting.gradientAt(color!!, if (visible.size == 1) 0f else k.toFloat() / (visible.size - 1))
+            appendSlice(result, runs, idx, idx + 1) { it.withColor(c) }
         }
         appendSlice(result, runs, e, to)
     }
