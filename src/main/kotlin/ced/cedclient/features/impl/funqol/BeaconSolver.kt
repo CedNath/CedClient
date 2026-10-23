@@ -92,7 +92,7 @@ object BeaconSolver : Module(
 
     // The button's lore says "Currently: UNPAUSED" / "Currently: PAUSED"; the item itself may not change.
     private fun paused(slots: List<net.minecraft.world.inventory.Slot>) =
-        slots[PAUSE_SLOT].item.let { it.`is`(net.minecraft.world.item.Items.RED_TERRACOTTA) || it.loreLines.any { l -> l.contains("Currently: PAUSED") } }
+        slots[PAUSE_SLOT].item.let { it.`is`(net.minecraft.world.item.Items.DYED_TERRACOTTA.red()) || it.loreLines.any { l -> l.contains("Currently: PAUSED") } }
 
     private class Pending(val axis: Axis, val button: Button, val before: Int, val at: Long)
     private var pending: Pending? = null
@@ -120,7 +120,7 @@ object BeaconSolver : Module(
 
         ClientTickEvents.END_CLIENT_TICK.register {
             tickNow++
-            val screen = mc.screen
+            val screen = mc.gui.screen()
             if (screen !== lastScreen) { lastScreen = screen; reset() }
             if (!isEnabled || !open()) return@register
             read(screen as AbstractContainerScreen<*>)
@@ -130,7 +130,7 @@ object BeaconSolver : Module(
 
     private var sameVotes = 0
 
-    private fun open() = (mc.screen as? AbstractContainerScreen<*>)?.let { it.title.string.contains("Tune Frequency") && it.menu.slots.size >= 54 } == true
+    private fun open() = (mc.gui.screen() as? AbstractContainerScreen<*>)?.let { it.title.string.contains("Tune Frequency") && it.menu.slots.size >= 54 } == true
 
     private fun reset() {
         axes.forEach { it.ref = null; it.ours = null }

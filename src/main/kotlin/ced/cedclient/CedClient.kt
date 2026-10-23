@@ -291,7 +291,7 @@ class CedClient : ClientModInitializer {
     private fun hudLast(id: Identifier, element: net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement) =
         HudElementRegistry.addLast(id) { graphics, tickCounter ->
             val hidden = id.path != "spotify" && id.path != "hud_keep_on_screen" &&
-                net.minecraft.client.Minecraft.getInstance().screen is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>
+                net.minecraft.client.Minecraft.getInstance().gui.screen() is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>
             if (!hidden) element.extractRenderState(graphics, tickCounter)
         }
 
