@@ -225,6 +225,8 @@ object VampireSlayer : Module(
     private const val SPRING_SKIN = "77f7a7bc8ac86f23ca7bf98afeb76960227e1832fe209a3026f6ceb8bde74f"
 
     private var boss: Player? = null
+    /** Whose boss it is per its "Spawned by" stand (null when Hypixel doesn't show one). */
+    private var bossOwner: String? = null
     private var lockAt = 0L
     private var twinclaws: Float? = null
     private var steakWarned = false
@@ -252,6 +254,12 @@ object VampireSlayer : Module(
     private fun trackBoss() {
         val player = mc.player ?: return
         val level = mc.level ?: return
+        // The old way: the Bloodfiend whose "Spawned by: <you>" stand is beside it, no timing needed.
+        val spawned = SlayerBosses.spawnedBy(level)
+        if (bossUp && boss == null) {
+            boss = level.players().firstOrNull { isBloodfiend(it) && SlayerBosses.ownerNear(spawned, it).equals(mc.user.name, ignoreCase = true) }
+        }
+        bossOwner = boss?.let { SlayerBosses.ownerNear(spawned, it) }
         // Lock the newest Bloodfiend near you for 3 s after "Slay the boss!" shows up.
         if (bossUp && boss == null && System.currentTimeMillis() - lockAt < 3_000) {
             boss = level.players().filter { isBloodfiend(it) && it.distanceToSqr(player) < 15.0 * 15.0 }.minByOrNull { it.tickCount }
@@ -527,6 +535,7 @@ object VampireSlayer : Module(
         if (bossUp) out += Triple("Boss", time(now - bossSpawn), -1)
         boss?.let { b ->
             val max = maxHp(b)
+            bossOwner?.let { out += Triple("Owner", it, 0xFF55FFFF.toInt()) }
             val tier = tier(max).takeIf { it > 0 }?.let { " (T$it)" } ?: ""
             out += Triple("HP$tier", "%,d / %,d".format(b.health.toInt(), max.toInt()), if (canSteak(b)) 0xFFFF5555.toInt() else -1)
             if (!canSteak(b)) out += Triple("Steak at", "%,d".format((max * STEAK_FRACTION).toInt()), 0xFFAAAAAA.toInt())
@@ -536,6 +545,7 @@ object VampireSlayer : Module(
         if (bossUp && !inRift() && SlayerBosses.maxHp > 0) {
             val b = SlayerBosses
             out += Triple("HP", b.format(b.hp) + " / " + b.format(b.maxHp), -1)
+            b.owner?.let { out += Triple("Owner", it, 0xFF55FFFF.toInt()) }
             b.attunement?.let { out += Triple("Attunement", it, 0xFFFFAA00.toInt()) }
             b.hits?.let { out += Triple("Hits left", it.toString(), 0xFFFF5555.toInt()) }
             b.pillar?.let { out += Triple("Fire pillar", "%.1fs".format(it), 0xFFFFAA00.toInt()) }

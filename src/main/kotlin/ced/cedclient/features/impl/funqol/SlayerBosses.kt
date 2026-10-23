@@ -10,6 +10,7 @@ import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.AABB
 import java.util.Base64
+import kotlin.math.abs
 
 /**
  * Slayer Tracker for the overworld slayers (Revenant, Tarantula, Sven, Voidgloom, Inferno): finds your boss by its
@@ -20,6 +21,8 @@ import java.util.Base64
 internal object SlayerBosses {
     private val BOSS_NAMES = listOf("Revenant Horror", "Atoned Horror", "Tarantula Broodfather", "Sven Packmaster",
         "Voidgloom Seraph", "Inferno Demonlord")
+    private val OWNER = Regex("""Spawned by: (\w{1,16})""")
+    private val CODES = Regex("§.")
     private val HP = Regex("""([\d.,]+)([kMB]?)❤""")
     private val ATTUNEMENT = Regex("""\b(ASHEN|SPIRIT|CRYSTAL|AURIC)\b""")
     private val HITS = Regex("""Hits?:?\s*(\d+)|(\d+)\s+Hits?""")
@@ -32,6 +35,9 @@ internal object SlayerBosses {
     var body: Entity? = null
         private set
     var name: String? = null
+        private set
+    /** Whose boss it is, from its "Spawned by: <name>" stand; null while Hypixel doesn't show that line. */
+    var owner: String? = null
         private set
     var hp = 0.0
         private set
@@ -57,7 +63,7 @@ internal object SlayerBosses {
     private var placed: List<AABB> = emptyList()
 
     fun reset() {
-        label = null; body = null; name = null; hp = 0.0; maxHp = 0.0; attunement = null; hits = null
+        label = null; body = null; name = null; owner = null; hp = 0.0; maxHp = 0.0; attunement = null; hits = null
         pillar = null; laser = null; laserTicks = 0; beacons = emptyList(); placed = emptyList(); skulls = emptyList(); firePitsWarned = false
     }
 
@@ -66,6 +72,16 @@ internal object SlayerBosses {
         val n = m.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
         return n * when (m.groupValues[2]) { "k" -> 1e3; "M" -> 1e6; "B" -> 1e9; else -> 1.0 }
     }
+
+    /** Every "Spawned by: <name>" stand in sight with the name on it. Shared with VampireSlayer. */
+    fun spawnedBy(level: net.minecraft.client.multiplayer.ClientLevel): List<Pair<ArmorStand, String>> =
+        level.entitiesForRendering().filterIsInstance<ArmorStand>()
+            .mapNotNull { s -> s.customName?.string?.let { OWNER.find(it.replace(CODES, "").trim()) }?.let { s to it.groupValues[1] } }
+
+    /** The owner on the "Spawned by" stand right beside [e] (its name tag stack), or null. */
+    fun ownerNear(stands: List<Pair<ArmorStand, String>>, e: Entity): String? =
+        stands.filter { abs(it.first.x - e.x) < 1.5 && abs(it.first.z - e.z) < 1.5 && abs(it.first.y - e.y) < 3.5 }
+            .minByOrNull { it.first.distanceToSqr(e) }?.second
 
     private fun bossName(text: String) = BOSS_NAMES.firstOrNull { text.contains(it) }
 
@@ -76,6 +92,16 @@ internal object SlayerBosses {
         val level = mc.level ?: return
         val stands = level.entitiesForRendering().filterIsInstance<ArmorStand>().filter { it.distanceToSqr(player) < 40.0 * 40.0 }
 
+        // The old way (most mods): Hypixel puts a "Spawned by: <name>" stand next to the boss tag. When it's there, your
+        // boss is the tag beside your own name, no timing or distance needed.
+        val spawnedBy = stands.mapNotNull { s -> s.customName?.string?.let { OWNER.find(it.replace(CODES, "").trim()) }?.let { s to it.groupValues[1] } }
+        if (label == null) {
+            val me = mc.user.name
+            label = spawnedBy.filter { it.second.equals(me, ignoreCase = true) }.firstNotNullOfOrNull { (stand, _) ->
+                stands.filter { it.hasCustomName() && bossName(it.customName!!.string) != null && abs(it.x - stand.x) < 1.5 && abs(it.z - stand.z) < 1.5 && abs(it.y - stand.y) < 3.0 }
+                    .minByOrNull { it.distanceToSqr(stand) }
+            }
+        }
         if (label == null && lockWindow) {
             label = stands.filter { it.hasCustomName() && bossName(it.customName!!.string) != null && it.distanceToSqr(player) < 15.0 * 15.0 }
                 .minByOrNull { it.tickCount }
@@ -84,6 +110,8 @@ internal object SlayerBosses {
         if (l.isRemoved) { reset(); return }
         val text = l.customName?.string ?: return
         name = bossName(text)
+        owner = spawnedBy.filter { abs(it.first.x - l.x) < 1.5 && abs(it.first.z - l.z) < 1.5 && abs(it.first.y - l.y) < 3.0 }
+            .minByOrNull { it.first.distanceToSqr(l) }?.second
         parseHp(text)?.let { hp = it; maxHp = maxOf(maxHp, it) }
         body = level.entitiesForRendering().filter { it is LivingEntity && it !is ArmorStand && it !== player && it.distanceToSqr(l) < 9.0 }
             .minByOrNull { it.distanceToSqr(l) }
