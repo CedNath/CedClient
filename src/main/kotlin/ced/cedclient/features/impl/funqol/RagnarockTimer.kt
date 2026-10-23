@@ -41,7 +41,7 @@ object RagnarockTimer : Module(
     private val hud = BooleanSetting("HUD", true, "The phase and time left.")
     private val showReady = BooleanSetting("Show When Ready", false, "Keep the HUD up while the axe is ready.")
     private val decimals = BooleanSetting("Decimals", true, "Tenths of a second instead of whole seconds.")
-    private val slotTimer = BooleanSetting("Item Slot Timer", true, "Countdown on the axe's slot (needs Item Cooldowns on).")
+    private val slotTimer = BooleanSetting("Item Slot Timer", true, "The current phase's seconds on the axe's slot, in the phase colour (needs Item Cooldowns on).")
     private val castTitle = BooleanSetting("Cast Title", true, "Title when the cast goes through and the buff starts.")
     private val failTitle = BooleanSetting("Fail Title", true, "Title when the cast is cancelled by a hit or fails.")
     private val readyTitle = BooleanSetting("Ready Title", true, "Title when the axe is ready again.")
@@ -83,13 +83,17 @@ object RagnarockTimer : Module(
 
     private fun reset() {
         startedAt = 0L; castEnd = 0L; buffEnd = 0L; readyAt = 0L; cancelled = false; buffSynced = false
-        axe.clearCooldown()
+        sync()
     }
 
-    /** The slot timer counts down to the axe being ready again. */
+    /** What the axe's slot shows (Item Cooldowns draws it): the current phase's seconds in the phase's colour. */
     private fun sync() {
-        if (!slotTimer.value || readyAt == 0L) axe.clearCooldown()
-        else axe.startCooldown(((readyAt - System.currentTimeMillis()).coerceAtLeast(0)) / 1000.0)
+        val now = System.currentTimeMillis()
+        val p = phase(now)
+        if (!slotTimer.value || p == Phase.READY) { axe.overlayText = null; return }
+        val left = when (p) { Phase.CAST -> castEnd - now; Phase.BUFF -> buffEnd - now; else -> readyAt - now }
+        axe.overlayText = ceil(left.coerceAtLeast(0) / 1000.0).toInt().toString()
+        axe.overlayColor = when (p) { Phase.CAST -> castColor.value.rgba; Phase.BUFF -> buffColor.value.rgba; else -> cooldownColor.value.rgba }
     }
 
     private fun startCast(now: Long) {
@@ -165,7 +169,8 @@ object RagnarockTimer : Module(
 
     private fun tick() {
         if (mc.level !== lastLevel) { lastLevel = mc.level; reset() }
-        if (!isEnabled) return
+        if (!isEnabled) { axe.overlayText = null; return }
+        sync()
         val now = System.currentTimeMillis()
         if (readyAt != 0L && now >= readyAt) {
             reset()

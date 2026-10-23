@@ -147,6 +147,10 @@ enum class ItemAbility(
     WITHER_CLOAK(10, "Wither Cloak");
 
 
+    /** Managed abilities only: what to draw on the slot instead of a plain countdown (null = nothing to show). */
+    var overlayText: String? = null
+    var overlayColor: Int = -1
+
     var cooldownEndMillis: Long = 0L
         private set
 
@@ -560,6 +564,13 @@ object ItemCooldowns : Module(
         // per click type -- e.g. Gyrokinetic Wand's left- and right-click
         // abilities), each drawn in its own corner by drawStatusText below.
         for (ability in abilitiesFor(stack)) {
+            if (ability.managed) {
+                // Ragnarock Timer's phase (cast / active / cooldown) with its colour, not a flat countdown.
+                val text = ability.overlayText
+                if (text != null) drawStatusText(g, font, x, y, ability.clickType, text, ability.overlayColor)
+                else if (showReadyIndicator.value) drawStatusText(g, font, x, y, ability.clickType, "R", readyColor.value.rgba)
+                continue
+            }
             val seconds = ability.secondsLeft()
             if (seconds != null) {
                 drawStatusText(g, font, x, y, ability.clickType, seconds.toString(), cooldownColor.value.rgba)
