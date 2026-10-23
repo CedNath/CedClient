@@ -8,6 +8,10 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.impl.render.HudCard
 import ced.cedclient.features.impl.render.HudElement
 import ced.cedclient.features.settings.BooleanSetting
+import ced.cedclient.features.settings.ColorSetting
+import ced.cedclient.features.settings.DropdownSetting
+import ced.cedclient.features.settings.NumberSetting
+import ced.cedclient.utils.Color
 import ced.cedclient.utils.getSkullTexture
 import com.google.gson.Gson
 import net.minecraft.client.DeltaTracker
@@ -31,7 +35,20 @@ object DeployableTimers : Module(
     Category.Skyblock,
     "HUD with the time left on every flare, power orb and totem near you."
 ), HudElement {
+    private val orbs = BooleanSetting("Power Orbs", true, "Radiant, Mana Flux, Overflux, Plasmaflux.")
+    private val flaresOn = BooleanSetting("Flares", true, "SOS and Alert Flare.")
+    private val umberella = BooleanSetting("Umberella", true)
+    private val totem = BooleanSetting("Totem Of Corruption", true)
     private val onlyInRange = BooleanSetting("Only In Range", false, "Hide deployables you are too far from to benefit.")
+    private val sortBy = DropdownSetting("Sort By", listOf("Time Left", "Distance", "Type"), "Time Left", "Row order.")
+    private val maxRows = NumberSetting("Max Rows", 6.0, 1.0, 12.0, 1.0, "Most rows shown at once.")
+    private val showDistance = BooleanSetting("Show Distance", false, "Blocks away, after the name.")
+    private val timeFormat = DropdownSetting("Time Format", listOf("1:30", "90s"), "1:30")
+    private val background = BooleanSetting("Background", true, "The card behind the rows.")
+    private val inRangeColor = ColorSetting("In Range Color", Color(85, 255, 85), "Rows for deployables you are inside the range of.")
+    private val outRangeColor = ColorSetting("Out Of Range Color", Color(187, 187, 187), "Rows for deployables out of your reach.")
+    private val lowColor = ColorSetting("Low Time Color", Color(255, 85, 85), "Rows about to run out.")
+    private val lowSeconds = NumberSetting("Low Time", 10.0, 0.0, 60.0, 1.0, "Seconds left at which a row uses the Low Time Color (0 = never).")
 
     /** Name as shown above it -> effect radius in blocks. */
     private val KINDS = linkedMapOf(
@@ -51,8 +68,6 @@ object DeployableTimers : Module(
     private val flareSeen = HashMap<Int, Long>()
     private val CODES = Regex("§.")
     private val TIME = Regex("""(?:(\d+)m\s*)?(\d+)s|\b(\d+):(\d{2})\b""")
-    private const val GREEN = 0xFF55FF55.toInt()
-    private const val GRAY = 0xFFBBBBBB.toInt()
 
     private class Row(val name: String, val seconds: Int, val distance: Double, val range: Double) {
         val inRange get() = distance <= range
@@ -101,20 +116,42 @@ object DeployableTimers : Module(
         rows = (found + flares).distinctBy { it.name to it.seconds }.sortedBy { it.seconds }
     }
 
-    private fun fmt(s: Int) = if (s >= 60) "%d:%02d".format(s / 60, s % 60) else "${s}s"
+    private fun fmt(s: Int) = if (timeFormat.value == "1:30" && s >= 60) "%d:%02d".format(s / 60, s % 60) else "${s}s"
 
-    private fun lines(list: List<Row>) = list.map { Triple(it.name, fmt(it.seconds), if (it.inRange) GREEN else GRAY) }
+    private val ORBS = setOf("Plasmaflux", "Overflux", "Mana Flux", "Radiant")
+
+    private fun wanted(row: Row) = when {
+        row.name in ORBS -> orbs.value
+        row.name.contains("Flare") -> flaresOn.value
+        row.name == "Umberella" -> umberella.value
+        else -> totem.value
+    }
+
+    private fun colorOf(row: Row) = when {
+        lowSeconds.value > 0 && row.seconds <= lowSeconds.value -> lowColor.value.rgba
+        row.inRange -> inRangeColor.value.rgba
+        else -> outRangeColor.value.rgba
+    }
+
+    private fun lines(list: List<Row>) = list.map {
+        Triple(it.name + if (showDistance.value) " ${it.distance.toInt()}m" else "", fmt(it.seconds), colorOf(it))
+    }
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
         if (!isEnabled || mc.options.hideGui) return
-        val shown = rows.filter { !onlyInRange.value || it.inRange }
+        var shown = rows.filter { wanted(it) && (!onlyInRange.value || it.inRange) }
+        shown = when (sortBy.value) {
+            "Distance" -> shown.sortedBy { it.distance }
+            "Type" -> shown.sortedWith(compareBy({ it.name }, { it.seconds }))
+            else -> shown
+        }.take(maxRows.value.toInt())
         if (shown.isEmpty()) return
         draw(g, lines(shown))
     }
 
     override fun renderInternal(g: GuiGraphicsExtractor) {
-        val sample = listOf(Triple("Radiant", "0:24", GREEN), Triple("SOS Flare", "3:10", GRAY))
-        draw(g, lines(rows).ifEmpty { sample })
+        val sample = listOf(Row("Radiant", 24, 4.0, 18.0), Row("SOS Flare", 190, 60.0, 40.0), Row("Overflux", 8, 9.0, 18.0))
+        draw(g, lines(rows.ifEmpty { sample }))
     }
 
     private fun draw(g: GuiGraphicsExtractor, lines: List<Triple<String, String, Int>>) {
@@ -130,7 +167,7 @@ object DeployableTimers : Module(
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
         HudCard.draw(g, panelX, panelY) {
-            HudCard.card(width, height, s)
+            if (background.value) HudCard.card(width, height, s)
             lines.forEachIndexed { i, (name, time, color) ->
                 val y = pad + i * lineH
                 HudCard.text(name, pad, y, size, color)
@@ -162,7 +199,7 @@ object DeployableTimers : Module(
     override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 
     init {
-        addSettings(onlyInRange)
+        addSettings(orbs, flaresOn, umberella, totem, onlyInRange, sortBy, maxRows, showDistance, timeFormat, background, inRangeColor, outRangeColor, lowColor, lowSeconds)
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {
             panelX = it.x; panelY = it.y; panelScale = it.scale.coerceIn(0.4f, 3f)
         }

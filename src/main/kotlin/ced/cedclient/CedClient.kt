@@ -226,6 +226,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(CritterSafari)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RunProfit)
         ModuleManager.register(ced.cedclient.features.impl.funqol.DeployableTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RagnarockTimer)
         ModuleManager.register(VampireSlayer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RoomTimes)
@@ -408,6 +409,11 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "deployable_timers")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.DeployableTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "ragnarock_timer")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.RagnarockTimer.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "slayer")

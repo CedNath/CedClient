@@ -15,9 +15,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.multiplayer.ClientLevel
-import net.minecraft.client.resources.sounds.SimpleSoundInstance
-import net.minecraft.network.chat.Component
-import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.item.ItemStack
 import kotlin.math.ceil
@@ -63,6 +60,8 @@ enum class ItemAbility(
     val clickType: ClickType = ClickType.RIGHT_CLICK,
     val ignoreMageCooldownReduction: Boolean = false,
     val soundSignature: SoundSignature? = null,
+    /** Timed by its own module (Ragnarock Timer): no click / sound / chat starts here, that module sets the slot timer. */
+    val managed: Boolean = false,
 ) {
     ALERT_FLARE(20, "Warning Flare", soundSignature = SoundSignature("minecraft:entity.firework_rocket.launch", 1.0f, 3.0f)), // confirmed same sound as SOS_FLARE
     // Activation plays an ascending ghast.scream sweep (0.49 -> 0.89); ~4s
@@ -120,7 +119,8 @@ enum class ItemAbility(
     // Charging plays 3x block.lever.click, but the actual throw/release is
     // this wolf.death -- confirmed by an Odin "Gained strength" line landing
     // right after it in the capture.
-    RAGNAROCK_AXE(20, "Ragnarock", soundSignature = SoundSignature("minecraft:entity.wolf.death", 1.4920635f, 1.0f)),
+    // Cast 3 s, buff 10 s, then the rest of 20 s: all of it is RagnarockTimer's job (managed).
+    RAGNAROCK_AXE(20, "Ragnarock", ignoreMageCooldownReduction = true, managed = true),
     ROGUE_SWORD(30, "Rogue Sword", ignoreMageCooldownReduction = true, soundSignature = SoundSignature("minecraft:block.lava.pop", 2.0f, 0.4f)),
     ROYAL_PIGEON(5, "Royal Pigeon"),
     SHADOW_FURY(15, "Shadow Fury"),
@@ -204,11 +204,6 @@ object ItemCooldowns : Module(
         "Cooldown Color",
         Color(255, 85, 85),
         "Color of the countdown number shown on ability items that are on cooldown."
-    )
-    private val ragnarockNotifier = BooleanSetting(
-        "Ragnarock Notifier",
-        true,
-        "Title and sound when Ragnarock Axe is ready again, and when a cast gets cancelled by a hit."
     )
     private val logUnmatched = BooleanSetting(
         "Log Unmatched Cooldown Messages",
@@ -365,9 +360,7 @@ object ItemCooldowns : Module(
                 for (ability in ItemAbility.entries) {
                     ability.clearCooldown()
                 }
-                ragnarockPhase = RagnarockPhase.NONE
             }
-            checkRagnarockReady()
 
             // flushCaptureIfDue() only actually prints once CAPTURE_WINDOW_MS
             // has passed since the click, so it needs to be polled somewhere
@@ -375,70 +368,12 @@ object ItemCooldowns : Module(
             flushCaptureIfDue()
         }
 
-        addSettings(showOnHotbar, showInInventory, showReadyIndicator, readyColor, cooldownColor, ragnarockNotifier, logUnmatched, logAllSounds)
-    }
-
-    // ---- Ragnarock Axe (phases as in SkyHanni): cast 3 s -> buff 10 s -> 7 s cooldown, 20 s in all.
-
-    private enum class RagnarockPhase { NONE, CAST, BUFF }
-
-    private var ragnarockPhase = RagnarockPhase.NONE
-    private var ragnarockCancelledAt = 0L
-    private val ragnarock get() = ItemAbility.RAGNAROCK_AXE
-
-    /** Mixin: action bar text. "CASTING IN n" = the 3 s cast, "CASTING" = the buff, "CANCELLED" = hit during the cast. */
-    fun onActionBar(raw: String) {
-        if (!isEnabled) return
-        val text = raw.replace(Regex("§."), "")
-        when {
-            text.contains("CASTING IN") -> if (ragnarockPhase == RagnarockPhase.NONE) {
-                ragnarockPhase = RagnarockPhase.CAST
-                ragnarock.startCooldown(20.0)
-            }
-            text.contains("CASTING") -> if (ragnarockPhase != RagnarockPhase.BUFF) {
-                ragnarockPhase = RagnarockPhase.BUFF
-                ragnarock.startCooldown(17.0)
-            }
-            text.contains("CANCELLED") -> ragnarockCancelled()
-        }
-    }
-
-    private fun ragnarockCancelled() {
-        val now = System.currentTimeMillis()
-        if (now - ragnarockCancelledAt < 1500) return
-        ragnarockCancelledAt = now
-        ragnarockPhase = RagnarockPhase.NONE
-        ragnarock.startCooldown(17.0)
-        notify("Ragnarock Cancelled!", 0xFF5555, 0.6f)
-    }
-
-    /** The cooldown ran out by itself (a cleared one, e.g. a failed click, is 0 and stays quiet). */
-    private fun checkRagnarockReady() {
-        val end = ragnarock.cooldownEndMillis
-        if (end == 0L || System.currentTimeMillis() < end) return
-        ragnarock.clearCooldown()
-        ragnarockPhase = RagnarockPhase.NONE
-        if (isEnabled) notify("Ragnarock Ready!", 0x55FF55, 1.4f)
-    }
-
-    private fun notify(title: String, color: Int, pitch: Float) {
-        if (!ragnarockNotifier.value) return
-        val mc = Minecraft.getInstance()
-        if (mc.player == null) return
-        mc.gui.setTimes(5, 30, 10)
-        mc.gui.setTitle(Component.literal(title).withColor(color))
-        mc.gui.setSubtitle(Component.empty())
-        mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
+        addSettings(showOnHotbar, showInInventory, showReadyIndicator, readyColor, cooldownColor, logUnmatched, logAllSounds)
     }
 
     private fun handleChatMessage(text: String) {
         if (logUnmatched.value && text.contains("cooldown", ignoreCase = true)) {
             println("[ItemCooldowns] cooldown message: \"$text\"")
-        }
-
-        if (text.contains("Ragnarock was cancelled due to being hit")) {
-            ragnarockCancelled()
-            return
         }
 
         // Check failure signals BEFORE the cooldown regexes -- a message
@@ -448,7 +383,7 @@ object ItemCooldowns : Module(
         // have just optimistically started, not reporting a real one.
         if (abilityFailureRegex.any { it.containsMatchIn(text) }) {
             val now = System.currentTimeMillis()
-            for (ability in ItemAbility.entries) {
+            for (ability in ItemAbility.entries.filter { !it.managed }) {
                 if (now - ability.lastItemClick in 0..CLICK_FAILURE_WINDOW_MS) {
                     ability.clearCooldown()
                 }
@@ -466,7 +401,7 @@ object ItemCooldowns : Module(
         // fired. Rare edge case (this path only runs on the "still on
         // cooldown" chat warning), not worth the complexity to fix yet.
         val heldItem = Minecraft.getInstance().player?.mainHandItem ?: return
-        for (ability in abilitiesFor(heldItem)) {
+        for (ability in abilitiesFor(heldItem).filter { !it.managed }) {
             ability.startCooldown(seconds)
         }
     }
@@ -493,6 +428,7 @@ object ItemCooldowns : Module(
         }
 
         for (ability in ItemAbility.entries) {
+            if (ability.managed) continue
             val sig = ability.soundSignature ?: continue
             if (sig.matches(soundName, pitch, volume)) {
                 ability.onMatchedSound()
@@ -515,7 +451,7 @@ object ItemCooldowns : Module(
         // ability), and without this filter a single right-click would
         // incorrectly start the left-click ability's cooldown too, just
         // because it's on the same item.
-        for (ability in abilitiesFor(stack).filter { it.clickType == clickType }) {
+        for (ability in abilitiesFor(stack).filter { it.clickType == clickType && !it.managed }) {
             ability.lastItemClick = now
 
             // Sound signatures aren't filled in yet (every ItemAbility.soundSignature
