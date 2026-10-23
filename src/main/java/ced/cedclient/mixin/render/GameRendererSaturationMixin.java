@@ -19,11 +19,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GameRendererSaturationMixin {
     @Shadow @Final private Minecraft minecraft;
     @Shadow @Final private CrossFrameResourcePool resourcePool;
+    @Shadow public abstract com.mojang.blaze3d.pipeline.RenderTarget mainRenderTarget();
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/fog/FogRenderer;endFrame()V"))
     private void cedclient$saturation(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
         if (minecraft.level == null || !Saturation.INSTANCE.active()) return;
         PostChain chain = minecraft.getShaderManager().getPostChain(Saturation.INSTANCE.getCHAIN(), LevelTargetBundle.MAIN_TARGETS);
-        if (chain != null) chain.process(minecraft.getMainRenderTarget(), resourcePool);
+        if (chain != null) chain.process(mainRenderTarget(), resourcePool);
     }
 }
