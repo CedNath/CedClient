@@ -38,7 +38,10 @@ object HotbarDungeonMap {
     val roomStates = HashMap<Pair<Int, Int>, RoomState>()
 
     /** One player icon on the map: world position, facing (yaw, degrees), [self] = your own (frame) icon. */
-    class Marker(val x: Double, val z: Double, val yaw: Float, val self: Boolean)
+    class Marker(val x: Double, val z: Double, val yaw: Float, val self: Boolean, val key: String)
+
+    /** The icon of the [index]th living teammate (self left out): the digit that ends the icon's key, not its place in the list. */
+    fun iconFor(index: Int): Marker? = markers.firstOrNull { !it.self && it.key.lastOrNull()?.digitToIntOrNull() == index }
 
     /** Every player icon on the map, in the map's order (teammates follow the party order), refreshed each [update]. */
     var markers: List<Marker> = emptyList()
@@ -107,13 +110,13 @@ object HotbarDungeonMap {
     /** Player icons: decoration x / y are half map pixels from the centre; map pixels go back to blocks via the grid. */
     private fun readMarkers(data: net.minecraft.world.level.saveddata.maps.MapItemSavedData) {
         val blocksPerPixel = 32.0 / (roomSize + 4)
-        markers = data.decorations.map { d ->
+        markers = (data as ced.cedclient.mixin.accessor.MapItemSavedDataAccessor).`ced$decorations`().map { (key, d) ->
             val px = (d.x() + 128) / 2.0
             val pz = (d.y() + 128) / 2.0
             Marker(
                 START + (px - cornerX - roomSize / 2) * blocksPerPixel, START + (pz - cornerZ - roomSize / 2) * blocksPerPixel,
                 // 16 rotation steps, 0 = facing +z like player yaw.
-                d.rot() * 22.5f, d.type().value() === MapDecorationTypes.FRAME.value(),
+                d.rot() * 22.5f, d.type().value() === MapDecorationTypes.FRAME.value(), key,
             )
         }
     }

@@ -327,7 +327,7 @@ object PositionalMessages : Module(
         val bgColor = textBgColor.value.rgba
         val padX = size * 0.4f
         val padY = size * 0.25f
-        NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = {
+        val full = {
             val ratio = NVGRenderer.canvasWidth / guiW
             NVGRenderer.scale(ratio, ratio)
             for (l in list) {
@@ -337,7 +337,10 @@ object PositionalMessages : Module(
                 if (bg) NVGRenderer.rect(x - padX, y - padY, w + padX * 2, size + padY * 2, bgColor, size * 0.3f)
                 NVGRenderer.textShadow(l.text, x, y, size, color, font)
             }
-        })
+        }
+        // Under the Leap Menu's backdrop and boxes while it is open.
+        if (LeapMenu.defer(full)) return
+        NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = full)
     }
 
     // ------------------------------------------------------------------

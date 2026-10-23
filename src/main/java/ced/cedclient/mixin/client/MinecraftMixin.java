@@ -56,6 +56,12 @@ public class MinecraftMixin {
     // up rejecting internally (e.g. attack still on cooldown) -- same
     // approximation useItem() already makes for right-clicks. Acceptable
     // since the chat fallback still corrects the real remaining time.
+    @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
+    private void cedclient$onContinueAttack(boolean leftClick, CallbackInfo ci) {
+        // Left Click Secrets while the button stays held: use a new secret under the crosshair once, never mine it.
+        if (leftClick && ced.cedclient.features.impl.funqol.LeftClickSecrets.INSTANCE.handleHold()) ci.cancel();
+    }
+
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void cedclient$onStartAttack(CallbackInfoReturnable<Boolean> cir) {
         // Left Click Secrets: a left-click on a dungeon secret becomes a right-click and never starts mining.

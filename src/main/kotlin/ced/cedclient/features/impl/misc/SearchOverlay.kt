@@ -83,15 +83,29 @@ object SearchOverlay : Module(
 
     private val repoDir: Path get() = FabricLoader.getInstance().configDir.resolve("notenoughupdates/repo")
 
+    // The repo is rewritten at startup (SkyHanni / Firmament download it): a load that raced that holds a partial item list.
+    private val repoStamp: Long get() = runCatching {
+        Files.getLastModifiedTime(repoDir.resolveSibling("currentCommit.json")).toMillis() + Files.getLastModifiedTime(repoDir.resolve("items")).toMillis()
+    }.getOrDefault(0L)
+    @Volatile private var loadedStamp = -1L
+    @Volatile private var loading = false
+
+    private fun startLoad() {
+        if (loading) return
+        loading = true
+        Thread({ try { loadedStamp = repoStamp; load() } finally { loading = false } }, "CedClient-SearchOverlay").apply { isDaemon = true }.start()
+    }
+
     init {
         addSettings(historySize, bazaarHistory, auctionHistory)
-        Thread(::load, "CedClient-SearchOverlay").apply { isDaemon = true }.start()
+        startLoad()
     }
 
     /** Called from LocalPlayerMixin when a sign editor opens. True = we replaced it with the overlay. */
     @JvmStatic
     fun tryOpen(sign: SignBlockEntity, front: Boolean): Boolean {
         if (!isEnabled) return false
+        if (repoStamp != loadedStamp) startLoad()
         if (!sign.getText(front).getMessage(3, false).string.equals("enter query", ignoreCase = true)) return false
         val title = mc.gui.screen()?.title?.string?.lowercase() ?: return false
         val location = when {

@@ -33,6 +33,22 @@ object SecretSignals {
     /** Call once so the listeners below exist. */
     fun ensure() = Unit
 
+    // Skin owners of the dungeon's wither essence / redstone key heads (same ids Odin checks); other heads are decoration.
+    private val SECRET_HEADS = setOf(
+        java.util.UUID.fromString("e0f3e929-869e-3dca-9504-54c666ee6f23"),
+        java.util.UUID.fromString("fed95410-aba1-39df-9b95-1d4f361eb66e"),
+    )
+
+    /** A chest, lever or secret head (wither essence / redstone key) at [pos]: something clicking counts as a secret. */
+    fun isSecretBlock(level: net.minecraft.world.level.Level, pos: net.minecraft.core.BlockPos): Boolean {
+        val state = level.getBlockState(pos)
+        if (state.`is`(net.minecraft.world.level.block.Blocks.CHEST) || state.`is`(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST) ||
+            state.`is`(net.minecraft.world.level.block.Blocks.LEVER)) return true
+        if (!state.`is`(net.minecraft.world.level.block.Blocks.PLAYER_HEAD) && !state.`is`(net.minecraft.world.level.block.Blocks.PLAYER_WALL_HEAD)) return false
+        val head = level.getBlockEntity(pos) as? net.minecraft.world.level.block.entity.SkullBlockEntity
+        return head?.ownerProfile?.partialProfile()?.id in SECRET_HEADS
+    }
+
     init {
         ClientTickEvents.END_CLIENT_TICK.register { safely("Secret Signals") {
             val level = mc.level

@@ -247,6 +247,9 @@ object PartyCommands : Module(
     private fun cleanReason(raw: String) = raw.replace(reasonJunk, "").replace(Regex("\\s+"), " ").trim().take(24).trim()
     private var wasEnded = false
 
+    /** A !dt during the run: AutoRequeue skips the requeue for that run only. */
+    internal var dtThisRun = false
+
     private val eightBall = listOf("It is certain.", "Without a doubt.", "Yes, definitely.", "Most likely.", "Ask again later.",
         "Cannot predict now.", "Don't count on it.", "My sources say no.", "Very doubtful.")
 
@@ -255,7 +258,7 @@ object PartyCommands : Module(
     init {
         // Info
         cmd("help", "Lists the enabled commands.") { _, _ ->
-            say("Commands: " + cmds.filter { it.perm.value != "Off" && it.name != "help" }.joinToString(" ") { "!${it.name}" })
+            say("Commands: " + cmds.filter { it.perm.value != "Off" && it.name != "help" }.joinToString(" ") { if (it.name == "queue") "!f7 !m7 !t5" else "!${it.name}" })
         }
         cmd("ping", "Your ping.") { _, _ -> say("Ping: ${PingTracker.latest()}ms") }
         cmd("tps", "The server TPS.") { _, _ -> say("TPS: %.1f".format(TpsTracker.currentTps())) }
@@ -274,6 +277,7 @@ object PartyCommands : Module(
             // Like NoammAddons: the reason is kept and shown to you only, never sent to party chat.
             val reason = cleanReason(a.joinToString(" "))
             downtime[s] = reason
+            dtThisRun = true
             mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§f$s §7needs downtime" + if (reason.isNotEmpty()) " §8($reason)" else ""))
         }
         // Party (leader only)
@@ -285,9 +289,10 @@ object PartyCommands : Module(
         cmd("promote", "Promotes a player (default: the sender).", leader = true) { s, a -> run("p promote ${a.firstOrNull() ?: s}") }
         cmd("demote", "Demotes a player (default: the sender).", leader = true) { s, a -> run("p demote ${a.firstOrNull() ?: s}") }
         cmd("kick", "Kicks a player.", leader = true, default = "Only Me") { _, a -> a.firstOrNull()?.let { run("p kick $it") } }
-        cmd("queue", "Joins a dungeon or Kuudra: !queue f7 / m7 / t5.", listOf("q"), leader = true) { _, a ->
+        // Typed as !f7 / !m7 / !t5 (see the PartyChatEvent handler); "queue" is only the name of its permission.
+        cmd("queue", "Joins a dungeon or Kuudra: !f1-f7, !m1-m7, !t1-t5.", leader = true) { _, a ->
             val m = floors.matchEntire(a.firstOrNull()?.lowercase() ?: "")
-            if (m == null) say("Usage: !queue f1-f7, m1-m7, t1-t5") else {
+            if (m == null) say("Usage: !f1-f7, !m1-m7, !t1-t5") else {
                 val n = m.groupValues[2].toInt()
                 val names = listOf("one", "two", "three", "four", "five", "six", "seven")
                 when (m.groupValues[1]) {
@@ -316,10 +321,12 @@ object PartyCommands : Module(
                 }
                 return@on
             }
-            val c = cmds.firstOrNull { it.name == word || word in it.aliases } ?: return@on
+            val floor = floors.matches(word)
+            if (word == "queue") return@on
+            val c = (if (floor) cmds.firstOrNull { it.name == "queue" } else cmds.firstOrNull { it.name == word || word in it.aliases }) ?: return@on
             if (!allowed(c.perm.value, e.cleanAuthor)) return@on
             if (c.leaderOnly && !isLeader()) return@on
-            c.run(e.cleanAuthor, parts.drop(1))
+            c.run(e.cleanAuthor, if (floor) listOf(word) else parts.drop(1))
         }
 
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
@@ -363,12 +370,14 @@ object PartyCommands : Module(
                 mc.player?.connection?.sendCommand(outbox.removeFirst().second); cooldown = 24
             }
             val ended = DungeonState.runEnded
-            if (isEnabled && ended && !wasEnded && downtime.isNotEmpty()) {
-                // Party gets the names only; the reasons stay in your own chat.
-                say("Downtime needed by: ${downtime.keys.joinToString(", ")}")
-                mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§7Players needing DT: §f" +
-                    downtime.entries.joinToString("§7, §f") { (name, why) -> if (why.isEmpty()) name else "$name §8($why)§f" }))
-                downtime.clear()
+            if (isEnabled && ended && !wasEnded) {
+                if (downtime.isNotEmpty()) {
+                    // Party gets the names only; the reasons stay in your own chat.
+                    say("Downtime needed by: ${downtime.keys.joinToString(", ")}")
+                    mc.player?.sendSystemMessage(ChatPrefix.msgFor("Party Commands", "§7Players needing DT: §f" +
+                        downtime.entries.joinToString("§7, §f") { (name, why) -> if (why.isEmpty()) name else "$name §8($why)§f" }))
+                    downtime.clear()
+                }
             }
             wasEnded = ended
         }

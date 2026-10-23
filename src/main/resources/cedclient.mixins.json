@@ -27,6 +27,8 @@
     "render.WeatherEffectRendererMixin",
     "render.ClientLevelWeatherMixin",
     "render.GameRendererBlurMixin",
+    "render.GameRendererSaturationMixin",
+    "render.PostPassSaturationMixin",
     "render.QuadParticleGroupMixin",
     "render.EntityRenderDispatcherMixin",
 
@@ -76,6 +78,7 @@
     "accessor.GuiAccessor",
     "accessor.LivingEntityRendererAccessor",
     "accessor.CustomDataAccessor",
+    "accessor.MapItemSavedDataAccessor",
     "accessor.PlayerTabOverlayAccessor",
 
 

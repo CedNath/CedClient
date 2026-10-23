@@ -8,7 +8,7 @@ object ModuleGroups {
     private val groups: Map<String, List<Pair<String, List<String>>>> = mapOf(
         "Render" to listOf(
             "Highlights" to listOf("StarredMobHighlight", "FloorDrops"),
-            "World" to listOf("Fullbright", "Clean View", "Render Optimizer", "Zoom"),
+            "World" to listOf("Fullbright", "Saturation", "Clean View", "Render Optimizer", "Zoom"),
             "Items & Tooltips" to listOf("Vanilla Textures", "Old Stars", "Custom Tooltips", "Scrollable Tooltips"),
             "Screen" to listOf("Crosshair", "Hiders"),
         ),
@@ -36,14 +36,14 @@ object ModuleGroups {
 //#if CHEAT
             "Farming" to listOf("FarmHelper"),
 //#endif
-            "Minigames" to listOf("TinyDancerHelper", "Auto Experiments", "Dojo Helper"),
+            "Minigames" to listOf("TinyDancerHelper", "Auto Experiments", "Beacon Solver", "Dojo Helper"),
 //#if CHEAT
             "Items" to listOf("Anvil Helper"),
 //#endif
         ),
         "Misc" to listOf(
             "General" to listOf("Mod Settings", "AutoSprint", "WarpShortcuts", "InventoryButtons", "HideRecipeBook"),
-            "Chat" to listOf("Chat Features", "ChatFilter", "Party Commands"),
+            "Chat" to listOf("Chat Features", "ChatFilter", "Party Commands", "Auto Requeue"),
             "Window & Connection" to listOf("ScreenshotTweaks", "Borderless Fullscreen", "Keep Connection", "Texture Pack Fix"),
             "Media" to listOf("Spotify"),
             "Panels" to listOf("Advanced Mode", "Reset Panels", "Chat Prefix"),

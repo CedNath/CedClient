@@ -79,6 +79,7 @@ import ced.cedclient.features.impl.render.ItemCooldowns
 import ced.cedclient.features.impl.render.TimeHud
 import ced.cedclient.features.impl.render.RenderOptimizer
 import ced.cedclient.features.impl.render.CleanView
+import ced.cedclient.features.impl.render.Saturation
 import ced.cedclient.features.impl.render.Zoom
 import ced.cedclient.features.impl.render.nametag.CustomNametag
 import ced.cedclient.render.nvg.NVGSpecialRenderer
@@ -183,6 +184,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(FloorDrops)
         ModuleManager.register(PestHighlighter)
         ModuleManager.register(Fullbright)
+        ModuleManager.register(Saturation)
         ModuleManager.register(CleanView)
         ModuleManager.register(RenderOptimizer)
         ModuleManager.register(VanillaTextures)
@@ -242,6 +244,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ChatFilter)
         ModuleManager.register(ChatFeatures)
         ModuleManager.register(ced.cedclient.features.impl.misc.PartyCommands)
+        ModuleManager.register(ced.cedclient.features.impl.misc.AutoRequeue)
         ModuleManager.register(ScreenshotTweaks)
         ModuleManager.register(KeepConnection)
         ModuleManager.register(ced.cedclient.features.impl.misc.TexturePackFix)
@@ -271,6 +274,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoExperiments)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.BeaconSolver)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoFusion)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AnvilHelper)
 
@@ -283,9 +287,17 @@ class CedClient : ClientModInitializer {
         }
     }
 
+    /** HudElementRegistry.addLast, except that over an inventory / container screen only Spotify (which draws itself in front) is shown. */
+    private fun hudLast(id: Identifier, element: net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement) =
+        HudElementRegistry.addLast(id) { graphics, tickCounter ->
+            val hidden = id.path != "spotify" && id.path != "hud_keep_on_screen" &&
+                net.minecraft.client.Minecraft.getInstance().screen is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>
+            if (!hidden) element.extractRenderState(graphics, tickCounter)
+        }
+
     private fun registerHudElements() {
         // First, so every panel is back on-screen before it draws.
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "hud_keep_on_screen")
         ) { graphics, _ ->
             HudElement.followScreenSize(graphics.guiWidth(), graphics.guiHeight())
@@ -293,43 +305,43 @@ class CedClient : ClientModInitializer {
         }
 //#if CHEAT
         // Friends-only like the module itself (touching FarmHelper would set it up for everyone).
-        if (ced.cedclient.utils.DevAccess.isFriend) HudElementRegistry.addLast(
+        if (ced.cedclient.utils.DevAccess.isFriend) hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "farmhelper")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
         }
 //#endif
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_map")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.DungeonMap.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "spotify")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.misc.Spotify.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "secret_hud")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.SecretHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "room_times")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.RoomTimes.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "leap_counter")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.LeapCounter.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")
         ) { graphics, tickCounter ->
             DungeonSplits.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "positional_messages")
         ) { graphics, tickCounter ->
             PositionalMessages.render(graphics, tickCounter)
@@ -337,69 +349,69 @@ class CedClient : ClientModInitializer {
 //#if CHEAT
         // First, so HUD panels draw over the floating entity labels.
 //#endif
-        HudElementRegistry.addLast(
+        hudLast(
 //#if CHEAT
             Identifier.fromNamespaceAndPath("cedclient", "entity_esp_labels")
         ) { graphics, tickCounter ->
             EntityESPLabels.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "entity_esp_hud")
         ) { graphics, tickCounter ->
             EntityESPHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
 //#endif
             Identifier.fromNamespaceAndPath("cedclient", "time_hud")
         ) { graphics, tickCounter ->
             TimeHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "chat_channel_hud")
         ) { graphics, tickCounter ->
             ChatChannelHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "action_bar_hud")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.render.ActionBarHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "chat_alerts_hud")
         ) { graphics, tickCounter ->
             ChatPing.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "critter_progress")
         ) { graphics, tickCounter ->
             CritterSafari.ProgressHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "critter_missing")
         ) { graphics, tickCounter ->
             CritterSafari.MissingHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "critter_trades")
         ) { graphics, tickCounter ->
             CritterSafari.TradesHud.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "slayer")
         ) { graphics, tickCounter ->
             VampireSlayer.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "sun_gecko")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.SunGecko.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "item_cooldowns")
         ) { graphics, tickCounter ->
             ItemCooldowns.render(graphics, tickCounter)
         }
-        HudElementRegistry.addLast(
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "daily_reset")
         ) { graphics, tickCounter ->
             DailyReset.render(graphics, tickCounter)

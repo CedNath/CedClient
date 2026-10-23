@@ -195,9 +195,8 @@ object RoomTimes : Module(
     fun onOwnSecret(source: String) {
         if (!isEnabled) return
         val now = System.currentTimeMillis()
-        lastOwnAction = now
-        lastOwnSource = source
-        dbg("own action: $source")
+        // Counts as an action like a click: the pickup often lands before the action bar's count.
+        own(source)
         current?.let { if (it.shared && now - it.maybeSharedAt < 1500) { it.shared = false; it.maybeSharedAt = 0L } }
     }
 
