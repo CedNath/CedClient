@@ -384,13 +384,13 @@ object DungeonMap : Module(
     private var easedAt = 0L
     private var easedDt = 0.0
 
-    private fun ease(name: String, x: Double, z: Double, yaw: Float): Mark {
+    private fun ease(name: String, x: Double, z: Double, yaw: Float, rate: Double = 20.0): Mark {
         val e = eased.getOrPut(name.lowercase()) { doubleArrayOf(x, z, yaw.toDouble()) }
         val dx = x - e[0]
         val dz = z - e[1]
         if (dx * dx + dz * dz > 400.0) { e[0] = x; e[1] = z; e[2] = yaw.toDouble() } // a leap: jump, don't glide across the map
         else {
-            val a = 1 - Math.exp(-easedDt * 20)
+            val a = 1 - Math.exp(-easedDt * rate)
             e[0] += dx * a
             e[1] += dz * a
             e[2] += ((((yaw - e[2]) % 360) + 540) % 360 - 180) * a
@@ -405,12 +405,11 @@ object DungeonMap : Module(
         val self = mc.player ?: return emptyList()
         val out = ArrayList<Mark>()
         if (teammates.value) {
-            val icons = HotbarDungeonMap.markers.filter { !it.self }
             DungeonTeam.members().filter { !it.dead }.forEachIndexed { i, m ->
                 val color = DungeonTeam.classColor(m.cls)
                 val entity = mc.level?.players()?.firstOrNull { it !== self && it.gameProfile.name.equals(m.name, ignoreCase = true) }
                 if (entity != null) out += ease(m.name, entity.x, entity.z, entity.yRot).withColor(color)
-                else icons.getOrNull(i)?.let { out += ease(m.name, it.x, it.z, it.yaw).withColor(color) }
+                else HotbarDungeonMap.iconFor(i)?.let { out += ease(m.name, it.x, it.z, it.yaw, 5.0).withColor(color) }
             }
         }
         if (playerMarker.value) out += Mark(self.x, self.z, self.yRot, self.gameProfile.name, 0xFF55FF55.toInt())
@@ -491,7 +490,8 @@ object DungeonMap : Module(
             val state = listOf(RoomState.FAILED, RoomState.GREEN, RoomState.CLEARED).firstOrNull { it in states }
             val info = room(si, sj) ?: continue
             val shown = !hidden(si, sj)
-            val check = checkmarks.value && state != null
+            // With a name shown the name carries the state (green when all secrets are done), so no checkmark.
+            val check = checkmarks.value && state != null && !(showName && shown)
             val scale = labelSize.value.toFloat()
             val secretSize = (3.5f * scale).coerceAtMost(spanH * 0.3f)
             val secretLine = if (showSecrets && shown && info.secrets > 0) "${(if (state == RoomState.GREEN) info.secrets else secretsFound[info.name])?.toString() ?: "?"}/${info.secrets}" else null
@@ -504,7 +504,9 @@ object DungeonMap : Module(
             // Text flips to dark on light room colors so custom colors stay readable.
             val bg = tileColor(si, sj)
             val light = (0.299f * (bg shr 16 and 0xFF) + 0.587f * (bg shr 8 and 0xFF) + 0.114f * (bg and 0xFF)) > 150f
+            val done = state == RoomState.GREEN || info.secrets > 0 && (secretsFound[info.name] ?: 0) >= info.secrets
             val color = when {
+                done -> if (light) 0xFF007700.toInt() else 0xFF55FF55.toInt()
                 light -> if (explored(si, sj)) 0xFF111111.toInt() else 0xFF444444.toInt()
                 explored(si, sj) -> -1
                 else -> 0xFF9A9A9A.toInt()
@@ -514,7 +516,6 @@ object DungeonMap : Module(
                 y += lineH
             }
             if (secretLine != null) {
-                val done = (secretsFound[info.name] ?: 0) >= info.secrets || state == RoomState.GREEN
                 text(secretLine, cx - HudCard.width(secretLine, secretSize) / 2, y, secretSize, if (done) (if (light) 0xFF007700.toInt() else 0xFF55FF55.toInt()) else (if (light) 0xFF222222.toInt() else 0xFFCCCCCC.toInt()))
                 y += secretH
             }
