@@ -156,7 +156,7 @@ object DungeonMap : Module(
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
             val plain = message.string.replace(CODES, "").trim()
             if (plain == "The BLOOD DOOR has been opened!") bloodOpenLevel = mc.level
-            if (overlay) SECRETS.find(plain)?.let { onSecrets(it.groupValues[1].toInt()) }
+            if (overlay) SECRETS.find(plain)?.let { onSecrets(it.groupValues[1].toInt(), it.groupValues[2].toInt()) }
         }
         ClientTickEvents.END_CLIENT_TICK.register {
             val level = mc.level ?: return@register
@@ -190,13 +190,16 @@ object DungeonMap : Module(
     }
 
     /** "x/y Secrets" in the action bar: the count for the room you stand in. */
-    private fun onSecrets(found: Int) {
+    private fun onSecrets(found: Int, total: Int) {
         val player = mc.player ?: return
         if (secretsLevel !== mc.level) { secretsLevel = mc.level; secretsFound.clear(); secretsVersion++ }
         val i = Math.floorDiv(player.x.toInt() - START + 16, 32)
         val j = Math.floorDiv(player.z.toInt() - START + 16, 32)
         if (i !in 0..5 || j !in 0..5) return
-        val name = DungeonScanner.room(i, j)?.name ?: return
+        val room = DungeonScanner.room(i, j) ?: return
+        // Right after a door the bar still shows the previous room: its total won't match this room's.
+        if (room.secrets != total) return
+        val name = room.name
         val best = maxOf(found, secretsFound[name] ?: 0)
         if (secretsFound.put(name, best) != best) secretsVersion++
     }

@@ -67,6 +67,8 @@
     "screen.AbstractContainerScreenMixin",
     "screen.LeapMenuMixin",
     "screen.LeapMenuBackgroundMixin",
+    "screen.RunProfitMixin",
+    "screen.RunProfitBackgroundMixin",
     "screen.ScreenTooltipMixin",
     "scoreboard.PlayerTeamMixin",
 

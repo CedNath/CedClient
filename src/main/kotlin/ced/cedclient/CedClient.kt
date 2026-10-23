@@ -224,6 +224,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(F7SoundCap)
         ModuleManager.register(CustomHypeSound)
         ModuleManager.register(CritterSafari)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RunProfit)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.DeployableTimers)
         ModuleManager.register(VampireSlayer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RoomTimes)
@@ -396,6 +398,16 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "critter_trades")
         ) { graphics, tickCounter ->
             CritterSafari.TradesHud.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "run_profit")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.RunProfit.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "deployable_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.DeployableTimers.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "slayer")
