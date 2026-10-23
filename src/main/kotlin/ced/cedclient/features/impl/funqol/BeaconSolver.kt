@@ -7,6 +7,7 @@ import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
+import ced.cedclient.utils.CursorGlide
 import ced.cedclient.utils.loreLines
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
@@ -31,7 +32,8 @@ object BeaconSolver : Module(
     "Moonglade beacon: sets the color, speed and pitch to the reference by itself."
 ) {
     private val autoClick = BooleanSetting("Auto Click", true, "Clicks the buttons itself. Off: only reads (use Debug to see it).")
-    private val clickDelay = NumberSetting("Click Delay ms", 150.0, 50.0, 1000.0, 10.0)
+    private val clickDelay = NumberSetting("Click Delay ms", 300.0, 50.0, 1000.0, 10.0)
+    private val smoothCursor = BooleanSetting("Smooth Cursor", true, "Moves the cursor to each button before clicking it.")
     private val debug = BooleanSetting("Debug", false, "Prints what was read and every click to chat (only to you).")
 
     private val mc get() = Minecraft.getInstance()
@@ -44,7 +46,7 @@ object BeaconSolver : Module(
     private val COLORS = listOf("white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "cyan", "purple", "blue", "brown", "green", "red")
     private val PITCHES = listOf("low" to 0.0952381f, "normal" to 0.7936508f, "high" to 1.4920635f)
     private val SPEED_TICKS = listOf(52, 42, 32, 22, 12)
-    private const val SOUND_WINDOW_MS = 120L
+    private const val SOUND_WINDOW_MS = 250L
 
     private val colorRegex = Regex("Current color: ([\\w ]+)")
     private val speedRegex = Regex("Current speed: (\\d+)")
@@ -79,13 +81,9 @@ object BeaconSolver : Module(
     private val pitchVotes = ArrayList<Int>()
     private var lastVoteMs = 0L
 
-    /** A click type. [effect] = how one click moves a value (+1 up / -1 down), learned from the first clicks; 0 = not yet. */
-    private class Button(val label: String, val button: Int, val input: ContainerInput) {
-        var effect = 0
-        var misses = 0
-        val dead get() = misses >= 2
-    }
-    private val buttons = listOf(Button("left", 0, ContainerInput.PICKUP), Button("right", 1, ContainerInput.PICKUP))
+    /** A click type. [effect] = how one click moves a value: left +1 (up), right -1 (down). */
+    private class Button(val label: String, val button: Int, val effect: Int)
+    private val buttons = listOf(Button("left", 0, 1), Button("right", 1, -1))
 
     // After the values match: pause your pane, then let it go when the two panes are in the same place moving the same way.
     private const val PAUSE_SLOT = 52
@@ -94,33 +92,30 @@ object BeaconSolver : Module(
 
     // The button's lore says "Currently: UNPAUSED" / "Currently: PAUSED"; the item itself may not change.
     private fun paused(slots: List<net.minecraft.world.inventory.Slot>) =
-        slots[PAUSE_SLOT].item.loreLines.any { it.contains("Currently: PAUSED") }
+        slots[PAUSE_SLOT].item.let { it.`is`(net.minecraft.world.item.Items.RED_TERRACOTTA) || it.loreLines.any { l -> l.contains("Currently: PAUSED") } }
 
     private class Pending(val axis: Axis, val button: Button, val before: Int, val at: Long)
     private var pending: Pending? = null
     private var lastClickMs = 0L
+    private var lastStatusMs = 0L
     private var lastScreen: Any? = null
 
     private fun dbg(msg: String) { if (debug.value) mc.player?.sendSystemMessage(Component.literal("§8[beacon] §7$msg")) }
 
     init {
-        addSettings(autoClick, clickDelay, debug)
+        addSettings(autoClick, clickDelay, smoothCursor, debug)
 
         on<PlaySoundEvent> {
             if (!isEnabled || !it.soundName.endsWith("block.note_block.bass") || !open()) return@on
-            val now = System.currentTimeMillis()
-            val nearMatch = abs(now - lastMatchMs) <= SOUND_WINDOW_MS
-            val nearChange = abs(now - lastChangeMs) <= SOUND_WINDOW_MS
-            // Sounds that land with your own pane (or both) say nothing about the reference.
-            if (!nearMatch || nearChange) return@on
             val idx = PITCHES.indexOfFirst { p -> abs(p.second - it.pitch) < 0.01f }
+            dbg("bass pitch=${it.pitch} -> ${if (idx < 0) "unknown" else PITCHES[idx].first}")
             if (idx < 0) return@on
-            // One vote per reference move, and the pitch is only trusted once the last three votes agree.
-            if (lastVoteMs == lastMatchMs) return@on
-            lastVoteMs = lastMatchMs
-            pitchVotes += idx
+            // Both panes ring: the one that isn't yours is the reference. Only yours heard for a while = same pitch.
+            val ours = pitch.ours ?: return@on
+            if (idx != ours) pitchVotes += idx else sameVotes++
             if (pitchVotes.size > 6) pitchVotes.removeAt(0)
-            if (pitchVotes.size >= 3 && pitchVotes.takeLast(3).distinct().size == 1) pitch.ref = idx
+            if (pitchVotes.size >= 3 && pitchVotes.takeLast(3).distinct().size == 1) pitch.ref = pitchVotes.last()
+            else if (pitchVotes.isEmpty() && sameVotes >= 6) pitch.ref = ours
         }
 
         ClientTickEvents.END_CLIENT_TICK.register {
@@ -133,11 +128,13 @@ object BeaconSolver : Module(
         }
     }
 
+    private var sameVotes = 0
+
     private fun open() = (mc.screen as? AbstractContainerScreen<*>)?.let { it.title.string.contains("Tune Frequency") && it.menu.slots.size >= 54 } == true
 
     private fun reset() {
         axes.forEach { it.ref = null; it.ours = null }
-        gaps.clear(); pitchVotes.clear(); lastVoteMs = 0L
+        gaps.clear(); pitchVotes.clear(); sameVotes = 0
         lastMatchSlot = -1; lastChangeSlot = -1
         phase = 0
         pending = null
@@ -190,52 +187,52 @@ object BeaconSolver : Module(
         speed.ref = SPEED_TICKS.indices.minBy { abs(SPEED_TICKS[it] - avg) }
     }
 
+    /** Click [slot], after the cursor has glided to it when Smooth Cursor is on. */
+    private fun clickSlot(screen: AbstractContainerScreen<*>, slot: Int, button: Int, glide: Boolean = true, after: () -> Unit) {
+        val player = mc.player ?: return
+        val click = {
+            mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, button, ContainerInput.PICKUP, player)
+            lastClickMs = System.currentTimeMillis()
+            after()
+        }
+        if (glide && smoothCursor.value) CursorGlide.moveTo(screen, screen.menu.slots[slot], clickDelay.value.toLong(), click) else click()
+    }
+
     private fun solve(screen: AbstractContainerScreen<*>) {
+        if (CursorGlide.busy) return
         val now = System.currentTimeMillis()
-        // Did the last click change the value? That says what the button does.
+        // The lore lags the click: wait for the value to change (or give up) before the next one.
         pending?.let { p ->
-            val after = p.axis.ours
-            if (after != null && after != p.before) {
-                val d = ((after - p.before) % p.axis.size + p.axis.size) % p.axis.size
-                p.button.effect = if (d <= p.axis.size / 2) 1 else -1
-                p.button.misses = 0
-                dbg("${p.button.label} click moves ${p.axis.name} ${if (p.button.effect > 0) "up" else "down"}")
-                pending = null
-            } else if (now - p.at > 1200) {
-                p.button.misses++
-                dbg("${p.button.label} click changed nothing (${p.button.misses})")
-                pending = null
-            } else return
+            if (p.axis.ours != p.before || now - p.at > 1200) pending = null else return
         }
         if (now - lastClickMs < clickDelay.value.toLong()) return
         val axis = axes.firstOrNull { (it.offset() ?: 0) != 0 }
         if (axis == null) {
-            // Nothing left to change: wait until all three are actually known, then line the panes up.
-            if (axes.any { it.offset() == null }) return
+            // Nothing left to change: wait until color and speed are known, then line the panes up (pitch can stay unheard).
+            if (color.offset() == null || speed.offset() == null) {
+                if (now - lastStatusMs > 2000) { lastStatusMs = now; dbg("waiting: color ${color.ref}/${color.ours} speed ${speed.ref}/${speed.ours} pitch ${pitch.ref}/${pitch.ours}") }
+                return
+            }
             align(screen)
             return
         }
         phase = 0
         val off = axis.offset() ?: return
         val want = if (off > 0) 1 else -1
-        val button = buttons.firstOrNull { !it.dead && it.effect == want } ?: buttons.firstOrNull { !it.dead && it.effect == 0 } ?: return
-        val player = mc.player ?: return
-        mc.gameMode?.handleContainerInput(screen.menu.containerId, axis.slot, button.button, button.input, player)
-        lastClickMs = now
-        pending = Pending(axis, button, axis.ours ?: return, now)
-        dbg("${axis.name} ref=${axis.ref} ours=${axis.ours} offset=$off -> ${button.label} click")
+        val button = buttons.first { it.effect == want }
+        val before = axis.ours ?: return
+        clickSlot(screen, axis.slot, button.button) {
+            pending = Pending(axis, button, before, System.currentTimeMillis())
+            dbg("${axis.name} ref=${axis.ref} ours=$before offset=$off -> ${button.label} click")
+        }
     }
 
     /** Values match: pause your pane, then unpause it the moment the reference is in its column going the same way. */
     private fun align(screen: AbstractContainerScreen<*>) {
         val slots = screen.menu.slots
-        val player = mc.player ?: return
         val isPaused = paused(slots)
-        fun clickPause(why: String) {
-            mc.gameMode?.handleContainerInput(screen.menu.containerId, PAUSE_SLOT, 0, ContainerInput.PICKUP, player)
-            lastClickMs = System.currentTimeMillis()
-            dbg(why)
-        }
+        // The unpause is timed to the panes, so it clicks at once: the cursor is already on the button from pausing.
+        fun clickPause(why: String, glide: Boolean = true) = clickSlot(screen, PAUSE_SLOT, 0, glide) { dbg(why) }
         when (phase) {
             0, 1 -> {
                 phase = 1
@@ -245,7 +242,7 @@ object BeaconSolver : Module(
             2 -> {
                 if (!isPaused) { phase = 3; return }
                 val same = lastMatchSlot - MATCH.first == lastChangeSlot - CHANGE.first && lastMatchSlot >= 0 && lastChangeSlot >= 0
-                if (same) { clickPause("lined up (column ${lastMatchSlot - MATCH.first}) -> unpausing"); phase = 3 }
+                if (same) { clickPause("lined up (column ${lastMatchSlot - MATCH.first}) -> unpausing", glide = false); phase = 3 }
             }
         }
     }
