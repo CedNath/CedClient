@@ -62,18 +62,19 @@ object VampireSlayer : Module(
     private val hud = BooleanSetting("Slayer HUD", true, "Quest and boss timers, kill times, bosses per hour, RNG meter.")
     private val bossBox = BooleanSetting("Box Your Boss", true, "Vampire: boxes the Bloodfiend locked in as yours.")
     private val bossColor = ColorSetting("Boss Color", Color(85, 255, 85)).withDependency { bossBox.value }
-    private val steakAlert = BooleanSetting("Steak Alert", true, "Title + sound when your boss is at 20% HP or less (Steak Stake works).")
-    private val steakColor = ColorSetting("Steak Color", Color(255, 85, 85)).withDependency { bossBox.value }
-    private val twinclawsAlert = BooleanSetting("Twinclaws Alert", true, "Title with the countdown when your boss starts Twinclaws.")
-    private val ichor = BooleanSetting("Blood Ichor Boxes", true)
-    private val ichorColor = ColorSetting("Ichor Color", Color(255, 40, 40)).withDependency { ichor.value }
-    private val ichorSpots = BooleanSetting("Ichor Stand Spots", true, "Outside Mania: marks the 2 blocks to stand on so Twinclaws breaks the Blood Ichor.")
-    private val ichorSpotColor = ColorSetting("Stand Spot Color", Color(85, 255, 255)).withDependency { ichorSpots.value }
-    private val springs = BooleanSetting("Killer Spring Boxes", true)
-    private val springColor = ColorSetting("Spring Color", Color(200, 85, 255)).withDependency { springs.value }
-    private val effigies = BooleanSetting("Blood Effigies", true, "HUD line + boxes at the standing effigies in Stillgore Château.")
-    private val effigyColor = ColorSetting("Effigy Color", Color(255, 170, 0)).withDependency { effigies.value }
-    private val effigyXray = BooleanSetting("Effigies Through Walls", false, "Draws the standing effigy boxes through walls.").withDependency { effigies.value }
+    // Each slayer's own options live in its module (SlayerModules.kt); a feature runs only while that module is on.
+    private val steakAlert = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.steakAlert)
+    private val steakColor = RiftstalkerSlayer.steakColor
+    private val twinclawsAlert = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.twinclawsAlert)
+    private val ichor = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.ichor)
+    private val ichorColor = RiftstalkerSlayer.ichorColor
+    private val ichorSpots = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.ichorSpots)
+    private val ichorSpotColor = RiftstalkerSlayer.ichorSpotColor
+    private val springs = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.springs)
+    private val springColor = RiftstalkerSlayer.springColor
+    private val effigies = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.effigies)
+    private val effigyColor = RiftstalkerSlayer.effigyColor
+    private val effigyXray = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.effigyXray)
 
     // ---- every slayer
     private val bossSoon = BooleanSetting("Boss Soon Alert", true, "Title when the quest is 90% done.")
@@ -81,37 +82,27 @@ object VampireSlayer : Module(
     private val minibossAlert = BooleanSetting("Mini-Boss Alert", true)
     private val minibossBox = BooleanSetting("Box Mini-Bosses", true, "Boxes slayer mini-bosses near you (anyone's).")
     private val minibossColor = ColorSetting("Mini-Boss Color", Color(255, 170, 255)).withDependency { minibossBox.value }
-    private val beaconAlert = BooleanSetting("Voidgloom Beacons", true, "Title + boxes for the beacons the boss throws and places.")
-    private val beaconColor = ColorSetting("Beacon Color", Color(255, 0, 0)).withDependency { beaconAlert.value }
-    private val beaconStyle = DropdownSetting("Beacon Style", BOX_STYLES, "Outline").withDependency { beaconAlert.value }
-    private val laserTimer = BooleanSetting("Voidgloom Laser Timer", true, "Title with the 8 s countdown of the laser phase.")
-    private val nukekubi = BooleanSetting("Nukekubi Skulls", true, "Boxes the Voidgloom skull heads.")
-    private val nukekubiColor = ColorSetting("Skull Color", Color(255, 170, 0)).withDependency { nukekubi.value }
-    private val nukekubiStyle = DropdownSetting("Skull Style", BOX_STYLES, "Outline").withDependency { nukekubi.value }
-    private val attunementAlert = BooleanSetting("Inferno Attunement", true, "Title with the dagger attunement to use when it changes.")
-    private val firePits = BooleanSetting("Inferno Fire Pits", true, "Title when the boss drops under a third of its HP.")
-    private val firePillar = BooleanSetting("Inferno Fire Pillar", true, "Title with the fire pillar countdown.")
-    private val hatchlings = BooleanSetting("Tarantula Hatchlings", true, "Title when you have to kill the hatchlings first.")
+    private val beaconAlert = SlayerGate(VoidgloomSlayer, VoidgloomSlayer.beaconAlert)
+    private val beaconColor = VoidgloomSlayer.beaconColor
+    private val beaconStyle = VoidgloomSlayer.beaconStyle
+    private val laserTimer = SlayerGate(VoidgloomSlayer, VoidgloomSlayer.laserTimer)
+    private val nukekubi = SlayerGate(VoidgloomSlayer, VoidgloomSlayer.nukekubi)
+    private val nukekubiColor = VoidgloomSlayer.nukekubiColor
+    private val nukekubiStyle = VoidgloomSlayer.nukekubiStyle
+    private val attunementAlert = SlayerGate(InfernoSlayer, InfernoSlayer.attunementAlert)
+    private val firePits = SlayerGate(InfernoSlayer, InfernoSlayer.firePits)
+    private val firePillar = SlayerGate(InfernoSlayer, InfernoSlayer.firePillar)
+    private val hatchlings = SlayerGate(TarantulaSlayer, TarantulaSlayer.hatchlings)
 
-    // Inline: the main toggles. Everything else sits in grouped popups so the panel stays short.
+    // Inline: the main toggles. The shared alerts sit in a popup so the panel stays short.
     private val alertSettings: List<RenderableSetting<*>> = listOf(bossSoon, bossSpawned, minibossAlert, minibossBox, minibossColor)
-    private val vampireSettings: List<RenderableSetting<*>> = listOf(steakAlert, steakColor, twinclawsAlert, ichor, ichorColor, ichorSpots, ichorSpotColor, springs, springColor, effigies, effigyColor, effigyXray)
-    private val otherSettings: List<RenderableSetting<*>> = listOf(beaconAlert, beaconColor, beaconStyle, laserTimer, nukekubi, nukekubiColor, nukekubiStyle, attunementAlert, firePits, firePillar, hatchlings)
-    private val popupSettings = alertSettings + vampireSettings + otherSettings
+    private val popupSettings = alertSettings
 
     private fun popup(title: String, vararg columns: SettingsPopup.Section) =
         (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(SettingsPopup(title, columns.map { listOf(it) }))
 
     private val alertsButton = ActionSetting("Alerts", "Boss soon, boss spawned, mini-boss titles.") {
         popup("Slayer Alerts", SettingsPopup.Section("Every Slayer", alertSettings))
-    }
-    private val vampireButton = ActionSetting("Vampire", "Steak, Twinclaws, Ichor, Killer Springs, Blood Effigies.") {
-        popup("Vampire Slayer", SettingsPopup.Section("Boss", listOf(steakAlert, steakColor, twinclawsAlert)),
-            SettingsPopup.Section("Rift", listOf(ichor, ichorColor, ichorSpots, ichorSpotColor, springs, springColor, effigies, effigyColor, effigyXray)))
-    }
-    private val othersButton = ActionSetting("Other Slayers", "Voidgloom beacons + skulls, Inferno attunement / fire pits / pillars, Tarantula hatchlings.") {
-        popup("Other Slayers", SettingsPopup.Section("Voidgloom", listOf(beaconAlert, beaconColor, beaconStyle, laserTimer, nukekubi, nukekubiColor, nukekubiStyle)),
-            SettingsPopup.Section("Inferno / Tarantula", listOf(attunementAlert, firePits, firePillar, hatchlings)))
     }
 
     // HUD lines, keyed by the row label they hide (the header always shows).
@@ -131,7 +122,7 @@ object VampireSlayer : Module(
     }
 
     init {
-        addSettings(hud, hudButton, bossBox, bossColor, alertsButton, vampireButton, othersButton)
+        addSettings(hud, hudButton, bossBox, bossColor, alertsButton)
         addSettings(*popupSettings.toTypedArray(), *hudLines.values.toTypedArray())
         (popupSettings + hudLines.values).forEach { it.inPopup = true }
         on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }

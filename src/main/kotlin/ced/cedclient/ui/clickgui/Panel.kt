@@ -28,7 +28,20 @@ class Panel(val panelSetting: PanelSetting) {
     private val arranged = ModuleGroups.arrange(category, ModuleManager.modulesByCategory[category] ?: listOf())
     val moduleButtons = arranged.map { ModuleButton(it.second, this@Panel) }
     private val headings = arranged.map { it.first }
-    private val lastModuleButton by lazy { moduleButtons.lastOrNull() }
+
+    // Compact layout (CompactLayout): only big categories split (Skyblock, Cheats...), one entry per heading
+    // (null = the unlisted rest); a small one (Cosmetic, HUD) stays a single entry.
+    val split = moduleButtons.size > SPLIT_OVER && headings.any { it != null }
+    val groupNames: List<String?> = if (split) headings.distinct() else listOf(null)
+
+    fun hasMatch(query: String) = moduleButtons.any { it.module.name.contains(query, true) }
+
+    /** The modules of one group matching [query]; a search looks across the whole category. */
+    fun modulesIn(heading: String?, query: String): List<ModuleButton> = moduleButtons.filterIndexed { i, b ->
+        b.module.name.contains(query, true) && (!split || query.isNotEmpty() || headings[i] == heading)
+    }
+
+    private fun visible(b: ModuleButton) = b.module.name.contains(SearchBar.currentSearch, true)
 
     private val textWidth = NVGRenderer.textWidth(category.displayName, 25f, NVGRenderer.defaultFont)
     /** Height drawn last frame; ClickGUI scales / rotates the open animation around it. */
@@ -74,16 +87,17 @@ class Panel(val panelSetting: PanelSetting) {
         )
 
         var startY = scrollOffset + HEIGHT
+        val lastShown = moduleButtons.lastOrNull { visible(it) }
         if (panelSetting.extended) {
             var lastHeading: String? = null
             for ((i, button) in moduleButtons.withIndex()) {
-                if (!button.module.name.contains(SearchBar.currentSearch, true)) continue
+                if (!visible(button)) continue
                 // Headings only without a search, so a filtered panel stays a plain list.
                 val heading = headings[i]
                 if (heading != null && heading != lastHeading && SearchBar.currentSearch.isEmpty())
                     startY += drawHeading(heading, panelSetting.x, startY + panelSetting.y)
                 lastHeading = heading
-                startY += button.draw(panelSetting.x, startY + panelSetting.y, button == lastModuleButton)
+                startY += button.draw(panelSetting.x, startY + panelSetting.y, button == lastShown)
             }
         }
         previousHeight = startY
@@ -94,7 +108,7 @@ class Panel(val panelSetting: PanelSetting) {
                 panelSetting.y + startY,
                 WIDTH,
                 10f,
-                if (lastModuleButton?.module?.enabled == true) ClickGUI.clickGUIColor.rgba else Colors.gray26.rgba,
+                if (lastShown?.module?.enabled == true) ClickGUI.clickGUIColor.rgba else Colors.gray26.rgba,
                 5f,
                 false
             )
@@ -130,7 +144,7 @@ class Panel(val panelSetting: PanelSetting) {
             }
         } else if (isMouseOverExtended) {
             return moduleButtons.reversed().any {
-                if (!it.module.name.contains(SearchBar.currentSearch, true)) return@any false
+                if (!visible(it)) return@any false
                 it.mouseClicked(mouseX, mouseY, click)
             }
         }
@@ -142,7 +156,7 @@ class Panel(val panelSetting: PanelSetting) {
 
         if (panelSetting.extended)
             moduleButtons.reversed().forEach {
-                if (!it.module.name.contains(SearchBar.currentSearch, true)) return@forEach
+                if (!visible(it)) return@forEach
                 it.mouseReleased(click)
             }
     }
@@ -151,7 +165,7 @@ class Panel(val panelSetting: PanelSetting) {
         if (!panelSetting.extended) return false
 
         return moduleButtons.reversed().any {
-            if (!it.module.name.contains(SearchBar.currentSearch, true)) return@any false
+            if (!visible(it)) return@any false
             it.keyTyped(input)
         }
     }
@@ -160,7 +174,7 @@ class Panel(val panelSetting: PanelSetting) {
         if (!panelSetting.extended) return false
 
         return moduleButtons.reversed().any {
-            if (!it.module.name.contains(SearchBar.currentSearch, true)) return@any false
+            if (!visible(it)) return@any false
             it.keyPressed(input)
         }
     }
@@ -178,5 +192,6 @@ class Panel(val panelSetting: PanelSetting) {
         const val WIDTH = 320f
         const val HEIGHT = 46f
         const val HEADING_HEIGHT = 26f
+        private const val SPLIT_OVER = 8
     }
 }

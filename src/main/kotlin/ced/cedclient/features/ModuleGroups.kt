@@ -26,7 +26,7 @@ object ModuleGroups {
             "Dungeons" to listOf("Dungeon Map", "Leap Menu", "Dungeon Splits", "Positional Messages", "F7SoundCap", "CustomHypeSound", "Explosive Shot Damage", "Room Times", "Leap Counter", "Secrets", "Simon Says Lines", "Dungeonbreaker Sound"),
             "Hunting" to listOf("Critter Safari"),
             "Rift" to listOf("Sun Gecko"),
-            "Slayers" to listOf("Slayer Tracker"),
+            "Slayers" to listOf("Slayer Tracker", "Revenant Horror", "Tarantula Broodfather", "Sven Packmaster", "Voidgloom Seraph", "Inferno Demonlord", "Riftstalker Bloodfiend"),
             "Trading" to listOf("SearchOverlay", "Auction Price Input", "Item Value"),
         ),
         "Cheats" to listOf(

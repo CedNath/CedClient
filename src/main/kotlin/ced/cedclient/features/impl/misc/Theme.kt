@@ -39,6 +39,14 @@ object Theme : Module(
     val guiAccent = ColorSetting("GUI Accent", Color(0x69, 0x00, 0x00), "Enabled modules, popups and other ClickGUI highlights.").apply { oldDefault = 0x6E32C8 }
     val hudAccent = ColorSetting("HUD Accent", Color(0xFF, 0x80, 0x80), "Badges, dividers and outlines on the HUD panels.").apply { oldDefault = 0x8A7FFF }
 
+    val menuLayout = DropdownSetting(
+        "Menu Layout",
+        listOf("Compact", "Classic"),
+        "Compact",
+        "Compact: a category list, the module list and the module's settings as three panels. Classic: one panel per category."
+    )
+    val menuStyle = DropdownSetting("Menu Style", listOf("Solid", "Glass", "Tinted Glass", "Neon", "Gradient", "Minimal"), "Solid", "Look of the Compact menu. Glass and Tinted Glass are frosted over a blurred game; Neon has a glowing accent outline; Gradient fades the accent in from the top; Minimal is a faint wash with a hairline.").withDependency { menuLayout.value == "Compact" }
+    val menuOpacity = NumberSetting("Menu Opacity", 100.0, 30.0, 100.0, 5.0, "How solid the Compact menu panels are, in percent. Lower is more see-through.").withDependency { menuLayout.value == "Compact" && menuStyle.value != "Glass" && menuStyle.value != "Tinted Glass" }
     val openAnimation = DropdownSetting(
         "Open Animation",
         listOf(
@@ -84,7 +92,11 @@ object Theme : Module(
     }
 
     init {
-        addSettings(guiAccent, hudAccent, resetColors, openAnimation, popupAnimation, animationSpeed, hudOutlines, menuBlur, blurStrength, resetModule, resetEverything)
+        addSettings(guiAccent, hudAccent, menuLayout, menuStyle, menuOpacity, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetModule, resetEverything)
+        listOf(guiAccent, hudAccent).forEach { it.section = "Colors" }
+        listOf(menuLayout, menuStyle, menuOpacity, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed).forEach { it.section = "Menu" }
+        hudOutlines.section = "HUD"
+        listOf(resetColors, resetModule, resetEverything).forEach { it.section = "Reset" }
         // Animation tuning only shows with Advanced Mode on.
         listOf(openAnimation, popupAnimation, animationSpeed).forEach { it.advanced = true }
     }

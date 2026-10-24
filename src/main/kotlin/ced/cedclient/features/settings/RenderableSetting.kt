@@ -42,6 +42,9 @@ abstract class RenderableSetting<T>(
      */
     var inPopup: Boolean = false
 
+    /** Compact ClickGUI layout: a small heading ("Colors", "Menu"...) drawn above this setting when it starts a new group. */
+    var section: String? = null
+
     /**
      * On top of Setting's own hidden/visibilityDependency gate, an advanced
      * setting also requires AdvancedMode to be enabled. Non-advanced

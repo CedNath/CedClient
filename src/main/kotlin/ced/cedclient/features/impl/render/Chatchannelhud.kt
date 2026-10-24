@@ -67,7 +67,37 @@ object ChatChannelHud : Module(
     private var privateMessagePlayer: String? = null
     private var privateMessageEnd = 0L
 
+    // The channel is only announced when it changes, so it is kept on disk: a restart would otherwise show All
+    // while you are still in Party / Guild chat.
+    private data class ChannelState(val channel: String, val dmPlayer: String?, val dmEnd: Long)
+    private val stateFile: File by lazy { CedPaths.file("chat_channel_state.json") }
+
+    private fun saveState() {
+        try {
+            stateFile.parentFile?.mkdirs()
+            stateFile.writeText(Gson().toJson(ChannelState(currentChannel.name, privateMessagePlayer, privateMessageEnd)))
+        } catch (e: Exception) {
+            println("[ChatChannelHud] Failed to save channel: ${e.message}")
+        }
+    }
+
+    private fun loadState() {
+        try {
+            if (!stateFile.exists()) return
+            val s = Gson().fromJson(stateFile.readText(), ChannelState::class.java) ?: return
+            val channel = Channel.entries.firstOrNull { it.name == s.channel } ?: return
+            // A DM conversation lapses after 5 minutes, so an old one is not restored.
+            if (channel == Channel.PRIVATE && s.dmEnd <= System.currentTimeMillis()) return
+            currentChannel = channel
+            privateMessagePlayer = s.dmPlayer
+            privateMessageEnd = s.dmEnd
+        } catch (e: Exception) {
+            println("[ChatChannelHud] Failed to load channel: ${e.message}")
+        }
+    }
+
     init {
+        loadState()
         // Channel switches are plain system messages (no sender), so they come from the raw tap.
         on<ChatMessageEvent> { event -> handleChannelMessage(event.unformattedText) }
 
@@ -75,6 +105,7 @@ object ChatChannelHud : Module(
         on<PrivateMessageChatEvent> { event ->
             if (currentChannel == Channel.PRIVATE && event.cleanAuthor.equals(privateMessagePlayer, ignoreCase = true)) {
                 privateMessageEnd = System.currentTimeMillis() + DM_DURATION_MS
+                saveState()
             }
         }
     }
@@ -85,6 +116,7 @@ object ChatChannelHud : Module(
             channelNames[name]?.let {
                 currentChannel = it
                 privateMessagePlayer = null
+                saveState()
             }
             return
         }
@@ -92,6 +124,7 @@ object ChatChannelHud : Module(
         if (movedToAllRegex.containsMatchIn(text)) {
             currentChannel = Channel.ALL
             privateMessagePlayer = null
+            saveState()
             return
         }
 
@@ -99,6 +132,7 @@ object ChatChannelHud : Module(
             currentChannel = Channel.PRIVATE
             privateMessagePlayer = match.groups["player"]!!.value.cleanPlayerName()
             privateMessageEnd = System.currentTimeMillis() + DM_DURATION_MS
+            saveState()
         }
     }
 

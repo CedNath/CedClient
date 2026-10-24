@@ -2,6 +2,8 @@ package ced.cedclient.features.impl.render
 
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.components.EditBox
+import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import org.lwjgl.glfw.GLFW
@@ -16,7 +18,8 @@ import ced.cedclient.features.impl.funqol.DungeonSplits
  * registered HudElement at once, each independently draggable/scalable --
  * whichever panel is under the mouse when you click/scroll is the one that
  * moves/resizes. Add a new HUD panel to `elements` below and it shows up
- * here automatically, no other changes needed.
+ * here automatically, no other changes needed. The left side list picks which
+ * ones are shown/movable here (all at first), so a crowded screen can be cut down.
  */
 class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
@@ -25,8 +28,22 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     private var dragOffsetX = 0
     private var dragOffsetY = 0
 
+    private lateinit var search: EditBox
+    private var listScroll = 0
+    private val picked: MutableSet<String> = pickedLabels ?: elements.map { it.label }.toMutableSet().also { pickedLabels = it }
+    private val shown get() = elements.filter { it.label in picked }
+    private fun visibleRows() = elements.filter { search.value.isBlank() || it.label.contains(search.value.trim(), ignoreCase = true) }
+    private fun maxScroll() = maxOf(0, visibleRows().size * ROW_H - (this.height - LIST_Y - 4))
+
+    override fun init() {
+        search = EditBox(this.font, 6, 16, PANEL_W - 12, 14, Component.literal("Search HUDs..."))
+        search.setHint(Component.literal("Search HUDs..."))
+        search.setResponder { listScroll = 0 }
+        addRenderableWidget(search)
+    }
+
     // A guide grid (button or G): lines every 10 px, stronger every 50, the screen centre marked, and dragging snaps to it.
-    private val gridButtonX = 10
+    private val gridButtonX = PANEL_W + 10
     private val gridButtonY = 24
     private val gridButtonW = 80
     private val gridButtonH = 14
@@ -50,12 +67,12 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         context.text(
             this.font,
             "Drag any panel, scroll over it to resize, then press Escape to save and exit",
-            10,
+            PANEL_W + 10,
             10,
             0xFFFFFFFF.toInt()
         )
 
-        for (element in elements) {
+        for (element in shown) {
             val scaledWidth = (element.lastWidth * element.panelScale).toInt()
             val scaledHeight = (element.lastHeight * element.panelScale).toInt()
 
@@ -76,11 +93,36 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
             element.renderInternal(context)
         }
+        drawList(context, mouseX, mouseY)
+    }
+
+    private fun drawList(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        context.fill(0, 0, PANEL_W, this.height, 0xEE101418.toInt())
+        context.fill(PANEL_W - 1, 0, PANEL_W, this.height, 0xFF2A9DA8.toInt())
+        context.text(this.font, "Pick HUDs to move", 6, 4, 0xFFFFFFFF.toInt())
+        search.extractRenderState(context, mouseX, mouseY, 0f)
+        for ((i, b) in listOf("All" to 0, "None" to 1).withIndex()) {
+            val x = 6 + i * (PANEL_W / 2 - 3)
+            context.fill(x, 34, x + PANEL_W / 2 - 9, 46, if (mouseX in x..(x + PANEL_W / 2 - 9) && mouseY in 34..46) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt())
+            context.text(this.font, b.first, x + 4, 36, 0xFFFFFFFF.toInt())
+        }
+        context.text(this.font, "${picked.size}/${elements.size} picked", 6, 48,0xFF888888.toInt())
+        listScroll = listScroll.coerceIn(0, maxScroll())
+        context.enableScissor(0, LIST_Y, PANEL_W - 1, this.height)
+        visibleRows().forEachIndexed { i, e ->
+            val y = LIST_Y + i * ROW_H - listScroll
+            val on = e.label in picked
+            val hover = mouseX < PANEL_W && mouseY in y..(y + ROW_H - 1) && mouseY >= LIST_Y
+            if (hover) context.fill(0, y, PANEL_W - 1, y + ROW_H, 0x33FFFFFF)
+            if (on) context.fill(0, y, 2, y + ROW_H, 0xFF2A9DA8.toInt())
+            context.text(this.font, e.label, 8, y + 2, if (on) 0xFFFFFFFF.toInt() else 0xFF777777.toInt())
+        }
+        context.disableScissor()
     }
 
     private fun elementAt(mx: Int, my: Int): HudElement? {
         // topmost-drawn (last in the list) wins if panels overlap
-        return elements.lastOrNull { element ->
+        return shown.lastOrNull { element ->
             val scaledWidth = (element.lastWidth * element.panelScale).toInt()
             val scaledHeight = (element.lastHeight * element.panelScale).toInt()
             mx in element.panelX..(element.panelX + scaledWidth) &&
@@ -91,6 +133,17 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     override fun mouseClicked(event: MouseButtonEvent, focused: Boolean): Boolean {
         val mx = event.x().toInt()
         val my = event.y().toInt()
+
+        if (mx < PANEL_W) {
+            search.mouseClicked(event, focused)
+            if (my in 34..46) {
+                if (mx < PANEL_W / 2) picked.addAll(elements.map { it.label }) else picked.clear()
+            } else if (my >= LIST_Y) {
+                visibleRows().getOrNull((my - LIST_Y + listScroll) / ROW_H)?.label?.let { if (!picked.remove(it)) picked.add(it) }
+            }
+            return true
+        }
+        search.setFocused(false)
 
         if (mx in gridButtonX..(gridButtonX + gridButtonW) && my in gridButtonY..(gridButtonY + gridButtonH)) { grid = !grid; return true }
 
@@ -125,6 +178,10 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     }
 
     override fun mouseScrolled(x: Double, y: Double, scrollX: Double, scrollY: Double): Boolean {
+        if (x < PANEL_W) {
+            listScroll = (listScroll - (scrollY * ROW_H * 2).toInt()).coerceIn(0, maxScroll())
+            return true
+        }
         val hit = elementAt(x.toInt(), y.toInt())
         if (hit != null) {
             hit.adjustScale(scrollY.toFloat() * 0.1f)
@@ -136,9 +193,13 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
+        if (search.isFocused && event.key() != GLFW.GLFW_KEY_ESCAPE) { search.keyPressed(event); return true }
         if (event.key() == GLFW.GLFW_KEY_G) { grid = !grid; return true }
         return super.keyPressed(event)
     }
+
+    override fun charTyped(characterEvent: CharacterEvent): Boolean =
+        (search.isFocused && search.charTyped(characterEvent)) || super.charTyped(characterEvent)
 
     override fun onClose() {
         elements.forEach { it.save() }
@@ -150,6 +211,10 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     companion object {
         private const val GRID = 10
+        private const val PANEL_W = 130
+        private const val ROW_H = 12
+        private const val LIST_Y = 60
+        private var pickedLabels: MutableSet<String>? = null
         /** Kept for the session, so reopening the editor keeps your choice. */
         private var grid = false
     }
