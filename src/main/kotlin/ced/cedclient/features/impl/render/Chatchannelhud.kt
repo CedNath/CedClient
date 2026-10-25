@@ -160,8 +160,8 @@ object ChatChannelHud : Module(
     private val customFont = BooleanSetting("Custom Font", false)
 
     private val gson = Gson()
-    private val saveFile: File by lazy {
-        CedPaths.file("chat_channel_hud.json")
+    private val saveFile by lazy {
+        CedPaths.hud("chat_channel")
     }
 
     private var loadedOnce = false
@@ -279,8 +279,9 @@ object ChatChannelHud : Module(
         g.pose().scale(panelScale, panelScale)
 
         if (showBackground.value) {
-            g.fill(0, 0, width, height, 0xCC10101A.toInt())
-            g.outline(0, 0, width, height, Theme.hudBorderRgba)
+            val a = HudCard.opacityOf(label)
+            g.fill(0, 0, width, height, HudCard.withAlpha(0xCC10101A.toInt(), a))
+            g.outline(0, 0, width, height, HudCard.withAlpha(Theme.hudBorderRgba, a))
         }
 
         val textX = (width - textWidth) / 2

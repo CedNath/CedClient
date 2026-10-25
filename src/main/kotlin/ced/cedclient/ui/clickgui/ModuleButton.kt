@@ -185,7 +185,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
             // from the card's edges so labels and switches don't touch the border.
             val h = setting.getHeight()
             val cardH = h + 2 * CARD_PAD_Y
-            NVGRenderer.rect(x, y + drawY, CARD_WIDTH, cardH, Colors.WHITE.withAlpha(0.04f).rgba, 6f)
+            NVGRenderer.rect(x, y + drawY, CARD_WIDTH, cardH, Colors.WHITE.withAlpha(0.06f).rgba, 6f)
             setting.render(x + CARD_PAD_X, y + drawY + CARD_PAD_Y, mouseX / clickGuiScale, mouseY / clickGuiScale)
             NVGRenderer.hollowRect(x, y + drawY, CARD_WIDTH, cardH, 1f, Colors.WHITE.withAlpha(0.28f).rgba, 6f)
             drawY += cardH + CARD_GAP

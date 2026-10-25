@@ -44,7 +44,7 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
 class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     private val panelSettings: List<PanelSetting> =
-        Category.entries.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }
+        Category.entries.filter { ced.cedclient.features.ModuleManager.modulesByCategory.containsKey(it) }.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }
 
     private val panels: List<Panel> = panelSettings.map { Panel(it) }
 
@@ -59,6 +59,19 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     /** Live panel layout state, exposed for ResetPanels to mutate while this screen is open. */
     fun getPanels(): List<PanelSetting> = panelSettings
+
+    private var canvasW = 0f
+
+    /** Slides every panel by [dx] px, keeping the first one's left edge and the last one's right edge reachable (no-op when they all fit). */
+    private fun scrollPanels(dx: Float) {
+        val first = panelSettings.firstOrNull() ?: return
+        val last = panelSettings.last()
+        val lowest = canvasW - 15f - (last.x + Panel.WIDTH)
+        val highest = 15f - first.x
+        if (lowest >= highest) return
+        val move = dx.coerceIn(lowest.coerceAtMost(0f), highest.coerceAtLeast(0f))
+        panelSettings.forEach { it.x += move }
+    }
 
     /** Opens [popup] as a modal on top of this ClickGUI, replacing whichever popup (if any) is already open. */
     fun openPopup(popup: Popup) {
@@ -91,6 +104,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             // coordinate space everything in this block draws into -- see NVGRenderer's
             // doc comment on canvasWidth for why those two aren't the same thing.
             val canvasWidth = NVGRenderer.canvasWidth / clickGuiScale
+            canvasW = canvasWidth
             val canvasHeight = NVGRenderer.canvasHeight / clickGuiScale
 
             // Our own background dim instead of vanilla's menu blur (see extractBackground).
@@ -180,9 +194,13 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             compactLayout.mouseScrolled(scaledMouseX, scaledMouseY, actualAmount)
             return true
         }
+        // Shift + wheel (or the wheel over empty space) slides the whole row of panels sideways.
+        if (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.window, 340) || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.window, 344)) { scrollPanels(actualAmount * 6f); return true }
         for (i in panels.size - 1 downTo 0) {
             if (panels[i].handleScroll(actualAmount)) return true
         }
+        scrollPanels(actualAmount * 6f)
+        return true
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 

@@ -332,8 +332,34 @@ object VampireSlayer : Module(
         if (firePits.value && b.firePitsNow()) alert("§c§lFIRE PITS", "", 0.8f)
         val p = b.pillar
         if (firePillar.value && p != null) title("§6§lFIRE PILLAR", "§e%.1fs".format(p))
-        val laser = b.laser
-        if (laserTimer.value && laser != null) title("§b§lLASER", "§e%.1fs".format(laser))
+    }
+
+    private val viewProj = org.joml.Matrix4f()
+    private val clip = org.joml.Vector4f()
+    /** Screen spot (0..1) just above the boss while its laser phase runs, from the world pass; null otherwise. */
+    @Volatile private var laserSpot: FloatArray? = null
+
+    /** World pass: projects the point above the boss so the HUD pass can write the laser countdown there. */
+    private fun captureLaser(camera: CameraRenderState) {
+        val body = SlayerBosses.body
+        if (inRift() || !bossUp || !laserTimer.value || SlayerBosses.laser == null || body == null) { laserSpot = null; return }
+        viewProj.set(camera.projectionMatrix).mul(camera.viewRotationMatrix)
+        val p = body.getPosition(mc.deltaTracker.getGameTimeDeltaPartialTick(false))
+        val cam = camera.pos
+        clip.set((p.x - cam.x).toFloat(), (p.y + body.bbHeight + 0.4 - cam.y).toFloat(), (p.z - cam.z).toFloat(), 1f)
+        viewProj.transform(clip)
+        laserSpot = if (clip.w <= 0.05f) null else floatArrayOf(clip.x / clip.w * 0.5f + 0.5f, 0.5f - clip.y / clip.w * 0.5f)
+    }
+
+    /** HUD pass: a small countdown above the boss during the laser phase. */
+    private fun drawLaser(g: GuiGraphicsExtractor) {
+        val spot = laserSpot ?: return
+        val left = SlayerBosses.laser ?: return
+        val text = "%.1fs".format(left)
+        val size = 9f
+        HudCard.draw(g, 0, 0) {
+            HudCard.text(text, spot[0] * g.guiWidth() - HudCard.width(text, size) / 2f, spot[1] * g.guiHeight() - size, size, 0xFF55FFFF.toInt())
+        }
     }
 
     private fun ping(pitch: Float) = mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
@@ -441,6 +467,7 @@ object VampireSlayer : Module(
 
     private fun renderWorld(poseStack: PoseStack, bufferSource: MultiBufferSource.BufferSource, camera: CameraRenderState) {
         if (!isEnabled) return
+        captureLaser(camera)
         val boxes = ArrayList<Pair<AABB, Color>>()
         val fills = ArrayList<Pair<AABB, Color>>()
         // Beacons and skulls are drawn through walls (you need to find them fast).
@@ -559,6 +586,7 @@ object VampireSlayer : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+        if (isEnabled && !mc.options.hideGui) drawLaser(g)
         if (!isEnabled || !hud.value || mc.options.hideGui) return
         if (!inSlayerArea()) return
         if (lastSlayer == null && !(inRift() && effigyKnown)) return
@@ -582,7 +610,7 @@ object VampireSlayer : Module(
         val pad = 7f * s
         val gap = 10f * s
         val leftW = rows.filter { it.second.isNotEmpty() }.maxOfOrNull { HudCard.width(it.first, size) } ?: 0f
-        val width = rows.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2
+        val width = HudCard.steady("Slayer", rows.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2, s)
         val height = rows.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -610,7 +638,7 @@ object VampireSlayer : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = GsonBuilder().create()
-    private val hudFile: File by lazy { CedPaths.file("slayer_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("slayer") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

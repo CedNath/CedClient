@@ -341,7 +341,7 @@ object FarmHelper : Module(
         val gap = 10f * s
         val clean = rows.map { (l, r) -> l to r.replace(Regex("§."), "") }
         val leftW = clean.filter { it.second.isNotEmpty() }.maxOfOrNull { HudCard.width(it.first, size) } ?: 0f
-        val width = clean.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2
+        val width = HudCard.steady("FarmHelper", clean.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2, s)
         val height = rows.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -374,7 +374,7 @@ object FarmHelper : Module(
         private set
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
-    private val hudFile: File by lazy { CedPaths.file("farmhelper_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("farmhelper") }
     private val gson = Gson()
 
     private fun loadHud() {

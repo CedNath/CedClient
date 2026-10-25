@@ -389,6 +389,7 @@ object RunProfit : Module(
         record(screen)
         val player = mc.player ?: return true
         mc.gameMode?.handleContainerInput(screen.menu.containerId, OPEN_SLOT, 0, ContainerInput.PICKUP, player)
+        ced.cedclient.utils.Debug.line("Run Profit", "opened the reward chest")
         return true
     }
 
@@ -435,7 +436,7 @@ object RunProfit : Module(
         val gap = 10f * s
         val leftW = rows.maxOf { HudCard.width(it.first, size) }
         val rightW = rows.maxOf { HudCard.width(it.second, size) }
-        val width = leftW + gap + rightW + pad * 2
+        val width = HudCard.steady("Run Profit", leftW + gap + rightW + pad * 2, s)
         val height = rows.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -463,7 +464,7 @@ object RunProfit : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { CedPaths.file("run_profit_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("run_profit") }
 
     override fun save() {
         runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }

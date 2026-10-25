@@ -33,7 +33,7 @@ private enum class CoralotState { IDLE, CATCH_DELAY, CONFIRMING }
 private val CODES = Regex("§.")
 
 object CoralotHelper : Module(
-    "CoralotHelper(!!!)",
+    "CoralotHelper",
 
     Category.Cheats,
    description = "Auto-catches Axolotls with a net once the warning icon clears"
@@ -532,6 +532,7 @@ object CoralotHelper : Module(
             val id = Identifier.tryParse(soundId)
             val sound: SoundEvent? = id?.let { BuiltInRegistries.SOUND_EVENT.get(it).orElse(null)?.value() }
             if (sound != null) {
+            ced.cedclient.utils.Debug.line("Coralot Helper", "alert sound $soundId")
                 mc.soundManager.play(SimpleSoundInstance.forUI(sound, 1.0f))
             }
         }

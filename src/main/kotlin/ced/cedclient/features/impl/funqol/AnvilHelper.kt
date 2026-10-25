@@ -100,6 +100,7 @@ object AnvilHelper : Module(
         val id = screen.menu.containerId
         val click = {
             mc.gameMode?.handleContainerInput(id, target.first.index, 0, target.second, player)
+            ced.cedclient.utils.Debug.line("Anvil Helper", "clicked slot ${target.first.index}")
             lastClickAt = System.currentTimeMillis()
             lastState = state
         }

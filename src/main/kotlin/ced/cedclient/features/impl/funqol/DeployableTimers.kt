@@ -44,7 +44,7 @@ object DeployableTimers : Module(
     private val maxRows = NumberSetting("Max Rows", 6.0, 1.0, 12.0, 1.0, "Most rows shown at once.")
     private val showDistance = BooleanSetting("Show Distance", false, "Blocks away, after the name.")
     private val timeFormat = DropdownSetting("Time Format", listOf("1:30", "90s"), "1:30")
-    private val background = BooleanSetting("Background", true, "The card behind the rows.")
+    private val background = BooleanSetting("Background", false, "The card behind the rows.")
     private val inRangeColor = ColorSetting("In Range Color", Color(85, 255, 85), "Rows for deployables you are inside the range of.")
     private val outRangeColor = ColorSetting("Out Of Range Color", Color(187, 187, 187), "Rows for deployables out of your reach.")
     private val lowColor = ColorSetting("Low Time Color", Color(255, 85, 85), "Rows about to run out.")
@@ -162,7 +162,7 @@ object DeployableTimers : Module(
         val gap = 10f * s
         val leftW = lines.maxOf { HudCard.width(it.first, size) }
         val rightW = lines.maxOf { HudCard.width(it.second, size) }
-        val width = leftW + gap + rightW + pad * 2
+        val width = HudCard.steady("Deployable Timers", leftW + gap + rightW + pad * 2, s)
         val height = lines.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -189,7 +189,7 @@ object DeployableTimers : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { CedPaths.file("deployable_timers_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("deployable_timers") }
 
     override fun save() {
         runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }

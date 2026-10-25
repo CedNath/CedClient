@@ -55,7 +55,7 @@ object VoidgloomSlayer : Module(
     val beaconAlert = BooleanSetting("Beacons", true, "Title + boxes for the beacons the boss throws and places.")
     val beaconColor = ColorSetting("Beacon Color", Color(255, 0, 0)).withDependency { beaconAlert.value }
     val beaconStyle = DropdownSetting("Beacon Style", BOX_STYLES, "Outline").withDependency { beaconAlert.value }
-    val laserTimer = BooleanSetting("Laser Timer", true, "Title with the 8 s countdown of the laser phase.")
+    val laserTimer = BooleanSetting("Laser Timer", true, "Small 8 s countdown above the boss during the laser phase.")
     val nukekubi = BooleanSetting("Nukekubi Skulls", true, "Boxes the Voidgloom skull heads.")
     val nukekubiColor = ColorSetting("Skull Color", Color(255, 170, 0)).withDependency { nukekubi.value }
     val nukekubiStyle = DropdownSetting("Skull Style", BOX_STYLES, "Outline").withDependency { nukekubi.value }

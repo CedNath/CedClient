@@ -14,6 +14,7 @@
     "entity.EntityMixin",
 
     "render.LevelRendererMixin",
+    "render.ItemRarityMixin",
     "render.BlockBreakParticlesMixin",
     "render.PlayerRendererMixin",
     "render.PlayerRenderStateMixin",
@@ -54,6 +55,7 @@
     "render.HideCustomHeadMixin",
     "render.ChatHudHideMixin",
     "render.ParticleEngineMixin",
+    "render.ClientClockManagerMixin",
     "render.ItemDecorationsMixin",
     "client.PackCompatibilityMixin",
 
@@ -67,6 +69,8 @@
     "screen.AbstractContainerScreenMixin",
     "screen.LeapMenuMixin",
     "screen.LeapMenuBackgroundMixin",
+    "screen.TerminalSolverMixin",
+    "screen.TerminalSolverBackgroundMixin",
     "screen.RunProfitMixin",
     "screen.RunProfitBackgroundMixin",
     "screen.ScreenTooltipMixin",
@@ -98,6 +102,7 @@
     "client.WindowBorderlessMixin",
     "client.SoundEngineMixin",
     "client.LocalPlayerSignMixin",
+    "client.LocalPlayerDropMixin",
     "accessor.MinecraftAccessor"
   ],
 

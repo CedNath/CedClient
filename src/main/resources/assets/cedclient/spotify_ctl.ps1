@@ -1,4 +1,4 @@
-param([string]$Action = 'state', [string]$App = 'Spotify|AppleMusic|iTunes')
+param([string]$Action = 'state', [string]$App = 'Spotify|AppleMusic|iTunes', [long]$PositionMs = 0)
 # Shuffle / repeat of the player through the Windows media session (the media keys have no keys for these).
 # Prints "shuffle=<0|1> repeat=<0 off|1 track|2 list>", or "none" when no matching player is running.
 $ErrorActionPreference = 'Stop'
@@ -54,5 +54,9 @@ elseif ($Action -eq 'repeat') {
     $null = Await ($session.TryChangeAutoRepeatModeAsync([Windows.Media.MediaPlaybackAutoRepeatMode]$next)) ([bool])
     Start-Sleep -Milliseconds 350
     Read-State
+}
+elseif ($Action -eq 'seek') {
+    # Position in 100 ns ticks.
+    $null = Await ($session.TryChangePlaybackPositionAsync($PositionMs * 10000)) ([bool])
 }
 Write-Output "shuffle=$shuffle repeat=$repeat"

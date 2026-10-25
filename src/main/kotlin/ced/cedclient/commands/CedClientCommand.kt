@@ -37,6 +37,9 @@ object CedClientCommand {
     @Volatile
     private var pendingOpenHudEdit = false
 
+    @Volatile
+    private var pendingOpenDebug = false
+
     fun register() {
         // One persistent listener, registered once — checks the flags every
         // tick and opens the relevant screen on the tick after the command
@@ -50,6 +53,10 @@ object CedClientCommand {
             if (pendingOpenHudEdit) {
                 pendingOpenHudEdit = false
                 client.setScreen(MasterHudEditScreen())
+            }
+            if (pendingOpenDebug) {
+                pendingOpenDebug = false
+                client.setScreen(ced.cedclient.features.impl.misc.DebugScreen())
             }
         }
 
@@ -95,6 +102,10 @@ object CedClientCommand {
             .then(ced.cedclient.features.impl.funqol.RoomTimes.commandTree())
             .then(ced.cedclient.features.impl.funqol.RunProfit.commandTree())
             .then(ced.cedclient.features.impl.misc.Spotify.commandTree())
+            .then(ced.cedclient.features.impl.render.Waypoints.commandTree())
+            .then(ced.cedclient.features.impl.funqol.ProtectItem.commandTree())
+            .then(ced.cedclient.features.impl.misc.MuteSounds.commandTree())
+            .then(ced.cedclient.features.impl.misc.MuteSounds.unmuteCommandTree())
             .then(ced.cedclient.utils.DevAccess.commandTree())
 
             .then(
@@ -116,6 +127,12 @@ object CedClientCommand {
                         )
                         1
                     }
+                    .then(
+                        ClientCommands.literal("panel").executes {
+                            pendingOpenDebug = true
+                            1
+                        }
+                    )
             )
 
             .then(

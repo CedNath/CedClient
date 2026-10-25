@@ -1,9 +1,7 @@
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.config.CedPaths
-import ced.cedclient.data.ClickType
 import ced.cedclient.events.ChatMessageEvent
-import ced.cedclient.events.ItemClickEvent
 import ced.cedclient.events.core.TickEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
@@ -26,7 +24,8 @@ import java.io.File
 import kotlin.math.ceil
 
 /**
- * Ragnarock Axe, phase by phase (the same timeline SkyHanni uses): a click starts the 3 s cast, a cast that goes
+ * Ragnarock Axe, phase by phase (the same timeline SkyHanni uses): the action bar's "CASTING IN" (not the click, so a
+ * click that does nothing - no mana, wrong room - starts nothing) starts the 3 s cast, a cast that goes
  * through is the 10 s strength buff, then the rest of the 20 s cooldown. A hit during the cast cancels it and leaves
  * 17 s. The action bar ("CASTING IN n", "CASTING", "CANCELLED") and chat ("cancelled due to being hit", "on
  * cooldown for n seconds") keep the timeline in step with the server.
@@ -163,6 +162,7 @@ object RagnarockTimer : Module(
         if (!enabled || mc.player == null) return
         mc.gui.setTimes(5, 30, 10)
         mc.gui.setTitle(Component.literal(title).withColor(color))
+        ced.cedclient.utils.Debug.line("Ragnarock Timer", "alert: $title")
         mc.gui.setSubtitle(Component.empty())
         if (sound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
     }
@@ -213,7 +213,7 @@ object RagnarockTimer : Module(
         val gap = 10f * s
         val leftW = lines.maxOf { HudCard.width(it.first, size) }
         val rightW = lines.maxOf { HudCard.width(it.second, size) }
-        val width = leftW + gap + rightW + pad * 2
+        val width = HudCard.steady("Ragnarock Timer", leftW + gap + rightW + pad * 2, s)
         val height = lines.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -240,7 +240,7 @@ object RagnarockTimer : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { CedPaths.file("ragnarock_timer_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("ragnarock_timer") }
 
     override fun save() {
         runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }
@@ -255,10 +255,6 @@ object RagnarockTimer : Module(
             panelX = it.x; panelY = it.y; panelScale = it.scale.coerceIn(0.4f, 3f)
         }
         on<ChatMessageEvent> { onChat(it.unformattedText) }
-        on<ItemClickEvent> { event ->
-            val now = System.currentTimeMillis()
-            if (isEnabled && event.clickType == ClickType.RIGHT_CLICK && event.itemInHand?.hoverName?.string?.contains("Ragnarock") == true && phase(now) == Phase.READY) startCast(now)
-        }
         on<TickEvent.End> { tick() }
     }
 }

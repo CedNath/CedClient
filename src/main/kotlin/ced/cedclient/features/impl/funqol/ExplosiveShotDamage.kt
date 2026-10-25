@@ -30,6 +30,7 @@ object ExplosiveShotDamage : Module(
         on<ChatMessageEvent> { e ->
             if (!isEnabled) return@on
             val (hits, each) = perEnemy(e.unformattedText) ?: return@on
+            ced.cedclient.utils.Debug.line("Explosive Shot Damage", "$each per enemy ($hits hit)")
             Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msgFor("Explosive Shot Damage", "§6Explosive Shot §e$each §7per enemy §8($hits hit)"))
         }
         // Self-check on the example line: 6,066,269,716.9 / 6.

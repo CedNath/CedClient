@@ -19,7 +19,7 @@ public class SoundEngineMixin {
 
     @Inject(method = "play", at = @At("HEAD"), cancellable = true)
     private void cedclient$capF7Sounds(SoundInstance instance, CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
-        if (F7SoundCap.shouldCancel(instance) || ced.cedclient.features.impl.funqol.DungeonBreakerSound.shouldCancel(instance)) cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
+        if (ced.cedclient.features.impl.misc.MuteSounds.shouldCancel(instance) || F7SoundCap.shouldCancel(instance) || ced.cedclient.features.impl.funqol.DungeonBreakerSound.shouldCancel(instance)) cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
     }
 
     // After resolve(): before it, the instance has no Sound yet and getVolume() / getPitch() throw.

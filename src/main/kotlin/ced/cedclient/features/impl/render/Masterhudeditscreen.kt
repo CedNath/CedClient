@@ -9,44 +9,45 @@ import net.minecraft.client.input.MouseButtonEvent
 import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 import net.minecraft.network.chat.Component
-import ced.cedclient.features.impl.render.ChatChannelHud
-import ced.cedclient.features.impl.misc.DailyReset
-import ced.cedclient.features.impl.funqol.DungeonSplits
 
 /**
- * Opened by /cc hud or /cedclient hud (deliberately no keybind). Shows every
- * registered HudElement at once, each independently draggable/scalable --
- * whichever panel is under the mouse when you click/scroll is the one that
- * moves/resizes. Add a new HUD panel to `elements` below and it shows up
- * here automatically, no other changes needed. The left side list picks which
- * ones are shown/movable here (all at first), so a crowded screen can be cut down.
+ * Opened by /cc hud or /cedclient hud (deliberately no keybind). Shows every registered HudElement at once, each
+ * independently draggable/scalable. Add a new HUD panel to HudElement.all and it shows up here automatically.
+ *
+ * Kept quiet on purpose: the only chrome is a small pill at the top (HUD list, grid, hint). Panels are thin outlines;
+ * the one you click gets a bright outline and a toolbar (smaller, bigger, reset, card style) right above it. The HUD
+ * list (which panels are shown here) is a popover under the pill, not a permanent sidebar.
  */
 class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     private val elements: List<HudElement> = HudElement.all
     private var dragging: HudElement? = null
+    private var selected: HudElement? = null
     private var dragOffsetX = 0
     private var dragOffsetY = 0
 
     private lateinit var search: EditBox
+    private var open = false
     private var listScroll = 0
     private val picked: MutableSet<String> = pickedLabels ?: elements.map { it.label }.toMutableSet().also { pickedLabels = it }
     private val shown get() = elements.filter { it.label in picked }
     private fun visibleRows() = elements.filter { search.value.isBlank() || it.label.contains(search.value.trim(), ignoreCase = true) }
-    private fun maxScroll() = maxOf(0, visibleRows().size * ROW_H - (this.height - LIST_Y - 4))
+    private fun maxScroll() = maxOf(0, visibleRows().size - MAX_ROWS) * ROW_H
+
+    /** Clickable rectangles of the last frame (pill, popover buttons, toolbar), topmost last. */
+    private class Btn(val x: Int, val y: Int, val w: Int, val h: Int, val action: () -> Unit)
+    private val btns = ArrayList<Btn>()
+    private var popX = 0
+    private var popY = 0
+    private var popW = 0
+    private var popH = 0
 
     override fun init() {
-        search = EditBox(this.font, 6, 16, PANEL_W - 12, 14, Component.literal("Search HUDs..."))
+        search = EditBox(this.font, 0, 0, POP_W - 8, 14, Component.literal("Search HUDs..."))
         search.setHint(Component.literal("Search HUDs..."))
         search.setResponder { listScroll = 0 }
-        addRenderableWidget(search)
     }
 
-    // A guide grid (button or G): lines every 10 px, stronger every 50, the screen centre marked, and dragging snaps to it.
-    private val gridButtonX = PANEL_W + 10
-    private val gridButtonY = 24
-    private val gridButtonW = 80
-    private val gridButtonH = 14
     private fun snap(v: Int) = if (grid) (v / GRID.toFloat()).roundToInt() * GRID else v
 
     private fun drawGrid(context: GuiGraphicsExtractor) {
@@ -56,98 +57,137 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         context.fill(0, this.height / 2, this.width, this.height / 2 + 1, 0x8855FFFF.toInt())
     }
 
+    private fun button(context: GuiGraphicsExtractor, x: Int, y: Int, text: String, mx: Int, my: Int, on: Boolean = false, action: () -> Unit): Int {
+        val w = this.font.width(text) + 8
+        val hover = mx in x..(x + w) && my in y..(y + BTN_H)
+        context.fill(x, y, x + w, y + BTN_H, if (hover) 0xFF3C3C4C.toInt() else 0xFF26262F.toInt())
+        context.text(this.font, text, x + 4, y + 3, if (on) 0xFF6AA8FF.toInt() else 0xFFFFFFFF.toInt())
+        btns += Btn(x, y, w, BTN_H, action)
+        return w
+    }
+
     override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         super.extractRenderState(context, mouseX, mouseY, delta)
+        btns.clear()
 
         context.fill(0, 0, this.width, this.height, 0x88000000.toInt())
         if (grid) drawGrid(context)
-        val overGrid = mouseX in gridButtonX..(gridButtonX + gridButtonW) && mouseY in gridButtonY..(gridButtonY + gridButtonH)
-        context.fill(gridButtonX, gridButtonY, gridButtonX + gridButtonW, gridButtonY + gridButtonH, if (overGrid) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt())
-        context.text(this.font, "Grid: " + (if (grid) "ON" else "OFF") + " (G)", gridButtonX + 5, gridButtonY + 3, if (grid) 0xFF55FF55.toInt() else 0xFFFFFFFF.toInt())
-        context.text(
-            this.font,
-            "Drag any panel, scroll over it to resize, then press Escape to save and exit",
-            PANEL_W + 10,
-            10,
-            0xFFFFFFFF.toInt()
-        )
 
-        for (element in shown) {
-            val scaledWidth = (element.lastWidth * element.panelScale).toInt()
-            val scaledHeight = (element.lastHeight * element.panelScale).toInt()
-
-            context.outline(
-                element.panelX - 2,
-                element.panelY - 2,
-                scaledWidth + 4,
-                scaledHeight + 4,
-                if (dragging === element) 0xFF55FF55.toInt() else 0xFFFFAA00.toInt()
-            )
-            context.text(
-                this.font,
-                element.label,
-                element.panelX - 2,
-                element.panelY - 12,
-                0xFFFFAA00.toInt()
-            )
-
+        val hovered = if (open) null else elementAt(mouseX, mouseY)
+        val sel = selected?.takeIf { it in shown }
+        // The selected panel is drawn last (on top); the rest are dimmed while one is selected.
+        for (element in shown.sortedBy { it === sel }) {
+            val sw = (element.lastWidth * element.panelScale).toInt()
+            val sh = (element.lastHeight * element.panelScale).toInt()
+            val color = when {
+                element === selected -> 0xFF6AA8FF.toInt()
+                element === hovered -> 0xCCFFFFFF.toInt()
+                else -> 0x55FFFFFF
+            }
             element.renderInternal(context)
+            if (sel != null && element !== sel) context.fill(element.panelX - 2, element.panelY - 2, element.panelX + sw + 2, element.panelY + sh + 2, 0xB0000000.toInt())
+            context.outline(element.panelX - 2, element.panelY - 2, sw + 4, sh + 4, color)
+            if (element === hovered && element !== selected) {
+                context.text(this.font, element.label, element.panelX - 2, element.panelY - 12, 0xFFFFFFFF.toInt())
+            }
         }
-        drawList(context, mouseX, mouseY)
+        selected?.takeIf { it in shown }?.let { drawToolbar(context, it, mouseX, mouseY) }
+        drawPill(context, mouseX, mouseY)
+        if (open) drawPopover(context, mouseX, mouseY)
     }
 
-    private fun drawList(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        context.fill(0, 0, PANEL_W, this.height, 0xEE101418.toInt())
-        context.fill(PANEL_W - 1, 0, PANEL_W, this.height, 0xFF2A9DA8.toInt())
-        context.text(this.font, "Pick HUDs to move", 6, 4, 0xFFFFFFFF.toInt())
-        search.extractRenderState(context, mouseX, mouseY, 0f)
-        for ((i, b) in listOf("All" to 0, "None" to 1).withIndex()) {
-            val x = 6 + i * (PANEL_W / 2 - 3)
-            context.fill(x, 34, x + PANEL_W / 2 - 9, 46, if (mouseX in x..(x + PANEL_W / 2 - 9) && mouseY in 34..46) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt())
-            context.text(this.font, b.first, x + 4, 36, 0xFFFFFFFF.toInt())
-        }
-        context.text(this.font, "${picked.size}/${elements.size} picked", 6, 48,0xFF888888.toInt())
+    private fun drawToolbar(context: GuiGraphicsExtractor, e: HudElement, mx: Int, my: Int) {
+        val sh = (e.lastHeight * e.panelScale).toInt()
+        val y = if (e.panelY - 2 - BTN_H - 4 >= 22) e.panelY - 2 - BTN_H - 4 else e.panelY + sh + 6
+        var x = e.panelX - 2
+        val style = HudStyle.of(e.label)
+        context.text(this.font, e.label, x + 2, y + 3, 0xFFFFFFFF.toInt())
+        x += this.font.width(e.label) + 10
+        x += button(context, x, y, "-", mx, my) { e.adjustScale(-0.1f); e.save(); HudElement.layoutEdited() } + 2
+        x += button(context, x, y, "+", mx, my) { e.adjustScale(0.1f); e.save(); HudElement.layoutEdited() } + 2
+        x += button(context, x, y, "Reset", mx, my) { e.resetPosition(); e.save(); HudElement.layoutEdited() } + 2
+        button(context, x, y, "Style: " + if (HudStyle.hasOverride(e.label)) style else "Auto ($style)", mx, my, HudStyle.hasOverride(e.label)) { HudStyle.cycle(e.label) }
+    }
+
+    private fun drawPill(context: GuiGraphicsExtractor, mx: Int, my: Int) {
+        val listText = "HUDs ${picked.size}/${elements.size} " + if (open) "^" else "v"
+        val gridText = "Grid: " + (if (grid) "ON" else "OFF") + " (G)"
+        val hint = "Drag, scroll to resize, right-click picks the one underneath, Esc saves"
+        val total = this.font.width(listText) + this.font.width(gridText) + this.font.width(hint) + 8 * 2 + 6 * 2 + 16
+        val x0 = (this.width - total) / 2
+        context.fill(x0, 4, x0 + total, 4 + BTN_H + 4, 0xEE101418.toInt())
+        context.outline(x0, 4, total, BTN_H + 4, 0xFF3A3A4A.toInt())
+        var x = x0 + 4
+        popX = x
+        x += button(context, x, 6, listText, mx, my, open) { open = !open; if (open) search.setFocused(false) } + 6
+        x += button(context, x, 6, gridText, mx, my, grid) { grid = !grid } + 6
+        context.text(this.font, hint, x + 4, 9, 0xFF8B8B9C.toInt())
+    }
+
+    private fun drawPopover(context: GuiGraphicsExtractor, mx: Int, my: Int) {
+        val rows = visibleRows()
+        popY = 4 + BTN_H + 8
+        popW = POP_W
+        val shownRows = minOf(rows.size, MAX_ROWS)
+        popH = 38 + shownRows * ROW_H + 6
+        context.fill(popX, popY, popX + popW, popY + popH, 0xF0101418.toInt())
+        context.outline(popX, popY, popW, popH, 0xFF3A3A4A.toInt())
+        search.x = popX + 4
+        search.y = popY + 4
+        search.extractRenderState(context, mx, my, 0f)
+        var bx = popX + 4
+        bx += button(context, bx, popY + 21, "All", mx, my) { picked.addAll(elements.map { it.label }) } + 4
+        button(context, bx, popY + 21, "None", mx, my) { picked.clear(); selected = null }
         listScroll = listScroll.coerceIn(0, maxScroll())
-        context.enableScissor(0, LIST_Y, PANEL_W - 1, this.height)
-        visibleRows().forEachIndexed { i, e ->
-            val y = LIST_Y + i * ROW_H - listScroll
+        val top = popY + 38
+        context.enableScissor(popX, top, popX + popW, top + shownRows * ROW_H)
+        rows.forEachIndexed { i, e ->
+            val y = top + i * ROW_H - listScroll
             val on = e.label in picked
-            val hover = mouseX < PANEL_W && mouseY in y..(y + ROW_H - 1) && mouseY >= LIST_Y
-            if (hover) context.fill(0, y, PANEL_W - 1, y + ROW_H, 0x33FFFFFF)
-            if (on) context.fill(0, y, 2, y + ROW_H, 0xFF2A9DA8.toInt())
-            context.text(this.font, e.label, 8, y + 2, if (on) 0xFFFFFFFF.toInt() else 0xFF777777.toInt())
+            if (mx in popX..(popX + popW) && my in y..(y + ROW_H - 1) && my >= top && my < top + shownRows * ROW_H) context.fill(popX + 1, y, popX + popW - 1, y + ROW_H, 0x33FFFFFF)
+            if (on) context.fill(popX + 1, y, popX + 3, y + ROW_H, 0xFF6AA8FF.toInt())
+            context.text(this.font, e.label, popX + 8, y + 2, if (on) 0xFFFFFFFF.toInt() else 0xFF777777.toInt())
         }
         context.disableScissor()
     }
 
-    private fun elementAt(mx: Int, my: Int): HudElement? {
-        // topmost-drawn (last in the list) wins if panels overlap
-        return shown.lastOrNull { element ->
+    private fun inPopover(mx: Int, my: Int) = open && mx in popX..(popX + popW) && my in popY..(popY + popH)
+
+    /** Panels under the point, topmost first: the selected one (drawn last), then the rest from the end of the list. */
+    private fun hitsAt(mx: Int, my: Int): List<HudElement> {
+        val sel = selected
+        return shown.asReversed().filter { element ->
             val scaledWidth = (element.lastWidth * element.panelScale).toInt()
             val scaledHeight = (element.lastHeight * element.panelScale).toInt()
             mx in element.panelX..(element.panelX + scaledWidth) &&
                     my in element.panelY..(element.panelY + scaledHeight)
-        }
+        }.sortedBy { it !== sel }
     }
+
+    private fun elementAt(mx: Int, my: Int): HudElement? = hitsAt(mx, my).firstOrNull()
 
     override fun mouseClicked(event: MouseButtonEvent, focused: Boolean): Boolean {
         val mx = event.x().toInt()
         val my = event.y().toInt()
 
-        if (mx < PANEL_W) {
-            search.mouseClicked(event, focused)
-            if (my in 34..46) {
-                if (mx < PANEL_W / 2) picked.addAll(elements.map { it.label }) else picked.clear()
-            } else if (my >= LIST_Y) {
-                visibleRows().getOrNull((my - LIST_Y + listScroll) / ROW_H)?.label?.let { if (!picked.remove(it)) picked.add(it) }
-            }
+        btns.lastOrNull { mx in it.x..(it.x + it.w) && my in it.y..(it.y + it.h) }?.let { it.action(); return true }
+
+        if (inPopover(mx, my)) {
+            if (my in popY + 4..popY + 18) { search.mouseClicked(event, focused); return true }
+            search.setFocused(false)
+            val top = popY + 38
+            if (my >= top) visibleRows().getOrNull((my - top + listScroll) / ROW_H)?.label?.let { if (!picked.remove(it)) picked.add(it) }
             return true
         }
-        search.setFocused(false)
+        if (open) { open = false; search.setFocused(false) }
 
-        if (mx in gridButtonX..(gridButtonX + gridButtonW) && my in gridButtonY..(gridButtonY + gridButtonH)) { grid = !grid; return true }
-
-        val hit = elementAt(mx, my)
+        val hits = hitsAt(mx, my)
+        // Right click on stacked panels selects the next one underneath (wraps around).
+        val hit = if (event.button() == 1 && hits.size > 1) {
+            val cur = hits.indexOf(selected)
+            hits[(cur + 1) % hits.size].also { selected = it; return true }
+        } else hits.firstOrNull()
+        selected = hit
         if (hit != null) {
             dragging = hit
             dragOffsetX = mx - hit.panelX
@@ -178,7 +218,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     }
 
     override fun mouseScrolled(x: Double, y: Double, scrollX: Double, scrollY: Double): Boolean {
-        if (x < PANEL_W) {
+        if (inPopover(x.toInt(), y.toInt())) {
             listScroll = (listScroll - (scrollY * ROW_H * 2).toInt()).coerceIn(0, maxScroll())
             return true
         }
@@ -194,6 +234,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     override fun keyPressed(event: KeyEvent): Boolean {
         if (search.isFocused && event.key() != GLFW.GLFW_KEY_ESCAPE) { search.keyPressed(event); return true }
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE && open) { open = false; search.setFocused(false); return true }
         if (event.key() == GLFW.GLFW_KEY_G) { grid = !grid; return true }
         return super.keyPressed(event)
     }
@@ -211,9 +252,10 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     companion object {
         private const val GRID = 10
-        private const val PANEL_W = 130
+        private const val POP_W = 170
         private const val ROW_H = 12
-        private const val LIST_Y = 60
+        private const val MAX_ROWS = 14
+        private const val BTN_H = 13
         private var pickedLabels: MutableSet<String>? = null
         /** Kept for the session, so reopening the editor keeps your choice. */
         private var grid = false

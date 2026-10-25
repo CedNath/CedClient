@@ -226,6 +226,7 @@ object WarpShortcuts : Module(
         val player = source.player ?: return
         val shortcut = entries.firstOrNull { it.alias == alias }
         val outgoing = if (shortcut != null && shortcut.enabled) shortcut.target else alias
+        ced.cedclient.utils.Debug.line("Warp Shortcuts", "/$alias -> /$outgoing")
         player.connection.sendCommand(outgoing)
     }
 

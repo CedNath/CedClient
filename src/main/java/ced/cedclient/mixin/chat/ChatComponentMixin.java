@@ -84,4 +84,10 @@ public abstract class ChatComponentMixin {
     private Component cedclient$applyChatEmotes(Component contents) {
         return ChatEmotes.transform(contents);
     }
+
+    // Spotify > Pretty Song Messages: party "Now playing: Artist - Song" lines with coloured parts and a [Listen] button.
+    @ModifyVariable(method = "addMessage", at = @At("HEAD"), argsOnly = true)
+    private Component cedclient$applySongLines(Component contents) {
+        return ced.cedclient.features.impl.misc.Spotify.transformChat(contents);
+    }
 }

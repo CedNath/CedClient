@@ -99,6 +99,7 @@ object AutoFusion : Module(
         val click = {
             mc.player?.let { player ->
                 mc.gameMode?.handleContainerInput(id, target.index, 0, ContainerInput.PICKUP, player)
+                ced.cedclient.utils.Debug.line("Auto Fusion", "clicked slot ${target.index}")
                 lastClickAt = System.currentTimeMillis()
                 lastClickTitle = title
             }

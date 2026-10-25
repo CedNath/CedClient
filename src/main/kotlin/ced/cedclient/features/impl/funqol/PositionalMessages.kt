@@ -235,7 +235,10 @@ object PositionalMessages : Module(
             st.sentThisRun = true
             st.lastSent = now
             if (testMode.value) player.sendSystemMessage(ChatPrefix.msgFor("Positional Messages", "§7(test) §9Party > §f${player.name.string}: ${a.message}"))
-            else player.connection.sendCommand("pc ${a.message}")
+            else {
+                player.connection.sendCommand("pc ${a.message}")
+                ced.cedclient.utils.Debug.line("Positional Messages", "sent: ${a.message}")
+            }
         }
     }
 

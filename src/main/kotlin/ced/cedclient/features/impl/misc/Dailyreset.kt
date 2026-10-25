@@ -958,8 +958,7 @@ object DailyReset : Module(
                 NVGRenderer.scale(spaceRatio, spaceRatio)
                 NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
 
-                NVGRenderer.rect(0f, 0f, width, height, BACKGROUND_COLOR, cornerRadius)
-                NVGRenderer.hollowRect(0f, 0f, width, height, borderThickness, BORDER_COLOR, cornerRadius)
+                ced.cedclient.features.impl.render.HudCard.card(width, height, panelScale, label = label)
 
                 val headerTextY = paddingY + (headerRowHeight - fontSize) / 2f
                 NVGRenderer.text(header, paddingX, headerTextY, fontSize, Colors.WHITE.rgba, font)

@@ -192,6 +192,7 @@ object BeaconSolver : Module(
         val player = mc.player ?: return
         val click = {
             mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, button, ContainerInput.PICKUP, player)
+            ced.cedclient.utils.Debug.line("Beacon Solver", "click slot $slot button $button")
             lastClickMs = System.currentTimeMillis()
             after()
         }

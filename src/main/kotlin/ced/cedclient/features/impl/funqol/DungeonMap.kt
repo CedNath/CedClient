@@ -88,7 +88,7 @@ object DungeonMap : Module(
     @Volatile private var mimicChests: List<BlockPos> = emptyList()
     private var mimicDelay = 0
 //#endif
-    private val background = BooleanSetting("Background", true, "Dark card behind the map.")
+    private val background = BooleanSetting("Background", false, "Dark card behind the map.")
     private val backgroundColor = ColorSetting("Background Color", Color(22, 22, 32))
     private val backgroundOpacity =NumberSetting("Background Opacity", 90.0, 0.0, 100.0, 5.0, "How see-through the card is (percent).")
     private val border = BooleanSetting("Border", true, "Accent-coloured border around the card.")
@@ -695,7 +695,7 @@ object DungeonMap : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { CedPaths.file("dungeon_map_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("dungeon_map") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

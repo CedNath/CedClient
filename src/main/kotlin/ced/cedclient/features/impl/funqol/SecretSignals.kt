@@ -68,6 +68,7 @@ object SecretSignals {
             val eye = mc.player?.eyePosition ?: return@on
             val box = nearBats.values.minByOrNull { b -> b.center.distanceToSqr(eye) }
             RoomTimes.onOwnSecret("bat sound")
+            ced.cedclient.utils.Debug.line("Secret Signals", "bat secret")
             SecretHighlight.onBatSecret(box)
         }
     }

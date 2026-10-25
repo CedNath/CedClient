@@ -238,7 +238,6 @@ class CompactLayout(
         // Picking a module slides its settings in from the right.
         fadeIn(selectedAt, speed, 16f, 0f) {
             NVGRenderer.text(btn.module.name, x2 + PAD + 8f, bodyY + 11f, 20f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
-            NVGRenderer.rect(x2 + PAD, vpY, SET_W - 2 * PAD, contentH.coerceAtMost(vpH), tint(Colors.SETTING_BG), 8f)
             NVGRenderer.pushScissor(x2 + PAD, vpY, SET_W - 2 * PAD, vpH)
             btn.drawSettings(x2 + PAD, vpY + settingsScroll)
             NVGRenderer.popScissor()

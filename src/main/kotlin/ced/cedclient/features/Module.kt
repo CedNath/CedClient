@@ -6,10 +6,13 @@ import ced.cedclient.features.settings.Setting
 
 open class Module(
     val name: String,
-    val category: Category,
+    defaultCategory: Category,
     val description: String = "",
     val defaultEnabled: Boolean = false
 ) {
+    /** The panel it shows in: ModuleGroups' choice by name, else the category it was constructed with. */
+    val category: Category = ModuleGroups.categoryOf(name, defaultCategory)
+
     // Set directly rather than via setEnabled() so construction doesn't
     // fire onEnable() or trigger a ConfigManager save before the module
     // (and ConfigManager itself) has finished initializing -- the saved
@@ -67,6 +70,7 @@ open class Module(
 
         enabled = value
         println("Set $name → $enabled")
+        ced.cedclient.utils.Debug.line(name, if (enabled) "enabled" else "disabled")
 
         if (enabled) onEnable() else onDisable()
 

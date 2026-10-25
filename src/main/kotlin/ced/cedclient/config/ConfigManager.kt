@@ -37,21 +37,8 @@ object ConfigManager {
     // Used only when a category has no saved position yet (first launch,
     // or a brand new category that's never been dragged before).
     // Panel.WIDTH is 320f as of the bigger-text pass -- 15px left margin,
-    // 30px gutter between panels: 15, 15+320+30=365, 365+320+30=715,
-    // 715+320+30=1065.
-    private val defaultPanelPositions: Map<String, Pair<Float, Float>> = mapOf(
-        "Misc" to (15f to 15f),
-        "Skyblock" to (365f to 15f),
-        "Render" to (715f to 15f),
-        "HUD" to (1065f to 15f),
-        "Cosmetic" to (1415f to 15f),
-//#if CHEAT
-        "Cheats" to (1765f to 15f),
-//#endif
-    )
-
     /** Panels that existed before the category reshuffle; a saved layout containing them is reset once. */
-    private val legacyPanels = setOf("Funqol", "CedClient")
+    private val legacyPanels = setOf("Funqol", "CedClient", "Render", "HUD")
 
     private fun readRoot(): JsonObject? {
         if (!configFile.exists()) return null
@@ -97,6 +84,8 @@ object ConfigManager {
     /** Renamed modules: read old saves into the new name (until the new name has been saved once). */
     private fun savedName(name: String, saved: JsonObject): String = when {
         name == "Mod Settings" && !saved.has("Mod Settings") -> if (saved.has("Client Settings")) "Client Settings" else "Theme"
+        // "Spotify" became "Music" (it reads Apple Music too): old saves carry over.
+        name == "Spotify" && !saved.has("Music") -> "Music"
         // Old "Slayer Helper" (Skyblock) is now "Slayer Tracker"; the cheats module took the "Slayer Helper" name.
         !saved.has("Slayer Tracker") && name == "Slayer Helper" -> "Slayer Tracker"
         !saved.has("Slayer Tracker") && name == "Slayer Cheats" -> "Slayer Helper"
@@ -159,14 +148,15 @@ object ConfigManager {
     // PANEL LAYOUT
     // -------------------------
 
-    private fun applyDefaultPosition(panel: PanelSetting) {
-        val default = defaultPanelPositions[panel.category.name] ?: return
+    private fun applyDefaultPosition(panel: PanelSetting, index: Int) {
+        // Default layout: one row of 350 px columns in panel order; the ClickGUI scrolls sideways to reach the rest.
+        val default = 15f + 350f * index to 15f
         panel.x = default.first
         panel.y = default.second
     }
 
     fun resetPanelsToDefaults(panels: List<PanelSetting>) {
-        for (panel in panels) applyDefaultPosition(panel)
+        panels.forEachIndexed { i, panel -> applyDefaultPosition(panel, i) }
         save(panels) // persist immediately so it survives restart
     }
 
@@ -204,7 +194,7 @@ object ConfigManager {
             // panels, so start from the defaults instead.
             val panelsJson = root?.get("panels")?.asJsonObject
                 ?.takeUnless { saved -> saved.keySet().any { it in legacyPanels } }
-            for (panel in panels) {
+            for ((index, panel) in panels.withIndex()) {
                 val entry = panelsJson?.get(panel.category.name)?.asJsonObject
                 val x = entry?.get("x")?.asFloat
                 val y = entry?.get("y")?.asFloat
@@ -219,13 +209,48 @@ object ConfigManager {
                     panel.y = y
                     panel.extended = entry.get("extended")?.asBoolean ?: true
                 } else {
-                    applyDefaultPosition(panel)
+                    applyDefaultPosition(panel, index)
                 }
             }
         } catch (t: Throwable) {
             // Catch any unexpected parsing/runtime errors and log them instead of crashing
             t.printStackTrace()
             println("Warning: ConfigManager.loadPanels encountered an error; using default panel positions.")
+        }
+    }
+
+    // -------------------------
+    // SHARE CODE (export / import)
+    // -------------------------
+
+    private const val CODE_PREFIX = "CC1:"
+
+    /** Every module's on / off and settings as one pasteable line: "CC1:" + base64(gzip(json)). Panel layout is not in it. */
+    fun exportCode(): String {
+        val raw = gson.toJson(buildModulesJson()).toByteArray(Charsets.UTF_8)
+        val out = java.io.ByteArrayOutputStream()
+        java.util.zip.GZIPOutputStream(out).use { it.write(raw) }
+        return CODE_PREFIX + java.util.Base64.getEncoder().encodeToString(out.toByteArray())
+    }
+
+    /** Applies a code from [exportCode]; returns how many modules it covered, or null if the text isn't a valid code. */
+    fun importCode(code: String): Int? {
+        val text = code.filterNot { it.isWhitespace() }
+        if (!text.startsWith(CODE_PREFIX)) return null
+        return try {
+            val bytes = java.util.Base64.getDecoder().decode(text.removePrefix(CODE_PREFIX))
+            val json = java.util.zip.GZIPInputStream(bytes.inputStream()).use { it.readBytes() }.toString(Charsets.UTF_8)
+            val modules = JsonParser.parseString(json).asJsonObject
+            suppressAutoSave = true
+            try {
+                applyModulesJson(modules)
+            } finally {
+                suppressAutoSave = false
+            }
+            saveModulesOnly()
+            modules.size()
+        } catch (t: Throwable) {
+            null
         }
     }
 }

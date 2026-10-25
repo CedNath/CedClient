@@ -85,6 +85,16 @@ internal object SlayerBosses {
 
     private fun bossName(text: String) = BOSS_NAMES.firstOrNull { text.contains(it) }
 
+    /** The mob class each boss is, null when unknown. */
+    private fun bodyType(boss: String?): Class<out LivingEntity>? = when (boss) {
+        "Voidgloom Seraph" -> net.minecraft.world.entity.monster.EnderMan::class.java
+        "Revenant Horror", "Atoned Horror" -> net.minecraft.world.entity.monster.zombie.Zombie::class.java
+        "Tarantula Broodfather" -> net.minecraft.world.entity.monster.spider.Spider::class.java
+        "Sven Packmaster" -> net.minecraft.world.entity.animal.wolf.Wolf::class.java
+        "Inferno Demonlord" -> net.minecraft.world.entity.monster.Blaze::class.java
+        else -> null
+    }
+
     /** Called every tick while a slayer quest is on; [lockWindow] = "Slay the boss!" appeared in the last 3 s. */
     fun tick(lockWindow: Boolean) {
         val mc = Minecraft.getInstance()
@@ -113,8 +123,15 @@ internal object SlayerBosses {
         owner = spawnedBy.filter { abs(it.first.x - l.x) < 1.5 && abs(it.first.z - l.z) < 1.5 && abs(it.first.y - l.y) < 3.0 }
             .minByOrNull { it.first.distanceToSqr(l) }?.second
         parseHp(text)?.let { hp = it; maxHp = maxOf(maxHp, it) }
-        body = level.entitiesForRendering().filter { it is LivingEntity && it !is ArmorStand && it !== player && it.distanceToSqr(l) < 9.0 }
+        // The mob under the tag: the right kind of mob only (an Enderman for Voidgloom), so a nearby player or other mob can't be
+        // boxed instead. While nothing fits close to the tag (laser phase lifts the boss away) it keeps the last one.
+        val kind = bodyType(name)
+        val previous = body
+        val nearest = level.entitiesForRendering()
+            .filter { it is LivingEntity && it !is ArmorStand && it !== player && it.isAlive && (kind == null || kind.isInstance(it)) && it.distanceToSqr(l) < 36.0 }
             .minByOrNull { it.distanceToSqr(l) }
+        body = nearest ?: previous?.takeIf { it.isAlive && !it.isRemoved && it.distanceToSqr(l) < 400.0 }
+        if (body !== previous) ced.cedclient.utils.Debug.line("Slayer", "boss body ${previous?.type?.description?.string ?: "none"} -> ${body?.type?.description?.string ?: "none"} (${name})")
 
         // Lines Hypixel stacks over the boss: attunement ("ASHEN ♨8"), shield hits.
         val near = stands.filter { it !== l && it.hasCustomName() && it.distanceToSqr(l) < 16.0 }.map { it.customName!!.string }
@@ -124,8 +141,10 @@ internal object SlayerBosses {
 
         if (name == "Voidgloom Seraph") {
             // Laser phase: the boss rides an armor stand for 8 s (same trigger Skyblocker uses).
+            val wasLaser = laser != null
             if (body?.vehicle is ArmorStand) laser = (LASER_TICKS - laserTicks++).coerceAtLeast(0) / 20f
             else { laser = null; laserTicks = 0 }
+            if (wasLaser != (laser != null)) ced.cedclient.utils.Debug.line("Slayer", if (laser != null) "laser phase started" else "laser phase ended")
             val flying = stands.filter { it.getItemBySlot(EquipmentSlot.HEAD).hoverName.string == "Beacon" && it.distanceToSqr(l) < 30.0 * 30.0 }
                 .map { it.boundingBox.inflate(0.2) }
             if (++ticks % 10 == 0) placed = placedBeacons(l.blockPosition())

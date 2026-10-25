@@ -84,7 +84,7 @@ object TimeHud : Module(
 
     private val use24Hour = BooleanSetting("24-Hour Format", false)
     private val showSeconds = BooleanSetting("Show Seconds", false)
-    private val showBackground = BooleanSetting("Show Background", true)
+    private val showBackground = BooleanSetting("Show Background", false)
     private val textColor = ColorSetting("Text Color", Colors.WHITE)
 
     // On by default now that it's been tested — see the class doc comment
@@ -101,8 +101,8 @@ object TimeHud : Module(
     ).also { it.advanced = true }
 
     private val gson = Gson()
-    private val saveFile: File by lazy {
-        CedPaths.file("time_hud.json")
+    private val saveFile by lazy {
+        CedPaths.hud("time")
     }
 
     // mirrors EntityESPHud's ensureLoaded() pattern: load once, lazily, the
@@ -299,8 +299,7 @@ object TimeHud : Module(
                 NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
 
                 if (showBackground.value) {
-                    NVGRenderer.rect(0f, 0f, width, height, BACKGROUND_COLOR, cornerRadius)
-                    NVGRenderer.hollowRect(0f, 0f, width, height, BORDER_THICKNESS * panelScale, BORDER_COLOR, cornerRadius)
+                    HudCard.card(width, height, panelScale, label = label)
                 }
 
                 val textX = (width - textWidth) / 2f

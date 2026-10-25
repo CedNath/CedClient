@@ -87,6 +87,7 @@ object CustomHypeSound : Module(
     private fun play() {
         val id = if (sound.value == "Custom") customId.value else presets[sound.value].orEmpty()
         val event = Identifier.tryParse(id)?.let { BuiltInRegistries.SOUND_EVENT.getValue(it) } ?: return
+        ced.cedclient.utils.Debug.line("Custom Hype Sound", "played $id")
         replaying = true
         try {
             mc.soundManager.play(SimpleSoundInstance.forUI(event, pitch.value.toFloat(), volume.value.toFloat()))
