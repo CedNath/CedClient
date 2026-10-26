@@ -123,6 +123,9 @@ object TerminalSolver : Module(
     private val clicked = HashMap<Int, Int>() // slot -> stack hash when clicked: hidden until that slot changes
     private var rubixTarget = -1
     private var lastLog = ""
+    /** Melody: the lime pane's and the magenta pane's column (1-5) as last seen; read by Auto Terminals. */
+    internal var melodyCurrent = -1
+    internal var melodyCorrect = -1
 
     init {
         val list = mutableListOf<ced.cedclient.features.settings.Setting<*>>(
@@ -229,6 +232,7 @@ object TerminalSolver : Module(
                 var row = -1; var current = -1
                 for (r in 1..rows - 2) for (c in 1..5) if (slots[r * 9 + c].item.`is`(Items.LIME_STAINED_GLASS_PANE)) { row = r; current = c }
                 if (row < 0 || correct < 0) return out
+                melodyCurrent = current; melodyCorrect = correct
                 val aligned = current == correct
                 for (c in 1..5) {
                     val color = if (c == current) (if (aligned) cMelodyCorrect else cMelodyWrong) else if (c == correct) cMelodyFill else cMelodyOther
@@ -356,11 +360,23 @@ object TerminalSolver : Module(
 
 //#if CHEAT
     /** Auto Terminals: click [slot] with the solution's own button (same gates as a mouse click). */
-    fun autoClick(screen: AbstractContainerScreen<*>, slot: Int): Boolean {
+    fun autoClick(screen: AbstractContainerScreen<*>, slot: Int, ignoreFirstDelay: Boolean = false): Boolean {
         val kind = kind(screen) ?: return false
         sync(screen)
-        return tryClick(screen, kind, slot, -1)
+        return tryClick(screen, kind, slot, -1, ignoreFirstDelay)
     }
+
+    /** Melody Skip: a left click on [slot] with none of the solver's gates (the button of a row that isn't lit yet). */
+    fun autoForce(screen: AbstractContainerScreen<*>, slot: Int) {
+        // Only a button of the lanes (column 7, not the top / bottom border row).
+        if (kind(screen) != Kind.MELODY || slot % 9 != 7 || slot / 9 !in 1..containerSlots(screen) / 9 - 2) return
+        lastClick = System.currentTimeMillis()
+        (screen as? TerminalHost)?.let { it.hostClick(slot, 0); return }
+        val player = mc.player ?: return
+        mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, 2, ContainerInput.CLONE, player)
+    }
+
+    fun containerId(screen: AbstractContainerScreen<*>) = screen.menu.containerId
 
     /** Milliseconds since the open terminal appeared. */
     fun sinceOpen() = System.currentTimeMillis() - openAt
@@ -369,9 +385,9 @@ object TerminalSolver : Module(
 //#endif
 
     /** [button] -1: whatever the solution needs. True when a click was sent. */
-    private fun tryClick(screen: AbstractContainerScreen<*>, kind: Kind, slot: Int, button: Int): Boolean {
+    private fun tryClick(screen: AbstractContainerScreen<*>, kind: Kind, slot: Int, button: Int, ignoreFirstDelay: Boolean = false): Boolean {
         val now = System.currentTimeMillis()
-        if (now - openAt < firstDelay.value) return false
+        if (!ignoreFirstDelay && now - openAt < firstDelay.value) return false
         val tile = solve(screen, kind).firstOrNull { it.slot == slot && it.clickable } ?: return false
         val anyButton = button < 0 || (kind == Kind.RUBIX && rubixLeft.value) || kind == Kind.MELODY
         if (!anyButton && button != tile.button) return false

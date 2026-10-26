@@ -34,6 +34,10 @@ object AutoTerminals : Module(
     private val redGreen = BooleanSetting("Red-Green", true, "Correct All The Panes.")
     private val startWith = BooleanSetting("Start-With", true, "What Starts With.")
     private val melody = BooleanSetting("Melody", true, "Click the button when the lime pane is on the magenta one.")
+    private val melodyFcDelay = BooleanSetting("First Click Delay", true, "Wait for Terminal Solver's First Click Delay before the first Melody click.").withDependency { melody.value }
+    private val melodySkip = BooleanSetting("Melody Skip", false, "After a click, also click the next rows' buttons 1 and 2 ticks later.").withDependency { melody.value }
+    private val skipMode = DropdownSetting("Skip Mode", listOf("Edges", "All"), "Edges", "Edges: only skip when the lime pane was on the first or last column. All: always.").withDependency { melody.value && melodySkip.value }
+    private val skipFirstRow = BooleanSetting("Skip First Row", false, "Also skip after the first row's click (otherwise only when the lime pane was on the last column).").withDependency { melody.value && melodySkip.value }
 
     private val rng = Random()
     private var lastClick = 0L
@@ -41,7 +45,7 @@ object AutoTerminals : Module(
     private var wait = 0L
 
     init {
-        addSettings(randomDelay, clickDelay, minDelay, maxDelay, order, numbers, colors, rubix, redGreen, startWith, melody)
+        addSettings(randomDelay, clickDelay, minDelay, maxDelay, order, numbers, colors, rubix, redGreen, startWith, melody, melodyFcDelay, melodySkip, skipMode, skipFirstRow)
     }
 
     private fun on(kind: String) = when (kind) {
@@ -61,10 +65,39 @@ object AutoTerminals : Module(
 
     private fun dist(a: Int, b: Int) = (a % 9 - b % 9).let { it * it } + (a / 9 - b / 9).let { it * it }
 
+    private class Later(val at: Long, val slot: Int, val id: Int)
+    private val queue = ArrayList<Later>()
+
+    /**
+     * Melody: click the button once the lime pane is on the magenta one (250 ms apart, never the same button twice in a row).
+     * Melody Skip then clicks the next rows' buttons 1 and 2 ticks later, so you don't wait for each row (Edges: only when
+     * the lime pane was on the first or last column; the first row only with Skip First Row, or on the last column).
+     */
+    private fun melodyTick(screen: AbstractContainerScreen<*>, slot: Int, now: Long) {
+        if (now - lastClick < 250 || slot == lastSlot) return
+        val cur = TerminalSolver.melodyCurrent - 1
+        if (cur < 0 || TerminalSolver.melodyCurrent != TerminalSolver.melodyCorrect) return
+        if (!TerminalSolver.autoClick(screen, slot, ignoreFirstDelay = !melodyFcDelay.value)) return
+        lastClick = now; lastSlot = slot
+        val row = slot / 9 - 1
+        if (row >= 2 || !melodySkip.value) return // the last of three lanes has nothing left to skip to
+        if (!skipFirstRow.value && row == 0 && cur != 4) return
+        if (skipMode.value == "Edges" && cur != 0 && cur != 4) return
+        val id = TerminalSolver.containerId(screen)
+        queue += Later(now + 50, slot + 9, id)
+        if (row < 1) queue += Later(now + 100, slot + 18, id)
+    }
+
     /** Called every frame by Terminal Solver with the slots that can be clicked now. */
     fun tick(screen: AbstractContainerScreen<*>, kind: String, slots: List<Int>) {
-        if (!isEnabled || slots.isEmpty() || !on(kind)) return
+        if (!isEnabled) return
         val now = System.currentTimeMillis()
+        // Melody Skip clicks waiting for their tick; dropped when the terminal changed (Noamm checks the window id the same way).
+        val id = TerminalSolver.containerId(screen)
+        queue.removeAll { it.id != id }
+        queue.filter { it.at <= now }.forEach { TerminalSolver.autoForce(screen, it.slot); queue.remove(it) }
+        if (slots.isEmpty() || !on(kind)) return
+        if (kind == "Melody") { melodyTick(screen, slots.first(), now); return }
         // The first click of a terminal waits for the solver's First Click Delay (already a gate there).
         if (TerminalSolver.sinceOpen() < TerminalSolver.firstClickDelay()) { lastClick = now; wait = 0L; return }
         if (now - lastClick < wait) return
