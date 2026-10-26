@@ -7,6 +7,10 @@ import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.NumberSetting
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
@@ -53,7 +57,22 @@ object TerminalSimulator : Module("Terminal Simulator", Category.Dungeons, "Prac
         TerminalSimScreen.open(kind)
     }
 
+    // The command runs while the chat screen is still closing, which would wipe a screen opened right away: open on the next tick.
+    @Volatile private var pendingKind = -2
+
+    /** /cc termsim [order|startswith|colors|panes|rubix|melody]: no argument = a random terminal. */
+    fun commandTree(): LiteralArgumentBuilder<FabricClientCommandSource> {
+        val root = ClientCommands.literal("termsim").executes { pendingKind = -1; 1 }
+        listOf("order", "startswith", "colors", "panes", "rubix", "melody").forEachIndexed { kind, name ->
+            root.then(ClientCommands.literal(name).executes { pendingKind = kind; 1 })
+        }
+        return root
+    }
+
     init {
+        ClientTickEvents.END_CLIENT_TICK.register {
+            if (pendingKind != -2) { val k = pendingKind; pendingKind = -2; open(k) }
+        }
         runCatching {
             val map: Map<String, Long> = gson.fromJson(file.readText(), object : TypeToken<Map<String, Long>>() {}.type)
             best.putAll(map)

@@ -104,6 +104,7 @@ object CedClientCommand {
             .then(ced.cedclient.features.impl.misc.Spotify.commandTree())
             .then(ced.cedclient.features.impl.render.Waypoints.commandTree())
             .then(ced.cedclient.features.impl.funqol.ProtectItem.commandTree())
+            .then(ced.cedclient.features.impl.funqol.TerminalSimulator.commandTree())
             .then(ced.cedclient.features.impl.misc.MuteSounds.commandTree())
             .then(ced.cedclient.features.impl.misc.MuteSounds.unmuteCommandTree())
             .then(ced.cedclient.utils.DevAccess.commandTree())

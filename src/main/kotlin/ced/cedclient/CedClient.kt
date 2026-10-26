@@ -308,6 +308,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoExperiments)
         ModuleManager.register(ced.cedclient.features.impl.funqol.BeaconSolver)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoFusion)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.AutoTerminals)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AnvilHelper)
 
 //#endif

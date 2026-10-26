@@ -92,8 +92,6 @@ object TerminalSolver : Module(
 //#if CHEAT
     private val dragClick = BooleanSetting("Drag Click", false, "Hold left click and move over the lit tiles to click them one after another.")
     private val dragDelay = NumberSetting("Drag Click Delay", 150.0, 60.0, 400.0, 10.0, "Milliseconds between drag clicks.")
-    private val autoClick = BooleanSetting("Auto Terminals", false, "Solves the terminal for you: clicks the next tile by itself.")
-    private val autoDelay = NumberSetting("Auto Click Delay", 150.0, 50.0, 500.0, 10.0, "Milliseconds between automatic clicks.").withDependency { autoClick.value }
 //#endif
 
     private enum class Kind(val title: String) {
@@ -135,7 +133,7 @@ object TerminalSolver : Module(
             HeaderSetting("Colors"), cSolution, cFirst, cSecond, cThird, cPositive, cNegative, cMelodyFill, cMelodyCorrect, cMelodyWrong, cMelodyOther,
         )
 //#if CHEAT
-        list += listOf(dragClick, dragDelay, autoClick, autoDelay)
+        list += listOf(dragClick, dragDelay)
 //#endif
         addSettings(*list.toTypedArray())
     }
@@ -298,9 +296,7 @@ object TerminalSolver : Module(
         if (dragClick.value && GLFW.glfwGetMouseButton(mc.window.handle(), 0) == GLFW.GLFW_PRESS && now - lastClick >= dragDelay.value) {
             slotAt(g, mouseX.toDouble(), mouseY.toDouble())?.let { tryClick(screen, kind, it, 0) }
         }
-        if (autoClick.value && now - lastClick >= autoDelay.value) {
-            tiles.firstOrNull { it.clickable }?.let { tryClick(screen, kind, it.slot, it.button) }
-        }
+        AutoTerminals.tick(screen, kind.title, tiles.filter { it.clickable }.map { it.slot })
 //#endif
         val round = roundness.value.toFloat()
         val slotRound = slotRoundness.value.toFloat()
@@ -350,13 +346,28 @@ object TerminalSolver : Module(
         return true
     }
 
-    private fun tryClick(screen: AbstractContainerScreen<*>, kind: Kind, slot: Int, button: Int) {
+//#if CHEAT
+    /** Auto Terminals: click [slot] with the solution's own button (same gates as a mouse click). */
+    fun autoClick(screen: AbstractContainerScreen<*>, slot: Int): Boolean {
+        val kind = kind(screen) ?: return false
+        sync(screen)
+        return tryClick(screen, kind, slot, -1)
+    }
+
+    /** Milliseconds since the open terminal appeared. */
+    fun sinceOpen() = System.currentTimeMillis() - openAt
+
+    fun firstClickDelay() = firstDelay.value
+//#endif
+
+    /** [button] -1: whatever the solution needs. True when a click was sent. */
+    private fun tryClick(screen: AbstractContainerScreen<*>, kind: Kind, slot: Int, button: Int): Boolean {
         val now = System.currentTimeMillis()
-        if (now - openAt < firstDelay.value) return
-        val tile = solve(screen, kind).firstOrNull { it.slot == slot && it.clickable } ?: return
-        val anyButton = (kind == Kind.RUBIX && rubixLeft.value) || kind == Kind.MELODY
-        if (!anyButton && button != tile.button) return
-        if (if (kind == Kind.PANES) now - lastClick < clickDelay.value else pending) return
+        if (now - openAt < firstDelay.value) return false
+        val tile = solve(screen, kind).firstOrNull { it.slot == slot && it.clickable } ?: return false
+        val anyButton = button < 0 || (kind == Kind.RUBIX && rubixLeft.value) || kind == Kind.MELODY
+        if (!anyButton && button != tile.button) return false
+        if (if (kind == Kind.PANES) now - lastClick < clickDelay.value else pending) return false
         lastClick = now
         pending = true
         sigAtClick = sig
@@ -364,10 +375,11 @@ object TerminalSolver : Module(
         if (clickSound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1f))
         Debug.line("TerminalSolver", "click slot $slot button ${tile.button}")
         // The Terminal Simulator is not a server menu: its click goes to the simulator.
-        (screen as? TerminalHost)?.let { it.hostClick(slot, tile.button); return }
-        val player = mc.player ?: return
+        (screen as? TerminalHost)?.let { it.hostClick(slot, tile.button); return true }
+        val player = mc.player ?: return false
         // Like Athen: a left click goes out as a middle click (clone), the terminal reads both the same.
         if (tile.button == 0) mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, 2, ContainerInput.CLONE, player)
         else mc.gameMode?.handleContainerInput(screen.menu.containerId, slot, tile.button, ContainerInput.PICKUP, player)
+        return true
     }
 }
