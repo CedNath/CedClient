@@ -89,8 +89,8 @@ abstract class RowHud(name: String, description: String, private val key: String
             HudCard.card(width, height, s)
             lines.forEachIndexed { i, (name, value, color) ->
                 val y = pad + i * lineH
-                HudCard.text(name, pad, y, size, color)
-                HudCard.text(value, width - pad - HudCard.width(value, size), y, size, color)
+                text(name, pad, y, size, color, s)
+                text(value, width - pad - HudCard.width(value, size), y, size, color, s)
             }
         }
     }
