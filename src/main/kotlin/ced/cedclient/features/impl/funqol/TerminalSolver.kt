@@ -53,7 +53,7 @@ object TerminalSolver : Module(
     private val clickSound = BooleanSetting("Click Sound", false, "A click sound when the solver sends a click.")
 
     // ---- rubix / melody
-    private val rubixLeft = BooleanSetting("Rubix Left Click Only", true, "Only left clicks, any mouse button works. Off: the shorter way round, left or right.")
+    private val rubixLeft = BooleanSetting("Rubix Left Click Only", true, "Any mouse button clicks a lit tile; the terminal still gets the click the solution needs (a right click where the short way round is backwards). Off: you must press the shown button.")
     private val melodyPrevent = BooleanSetting("Melody Prevent Wrong Clicks", false, "The button only works while the lime pane is on the magenta one.")
     private val melodyKeys = BooleanSetting("Melody Number Keys", false, "Keys click the button of lane 1-4.")
     private val melodyBinds = (1..4).map { KeybindSetting("Melody Key $it", GLFW.GLFW_KEY_0 + it, "Clicks the button of lane $it.").withDependency { melodyKeys.value } }
@@ -211,7 +211,7 @@ object TerminalSolver : Module(
                 val panes = RUBIX_SLOTS.filter { it < n }.mapNotNull { s -> CYCLE.indexOf(slots[s].item.item).takeIf { it >= 0 }?.let { s to it } }
                 if (panes.isEmpty()) return out
                 // Steps from one colour to another: positive = left clicks, negative = right clicks (the short way round).
-                fun dist(from: Int, to: Int): Int { val d = (to - from + 5) % 5; return if (!rubixLeft.value && d > 2) d - 5 else d }
+                fun dist(from: Int, to: Int): Int { val d = (to - from + 5) % 5; return if (d > 2) d - 5 else d }
                 fun need(t: Int) = panes.sumOf { abs(dist(it.second, t)) }
                 // Keep the target while it still needs clicks, so the solution doesn't flip between equally cheap ones.
                 if (rubixTarget < 0 || need(rubixTarget) == 0) rubixTarget = CYCLE.indices.minBy { need(it) }
