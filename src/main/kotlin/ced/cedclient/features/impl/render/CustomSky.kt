@@ -2,6 +2,7 @@ package ced.cedclient.features.impl.render
 
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.Setting.Companion.withDependency
@@ -30,6 +31,19 @@ object CustomSky : Module(
     private val custom = NumberSetting("Custom Ticks", 6000.0, 0.0, 23999.0, 100.0, "0 = sunrise, 6000 = noon, 12000 = sunset, 18000 = midnight.")
         .withDependency { mode.value == "Fixed" && time.value == "Custom" }
 
+    private val skyOptions = ArrayList(listOf("None") + SkyBox.list())
+    private val skybox = DropdownSetting("Skybox", skyOptions, "None", "A sky picture from the skyboxes folder (3 x 2 faces, see SkyBox). None: the normal sky.")
+    private val reload = ActionSetting("Reload Skyboxes", "Looks in the skyboxes folder again (config/cedclient/skyboxes).") {
+        SkyBox.reset()
+        skyOptions.clear(); skyOptions += "None"; skyOptions += SkyBox.list()
+        if (skybox.value !in skyOptions) skybox.value = "None"
+        Debug.line("CustomSky", "skyboxes: ${skyOptions.drop(1)}")
+    }
+
+    /** The skybox picture to draw (from SkyRendererSkyboxMixin), or null for the normal sky. */
+    @JvmStatic
+    fun skyboxName(): String? = if (isEnabled && skybox.value != "None") skybox.value else null
+
     private var lastLogged = Long.MIN_VALUE
 
     /** The overworld clock's tick count to show, or null to leave the real one. */
@@ -49,6 +63,6 @@ object CustomSky : Module(
     }
 
     init {
-        addSettings(mode, time, custom)
+        addSettings(mode, time, custom, skybox, reload)
     }
 }

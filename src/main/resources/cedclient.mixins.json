@@ -71,6 +71,7 @@
     "screen.LeapMenuBackgroundMixin",
     "screen.TerminalSolverMixin",
     "screen.SpotifyContainerClickMixin",
+    "render.SkyRendererSkyboxMixin",
     "screen.TerminalSolverBackgroundMixin",
     "screen.RunProfitMixin",
     "screen.RunProfitBackgroundMixin",
