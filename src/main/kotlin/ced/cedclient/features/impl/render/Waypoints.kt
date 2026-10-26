@@ -156,9 +156,11 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
             val down = mc.screen == null && addKey.value > 0 && InputConstants.isKeyDown(mc.window, addKey.value)
             if (down && !addDown) targetPos()?.let { add(nextName(), it) }
             addDown = down
-            if (removeReached.value && ++tick % 10 == 0) {
+            if (++tick % 10 == 0) {
                 val p = mc.player ?: return@register
-                if (points.removeAll { shown(it) && p.distanceToSqr(it.x + 0.5, it.y + 0.5, it.z + 0.5) < 4.0 }) save()
+                // Chat waypoints are "go there" markers: always gone once you are within 3 blocks (Remove When Reached is for your own).
+                temps.removeAll { shown(it.wp) && p.distanceToSqr(it.wp.x + 0.5, it.wp.y + 0.5, it.wp.z + 0.5) < 9.0 }
+                if (removeReached.value && points.removeAll { shown(it) && p.distanceToSqr(it.x + 0.5, it.y + 0.5, it.z + 0.5) < 4.0 }) save()
             }
         }
 

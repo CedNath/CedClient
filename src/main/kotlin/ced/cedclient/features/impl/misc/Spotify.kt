@@ -611,7 +611,7 @@ object Spotify : Module(
         val hover = hoverColor.value.rgba or (0xFF shl 24)
         val played = barColor.value.rgba or (0xFF shl 24)
         val rects = ArrayList<Btn>()
-        var bar: FloatArray? = null
+        seekBar = null // set again inside the draw lambda, which HudCard.draw may run later
 
         HudCard.draw(g, panelX, panelY) {
             NVGRenderer.globalAlpha(dim)
@@ -646,7 +646,7 @@ object Spotify : Module(
                     NVGRenderer.rect(barX0 + i * step, cy - h / 2, bw, h, if (done) played else if (near) 0x77FFFFFF else 0x44FFFFFF, bw / 2)
                 }
                 if (near && frac >= 0f) NVGRenderer.rect(barX0 + barW * frac - 0.5f * s, cy - maxH * 0.75f, 1f * s, maxH * 1.5f, 0xFFFFFFFF.toInt())
-                if (grab) bar = floatArrayOf(panelX + barX0, panelY + cy - maxH, barW, maxH * 2)
+                if (grab) seekBar = floatArrayOf(panelX + barX0, panelY + cy - maxH, barW, maxH * 2)
             }
 
             if (withButtons) {
@@ -672,7 +672,6 @@ object Spotify : Module(
             }
             NVGRenderer.globalAlpha(1f)
         }
-        seekBar = bar
         buttons = if (chat) rects else emptyList()
     }
 
@@ -733,7 +732,7 @@ object Spotify : Module(
         val accent = accentColor.value.rgba or (0xFF shl 24)
         val hover = hoverColor.value.rgba or (0xFF shl 24)
         val rects = ArrayList<Btn>()
-        var bar: FloatArray? = null
+        seekBar = null // set again inside the draw lambda, which HudCard.draw may run later
 
         HudCard.draw(g, panelX, panelY) {
             if (background.value > 0.0) HudCard.card(width, height, s, background.value.toFloat() * dim)
@@ -785,11 +784,10 @@ object Spotify : Module(
                 NVGRenderer.rect(pad, ty, bw, th, 0x22FFFFFF, th / 2)
                 if (frac > 0f) NVGRenderer.rect(pad, ty, bw * frac, th, if (near) accent else (accent and 0x00FFFFFF) or (0x99 shl 24), th / 2)
                 if (near) NVGRenderer.circle(pad + bw * frac, by + barH / 2, 3.5f * s, accent)
-                if (grab) bar = floatArrayOf(panelX + pad, panelY + by - 5f * s, bw, barH + 10f * s)
+                if (grab) seekBar = floatArrayOf(panelX + pad, panelY + by - 5f * s, bw, barH + 10f * s)
             }
             NVGRenderer.globalAlpha(1f)
         }
-        seekBar = bar
         buttons = if (chat) rects else emptyList()
     }
 
