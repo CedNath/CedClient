@@ -332,19 +332,23 @@ object Spotify : Module(
             if ("Now playing:" in text) ced.cedclient.utils.Debug.line("Music", "song line left plain: Spotify enabled=$isEnabled, Pretty Song Messages=${prettyParty.value}")
             return original
         }
-        val m = NOW_PLAYING.matchEntire(text) ?: run {
+        // Hypixel sends party lines as one literal with "§" colour codes inside, so match on the text without them.
+        val m = NOW_PLAYING.matchEntire(text.replace(Regex("§."), "")) ?: run {
             if ("Now playing:" in text) ced.cedclient.utils.Debug.line("Music", "song line didn't match: \"$text\"")
             return original
         }
         val song = m.groupValues[2].trim()
         val cut = m.groupValues[1].length
         val out = Component.empty()
-        var pos = 0
-        original.visit({ style, seg ->
-            if (pos < cut) out.append(Component.literal(seg.substring(0, minOf(seg.length, cut - pos))).withStyle(style))
-            pos += seg.length
-            java.util.Optional.empty<Unit>()
-        }, Style.EMPTY)
+        if ('§' in text) out.append(Component.literal(text.substring(0, text.indexOf("Now playing:")))) // the font draws the codes
+        else {
+            var pos = 0
+            original.visit({ style, seg ->
+                if (pos < cut) out.append(Component.literal(seg.substring(0, minOf(seg.length, cut - pos))).withStyle(style))
+                pos += seg.length
+                java.util.Optional.empty<Unit>()
+            }, Style.EMPTY)
+        }
         val accent = accentColor.value.rgba and 0xFFFFFF
         val (artist, title) = split(song)
         out.append(Component.literal("♫ ").withColor(accent))
