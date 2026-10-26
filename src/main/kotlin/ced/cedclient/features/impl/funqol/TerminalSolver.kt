@@ -72,7 +72,8 @@ object TerminalSolver : Module(
     private val borderColor = ColorSetting("Border", Color(0xDC000000.toInt()), "Panel outline.")
     private val slotFill = BooleanSetting("Slot Fill", true, "Fill the lit tiles. Off: outline only.")
     private val slotRoundness = NumberSetting("Slot Roundness", 3.0, 0.0, 10.0, 1.0, "Corner radius of the tiles.")
-    private val showText = BooleanSetting("Numbers Show Text", true, "The click number on the tiles in Click In Order.")
+    private val showItems = BooleanSetting("Show Items", false, "Draw the real item on each lit tile (What Starts With, Select All The Color Items ...), not just the box.")
+    private val showText =BooleanSetting("Numbers Show Text", true, "The click number on the tiles in Click In Order.")
     private val hideHeader = BooleanSetting("Hide Header", true, "No title bar above the panel.")
     private val hideTitle = BooleanSetting("Hide Title", true, "No title text in the title bar.").withDependency { !hideHeader.value }
     private val titleColor = ColorSetting("Title Color", Color(0xE6F0F0F5.toInt()), "Title text.").withDependency { !hideHeader.value }
@@ -129,7 +130,7 @@ object TerminalSolver : Module(
             onNumbers, onPanes, onRubix, onName, onColors, onMelody,
             HeaderSetting("Rubix / Melody"), rubixLeft, melodyPrevent, melodyKeys, *melodyBinds.toTypedArray(),
             HeaderSetting("Panel"), scale, roundness, borderWidth, padding, slotGap, melodyGap, screenDim, offsetX, offsetY, bgColor, borderColor,
-            slotFill, slotRoundness, showText, hideHeader, hideTitle, titleColor, headerColor,
+            slotFill, slotRoundness, showItems, showText, hideHeader, hideTitle, titleColor, headerColor,
             HeaderSetting("Colors"), cSolution, cFirst, cSecond, cThird, cPositive, cNegative, cMelodyFill, cMelodyCorrect, cMelodyWrong, cMelodyOther,
         )
 //#if CHEAT
@@ -316,6 +317,13 @@ object TerminalSolver : Module(
                 else NVGRenderer.hollowRect(x, y, 16f, 16f, 1f, t.color, slotRound)
                 if (t.label.isNotEmpty()) HudCard.text(t.label, x + (16f - HudCard.width(t.label, 11f)) / 2f, y + (16f - 11f) / 2f, 11f, 0xFFFFFFFF.toInt())
             }
+        }
+        // Real items go on after the panel pass, on top of the tiles; tiles with a number keep the number.
+        if (showItems.value) {
+            graphics.pose().pushMatrix()
+            graphics.pose().scale(g.sc, g.sc)
+            for (t in tiles) if (t.label.isEmpty() && kind != Kind.MELODY) graphics.item(screen.menu.slots[t.slot].item, g.cellX(t.slot % 9).toInt(), g.cellY(t.slot / 9).toInt())
+            graphics.pose().popMatrix()
         }
     }
 
