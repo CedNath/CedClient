@@ -62,6 +62,17 @@ abstract class RowHud(name: String, description: String, private val key: String
 
     override fun renderInternal(g: GuiGraphicsExtractor) = draw(g, rows() ?: preview())
 
+    private val outline = BooleanSetting("Text Outline", true, "A black outline around the text so it reads on any background.")
+    init { addSettings(outline) }
+
+    private fun text(t: String, x: Float, y: Float, size: Float, color: Int, s: Float) {
+        if (outline.value) {
+            val o = 0.9f * s
+            for ((dx, dy) in listOf(-o to 0f, o to 0f, 0f to -o, 0f to o, -o to -o, o to o, -o to o, o to -o)) HudCard.text(t, x + dx, y + dy, size, 0xFF000000.toInt())
+        }
+        HudCard.text(t, x, y, size, color)
+    }
+
     private fun draw(g: GuiGraphicsExtractor, lines: List<Triple<String, String, Int>>) {
         val s = panelScale
         val size = 10f * s
