@@ -70,6 +70,7 @@
     "screen.LeapMenuMixin",
     "screen.LeapMenuBackgroundMixin",
     "screen.TerminalSolverMixin",
+    "screen.SpotifyContainerClickMixin",
     "screen.TerminalSolverBackgroundMixin",
     "screen.RunProfitMixin",
     "screen.RunProfitBackgroundMixin",

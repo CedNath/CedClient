@@ -496,6 +496,10 @@ object Spotify : Module(
         return true
     }
 
+    /** Same as [onChatClick] for inventory / container screens, only when Click In Inventory is on. */
+    @JvmStatic
+    fun onContainerClick(x: Double, y: Double): Boolean = clickInventory.value && onChatClick(x, y, 0)
+
     /** The player inventory: the card is drawn in front of it (renderOnTop); other containers keep the normal HUD layer, still clickable. */
     private fun inInventory() = clickInventory.value && mc.screen is InventoryScreen
 
