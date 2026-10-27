@@ -12,9 +12,9 @@ import ced.cedclient.features.impl.funqol.CoralotHelper
 //#endif
 import ced.cedclient.features.impl.funqol.DungeonSplits
 import ced.cedclient.features.impl.funqol.PositionalMessages
+import ced.cedclient.features.impl.funqol.DoorESP
 //#if CHEAT
 import ced.cedclient.features.impl.funqol.SecretHitboxes
-import ced.cedclient.features.impl.funqol.DoorESP
 import ced.cedclient.features.impl.funqol.FishingHelper
 import ced.cedclient.features.impl.funqol.LassoHelper
 import ced.cedclient.features.impl.funqol.PangolinCatcher
@@ -46,7 +46,6 @@ import ced.cedclient.features.impl.misc.ChatFilter
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.features.impl.misc.HideRecipeBook
 import ced.cedclient.features.impl.misc.InventoryButtons
-import ced.cedclient.features.impl.misc.ResetPanels
 import ced.cedclient.features.impl.misc.ScreenshotTweaks
 import ced.cedclient.features.impl.misc.WarpShortcuts
 //#if CHEAT
@@ -151,6 +150,7 @@ class CedClient : ClientModInitializer {
         IslandState.init()
         PlayerChatManager.init()
         PartyApi.init()
+        ced.cedclient.achievements.Achievements.init()
 
         ClientTickEvents.END_CLIENT_TICK.register {
             InventoryButtonManager.ensureLoaded()
@@ -193,6 +193,10 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(Zoom)
         ModuleManager.register(ced.cedclient.features.impl.render.CrosshairTweaks)
         ModuleManager.register(ced.cedclient.features.impl.render.Hiders)
+        ModuleManager.register(ced.cedclient.features.impl.render.HubMap)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ModHider)
+        ModuleManager.register(ced.cedclient.features.impl.render.CustomSky)
+        ModuleManager.register(ced.cedclient.features.impl.misc.TooltipDates)
         ModuleManager.register(ced.cedclient.features.impl.render.OldStars)
 
         // HUD: vanilla UI tweaks, then info overlays
@@ -201,6 +205,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ChatChannelHud)
         ModuleManager.register(ced.cedclient.features.impl.render.ActionBarHud)
         ModuleManager.register(TimeHud)
+        ModuleManager.register(ced.cedclient.features.impl.render.EventCountdown)
+        ModuleManager.register(ced.cedclient.features.impl.render.ArmorHud)
         ModuleManager.register(ItemCooldowns)
         ModuleManager.register(DailyReset)
 
@@ -219,16 +225,51 @@ class CedClient : ClientModInitializer {
 //#endif
         ModuleManager.register(ced.cedclient.features.impl.funqol.DungeonMap)
         ModuleManager.register(ced.cedclient.features.impl.funqol.LeapMenu)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.TerminalSolver)
         ModuleManager.register(DungeonSplits)
         ModuleManager.register(PositionalMessages)
         ModuleManager.register(F7SoundCap)
         ModuleManager.register(CustomHypeSound)
         ModuleManager.register(CritterSafari)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RunProfit)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.DeployableTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RagnarockTimer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.PingFpsHud)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ClassColors)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.F7Titles)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.MaskTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.BlessingDisplay)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ScoreCalculator)
+        ModuleManager.register(ced.cedclient.features.impl.misc.AchievementsModule)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.TickTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.WarpCooldown)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RoomAlerts)
+        ModuleManager.register(ced.cedclient.features.impl.render.LavaToWater)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ArrowFix)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.EnchantColors)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ProtectItem)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SlotBinding)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.LoadoutKeybinds)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.WardrobeKeybinds)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SbKickTimer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ItemInfoTooltip)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.TerminalSimulator)
+        ModuleManager.register(ced.cedclient.features.impl.render.Waypoints)
+        ModuleManager.register(ced.cedclient.features.impl.render.ItemRarity)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.PetDisplay)
         ModuleManager.register(VampireSlayer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RevenantSlayer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.TarantulaSlayer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SvenSlayer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.VoidgloomSlayer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.InfernoSlayer)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RiftstalkerSlayer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RoomTimes)
         ModuleManager.register(ced.cedclient.features.impl.funqol.LeapCounter)
-        ModuleManager.register(ced.cedclient.features.impl.funqol.Secrets)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SecretHighlight)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.LeftClickSecrets)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SecretHud)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SimonSaysLines)
         ModuleManager.register(ced.cedclient.features.impl.funqol.DungeonBreakerSound)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ExplosiveShotDamage)
@@ -243,15 +284,19 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(HideRecipeBook)
         ModuleManager.register(ChatFilter)
         ModuleManager.register(ChatFeatures)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ChatPing)
         ModuleManager.register(ced.cedclient.features.impl.misc.PartyCommands)
         ModuleManager.register(ced.cedclient.features.impl.misc.AutoRequeue)
         ModuleManager.register(ScreenshotTweaks)
         ModuleManager.register(KeepConnection)
         ModuleManager.register(ced.cedclient.features.impl.misc.TexturePackFix)
         ModuleManager.register(ced.cedclient.features.impl.misc.Spotify)
+        ModuleManager.register(ced.cedclient.features.impl.misc.MuteSounds)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ConfigShare)
+        ModuleManager.register(ced.cedclient.features.impl.misc.DebugPanel)
         ModuleManager.register(Theme)
         ModuleManager.register(AdvancedMode)
-        ModuleManager.register(ResetPanels)
+        ModuleManager.register(DoorESP)
         ModuleManager.register(ced.cedclient.features.impl.misc.ChatPrefixSettings)
 
 //#if CHEAT
@@ -260,7 +305,6 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(BlockESP)
         ModuleManager.register(Freecam)
         ModuleManager.register(SecretHitboxes)
-        ModuleManager.register(DoorESP)
         ModuleManager.register(LassoHelper)
         // Friends-only (DevAccess): not registered at all for anyone else.
         if (ced.cedclient.utils.DevAccess.isFriend) {
@@ -270,12 +314,40 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.SlayerCheats)
             ModuleManager.register(ced.cedclient.features.impl.funqol.FarmHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.DojoHelper)
+            ModuleManager.register(ced.cedclient.features.impl.render.Box3D)
+            ModuleManager.register(ced.cedclient.features.impl.render.WitherESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.TerminalESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.TeammateESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.F4Features)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.EtherwarpOverlay)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.ArchitectDraft)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.NecronDrop)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.GateHighlight)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.TrevorHelper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.GyroHelper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.CameraTweaks)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.NoItemPlace)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.ArrowAlign)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.I4Helper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.M7Relics)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.LividSolver)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BloodCamp)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.IHateDiorite)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.DoorFix)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.IHateDoors)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.SpringBoots)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.SnappyTappy)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.WitherDragons)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BlazeSolver)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.PuzzleSolvers)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoExperiments)
         ModuleManager.register(ced.cedclient.features.impl.funqol.BeaconSolver)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoFusion)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.AutoTerminals)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AnvilHelper)
 
 //#endif
@@ -309,6 +381,21 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "farmhelper")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "blood_camp")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.BloodCamp.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "spring_boots")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.SpringBoots.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "wither_dragons")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.WitherDragons.render(graphics, tickCounter)
         }
 //#endif
         hudLast(
@@ -397,6 +484,66 @@ class CedClient : ClientModInitializer {
             CritterSafari.TradesHud.render(graphics, tickCounter)
         }
         hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "run_profit")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.RunProfit.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "deployable_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.DeployableTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "ragnarock_timer")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.RagnarockTimer.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "ping_fps")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.PingFpsHud.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "mask_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.MaskTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "blessing_display")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.BlessingDisplay.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "tick_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.TickTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "warp_cooldown")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.WarpCooldown.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "sb_kick_timer")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.SbKickTimer.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "pet_display")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.PetDisplay.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "event_countdown")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.render.EventCountdown.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "armor_hud")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.render.ArmorHud.render(graphics, tickCounter)
+        }
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "slayer")
         ) { graphics, tickCounter ->
             VampireSlayer.render(graphics, tickCounter)
@@ -480,6 +627,7 @@ class CedClient : ClientModInitializer {
         // Load module config safely. If something inside loadModulesOnly throws (NPE etc.),
         // catch it and log the stacktrace instead of crashing the client.
         try {
+            ced.cedclient.features.impl.render.HudCard.attachBackgroundSettings()
             ConfigManager.loadModulesOnly()
             // Settings changed outside the ClickGUI (commands, HUD editors...) are otherwise only written the next
             // time a module is toggled or the GUI closes. Only after a good load, so a broken config file never

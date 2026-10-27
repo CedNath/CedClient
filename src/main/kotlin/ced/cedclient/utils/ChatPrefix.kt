@@ -14,7 +14,7 @@ object ChatPrefix {
     /** Modules whose chat lines carry the prefix, in popup order. */
     val modules = listOf(
         "Anvil Helper", "Auto Fusion", "Cosmetic Blocks", "Critter Safari", "Dojo Helper", "Dungeon Clears", "Dungeon Splits",
-        "Explosive Shot Damage", "FarmHelper", "Leap Menu", "Party Commands", "Positional Messages", "Room Times", "Spotify",
+        "Explosive Shot Damage", "FarmHelper", "Leap Menu", "Party Commands", "Positional Messages", "Room Times", "Music",
         "Sun Gecko", "TinyDancerHelper",
     )
 

@@ -1,14 +1,15 @@
-param([string]$Action = 'state', [string]$App = 'Spotify|AppleMusic|iTunes')
+param([string]$Action = 'state', [string]$App = 'Spotify|AppleMusic|iTunes', [long]$PositionMs = 0)
 # Shuffle / repeat of the player through the Windows media session (the media keys have no keys for these).
 # Prints "shuffle=<0|1> repeat=<0 off|1 track|2 list>", or "none" when no matching player is running.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
-function Await($op, $type) { $t = $asTask.MakeGenericMethod($type).Invoke($null, @($op)); $t.Wait(-1) | Out-Null; $t.Result }
+function Await($op, $type) { $t = $asTask.MakeGenericMethod($type).Invoke($null, @($op)); if (-not $t.Wait(5000)) { throw 'timeout' }; $t.Result }
+function Get-Manager { Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]) }
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
 $null = [Windows.Media.MediaPlaybackAutoRepeatMode, Windows.Media, ContentType = WindowsRuntime]
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties, Windows.Media.Control, ContentType = WindowsRuntime]
-$mgr = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
+$mgr = Get-Manager
 
 if ($Action -eq 'watch') {
     # Runs until killed: one line a second, "track<TAB>artist<TAB>title<TAB>status<TAB>shuffle<TAB>repeat" or "none".
@@ -16,7 +17,8 @@ if ($Action -eq 'watch') {
     while ($true) {
         try {
             $s = $mgr.GetSessions() | Where-Object { $_.SourceAppUserModelId -match $App } | Select-Object -First 1
-            if (-not $s) { Write-Output 'none' }
+            # A manager from before the player was closed can go stale: ask for a fresh one while nothing is found.
+            if (-not $s) { Write-Output 'none'; try { $mgr = Get-Manager } catch {} }
             else {
                 $p = Await ($s.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
                 $i = $s.GetPlaybackInfo()
@@ -25,7 +27,7 @@ if ($Action -eq 'watch') {
                 $tl = $s.GetTimelineProperties()
                 Write-Output ("track`t{0}`t{1}`t{2}`t{3}`t{4}`t{5}`t{6}`t{7}`t{8}" -f $p.Artist, $p.Title, $i.PlaybackStatus, $sh, $rp, [int64]$tl.Position.TotalMilliseconds, [int64]$tl.EndTime.TotalMilliseconds, $tl.LastUpdatedTime.ToUnixTimeMilliseconds(), $s.SourceAppUserModelId)
             }
-        } catch { Write-Output 'none' }
+        } catch { Write-Output 'none'; try { $mgr = Get-Manager } catch {} }
         [Console]::Out.Flush()
         Start-Sleep -Seconds 1
     }
@@ -52,5 +54,9 @@ elseif ($Action -eq 'repeat') {
     $null = Await ($session.TryChangeAutoRepeatModeAsync([Windows.Media.MediaPlaybackAutoRepeatMode]$next)) ([bool])
     Start-Sleep -Milliseconds 350
     Read-State
+}
+elseif ($Action -eq 'seek') {
+    # Position in 100 ns ticks.
+    $null = Await ($session.TryChangePlaybackPositionAsync($PositionMs * 10000)) ([bool])
 }
 Write-Output "shuffle=$shuffle repeat=$repeat"

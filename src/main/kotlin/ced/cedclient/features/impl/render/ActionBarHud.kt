@@ -131,7 +131,7 @@ object ActionBarHud : Module(
 
     private data class Saved(val dx: Int, val dy: Int, val scale: Float)
     private val gson = Gson()
-    private val file: File by lazy { CedPaths.file("action_bar_hud.json") }
+    private val file by lazy { CedPaths.hud("action_bar") }
     private val panels get() = mapOf("notices" to Notices, "itemName" to ItemName)
 
     private fun savePositions() {

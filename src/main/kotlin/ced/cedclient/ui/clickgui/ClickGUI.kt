@@ -24,7 +24,7 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
 /**
  * The ClickGUI screen. Ported from Odin's clickgui/ClickGUI.kt, which is an
  * `object` — this has to be a `class` instead, since CedClient.kt and
- * CedClientCommand.kt already do `client.setScreen(ClickGUI())`, i.e. treat
+ * CedClientCommand.kt already do `client.gui.setScreen(ClickGUI())`, i.e. treat
  * it as instantiable. The description-tooltip state (`setDescription`) that
  * RenderableSetting calls statically lives in the companion object, so that
  * call site keeps working unchanged no matter how many times a ClickGUI gets
@@ -34,7 +34,7 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
  * the live, currently-open panel layout.
  *
  * openPopup()/closePopup() (Phase 6) give EntityESP.kt's three "Select ___"
- * ActionSettings — `(mc.screen as? ClickGUI)?.openPopup(MobFilterPopup())`
+ * ActionSettings — `(mc.gui.screen() as? ClickGUI)?.openPopup(MobFilterPopup())`
  * etc. — a modal to open into. Only one popup can be open at a time; opening
  * a second just replaces the first. While a popup is open it gets first and
  * exclusive claim on input (see the override methods below) — panels don't
@@ -43,8 +43,10 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
  */
 class ClickGUI : Screen(Component.literal("Click GUI")) {
 
+    init { ced.cedclient.achievements.Achievements.bump("gui_opens") }
+
     private val panelSettings: List<PanelSetting> =
-        Category.entries.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }
+        Category.entries.filter { ced.cedclient.features.ModuleManager.modulesByCategory.containsKey(it) }.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }
 
     private val panels: List<Panel> = panelSettings.map { Panel(it) }
 
@@ -54,8 +56,24 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     private var activePopup: Popup? = null
 
+    /** Theme > Menu Layout "Compact": the three-panel window; the classic one-panel-per-category layout draws when it is off. */
+    private val compactLayout = CompactLayout(panels, ::animated)
+
     /** Live panel layout state, exposed for ResetPanels to mutate while this screen is open. */
     fun getPanels(): List<PanelSetting> = panelSettings
+
+    private var canvasW = 0f
+
+    /** Slides every panel by [dx] px, keeping the first one's left edge and the last one's right edge reachable (no-op when they all fit). */
+    private fun scrollPanels(dx: Float) {
+        val first = panelSettings.firstOrNull() ?: return
+        val last = panelSettings.last()
+        val lowest = canvasW - 15f - (last.x + Panel.WIDTH)
+        val highest = 15f - first.x
+        if (lowest >= highest) return
+        val move = dx.coerceIn(lowest.coerceAtMost(0f), highest.coerceAtLeast(0f))
+        panelSettings.forEach { it.x += move }
+    }
 
     /** Opens [popup] as a modal on top of this ClickGUI, replacing whichever popup (if any) is already open. */
     fun openPopup(popup: Popup) {
@@ -88,6 +106,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             // coordinate space everything in this block draws into -- see NVGRenderer's
             // doc comment on canvasWidth for why those two aren't the same thing.
             val canvasWidth = NVGRenderer.canvasWidth / clickGuiScale
+            canvasW = canvasWidth
             val canvasHeight = NVGRenderer.canvasHeight / clickGuiScale
 
             // Our own background dim instead of vanilla's menu blur (see extractBackground).
@@ -99,7 +118,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             // Bottom-center, a fixed 50px gap above the screen edge.
             NVGRenderer.push()
             NVGRenderer.globalAlpha(dim)
-            SearchBar.draw(
+            if (!compact) SearchBar.draw(
                 canvasWidth / 2f - 175f,
                 canvasHeight - 90f,
                 scaledMouseX,
@@ -110,14 +129,12 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             // Opening: each panel animates in (Theme > Open Animation), left to right, slightly after the one before it.
             val draggedPanel = panels.firstOrNull { it.dragging }
             val openStyle = Theme.openAnimation.value
-            panels.forEachIndexed { i, panel ->
+            if (compact) compactLayout.draw(canvasWidth, canvasHeight, elapsed, openStyle, scaledMouseX, scaledMouseY)
+            (if (compact) emptyList() else panels).forEachIndexed { i, panel ->
                 if (panel == draggedPanel) return@forEachIndexed
-                val raw = if (openStyle == "None") 1f else ((elapsed - i * PANEL_STAGGER_MS) / PANEL_ANIM_MS).coerceIn(0f, 1f)
-                if (raw <= 0f) return@forEachIndexed
-                NVGRenderer.push()
-                panelOpenTransform(openStyle, raw, panel)
-                panel.draw(scaledMouseX, scaledMouseY)
-                NVGRenderer.pop()
+                animated(openStyle, elapsed - i * PANEL_STAGGER_MS, panel.panelSetting.x, panel.panelSetting.y, Panel.WIDTH, panel.previousHeight.coerceAtLeast(Panel.HEIGHT)) {
+                    panel.draw(scaledMouseX, scaledMouseY)
+                }
             }
 
             draggedPanel?.draw(scaledMouseX, scaledMouseY)
@@ -175,9 +192,17 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             return true
         }
 
+        if (compact) {
+            compactLayout.mouseScrolled(scaledMouseX, scaledMouseY, actualAmount)
+            return true
+        }
+        // Shift + wheel (or the wheel over empty space) slides the whole row of panels sideways.
+        if (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.window, 340) || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.window, 344)) { scrollPanels(actualAmount * 6f); return true }
         for (i in panels.size - 1 downTo 0) {
             if (panels[i].handleScroll(actualAmount)) return true
         }
+        scrollPanels(actualAmount * 6f)
+        return true
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
@@ -198,6 +223,10 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         }
 
         SearchBar.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)
+        if (compact) {
+            compactLayout.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)
+            return true
+        }
         for (i in panels.size - 1 downTo 0) {
             if (panels[i].mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)) return true
         }
@@ -211,7 +240,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         }
 
         SearchBar.mouseReleased()
-        for (i in panels.size - 1 downTo 0) {
+        if (compact) compactLayout.mouseReleased(mouseButtonEvent)
+        else for (i in panels.size - 1 downTo 0) {
             panels[i].mouseReleased(mouseButtonEvent)
         }
         return super.mouseReleased(mouseButtonEvent)
@@ -223,7 +253,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         }
 
         SearchBar.keyTyped(characterEvent)
-        for (i in panels.size - 1 downTo 0) {
+        if (compact && compactLayout.keyTyped(characterEvent)) return true
+        if (!compact) for (i in panels.size - 1 downTo 0) {
             if (panels[i].keyTyped(characterEvent)) return true
         }
         return super.charTyped(characterEvent)
@@ -238,7 +269,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         }
 
         SearchBar.keyPressed(keyEvent)
-        for (i in panels.size - 1 downTo 0) {
+        if (compact && compactLayout.keyPressed(keyEvent)) return true
+        if (!compact) for (i in panels.size - 1 downTo 0) {
             if (panels[i].keyPressed(keyEvent)) return true
         }
         return super.keyPressed(keyEvent)
@@ -249,17 +281,25 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         super.init()
     }
 
+    /** Draws [draw] with the Theme > Open Animation at [t] ms in (negative = not started yet) around the box x, y, w, h. */
+    private fun animated(style: String, t: Float, x: Float, y: Float, w: Float, h: Float, draw: () -> Unit) {
+        val raw = if (style == "None") 1f else (t / PANEL_ANIM_MS).coerceIn(0f, 1f)
+        if (raw <= 0f) return
+        NVGRenderer.push()
+        panelOpenTransform(style, raw, x, y, w, h)
+        draw()
+        NVGRenderer.pop()
+    }
+
     private fun popupProgress(): Float =
         if (Theme.popupAnimation.value == "None") 1f
         else ((System.nanoTime() - popupOpenedAt) / 1_000_000f * Theme.animationSpeed.value.toFloat() / POPUP_ANIM_MS).coerceIn(0f, 1f)
 
     /** Sets alpha + transform for one panel at open-animation progress [raw] (0..1, linear). */
-    private fun panelOpenTransform(style: String, raw: Float, panel: Panel) {
+    private fun panelOpenTransform(style: String, raw: Float, x: Float, y: Float, w: Float, h: Float) {
         val e = easeOutCubic(raw)
-        val x = panel.panelSetting.x
-        val y = panel.panelSetting.y
-        val cx = x + Panel.WIDTH / 2f
-        val cy = y + panel.previousHeight.coerceAtLeast(Panel.HEIGHT) / 2f
+        val cx = x + w / 2f
+        val cy = y + h / 2f
         var alpha = e
         when (style) {
             "Slide Up" -> NVGRenderer.translate(0f, (1f - e) * PANEL_SLIDE)
@@ -279,7 +319,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             }
             // Falls in from above the screen and lands with a bounce.
             "Drop" -> {
-                NVGRenderer.translate(0f, (1f - easeOutBounce(raw)) * -(y + panel.previousHeight + 40f))
+                NVGRenderer.translate(0f, (1f - easeOutBounce(raw)) * -(y + h + 40f))
                 alpha = 1f
             }
             // Unfolds downwards from its header.
@@ -372,7 +412,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     /** Blur radius this frame: Blur Strength, eased in with the background dim when the menu opens. 0 = off. */
     fun blurRadius(): Int {
-        if (!Theme.menuBlur.value) return 0
+        if (!Theme.menuBlur.value && !CompactLayout.glass) return 0
         val elapsed = (System.nanoTime() - openedAt) / 1_000_000f * Theme.animationSpeed.value.toFloat()
         return Math.round(Theme.blurStrength.value.toFloat() * easeOutCubic(elapsed / DIM_FADE_MS))
     }
@@ -396,6 +436,10 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
     companion object {
 
         const val roundedPanelBottom = true
+
+        /** Theme > Menu Layout: category list + module list + settings as three panels, instead of one panel per category. */
+        val compact: Boolean get() = Theme.menuLayout.value == "Compact"
+
         /** The GUI accent -- set in the Theme module. */
         val clickGUIColor: Color get() = Theme.guiAccent.value
 

@@ -20,7 +20,35 @@ object CedPaths {
         migrateLegacy()
     }
 
-    fun file(name: String): File = File(dir, name)
+    /** Subfolder each known file lives in; anything not listed stays in the config folder itself. */
+    private val folderOf: Map<String, String> = buildMap {
+        listOf(
+            "block_esp_filters.json", "entity_esp_filters.json", "chat_filters.json", "chat_alerts.json", "custom_party_commands.json",
+            "inventory_buttons.json", "inventory_button_presets.json", "warp_shortcuts.json", "positional_messages.json"
+        ).forEach { put(it, "filters") }
+        listOf(
+            "chat_history.json", "chat_channel_state.json", "daily_reset.json", "dungeon_splits.json", "room_times_pb.json",
+            "sun_gecko_pbs.json", "critter_safari_map.json", "critter_runs.json", "run_profit.json", "achievements.json", "friends.txt", "friends_synced.flag"
+        ).forEach { put(it, "data") }
+        listOf("hypixel_pack.zip", "hypixel_pack.key", "hypixel_pack.new.zip", "hypixel_pack.new.key").forEach { put(it, "cache") }
+    }
+
+    /** A file in the config folder. Known ones sit in a subfolder; one still in the old place is moved there on first use. */
+    fun file(name: String): File {
+        val sub = folderOf[name] ?: return File(dir, name)
+        val target = File(dir, "$sub/$name")
+        val old = File(dir, name)
+        if (!target.exists() && old.isFile) {
+            runCatching {
+                target.parentFile.mkdirs()
+                if (!old.renameTo(target)) { old.copyTo(target); old.delete() }
+            }
+        }
+        return target
+    }
+
+    /** A HUD's saved position / scale (one entry in hud/huds.json, see [HudStore]). */
+    fun hud(key: String): HudFile = HudFile(key)
 
     private fun migrateLegacy() {
         val legacy = FabricLoader.getInstance().gameDir.resolve("cedclient").toFile()

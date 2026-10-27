@@ -36,10 +36,11 @@ object ItemValue : Module(
     private val lowestBin = BooleanSetting("Lowest BIN", true, "Cheapest Buy It Now on the Auction House")
     private val craftCost = BooleanSetting("Craft Cost", true, "Cost of the recipe's ingredients (Bazaar instant-buy / lowest BIN); needs the item repo in config/notenoughupdates/repo")
     private val bazaarPrices = BooleanSetting("Bazaar Prices", true, "Bazaar items show instant buy / sell instead of lowest BIN")
-    private val lowestBinFormat = TextSetting("Lowest BIN Text", "&5&oLowest BIN: &f&l#price", "#price = the price, & = colour code (&6 gold, &e yellow, &b aqua...)", maxLength = 64)
-    private val craftCostFormat = TextSetting("Craft Cost Text", "&5&oCraft Cost:&r &f&l#price", "#price = the price, & = colour code (&6 gold, &e yellow, &b aqua...)", maxLength = 64)
-    private val bazaarBuyFormat = TextSetting("BZ Buy Text", "&5&oBZ Buy: &f&l#price", "#price = instant-buy price, & = colour code", maxLength = 64)
-    private val bazaarSellFormat = TextSetting("BZ Sell Text", "&5&oBZ Sell: &f&l#price", "#price = instant-sell price, & = colour code", maxLength = 64)
+    // Text with no colour code at the start takes the theme's HUD accent, so the lines follow the GUI colours.
+    private val lowestBinFormat = TextSetting("Lowest BIN Text", "&oLowest BIN: &f&l#price", "#price = the price, & = colour code (&6 gold, &e yellow, &b aqua...). No colour code first = the theme colour.", maxLength = 64)
+    private val craftCostFormat = TextSetting("Craft Cost Text", "&oCraft Cost:&r &f&l#price", "#price = the price, & = colour code (&6 gold, &e yellow, &b aqua...). No colour code first = the theme colour.", maxLength = 64)
+    private val bazaarBuyFormat = TextSetting("BZ Buy Text", "&oBZ Buy: &f&l#price", "#price = instant-buy price, & = colour code. No colour code first = the theme colour.", maxLength = 64)
+    private val bazaarSellFormat = TextSetting("BZ Sell Text", "&oBZ Sell: &f&l#price", "#price = instant-sell price, & = colour code. No colour code first = the theme colour.", maxLength = 64)
     private val worth = BooleanSetting("Item Worth", true, "Lowest BIN of the plain item plus everything applied to it (enchants, recomb, books, stars, gems...). Hold Shift for the breakdown.")
     private val worthFormat = TextSetting("Item Worth Text", "&5&oItem Worth: &6&l#price", "#price = the total, & = colour code", maxLength = 64)
     private val numbers = DropdownSetting("Numbers", listOf("Short", "Full"), description = "Short = 5.2M, Full = 5,200,000")
@@ -80,10 +81,11 @@ object ItemValue : Module(
         if (parts.size < 2) return
         lines += line(worthFormat.value, parts.sumOf { it.second })
         if (!Minecraft.getInstance().hasShiftDown()) {
-            lines += Component.literal("§8Hold Shift for the breakdown")
+            lines += Component.literal("Hold Shift for the breakdown").withColor(Theme.hudBorderRgba and 0xFFFFFF)
             return
         }
-        for ((label, price) in parts) lines += Component.literal("§7 $label: §6" + if (numbers.value == "Full") GROUPED.format(price) else short(price))
+        for ((label, price) in parts) lines += Component.literal(" $label: ").withColor(Theme.hudBorderRgba and 0xFFFFFF)
+            .append(Component.literal(if (numbers.value == "Full") GROUPED.format(price) else short(price)).withColor(0xFFAA00))
     }
 
     /** What the item is worth, piece by piece: (label, coins). Pieces without a price are left out. */
@@ -155,8 +157,18 @@ object ItemValue : Module(
 
     private fun labelOf(key: String) = key.removePrefix("drill_part_").split('_').joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
 
+    // Saved texts that are still the old purple defaults move to the themed ones; anything you edited is left alone.
+    private val OLD_DEFAULTS = mapOf(
+        "&5&oLowest BIN: &f&l#price" to "&oLowest BIN: &f&l#price",
+        "&5&oCraft Cost:&r &f&l#price" to "&oCraft Cost:&r &f&l#price",
+        "&5&oBZ Buy: &f&l#price" to "&oBZ Buy: &f&l#price",
+        "&5&oBZ Sell: &f&l#price" to "&oBZ Sell: &f&l#price",
+        "&5&oItem Worth: &6&l#price" to "&oItem Worth: &6&l#price",
+    )
+
     private fun line(format: String, price: Double): Component =
-        Component.literal(format.replace('&', '§').replace("#price", if (numbers.value == "Full") GROUPED.format(price) else short(price)))
+        Component.literal((OLD_DEFAULTS[format] ?: format).replace('&', '§').replace("#price", if (numbers.value == "Full") GROUPED.format(price) else short(price)))
+            .withColor(Theme.hudAccentRgba and 0xFFFFFF) // the base color: a color code in the text still wins
 
     /** 5200000 -> "5.2M", 17750 -> "17.8k". */
     private fun short(v: Double): String {

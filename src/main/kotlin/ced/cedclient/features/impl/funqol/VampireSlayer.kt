@@ -62,18 +62,19 @@ object VampireSlayer : Module(
     private val hud = BooleanSetting("Slayer HUD", true, "Quest and boss timers, kill times, bosses per hour, RNG meter.")
     private val bossBox = BooleanSetting("Box Your Boss", true, "Vampire: boxes the Bloodfiend locked in as yours.")
     private val bossColor = ColorSetting("Boss Color", Color(85, 255, 85)).withDependency { bossBox.value }
-    private val steakAlert = BooleanSetting("Steak Alert", true, "Title + sound when your boss is at 20% HP or less (Steak Stake works).")
-    private val steakColor = ColorSetting("Steak Color", Color(255, 85, 85)).withDependency { bossBox.value }
-    private val twinclawsAlert = BooleanSetting("Twinclaws Alert", true, "Title with the countdown when your boss starts Twinclaws.")
-    private val ichor = BooleanSetting("Blood Ichor Boxes", true)
-    private val ichorColor = ColorSetting("Ichor Color", Color(255, 40, 40)).withDependency { ichor.value }
-    private val ichorSpots = BooleanSetting("Ichor Stand Spots", true, "Outside Mania: marks the 2 blocks to stand on so Twinclaws breaks the Blood Ichor.")
-    private val ichorSpotColor = ColorSetting("Stand Spot Color", Color(85, 255, 255)).withDependency { ichorSpots.value }
-    private val springs = BooleanSetting("Killer Spring Boxes", true)
-    private val springColor = ColorSetting("Spring Color", Color(200, 85, 255)).withDependency { springs.value }
-    private val effigies = BooleanSetting("Blood Effigies", true, "HUD line + boxes at the standing effigies in Stillgore Château.")
-    private val effigyColor = ColorSetting("Effigy Color", Color(255, 170, 0)).withDependency { effigies.value }
-    private val effigyXray = BooleanSetting("Effigies Through Walls", false, "Draws the standing effigy boxes through walls.").withDependency { effigies.value }
+    // Each slayer's own options live in its module (SlayerModules.kt); a feature runs only while that module is on.
+    private val steakAlert = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.steakAlert)
+    private val steakColor = RiftstalkerSlayer.steakColor
+    private val twinclawsAlert = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.twinclawsAlert)
+    private val ichor = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.ichor)
+    private val ichorColor = RiftstalkerSlayer.ichorColor
+    private val ichorSpots = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.ichorSpots)
+    private val ichorSpotColor = RiftstalkerSlayer.ichorSpotColor
+    private val springs = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.springs)
+    private val springColor = RiftstalkerSlayer.springColor
+    private val effigies = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.effigies)
+    private val effigyColor = RiftstalkerSlayer.effigyColor
+    private val effigyXray = SlayerGate(RiftstalkerSlayer, RiftstalkerSlayer.effigyXray)
 
     // ---- every slayer
     private val bossSoon = BooleanSetting("Boss Soon Alert", true, "Title when the quest is 90% done.")
@@ -81,37 +82,27 @@ object VampireSlayer : Module(
     private val minibossAlert = BooleanSetting("Mini-Boss Alert", true)
     private val minibossBox = BooleanSetting("Box Mini-Bosses", true, "Boxes slayer mini-bosses near you (anyone's).")
     private val minibossColor = ColorSetting("Mini-Boss Color", Color(255, 170, 255)).withDependency { minibossBox.value }
-    private val beaconAlert = BooleanSetting("Voidgloom Beacons", true, "Title + boxes for the beacons the boss throws and places.")
-    private val beaconColor = ColorSetting("Beacon Color", Color(255, 0, 0)).withDependency { beaconAlert.value }
-    private val beaconStyle = DropdownSetting("Beacon Style", BOX_STYLES, "Outline").withDependency { beaconAlert.value }
-    private val laserTimer = BooleanSetting("Voidgloom Laser Timer", true, "Title with the 8 s countdown of the laser phase.")
-    private val nukekubi = BooleanSetting("Nukekubi Skulls", true, "Boxes the Voidgloom skull heads.")
-    private val nukekubiColor = ColorSetting("Skull Color", Color(255, 170, 0)).withDependency { nukekubi.value }
-    private val nukekubiStyle = DropdownSetting("Skull Style", BOX_STYLES, "Outline").withDependency { nukekubi.value }
-    private val attunementAlert = BooleanSetting("Inferno Attunement", true, "Title with the dagger attunement to use when it changes.")
-    private val firePits = BooleanSetting("Inferno Fire Pits", true, "Title when the boss drops under a third of its HP.")
-    private val firePillar = BooleanSetting("Inferno Fire Pillar", true, "Title with the fire pillar countdown.")
-    private val hatchlings = BooleanSetting("Tarantula Hatchlings", true, "Title when you have to kill the hatchlings first.")
+    private val beaconAlert = SlayerGate(VoidgloomSlayer, VoidgloomSlayer.beaconAlert)
+    private val beaconColor = VoidgloomSlayer.beaconColor
+    private val beaconStyle = VoidgloomSlayer.beaconStyle
+    private val laserTimer = SlayerGate(VoidgloomSlayer, VoidgloomSlayer.laserTimer)
+    private val nukekubi = SlayerGate(VoidgloomSlayer, VoidgloomSlayer.nukekubi)
+    private val nukekubiColor = VoidgloomSlayer.nukekubiColor
+    private val nukekubiStyle = VoidgloomSlayer.nukekubiStyle
+    private val attunementAlert = SlayerGate(InfernoSlayer, InfernoSlayer.attunementAlert)
+    private val firePits = SlayerGate(InfernoSlayer, InfernoSlayer.firePits)
+    private val firePillar = SlayerGate(InfernoSlayer, InfernoSlayer.firePillar)
+    private val hatchlings = SlayerGate(TarantulaSlayer, TarantulaSlayer.hatchlings)
 
-    // Inline: the main toggles. Everything else sits in grouped popups so the panel stays short.
+    // Inline: the main toggles. The shared alerts sit in a popup so the panel stays short.
     private val alertSettings: List<RenderableSetting<*>> = listOf(bossSoon, bossSpawned, minibossAlert, minibossBox, minibossColor)
-    private val vampireSettings: List<RenderableSetting<*>> = listOf(steakAlert, steakColor, twinclawsAlert, ichor, ichorColor, ichorSpots, ichorSpotColor, springs, springColor, effigies, effigyColor, effigyXray)
-    private val otherSettings: List<RenderableSetting<*>> = listOf(beaconAlert, beaconColor, beaconStyle, laserTimer, nukekubi, nukekubiColor, nukekubiStyle, attunementAlert, firePits, firePillar, hatchlings)
-    private val popupSettings = alertSettings + vampireSettings + otherSettings
+    private val popupSettings = alertSettings
 
     private fun popup(title: String, vararg columns: SettingsPopup.Section) =
         (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(SettingsPopup(title, columns.map { listOf(it) }))
 
     private val alertsButton = ActionSetting("Alerts", "Boss soon, boss spawned, mini-boss titles.") {
         popup("Slayer Alerts", SettingsPopup.Section("Every Slayer", alertSettings))
-    }
-    private val vampireButton = ActionSetting("Vampire", "Steak, Twinclaws, Ichor, Killer Springs, Blood Effigies.") {
-        popup("Vampire Slayer", SettingsPopup.Section("Boss", listOf(steakAlert, steakColor, twinclawsAlert)),
-            SettingsPopup.Section("Rift", listOf(ichor, ichorColor, ichorSpots, ichorSpotColor, springs, springColor, effigies, effigyColor, effigyXray)))
-    }
-    private val othersButton = ActionSetting("Other Slayers", "Voidgloom beacons + skulls, Inferno attunement / fire pits / pillars, Tarantula hatchlings.") {
-        popup("Other Slayers", SettingsPopup.Section("Voidgloom", listOf(beaconAlert, beaconColor, beaconStyle, laserTimer, nukekubi, nukekubiColor, nukekubiStyle)),
-            SettingsPopup.Section("Inferno / Tarantula", listOf(attunementAlert, firePits, firePillar, hatchlings)))
     }
 
     // HUD lines, keyed by the row label they hide (the header always shows).
@@ -131,7 +122,7 @@ object VampireSlayer : Module(
     }
 
     init {
-        addSettings(hud, hudButton, bossBox, bossColor, alertsButton, vampireButton, othersButton)
+        addSettings(hud, hudButton, bossBox, bossColor, alertsButton)
         addSettings(*popupSettings.toTypedArray(), *hudLines.values.toTypedArray())
         (popupSettings + hudLines.values).forEach { it.inPopup = true }
         on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }
@@ -226,6 +217,8 @@ object VampireSlayer : Module(
     private const val SPRING_SKIN = "77f7a7bc8ac86f23ca7bf98afeb76960227e1832fe209a3026f6ceb8bde74f"
 
     private var boss: Player? = null
+    /** Whose boss it is per its "Spawned by" stand (null when Hypixel doesn't show one). */
+    private var bossOwner: String? = null
     private var lockAt = 0L
     private var twinclaws: Float? = null
     private var steakWarned = false
@@ -253,6 +246,12 @@ object VampireSlayer : Module(
     private fun trackBoss() {
         val player = mc.player ?: return
         val level = mc.level ?: return
+        // The old way: the Bloodfiend whose "Spawned by: <you>" stand is beside it, no timing needed.
+        val spawned = SlayerBosses.spawnedBy(level)
+        if (bossUp && boss == null) {
+            boss = level.players().firstOrNull { isBloodfiend(it) && SlayerBosses.ownerNear(spawned, it).equals(mc.user.name, ignoreCase = true) }
+        }
+        bossOwner = boss?.let { SlayerBosses.ownerNear(spawned, it) }
         // Lock the newest Bloodfiend near you for 3 s after "Slay the boss!" shows up.
         if (bossUp && boss == null && System.currentTimeMillis() - lockAt < 3_000) {
             boss = level.players().filter { isBloodfiend(it) && it.distanceToSqr(player) < 15.0 * 15.0 }.minByOrNull { it.tickCount }
@@ -334,8 +333,34 @@ object VampireSlayer : Module(
         if (firePits.value && b.firePitsNow()) alert("§c§lFIRE PITS", "", 0.8f)
         val p = b.pillar
         if (firePillar.value && p != null) title("§6§lFIRE PILLAR", "§e%.1fs".format(p))
-        val laser = b.laser
-        if (laserTimer.value && laser != null) title("§b§lLASER", "§e%.1fs".format(laser))
+    }
+
+    private val viewProj = org.joml.Matrix4f()
+    private val clip = org.joml.Vector4f()
+    /** Screen spot (0..1) just above the boss while its laser phase runs, from the world pass; null otherwise. */
+    @Volatile private var laserSpot: FloatArray? = null
+
+    /** World pass: projects the point above the boss so the HUD pass can write the laser countdown there. */
+    private fun captureLaser(camera: CameraRenderState) {
+        val body = SlayerBosses.body
+        if (inRift() || !bossUp || !laserTimer.value || SlayerBosses.laser == null || body == null) { laserSpot = null; return }
+        viewProj.set(camera.projectionMatrix).mul(camera.viewRotationMatrix)
+        val p = body.getPosition(mc.deltaTracker.getGameTimeDeltaPartialTick(false))
+        val cam = camera.pos
+        clip.set((p.x - cam.x).toFloat(), (p.y + body.bbHeight + 0.4 - cam.y).toFloat(), (p.z - cam.z).toFloat(), 1f)
+        viewProj.transform(clip)
+        laserSpot = if (clip.w <= 0.05f) null else floatArrayOf(clip.x / clip.w * 0.5f + 0.5f, 0.5f - clip.y / clip.w * 0.5f)
+    }
+
+    /** HUD pass: a small countdown above the boss during the laser phase. */
+    private fun drawLaser(g: GuiGraphicsExtractor) {
+        val spot = laserSpot ?: return
+        val left = SlayerBosses.laser ?: return
+        val text = "%.1fs".format(left)
+        val size = 9f
+        HudCard.draw(g, 0, 0) {
+            HudCard.text(text, spot[0] * g.guiWidth() - HudCard.width(text, size) / 2f, spot[1] * g.guiHeight() - size, size, 0xFF55FFFF.toInt())
+        }
     }
 
     private fun ping(pitch: Float) = mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
@@ -444,6 +469,7 @@ object VampireSlayer : Module(
 
     private fun renderWorld(poseStack: PoseStack, bufferSource: SubmitNodeCollector, camera: CameraRenderState) {
         if (!isEnabled) return
+        captureLaser(camera)
         val boxes = ArrayList<Pair<AABB, Color>>()
         val fills = ArrayList<Pair<AABB, Color>>()
         // Beacons and skulls are drawn through walls (you need to find them fast).
@@ -529,6 +555,7 @@ object VampireSlayer : Module(
         if (bossUp) out += Triple("Boss", time(now - bossSpawn), -1)
         boss?.let { b ->
             val max = maxHp(b)
+            bossOwner?.let { out += Triple("Owner", it, 0xFF55FFFF.toInt()) }
             val tier = tier(max).takeIf { it > 0 }?.let { " (T$it)" } ?: ""
             out += Triple("HP$tier", "%,d / %,d".format(b.health.toInt(), max.toInt()), if (canSteak(b)) 0xFFFF5555.toInt() else -1)
             if (!canSteak(b)) out += Triple("Steak at", "%,d".format((max * STEAK_FRACTION).toInt()), 0xFFAAAAAA.toInt())
@@ -538,6 +565,7 @@ object VampireSlayer : Module(
         if (bossUp && !inRift() && SlayerBosses.maxHp > 0) {
             val b = SlayerBosses
             out += Triple("HP", b.format(b.hp) + " / " + b.format(b.maxHp), -1)
+            b.owner?.let { out += Triple("Owner", it, 0xFF55FFFF.toInt()) }
             b.attunement?.let { out += Triple("Attunement", it, 0xFFFFAA00.toInt()) }
             b.hits?.let { out += Triple("Hits left", it.toString(), 0xFFFF5555.toInt()) }
             b.pillar?.let { out += Triple("Fire pillar", "%.1fs".format(it), 0xFFFFAA00.toInt()) }
@@ -560,6 +588,7 @@ object VampireSlayer : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
+        if (isEnabled && !mc.gui.hud.isHidden()) drawLaser(g)
         if (!isEnabled || !hud.value || mc.gui.hud.isHidden()) return
         if (!inSlayerArea()) return
         if (lastSlayer == null && !(inRift() && effigyKnown)) return
@@ -583,7 +612,7 @@ object VampireSlayer : Module(
         val pad = 7f * s
         val gap = 10f * s
         val leftW = rows.filter { it.second.isNotEmpty() }.maxOfOrNull { HudCard.width(it.first, size) } ?: 0f
-        val width = rows.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2
+        val width = HudCard.steady("Slayer", rows.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2, s)
         val height = rows.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -611,7 +640,7 @@ object VampireSlayer : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = GsonBuilder().create()
-    private val hudFile: File by lazy { CedPaths.file("slayer_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("slayer") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

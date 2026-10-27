@@ -2,13 +2,14 @@ package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.impl.render.HudCard
 import ced.cedclient.features.impl.render.HudElement
+import ced.cedclient.features.Category
+import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonState
-import ced.cedclient.ui.clickgui.SettingsPopup
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.safely
 import com.google.gson.Gson
@@ -19,21 +20,21 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.io.File
 
 /** Secrets found in the dungeon room you stand in, read from the action bar's "x/y Secrets" (whoever found them). */
-object SecretHud : HudElement {
-    val on = BooleanSetting("Secret HUD", true, "Shows how many secrets are done in the room you are in.")
-    val isEnabled get() = Secrets.isEnabled && on.value
+object SecretHud : Module(
+    "Secret HUD",
+    Category.Skyblock,
+    "Shows how many secrets are done in the room you are in.",
+    defaultEnabled = true
+), HudElement {
     private val format = DropdownSetting("Format", listOf("Secrets: 3/7", "3/7 Secrets", "3/7", "3 / 7 (4 left)"), "Secrets: 3/7", "How the count is written.")
     private val showRoom = BooleanSetting("Show Room Name", true, "Room name above the count.")
     private val hideDone = BooleanSetting("Hide When Done", false, "Hide the HUD once every secret in the room is found.")
     private val textColor = ColorSetting("Text Color", Color(255, 255, 85), "Color while secrets are left.")
     private val doneColor = ColorSetting("Done Color", Color(85, 255, 85), "Color once the room is done.")
-    private val background = NumberSetting("Background", 1.0, 0.0, 1.0, 0.1, "Opacity of the card behind the text (0 = none).")
+    private val background = NumberSetting("Background", 0.0, 0.0, 1.0, 0.1, "Opacity of the card behind the text (0 = none).")
     private val textSize = NumberSetting("Text Size", 10.0, 6.0, 24.0, 1.0, "Size of the text (you can also scale the whole HUD in the HUD editor).")
 
-    val popupColumns get() = listOf(listOf(
-        SettingsPopup.Section("Text", listOf(format, showRoom, hideDone, textSize)),
-        SettingsPopup.Section("Look", listOf(textColor, doneColor, background)),
-    ))
+    init { addSettings(format, showRoom, hideDone, textSize, textColor, doneColor, background) }
 
     private val CODES = Regex("§.")
     private val SECRETS = Regex("""(\d+)/(\d+) Secrets""")
@@ -87,7 +88,7 @@ object SecretHud : HudElement {
         val size = textSize.value.toFloat() * s
         val lineH = size * 1.2f
         val pad = 6f * s
-        val width = lines.maxOf { HudCard.width(it, size) } + pad * 2
+        val width = HudCard.steady("Secret HUD", lines.maxOf { HudCard.width(it, size) } + pad * 2, s)
         val height = lines.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -116,7 +117,7 @@ object SecretHud : HudElement {
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { ced.cedclient.config.CedPaths.file("secret_hud.json") }
+    private val hudFile by lazy { ced.cedclient.config.CedPaths.hud("secret") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

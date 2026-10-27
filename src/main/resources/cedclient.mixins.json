@@ -14,6 +14,7 @@
     "entity.EntityMixin",
 
     "render.LevelRendererMixin",
+    "render.ItemRarityMixin",
     "render.BlockBreakParticlesMixin",
     "render.PlayerRendererMixin",
     "render.PlayerRenderStateMixin",
@@ -55,6 +56,7 @@
     "render.HideCustomHeadMixin",
     "render.ChatHudHideMixin",
     "render.ParticleEngineMixin",
+    "render.ClientClockManagerMixin",
     "render.ItemDecorationsMixin",
     "client.PackCompatibilityMixin",
 
@@ -68,6 +70,12 @@
     "screen.AbstractContainerScreenMixin",
     "screen.LeapMenuMixin",
     "screen.LeapMenuBackgroundMixin",
+    "screen.TerminalSolverMixin",
+    "screen.SpotifyContainerClickMixin",
+    "render.SkyRendererSkyboxMixin",
+    "screen.TerminalSolverBackgroundMixin",
+    "screen.RunProfitMixin",
+    "screen.RunProfitBackgroundMixin",
     "screen.ScreenTooltipMixin",
     "screen.GuiMixin",
     "scoreboard.PlayerTeamMixin",
@@ -76,9 +84,18 @@
 
     "accessor.AbstractContainerScreenAccessor",
     "accessor.GuiAccessor",
+    "render.FluidStateModelSetMixin",
+    "render.LavaFogMixin",
+    "entity.PlayerBowMixin",
     "accessor.LivingEntityRendererAccessor",
     "accessor.CustomDataAccessor",
     "accessor.MapItemSavedDataAccessor",
+    "accessor.LanguageAccessor",
+    "accessor.LanguageManagerAccessor",
+    "screen.ModHiderAnvilMenuMixin",
+    "screen.ModHiderAnvilScreenMixin",
+    "screen.ModHiderSignEditMixin",
+    "render.MapRendererHubMixin",
     "accessor.PlayerTabOverlayAccessor",
 
 
@@ -97,6 +114,7 @@
     "client.MinecraftMixin",
     "client.SoundEngineMixin",
     "client.LocalPlayerSignMixin",
+    "client.LocalPlayerDropMixin",
     "accessor.MinecraftAccessor"
   ],
 

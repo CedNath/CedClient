@@ -33,6 +33,7 @@ object AutoRequeue : Module(
         val left = leftDuringRun
         leftDuringRun = false
         val leader = PartyApi.partyLeader.equals(PlayerUtils.getName() ?: "", ignoreCase = true)
+        ced.cedclient.utils.Debug.line("Auto Requeue", "run ended: dt=$skip, someoneLeft=$left, leader=$leader (party leader '${PartyApi.partyLeader}', you '${PlayerUtils.getName()}')")
         if (!skip && !left && leader) sendAt = System.currentTimeMillis() + (delay.value * 1000).toLong()
     }
 
@@ -57,6 +58,7 @@ object AutoRequeue : Module(
             partySize = size
             if (sendAt != 0L && System.currentTimeMillis() >= sendAt) {
                 sendAt = 0L
+                ced.cedclient.utils.Debug.line("Auto Requeue", "sent /instancerequeue")
                 Minecraft.getInstance().player?.connection?.sendCommand("instancerequeue")
             }
         }

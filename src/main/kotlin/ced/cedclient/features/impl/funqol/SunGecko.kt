@@ -163,6 +163,7 @@ object SunGecko : Module(
         mc.gui.hud.setTitle(Component.literal(text))
         mc.gui.hud.setSubtitle(Component.empty())
         mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
+        ced.cedclient.utils.Debug.line("Sun Gecko", "alert: $text")
     }
 
     private fun endRun(won: Boolean) {
@@ -252,7 +253,7 @@ object SunGecko : Module(
         val pad = 7f * s
         val gap = 10f * s
         val leftW = rows.filter { it.second.isNotEmpty() }.maxOfOrNull { HudCard.width(it.first, size) } ?: 0f
-        val width = rows.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2
+        val width = HudCard.steady("Sun Gecko", rows.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2, s)
         val height = rows.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -278,7 +279,7 @@ object SunGecko : Module(
         private set
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
-    private val hudFile: File by lazy { CedPaths.file("sun_gecko_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("sun_gecko") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

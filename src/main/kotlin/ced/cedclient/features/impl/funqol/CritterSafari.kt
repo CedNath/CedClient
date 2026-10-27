@@ -608,10 +608,10 @@ object CritterSafari : Module(
         val gap = 10f * s
         val barW = 36f * s
         val leftW = panel.rows.filter { it.right.isNotEmpty() }.maxOfOrNull { HudCard.width(it.left, size) } ?: 0f
-        val width = panel.rows.maxOf { r ->
+        val width = HudCard.steady(hud.label, panel.rows.maxOf { r ->
             if (r.right.isEmpty()) HudCard.width(r.left, size)
             else leftW + gap + HudCard.width(r.right, size) + if (r.bar >= 0) gap + barW else 0f
-        } + pad * 2
+        } + pad * 2, s)
         val height = panel.rows.size * lineH + pad * 2 - (lineH - size)
         hud.lastWidth = (width / s).toInt()
         hud.lastHeight = (height / s).toInt()
@@ -649,7 +649,7 @@ object CritterSafari : Module(
     }
 
     private object HudPositions {
-        private val file: File by lazy { CedPaths.file("critter_hud.json") }
+        private val file by lazy { CedPaths.hud("critter") }
         private val gson = GsonBuilder().create()
         private val saved: MutableMap<String, FloatArray> by lazy {
             runCatching { gson.fromJson<MutableMap<String, FloatArray>>(file.readText(), object : TypeToken<MutableMap<String, FloatArray>>() {}.type) }

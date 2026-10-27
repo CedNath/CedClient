@@ -58,14 +58,18 @@ import java.time.Duration
  * or from the now-playing HUD, whose buttons can be clicked while chat is open.
  */
 object Spotify : Module(
-    "Spotify",
+    "Music",
     Category.Misc,
-    "Shows the current Spotify track in chat and controls playback with media keys."
+    "Shows the current Spotify or Apple Music track in chat and controls playback with media keys."
 ), HudElement {
     private val mc get() = Minecraft.getInstance()
 
     private val source = DropdownSetting("Player", listOf("Auto", "Spotify", "Apple Music"), "Auto", "Which app to read the track from.")
     private val songMessage = BooleanSetting("Song Change Message", true, "Shows a chat message with clickable controls when the track changes.")
+    private val prettyParty = BooleanSetting("Pretty Song Messages", true, "Party \"Now playing: ...\" lines (yours and other players') are shown with the artist and song in their own colours.")
+    private val listenButton = BooleanSetting("Listen Button", true, "A [Listen] button on those lines that opens the song in your music app (Apple Music or Spotify, whichever you listen with). A song can't be started for you remotely, so it opens the search for it.").withDependency { prettyParty.value }
+    private val chatArtistColor = ColorSetting("Chat Artist Color", Color(85, 255, 255), "Artist in party song lines.").withDependency { prettyParty.value }
+    private val chatSongColor = ColorSetting("Chat Song Color", Color(255, 215, 90), "Song in party song lines.").withDependency { prettyParty.value }
     private val keybinds = BooleanSetting("Media Keybinds", true, "Use the keybinds below (outside of menus).")
     private val prevKey = KeybindSetting("Previous Key", GLFW.GLFW_KEY_UNKNOWN, "Previous track.")
     private val pauseKey = KeybindSetting("Play / Pause Key", GLFW.GLFW_KEY_UNKNOWN, "Play or pause.")
@@ -75,7 +79,8 @@ object Spotify : Module(
     private val showHud = BooleanSetting("Show HUD", true, "A now-playing card. Open chat to click its buttons.")
     private val visibility = DropdownSetting("Visible", listOf("Always", "Chat Open Only"), "Always", "When the card is shown.")
     private val clickInventory = BooleanSetting("Click In Inventory", true, "Also lets you click the buttons while an inventory or container screen is open, not only chat. (Chat Open Only then counts those screens too.)")
-    private val style = DropdownSetting("Style", listOf("Card", "Compact"), "Card", "Card: song, artist and buttons stacked. Compact: one line.")
+    private val style = DropdownSetting("Style", listOf("Player", "Classic", "Compact"), "Player", "Player: cover, song, artist and a wave bar you can click or drag to seek (buttons show while chat is open). Classic: song, artist and buttons stacked. Compact: one line.")
+    private val barColor = ColorSetting("Wave Color", Color(255, 120, 40), "The played part of the Player style's wave bar.")
     private val showIcon = BooleanSetting("Icon", true, "Little equalizer icon (still while paused).")
     private val showArtist = BooleanSetting("Artist Line", true, "Artist on its own line (Card style).")
     private val showProgress = BooleanSetting("Progress Bar", true, "A thin line at the bottom of the card showing how far into the song you are. Runs a small background PowerShell (the Windows media session).")
@@ -96,7 +101,7 @@ object Spotify : Module(
     private val coverSize = NumberSetting("Cover Size", 32.0, 16.0, 96.0, 2.0, "Size of the cover.").withDependency { showCover.value }
     private val coverSide = DropdownSetting("Cover Side", listOf("Left", "Right"), "Left", "Which side of the card the cover is on.").withDependency { showCover.value }
     private val coverRound = BooleanSetting("Rounded Cover", true, "Rounded corners on the cover.").withDependency { showCover.value }
-    private val background = NumberSetting("Background", 1.0, 0.0, 1.0, 0.1, "Opacity of the card behind the text (0 = none).")
+    private val background = NumberSetting("Background", 0.0, 0.0, 1.0, 0.1, "Opacity of the card behind the text (0 = none).")
 
     private interface User32 : Library {
         fun interface EnumProc : Callback { fun callback(hwnd: Pointer, lParam: Pointer?): Boolean }
@@ -164,6 +169,13 @@ object Spotify : Module(
     private var watcher: Process? = null
     private var watcherApp = ""
 
+    // Progress bar seeking: press on the bar, drag, release to jump there.
+    @Volatile private var seekHoldUntil = 0L
+    private var seeking = false
+    private var seekFrac = 0f
+    /** The bar's hit area of the last frame in GUI coordinates: x, y, width, height (null when it can't be seeked). */
+    private var seekBar: FloatArray? = null
+
     private fun ensureWatcher() {
         if (user32 == null) return
         val app = when (source.value) { "Spotify" -> "Spotify"; "Apple Music" -> "AppleMusic|iTunes"; else -> "Spotify|AppleMusic|iTunes" }
@@ -184,7 +196,8 @@ object Spotify : Module(
                             val title = f[2].trim()
                             smtcTrack = if (title.isBlank()) null else if (artist.isBlank()) title else "$artist - $title"
                             smtcPlaying = f[3] == "Playing"
-                            if (f.size >= 10) {
+                            // Just after a seek the player still reports the old spot for a moment.
+                            if (f.size >= 10 && System.currentTimeMillis() >= seekHoldUntil) {
                                 smtcPosMs = f[6].toLongOrNull() ?: 0L
                                 smtcEndMs = f[7].toLongOrNull() ?: 0L
                                 smtcUpdatedMs = f[8].toLongOrNull() ?: 0L
@@ -204,13 +217,16 @@ object Spotify : Module(
         if (user32 == null) return
         if (ctlBusy) { queuedAction = action; return } // runs right after the current one
         ctlBusy = true
-        val app = "Spotify" // Apple Music takes the commands but ignores them
+        // Shuffle / repeat: Apple Music takes the commands but ignores them. Seeking goes to whichever player the HUD is reading.
+        val app = if (action.startsWith("seek:") && watcherApp.isNotEmpty()) watcherApp else "Spotify"
         Thread({
             var outText = ""
             try {
                 // Full path: a launcher's trimmed PATH may not include the PowerShell folder.
-                val p = ProcessBuilder(psExe(),"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ctlScript.absolutePath, "-Action", action, "-App", app)
-                    .redirectErrorStream(true).start()
+                // "seek:<ms>" carries the position along with the action.
+                val args = mutableListOf(psExe(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ctlScript.absolutePath, "-Action", action.substringBefore(':'), "-App", app)
+                if (action.startsWith("seek:")) args += listOf("-PositionMs", action.substringAfter(':'))
+                val p = ProcessBuilder(args).redirectErrorStream(true).start()
                 p.outputStream.close()
                 // Read on a timer: a stuck script must not keep the buttons locked.
                 val reader = Thread({ runCatching { outText = p.inputStream.bufferedReader().readText() } }, "CedClient-Spotify-ctl-read").apply { isDaemon = true; start() }
@@ -246,7 +262,7 @@ object Spotify : Module(
     private var poller: Thread? = null
 
     init {
-        addSettings(source, songMessage, keybinds, prevKey, pauseKey, nextKey)
+        addSettings(source, songMessage, prettyParty, listenButton, chatArtistColor, chatSongColor, keybinds, prevKey, pauseKey, nextKey)
         val columns = listOf(
             listOf(
                 SettingsPopup.Section("Card", listOf(showHud, visibility, clickInventory, style, showIcon, showArtist, showProgress, maxWidth, scroll, scrollSpeed, textSize)),
@@ -254,7 +270,7 @@ object Spotify : Module(
             ),
             listOf(
                 SettingsPopup.Section("Cover", listOf(showCover, coverSize, coverSide, coverRound)),
-                SettingsPopup.Section("Look", listOf(titleColor, artistColor, accentColor, hoverColor, dimPaused, background)),
+                SettingsPopup.Section("Look", listOf(titleColor, artistColor, accentColor, barColor, hoverColor, dimPaused, background)),
             ),
         )
         addSettings(ActionSetting("HUD Options", "The now-playing card: layout, buttons, colours.") {
@@ -303,9 +319,64 @@ object Spotify : Module(
     private fun button(label: String, command: String): Component =
         Component.literal(label).withStyle(Style.EMPTY.withClickEvent(ClickEvent.RunCommand(command)))
 
+    private val NOW_PLAYING = Regex("""^(Party > .*?: )Now playing: (.+)$""")
+
+    /**
+     * Called from ChatComponentMixin for every chat line: a party "Now playing: Artist - Song" (PartyCommands' !song, or
+     * the Share button) keeps its sender part and gets the song re-drawn in colours with a [Listen] button.
+     */
+    @JvmStatic
+    fun transformChat(original: Component): Component {
+        val text = original.string
+        if (!isEnabled || !prettyParty.value) {
+            if ("Now playing:" in text) ced.cedclient.utils.Debug.line("Music", "song line left plain: Spotify enabled=$isEnabled, Pretty Song Messages=${prettyParty.value}")
+            return original
+        }
+        // Hypixel sends party lines as one literal with "§" colour codes inside, so match on the text without them.
+        val m = NOW_PLAYING.matchEntire(text.replace(Regex("§."), "")) ?: run {
+            if ("Now playing:" in text) ced.cedclient.utils.Debug.line("Music", "song line didn't match: \"$text\"")
+            return original
+        }
+        val song = m.groupValues[2].trim()
+        val cut = m.groupValues[1].length
+        val out = Component.empty()
+        if ('§' in text) out.append(Component.literal(text.substring(0, text.indexOf("Now playing:")))) // the font draws the codes
+        else {
+            var pos = 0
+            original.visit({ style, seg ->
+                if (pos < cut) out.append(Component.literal(seg.substring(0, minOf(seg.length, cut - pos))).withStyle(style))
+                pos += seg.length
+                java.util.Optional.empty<Unit>()
+            }, Style.EMPTY)
+        }
+        val accent = accentColor.value.rgba and 0xFFFFFF
+        val (artist, title) = split(song)
+        out.append(Component.literal("♫ ").withColor(accent))
+        if (artist.isNotEmpty()) {
+            out.append(Component.literal(artist).withColor(chatArtistColor.value.rgba and 0xFFFFFF))
+            out.append(Component.literal(" - ").withColor(0x777777))
+        }
+        out.append(Component.literal(title).withColor(chatSongColor.value.rgba and 0xFFFFFF))
+        if (listenButton.value) {
+            // Opens the search in the app you listen with yourself (Apple Music when that's the player, else Spotify).
+            val apple = source.value == "Apple Music" || (source.value == "Auto" && appleActive)
+            val query = java.net.URLEncoder.encode(song, Charsets.UTF_8).replace("+", "%20")
+            val url = if (apple) "https://music.apple.com/search?term=$query" else "https://open.spotify.com/search/$query"
+            val service = if (apple) "Apple Music" else "Spotify"
+            out.append(Component.literal(" "))
+            out.append(Component.literal("[Listen]").withStyle(
+                Style.EMPTY.withColor(accent)
+                    .withClickEvent(ClickEvent.OpenUrl(java.net.URI.create(url)))
+                    .withHoverEvent(net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Open \"$song\" in $service")))
+            ))
+        }
+        ced.cedclient.utils.Debug.line("Music", "restyled a party song line: $song")
+        return out
+    }
+
     /** The song change line; its buttons follow the HUD's button settings (Buttons, Shuffle / Repeat, Share Button). */
     private fun songLine(t: String): Component {
-        val line = ChatPrefix.msgFor("Spotify", "§a♫ §f$t ")
+        val line = ChatPrefix.msgFor("Music", "§a♫ §f$t ")
         if (!showButtons.value) return line
         val modes = showModes.value && !appleActive
         val parts = ArrayList<Component>()
@@ -326,7 +397,7 @@ object Spotify : Module(
             while (isEnabled) {
                 runCatching {
                     // The watcher is Apple Music's track source and everyone's song position (Progress Bar).
-                    if (source.value == "Spotify" && !showProgress.value) { if (watcher != null) stopWatcher() } else ensureWatcher()
+                    if (source.value == "Spotify" && !showProgress.value && style.value != "Player") { if (watcher != null) stopWatcher() } else ensureWatcher()
                     val found = readTrack()
                     if (found != null) track = found
                     playing = found != null
@@ -382,7 +453,7 @@ object Spotify : Module(
             .then(ClientCommands.literal("repeat").executes { if (isEnabled) runCtl("repeat"); 1 })
             .then(ClientCommands.literal("share").executes { ctx ->
                 val t = track
-                if (!isEnabled || t == null) ctx.source.sendFeedback(ChatPrefix.msgFor("Spotify", "§7No Spotify track has been detected yet."))
+                if (!isEnabled || t == null) ctx.source.sendFeedback(ChatPrefix.msgFor("Music", "§7No track has been detected yet."))
                 else share(t)
                 1
             })
@@ -410,6 +481,13 @@ object Spotify : Module(
     @JvmStatic
     fun onChatClick(x: Double, y: Double, button: Int): Boolean {
         if (button != 0 || !isEnabled) return false
+        seekBar?.let { b ->
+            if (x >= b[0] && x <= b[0] + b[2] && y >= b[1] && y <= b[1] + b[3]) {
+                seeking = true
+                seekFrac = ((x - b[0]) / b[2]).toFloat().coerceIn(0f, 1f)
+                return true
+            }
+        }
         val hit = buttons.firstOrNull { x >= it.x && x <= it.x + it.w && y >= it.y && y <= it.y + it.h } ?: return false
         when (hit.act) {
             Act.SHUFFLE -> runCtl("shuffle")
@@ -421,6 +499,10 @@ object Spotify : Module(
         }
         return true
     }
+
+    /** Same as [onChatClick] for inventory / container screens, only when Click In Inventory is on. */
+    @JvmStatic
+    fun onContainerClick(x: Double, y: Double): Boolean = clickInventory.value && onChatClick(x, y, 0)
 
     /** The player inventory: the card is drawn in front of it (renderOnTop); other containers keep the normal HUD layer, still clickable. */
     private fun inInventory() = clickInventory.value && mc.gui.screen() is InventoryScreen
@@ -446,7 +528,156 @@ object Spotify : Module(
         return if (i < 0) "" to t else t.substring(0, i) to t.substring(i + 3)
     }
 
+    /** While the bar is held: follow the mouse, and on release jump the song there. */
+    private fun updateSeek() {
+        if (!seeking) return
+        val b = seekBar
+        if (b != null) seekFrac = ((mouseX() - b[0]) / b[2]).toFloat().coerceIn(0f, 1f)
+        if (org.lwjgl.glfw.GLFW.glfwGetMouseButton(mc.window.handle(), org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS && b != null) return
+        seeking = false
+        if (b == null || smtcEndMs <= 0) return
+        val pos = (seekFrac * smtcEndMs).toLong()
+        smtcPosMs = pos
+        smtcUpdatedMs = System.currentTimeMillis()
+        seekHoldUntil = smtcUpdatedMs + 2000
+        runCtl("seek:$pos")
+        ced.cedclient.utils.Debug.line("Music", "seek to ${pos / 1000}s of ${smtcEndMs / 1000}s")
+    }
+
+    private fun fmtTime(ms: Long): String {
+        val s = (ms / 1000).coerceAtLeast(0)
+        return "%02d:%02d".format(s / 60, s % 60)
+    }
+
+    /** A fixed, track-seeded "waveform" height 0..1 for bar [i] (neighbours blended so it looks like audio, not noise). */
+    private fun waveAmp(seed: Int, i: Int): Float {
+        fun h(k: Int): Float {
+            var x = (seed * 31 + k) * -0x61c88647
+            x = x xor (x ushr 15); x *= 0x2c1b3c6d; x = x xor (x ushr 12)
+            return (x and 0xFFFF) / 65535f
+        }
+        return 0.5f * h(i) + 0.3f * h(i + 1) + 0.2f * h(i - 1)
+    }
+
+    /**
+     * The "Player" look: cover on the left, a dark rounded panel with the song (bold), the artist and a wave bar with the
+     * times at both ends. In chat (or an inventory, Click In Inventory) the bar can be clicked or dragged to seek, and the
+     * buttons show in a row under the card.
+     */
+    private fun renderPlayer(g: GuiGraphicsExtractor) {
+        val real = track != null
+        val (artist, song) = split(track ?: "Artist - Song")
+        val isPlaying = !real || playing
+        val dim = if (dimPaused.value && !isPlaying) 0.55f else 1f
+        val s = panelScale
+        val ts = textSize.value.toFloat() * s
+        val smallTs = ts * 0.85f
+        val pad = 7f * s
+        val gap = 6f * s
+        val titleH = ts * 1.35f
+        val artistH = if (showArtist.value) ts * 1.2f else 0f
+        val panelH = pad * 2 + titleH + artistH + gap * 0.8f + smallTs
+        val coverS = if (showCover.value) panelH else 0f
+        val coverW = if (coverS > 0f) coverS + gap else 0f
+        val panelW = maxWidth.value.toFloat() * s + pad * 2
+        val chat = inClickScreen()
+
+        val bs = buttonSize.value.toFloat() * s
+        val btnGap = 4f * s
+        val modes = showModes.value && !appleActive
+        val acts = buildList {
+            if (modes) add(Act.SHUFFLE)
+            add(Act.PREV); add(Act.PAUSE); add(Act.NEXT)
+            if (modes) add(Act.REPEAT)
+            if (showShare.value) add(Act.SHARE)
+        }
+        val shareW = HudCard.width("Share", ts * 0.9f) + 8f * s
+        val btnRowW = acts.sumOf { (if (it == Act.SHARE) shareW else bs).toDouble() }.toFloat() + (acts.size - 1) * btnGap
+        val withButtons = showButtons.value && chat
+        val width = maxOf(HudCard.steady("Music", coverW + panelW, s), if (withButtons) btnRowW else 0f)
+        val height = panelH + (if (withButtons) btnGap * 2 + bs else 0f)
+        lastWidth = (width / s).toInt()
+        lastHeight = (height / s).toInt()
+
+        val frac = progressFraction()
+        val end = if (real) smtcEndMs else 160_000L
+        val leftT = if (frac >= 0f && end > 0) fmtTime((frac * end).toLong()) else "--:--"
+        val rightT = if (end > 0) fmtTime(end) else "--:--"
+        val seed = (track ?: "preview").hashCode()
+
+        val mx = mouseX() - panelX
+        val my = mouseY() - panelY
+        val accent = accentColor.value.rgba or (0xFF shl 24)
+        val hover = hoverColor.value.rgba or (0xFF shl 24)
+        val played = barColor.value.rgba or (0xFF shl 24)
+        val rects = ArrayList<Btn>()
+        seekBar = null // set again inside the draw lambda, which HudCard.draw may run later
+
+        HudCard.draw(g, panelX, panelY) {
+            NVGRenderer.globalAlpha(dim)
+            if (coverS > 0f) drawCover(0f, 0f, coverS, s)
+            val px = coverW
+            NVGRenderer.rect(px, 0f, panelW, panelH, 0xB0222B26.toInt(), 8f * s)
+            val tx = px + pad
+            val textW = panelW - pad * 2
+            val titleCol = titleColor.value.rgba or (0xFF shl 24)
+            val songW = HudCard.width(song, ts)
+            drawText(song, tx, pad, ts, textW, titleCol, songW)
+            if (songW <= textW + 0.5f) HudCard.text(song, tx + 0.45f * s, pad, ts, titleCol) // faux bold
+            if (artist.isNotEmpty() && showArtist.value) drawText(artist, tx, pad + titleH, ts, textW, artistColor.value.rgba or (0xFF shl 24), HudCard.width(artist, ts))
+
+            val rowY = panelH - pad - smallTs
+            val timeW = HudCard.width("00:00", smallTs)
+            HudCard.text(leftT, tx, rowY, smallTs, 0xFFE8E8E8.toInt())
+            HudCard.text(rightT, px + panelW - pad - HudCard.width(rightT, smallTs), rowY, smallTs, 0xFFE8E8E8.toInt())
+            val barX0 = tx + timeW + 5f * s
+            val barW = (px + panelW - pad - timeW - 5f * s) - barX0
+            val cy = rowY + smallTs / 2
+            val maxH = smallTs * 1.4f
+            val grab = chat && smtcEndMs > 0 && track != null
+            val near = grab && (seeking || (mx >= barX0 && mx <= barX0 + barW && my >= cy - maxH && my <= cy + maxH))
+            if (barW > 8f * s) {
+                val n = (barW / (2.8f * s)).toInt().coerceAtLeast(6)
+                val step = barW / n
+                val bw = (step * 0.5f).coerceAtLeast(1f * s)
+                for (i in 0 until n) {
+                    val h = maxH * (0.28f + 0.72f * waveAmp(seed, i))
+                    val done = frac >= 0f && (i + 0.5f) / n <= frac
+                    NVGRenderer.rect(barX0 + i * step, cy - h / 2, bw, h, if (done) played else if (near) 0x77FFFFFF else 0x44FFFFFF, bw / 2)
+                }
+                if (near && frac >= 0f) NVGRenderer.rect(barX0 + barW * frac - 0.5f * s, cy - maxH * 0.75f, 1f * s, maxH * 1.5f, 0xFFFFFFFF.toInt())
+                if (grab) seekBar = floatArrayOf(panelX + barX0, panelY + cy - maxH, barW, maxH * 2)
+            }
+
+            if (withButtons) {
+                var bx = 0f
+                val by = panelH + btnGap
+                for (act in acts) {
+                    val w = if (act == Act.SHARE) shareW else bs
+                    val over = mx >= bx && mx <= bx + w && my >= by && my <= by + bs
+                    if (over) NVGRenderer.rect(bx, by, w, bs, (hover and 0x00FFFFFF) or (0x33 shl 24), 4f * s)
+                    val col = if (over) hover else accent
+                    val modeCol = if (over) hover else if ((act == Act.SHUFFLE && shuffleOn) || (act == Act.REPEAT && repeatMode != 0)) accent else 0xFF777788.toInt()
+                    when (act) {
+                        Act.SHUFFLE -> drawShuffle(bx, by, bs, modeCol, shuffleOn)
+                        Act.REPEAT -> drawRepeat(bx, by, bs, modeCol, repeatMode)
+                        Act.PREV -> drawSkip(bx, by, bs, col, false)
+                        Act.NEXT -> drawSkip(bx, by, bs, col, true)
+                        Act.PAUSE -> drawPlayPause(bx, by, bs, col, isPlaying)
+                        Act.SHARE -> HudCard.text("Share", bx + 4f * s, by + (bs - ts * 0.9f) / 2, ts * 0.9f, col)
+                    }
+                    rects += Btn(act, panelX + bx, panelY + by, w, bs)
+                    bx += w + btnGap
+                }
+            }
+            NVGRenderer.globalAlpha(1f)
+        }
+        buttons = if (chat) rects else emptyList()
+    }
+
     override fun renderInternal(g: GuiGraphicsExtractor) {
+        updateSeek()
+        if (style.value == "Player") { renderPlayer(g); return }
         val real = track != null
         val (artist, song) = split(track ?: "Artist - Song")
         val isPlaying = !real || playing
@@ -486,8 +717,8 @@ object Spotify : Module(
         val innerH = if (compact) rowH else textRows + (if (withButtons) bs + gap else 0f)
         val boxH = maxOf(innerH, cs)
         val yOff = (boxH - innerH) / 2
-        val width = if (compact) pad * 2 + coverW + iconW + iconGap + textW + (if (withButtons) gap * 2 + fullBtnRowW else 0f)
-            else pad * 2 + coverW + iconW + iconGap + maxOf(textW, fullBtnRowW)
+        val width = HudCard.steady("Music", if (compact) pad * 2 + coverW + iconW + iconGap + textW + (if (withButtons) gap * 2 + fullBtnRowW else 0f)
+            else pad * 2 + coverW + iconW + iconGap + maxOf(textW, fullBtnRowW), s)
         val frac = progressFraction()
         val barH = if (showProgress.value) 2f * s else 0f
         val barGap = if (showProgress.value) 4f * s else 0f
@@ -501,6 +732,7 @@ object Spotify : Module(
         val accent = accentColor.value.rgba or (0xFF shl 24)
         val hover = hoverColor.value.rgba or (0xFF shl 24)
         val rects = ArrayList<Btn>()
+        seekBar = null // set again inside the draw lambda, which HudCard.draw may run later
 
         HudCard.draw(g, panelX, panelY) {
             if (background.value > 0.0) HudCard.card(width, height, s, background.value.toFloat() * dim)
@@ -543,8 +775,16 @@ object Spotify : Module(
             }
             if (frac >= 0f) {
                 val by = pad + boxH + barGap
-                NVGRenderer.rect(pad, by, width - pad * 2, barH, 0x22FFFFFF, barH / 2)
-                if (frac > 0f) NVGRenderer.rect(pad, by, (width - pad * 2) * frac, barH, (accent and 0x00FFFFFF) or (0x99 shl 24), barH / 2)
+                val bw = width - pad * 2
+                // In chat the bar can be dragged: it thickens under the mouse and shows a handle.
+                val grab = chat && smtcEndMs > 0 && track != null
+                val near = grab && (seeking || (mx >= pad && mx <= pad + bw && my >= by - 5f * s && my <= by + barH + 5f * s))
+                val th = if (near) 4f * s else barH
+                val ty = by + barH / 2 - th / 2
+                NVGRenderer.rect(pad, ty, bw, th, 0x22FFFFFF, th / 2)
+                if (frac > 0f) NVGRenderer.rect(pad, ty, bw * frac, th, if (near) accent else (accent and 0x00FFFFFF) or (0x99 shl 24), th / 2)
+                if (near) NVGRenderer.circle(pad + bw * frac, by + barH / 2, 3.5f * s, accent)
+                if (grab) seekBar = floatArrayOf(panelX + pad, panelY + by - 5f * s, bw, barH + 10f * s)
             }
             NVGRenderer.globalAlpha(1f)
         }
@@ -553,9 +793,10 @@ object Spotify : Module(
 
     /** How far into the song, 0..1 (extrapolated from the last position the player reported); -1 = no bar. Sample value in the HUD editor. */
     private fun progressFraction(): Float {
-        if (!showProgress.value) return -1f
+        if (!showProgress.value && style.value != "Player") return -1f
         if (track == null) return 0.4f
         if (smtcEndMs <= 0) return -1f
+        if (seeking) return seekFrac
         val extra = if (smtcPlaying) System.currentTimeMillis() - smtcUpdatedMs else 0L
         return ((smtcPosMs + extra).toFloat() / smtcEndMs).coerceIn(0f, 1f)
     }
@@ -637,7 +878,7 @@ object Spotify : Module(
         }
     }
 
-    override val label = "Spotify"
+    override val label = "Music"
     private const val DEFAULT_X = 1144
     private const val DEFAULT_Y = 433
     private const val DEFAULT_SCALE = 0.7f
@@ -651,7 +892,7 @@ object Spotify : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { ced.cedclient.config.CedPaths.file("spotify_hud.json") }
+    private val hudFile by lazy { ced.cedclient.config.CedPaths.hud("spotify") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

@@ -63,7 +63,7 @@ val ItemStack.petInfo: JsonObject?
     get() = skyblockData?.getString("petInfo")?.orElse(null)?.let { runCatching { JsonParser.parseString(it).asJsonObject }.getOrNull() }
 
 enum class SkyblockRarity {
-    COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC, DIVINE, SPECIAL, VERY_SPECIAL, ULTIMATE, ADMIN;
+    COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC, DIVINE, SUPREME, SPECIAL, VERY_SPECIAL, ULTIMATE, ADMIN;
 
     val display = name.replace('_', ' ')
 
@@ -73,9 +73,18 @@ enum class SkyblockRarity {
 
         /** Rarity from a lore line like "LEGENDARY DUNGEON SWORD" or "a VERY SPECIAL ...". */
         fun fromLine(line: String): SkyblockRarity? = byLength.firstOrNull { line.contains(it.display) }
+
+        // A recombobulated item's rarity line has an obfuscated "a" at each end ("a MYTHIC SWORD a"): not part of the text.
+        private val RECOMB_MARK = Regex("""\b[a-z]\b""")
+
+        /** The bottom line of a lore that names the rarity: all capitals, apart from the recombobulator's "a" marks. */
+        fun isRarityLine(line: String): Boolean {
+            val t = line.replace(RECOMB_MARK, "").trim()
+            return t == t.uppercase()
+        }
     }
 }
 
 /** Rarity from the last lore line that names one (Hypixel puts "LEGENDARY SWORD" at the bottom). */
 val ItemStack.rarity: SkyblockRarity?
-    get() = loreLines.asReversed().firstNotNullOfOrNull { line -> SkyblockRarity.fromLine(line).takeIf { line == line.uppercase() } }
+    get() = loreLines.asReversed().firstNotNullOfOrNull { line -> SkyblockRarity.fromLine(line).takeIf { SkyblockRarity.isRarityLine(line) } }

@@ -130,6 +130,7 @@ object Diag {
                 }
             }
             if (isNew) {
+                ced.cedclient.utils.Debug.line("Diag", "$kind $source: ${message.take(200)}")
                 LogManager.getLogger("CedDiag").warn("[CedDiag] {} {}: {}{}", kind, source, message, detail?.let { "\n$it" } ?: "")
                 notifyDev(issue)
             }

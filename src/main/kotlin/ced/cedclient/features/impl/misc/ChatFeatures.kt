@@ -55,7 +55,7 @@ private val CODES = Regex("§.")
 object ChatFeatures : Module(
     "Chat Features",
     Category.Misc,
-    "Longer chat history that survives restarts, timestamps, click to copy / reply, and pings + alerts when chosen words are said.",
+    "Longer chat history that survives restarts, timestamps, click to copy / reply.",
     defaultEnabled = true
 ) {
     private val maxLines = NumberSetting("Max Chat Lines", 10000.0, 1000.0, 30000.0, 1000.0, "Vanilla keeps 100.")
@@ -64,44 +64,28 @@ object ChatFeatures : Module(
     private val savedLines = NumberSetting("Lines To Save", 10000.0, 1000.0, 30000.0, 1000.0).withDependency { saveHistory.value }
     private val divider = BooleanSetting("Server Divider", true, "A [server] line in chat every time you join.")
     private val compactRepeats = BooleanSetting("Compact Repeats", true, "The same message again shows once with (x2), (x3) instead of filling chat.")
+    private val compactRange = NumberSetting("Compact Range", 5.0, 1.0, 50.0, 1.0, "How many recent messages back a repeat is looked for. A copy older than that stays as its own line.").withDependency { compactRepeats.value }
     private val menu = BooleanSetting("Right-Click Menu", true, "Right-click a message in chat: copy it, copy the sender or a link, or reply.")
     private val timestamps = BooleanSetting("Show Timestamps", false, "The time each message came in, in front of it. Restored chat keeps its original times.")
     private val timeFormat = DropdownSetting("Time Format", listOf("HH:mm:ss", "HH:mm"), "HH:mm:ss").withDependency { timestamps.value }
     private val timeColor = ColorSetting("Timestamp Color", Color(170, 170, 170)).withDependency { timestamps.value }
     private val ctrlCopy = BooleanSetting("Ctrl + Click Copy", true, "Ctrl + left-click a message in chat to copy it.")
 
-    private val historySettings: List<RenderableSetting<*>> = listOf(maxLines, keepOnDisconnect, saveHistory, savedLines, divider, compactRepeats)
+    private val historySettings: List<RenderableSetting<*>> = listOf(maxLines, keepOnDisconnect, saveHistory, savedLines, divider, compactRepeats, compactRange)
     private val timeSettings: List<RenderableSetting<*>> = listOf(timestamps, timeFormat, timeColor)
     private val clickSettings: List<RenderableSetting<*>> = listOf(menu, ctrlCopy)
 
-    private fun popup(popup: SettingsPopup) { (mc.gui.screen() as? ClickGUI)?.openPopup(popup) }
-
-    private val historyButton = ActionSetting("History", "Max lines, keep on disconnect, save between launches, server divider, compact repeats.") {
-        popup(SettingsPopup("Chat History", listOf(listOf(SettingsPopup.Section("History", historySettings)))))
-    }
-    private val timeButton = ActionSetting("Timestamps", "Time in front of each message: on / off, format, colour.") {
-        popup(SettingsPopup("Chat Timestamps", listOf(listOf(SettingsPopup.Section("Timestamps", timeSettings)))))
-    }
-    private val clickButton = ActionSetting("Message Clicks", "Right-click menu (copy / reply) and Ctrl + left-click to copy.") {
-        popup(SettingsPopup("Message Clicks", listOf(listOf(SettingsPopup.Section("Clicks", clickSettings)))))
-    }
-    private val pingButton = ActionSetting("Ping", "Sound + highlight when your name or your extra words are said, and the Chat Alerts HUD.") {
-        popup(SettingsPopup("Chat Ping", listOf(
-            listOf(SettingsPopup.Section("Name Ping", ChatPing.nameSettings)),
-            listOf(SettingsPopup.Section("Chat Alerts HUD", ChatPing.hudSettings)),
-        ), listOf(ChatPing.test)))
-    }
-
     init {
-        val inPopups = historySettings + timeSettings + clickSettings + ChatPing.nameSettings + ChatPing.hudSettings
-        inPopups.forEach { it.inPopup = true }
-        // Popup settings are still added (hidden from the panel), so they save like any setting.
-        addSettings(historyButton, timeButton, clickButton, pingButton, ChatPing.configure, *inPopups.toTypedArray())
+        historySettings.forEach { it.section = "History" }
+        timeSettings.forEach { it.section = "Timestamps" }
+        clickSettings.forEach { it.section = "Clicks" }
+        addSettings(*historySettings.toTypedArray(), *timeSettings.toTypedArray(), *clickSettings.toTypedArray())
     }
 
     @JvmStatic fun maxLines(vanilla: Int): Int = if (isEnabled) maxLines.value.toInt() else vanilla
     @JvmStatic fun extendsHistory(): Boolean = isEnabled
     @JvmStatic fun compactRepeats(): Boolean = isEnabled && compactRepeats.value
+    @JvmStatic fun compactRange(): Int = compactRange.value.toInt()
     @JvmStatic fun keepOnDisconnect(): Boolean = isEnabled && keepOnDisconnect.value
 
     private val mc get() = Minecraft.getInstance()

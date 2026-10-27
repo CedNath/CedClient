@@ -36,7 +36,7 @@ private enum class PangolinCatcherState { IDLE, TRACKING, CONFIRMING }
  * a throw confirmation) to cancel and fully reset.
  */
 object PangolinCatcher : Module(
-    "PangolinCatcher(!!!)",
+    "PangolinCatcher",
     Category.Cheats,
     description = "Left-click while holding the Lasso to start an auto-catch session. Left-click again to cancel."
 ) {

@@ -74,7 +74,7 @@ object DungeonSplits : Module(
     private val showPbRow = BooleanSetting("PB Row", true, "Your personal best for this floor.")
     private val showLagLost = BooleanSetting("Lag Lost", true, "Real time minus tick time: how much of the run was lost to server lag.")
 
-    private val showBackground = BooleanSetting("Background", true)
+    private val showBackground = BooleanSetting("Background", false)
     private val cornerRadius = NumberSetting("Corner Radius", 5.0, 0.0, 12.0, 1.0)
     private val padding = NumberSetting("Padding", 6.0, 0.0, 16.0, 1.0)
     private val lineSpacing = NumberSetting("Line Spacing", 4.0, 0.0, 12.0, 1.0)

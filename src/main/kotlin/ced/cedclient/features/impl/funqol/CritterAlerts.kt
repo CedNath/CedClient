@@ -110,12 +110,14 @@ internal object CritterAlerts {
         mc.gui.hud.setSubtitle(Component.literal(subtitle))
         mc.player?.sendSystemMessage(ChatPrefix.msgFor("Critter Safari", "§e$title" + if (subtitle.isEmpty()) "" else " §7- §f$subtitle"))
         if (CritterSafari.alertSound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
+        ced.cedclient.utils.Debug.line("Critter Safari", "alert: $title $subtitle")
         if (setting.value == "Alert + Party") partyQueue.addLast(party)
     }
 
     fun tick() {
         val player = Minecraft.getInstance().player ?: return partyQueue.clear()
         if (partyQueue.isEmpty() || System.currentTimeMillis() < nextPartyAt) return
+        ced.cedclient.utils.Debug.line("Critter Safari", "party alert sent")
         player.connection.sendCommand("pc " + partyQueue.removeFirst())
         nextPartyAt = System.currentTimeMillis() + 1500
     }

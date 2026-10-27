@@ -76,7 +76,7 @@ public abstract class ChatHistoryMixin implements ChatHistoryAccess {
     @Unique private static final Pattern CEDCLIENT_COUNT = Pattern.compile(" \\(x(\\d+)\\)$");
 
     /**
-     * Chat Features > Compact Repeats: the same message again within the last 30 removes the earlier copy and shows
+     * Chat Features > Compact Repeats: the same message again within the last few (Compact Range, 5) removes the earlier copy and shows
      * " (x2)", " (x3)" ... on the new one. Lines without letters or digits (separators) and lines Chat Filter is
      * about to hide are left alone.
      */
@@ -85,8 +85,13 @@ public abstract class ChatHistoryMixin implements ChatHistoryAccess {
         if (!ChatFeatures.compactRepeats() || ChatHide.pending) return contents;
         String text = contents.getString();
         if (!text.matches("(?s).*[\\p{L}\\p{N}].*")) return contents;
-        for (int i = 0, n = Math.min(allMessages.size(), 30); i < n; i++) {
+        int range = ChatFeatures.compactRange();
+        int seen = 0;
+        for (int i = 0; i < allMessages.size() && seen < range; i++) {
             GuiMessage old = allMessages.get(i);
+            // Hypixel's "-----" lines are messages of their own: they don't count toward the range.
+            if (cedclient$isSeparator(old)) continue;
+            seen++;
             String oldText = old.content().getString();
             int count = 1;
             Matcher m = CEDCLIENT_COUNT.matcher(oldText);

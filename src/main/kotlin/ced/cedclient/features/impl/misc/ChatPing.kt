@@ -6,6 +6,8 @@ import ced.cedclient.features.impl.render.ChatEmotes
 import ced.cedclient.features.impl.render.HudCard
 import ced.cedclient.features.impl.render.HudElement
 import ced.cedclient.features.impl.render.nametag.NametagFormatting
+import ced.cedclient.features.Category
+import ced.cedclient.features.Module
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
@@ -38,10 +40,12 @@ import java.util.Optional
  * (sound, highlight, line replacement, clipboard, and a message on the movable Chat Alerts HUD).
  * Defaults: note block bell, gold highlight.
  * Hooked from ChatComponentMixin ahead of CustomNametag, so it still sees your real username.
- * Part of [ChatFeatures] (was its own "Chat Ping" module): its settings live there, under the Ping / Alerts popups.
  */
-object ChatPing : HudElement {
-    private val isEnabled get() = ChatFeatures.isEnabled
+object ChatPing : Module(
+    "Chat Ping",
+    Category.Misc,
+    "Sound + highlight when your name or your extra words are said, and the Chat Alerts HUD."
+), HudElement {
 
     private val ownName = BooleanSetting("Ping On Your Name", true)
     private val extraWords = TextSetting("Extra Words", "", "Comma-separated, e.g. ced,carry", maxLength = 128)
@@ -51,18 +55,22 @@ object ChatPing : HudElement {
     private val sound = BooleanSetting("Sound", true)
     private val volume = NumberSetting("Volume", 1.0, 0.0, 1.0, 0.05).withDependency { sound.value }
     private val nameHud = TextSetting("Name HUD Message", "", "Shown on the Chat Alerts HUD. & colour codes, {line} = the chat line. Empty = none.", maxLength = 128)
-    private val hudBackground = BooleanSetting("HUD Background", true, "Card behind the Chat Alerts HUD messages.")
     private val hudMcFont = BooleanSetting("HUD Minecraft Font", false, "Normal Minecraft text instead of the CedClient font.")
     private val hudShadow = BooleanSetting("HUD Text Shadow", true).withDependency { hudMcFont.value }
-    private val hudAlign = DropdownSetting("HUD Alignment", listOf("Left", "Center", "Right"), "Center")
     val test = ActionSetting("Play Test Sound") { playSound(BELL, volume.value.toFloat(), 1f) }
     val configure = ActionSetting("Alerts", "Your own chat alerts: trigger words, sound, highlight, HUD message, copy.") {
         (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(ChatAlertsPopup())
     }
 
-    /** Shown in Chat Features' Ping popup (saved under the setting names Chat Ping used). */
     val nameSettings: List<RenderableSetting<*>> = listOf(ownName, extraWords, ignoreOwn, highlight, color, sound, volume)
-    val hudSettings: List<RenderableSetting<*>> = listOf(nameHud, hudBackground, hudMcFont, hudShadow, hudAlign)
+    val hudSettings: List<RenderableSetting<*>> = listOf(nameHud, hudMcFont, hudShadow)
+
+    init {
+        nameSettings.forEach { it.section = "Name Ping" }
+        test.section = "Name Ping"
+        hudSettings.forEach { it.section = "Chat Alerts HUD" }
+        addSettings(*nameSettings.toTypedArray(), test, *hudSettings.toTypedArray(), configure)
+    }
 
     private const val BELL = "minecraft:block.note_block.bell"
 
@@ -299,7 +307,7 @@ object ChatPing : HudElement {
         private set
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
-    private val hudFile: File by lazy { CedPaths.file("chat_alerts_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("chat_alerts") }
 
     init {
         try {
@@ -338,11 +346,7 @@ object ChatPing : HudElement {
     }
 
     /** Left edge of a [lineWidth] wide line in a [width] wide panel with [pad] padding, per HUD Alignment. */
-    private fun alignX(lineWidth: Float, width: Float, pad: Float) = when (hudAlign.value) {
-        "Left" -> pad
-        "Right" -> width - pad - lineWidth
-        else -> (width - lineWidth) / 2f
-    }
+    private fun alignX(lineWidth: Float, width: Float, @Suppress("UNUSED_PARAMETER") pad: Float) = (width - lineWidth) / 2f
 
     /** Each message keeps its & colours and fades out at the end. */
     private fun draw(g: GuiGraphicsExtractor, lines: List<HudLine>, now: Long) {
@@ -357,13 +361,13 @@ object ChatPing : HudElement {
         val lineH = 14f * s
         val pad = 7f * s
         val widths = lines.map { HudCard.width(it.text, size) }
-        val width = widths.max() + pad * 2
+        val width = HudCard.steady("Chat Alerts", widths.max() + pad * 2, s)
         val height = lines.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
+        panelX = ((g.guiWidth() - width) / 2f).toInt() // always centred on screen; only the height is movable
 
         HudCard.draw(g, panelX, panelY) {
-            if (hudBackground.value) HudCard.card(width, height, s, alphas.max())
             lines.forEachIndexed { i, line ->
                 HudCard.componentText(line.text, alignX(widths[i], width, pad), pad + i * lineH, size, alphas[i])
             }
@@ -380,11 +384,11 @@ object ChatPing : HudElement {
         val height = lines.size * lineH + pad * 2 - 1
         lastWidth = width
         lastHeight = height
+        panelX = ((g.guiWidth() - width * panelScale) / 2f).toInt()
 
         g.pose().pushMatrix()
         g.pose().translate(panelX.toFloat(), panelY.toFloat())
         g.pose().scale(panelScale, panelScale)
-        if (hudBackground.value) g.fill(0, 0, width, height, HudCard.withAlpha(0x80000000.toInt(), alphas.max()))
         lines.forEachIndexed { i, line ->
             val x = alignX(widths[i].toFloat(), width.toFloat(), pad.toFloat()).toInt()
             g.text(font, line.text, x, pad + i * lineH, HudCard.withAlpha(-1, alphas[i]), hudShadow.value)

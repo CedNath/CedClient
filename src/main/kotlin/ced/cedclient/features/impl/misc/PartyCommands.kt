@@ -115,12 +115,32 @@ object PartyCommands : Module(
     // Sending: one line every few ticks so a burst of commands can't get us muted.
     // Each entry waits REPLY_DELAY before it is sent: other mods answer the same !command (!help ...) in the same tick, and a
     // burst of party messages makes Hypixel rate-limit (and cut) the connection, so ours goes out after theirs.
-    private const val REPLY_DELAY = 1800L
+    // Only chat replies wait (to go out after other mods' answers); party actions (kick, transfer, warp ...) go straight out.
+    private const val REPLY_DELAY = 700L
+    private const val SEND_GAP_TICKS = 10
     private val outbox = ArrayDeque<Pair<Long, String>>()
     private var cooldown = 0
     private var saveTick = 0
     private fun say(text: String) { outbox += System.currentTimeMillis() + REPLY_DELAY to "pc $text" }
-    private fun run(command: String) { outbox += System.currentTimeMillis() + REPLY_DELAY to command }
+    private fun run(command: String) { outbox += System.currentTimeMillis() to command }
+
+    /**
+     * The party member [query] points at: exact name, else the start of a name, else part of one ("cl" -> Cleeve).
+     * Says why in party chat and returns null when none or several match. With no party list known, the text is used as is.
+     */
+    private fun member(query: String?): String? {
+        val q = query?.trim().orEmpty()
+        if (q.isEmpty()) return null
+        val pool = PartyApi.partyMembers.filter { !it.equals(me(), ignoreCase = true) }
+        if (pool.isEmpty()) return q
+        pool.firstOrNull { it.equals(q, ignoreCase = true) }?.let { return it }
+        val hits = pool.filter { it.startsWith(q, ignoreCase = true) }.ifEmpty { pool.filter { it.contains(q, ignoreCase = true) } }
+        return when (hits.size) {
+            1 -> hits[0]
+            0 -> { say("No party member matches '$q'"); null }
+            else -> { say("'$q' matches ${hits.joinToString(", ")}"); null }
+        }
+    }
 
     private fun me() = PlayerUtils.getName() ?: ""
     private fun isLeader() = PartyApi.partyLeader.equals(me(), ignoreCase = true)
@@ -266,7 +286,7 @@ object PartyCommands : Module(
             mc.player?.let { say("x: ${it.blockX}, y: ${it.blockY}, z: ${it.blockZ}") }
         }
         cmd("time", "Your local time.") { _, _ -> say("It is ${LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))} for ${me()}.") }
-        cmd("song", "The song playing on your PC, from Spotify or Apple Music (the Spotify module must be on).") { _, _ ->
+        cmd("song", "The song playing on your PC, from Spotify or Apple Music (the Music module must be on).") { _, _ ->
             say(Spotify.currentTrack()?.let { "Now playing: $it" } ?: "No song detected.")
         }
         // Fun
@@ -283,12 +303,21 @@ object PartyCommands : Module(
         // Party (leader only)
         cmd("invite", "Invites a player.", listOf("inv"), leader = true) { _, a -> a.firstOrNull()?.let { run("p $it") } }
         cmd("allinvite", "Toggles all-invite.", listOf("allinv"), leader = true) { _, _ -> run("p settings allinvite") }
-        cmd("warp", "Warps the party to you.", leader = true) { _, _ -> run("p warp") }
-        cmd("transfer", "Transfers the party to a player (default: the sender).", leader = true) { s, a -> run("p transfer ${a.firstOrNull() ?: s}") }
+        cmd("warp", "Warps the party to you.", listOf("w"), leader = true) { _, _ -> run("p warp") }
+        // Names can be shortened: "!pt cl" transfers to the one party member whose name starts with / contains "cl".
+        cmd("transfer", "Transfers the party to a player (default: the sender). Part of a name is enough: !pt cl.", listOf("pt"), leader = true) { s, a ->
+            (if (a.isEmpty()) s else member(a[0]))?.let { run("p transfer $it") }
+        }
         cmd("ptme", "Transfers the party to the sender.", leader = true) { s, _ -> run("p transfer $s") }
-        cmd("promote", "Promotes a player (default: the sender).", leader = true) { s, a -> run("p promote ${a.firstOrNull() ?: s}") }
-        cmd("demote", "Demotes a player (default: the sender).", leader = true) { s, a -> run("p demote ${a.firstOrNull() ?: s}") }
-        cmd("kick", "Kicks a player.", leader = true, default = "Only Me") { _, a -> a.firstOrNull()?.let { run("p kick $it") } }
+        cmd("promote", "Promotes a player (default: the sender). Part of a name is enough.", leader = true) { s, a ->
+            (if (a.isEmpty()) s else member(a[0]))?.let { run("p promote $it") }
+        }
+        cmd("demote", "Demotes a player (default: the sender). Part of a name is enough.", leader = true) { s, a ->
+            (if (a.isEmpty()) s else member(a[0]))?.let { run("p demote $it") }
+        }
+        cmd("kick", "Kicks a player. Part of a name is enough: !k cl.", listOf("k"), leader = true, default = "Only Me") { _, a ->
+            member(a.firstOrNull())?.let { run("p kick $it") }
+        }
         // Typed as !f7 / !m7 / !t5 (see the PartyChatEvent handler); "queue" is only the name of its permission.
         cmd("queue", "Joins a dungeon or Kuudra: !f1-f7, !m1-m7, !t1-t5.", leader = true) { _, a ->
             val m = floors.matchEntire(a.firstOrNull()?.lowercase() ?: "")
@@ -314,6 +343,7 @@ object PartyCommands : Module(
             if (!isEnabled || !e.message.startsWith("!")) return@on
             val parts = e.message.drop(1).trim().split(Regex("\\s+"))
             val word = parts.firstOrNull()?.lowercase() ?: return@on
+            ced.cedclient.utils.Debug.line("Party Commands", "party command: !$word")
             custom.firstOrNull { it.name == word }?.let { cc ->
                 if (allowed(cc.perm.value, e.cleanAuthor)) {
                     val out = fill(cc.response, e.cleanAuthor, parts.drop(1))
@@ -367,7 +397,7 @@ object PartyCommands : Module(
             }
             if (cooldown > 0) cooldown--
             if (isEnabled && cooldown == 0 && outbox.firstOrNull()?.let { System.currentTimeMillis() >= it.first } == true) {
-                mc.player?.connection?.sendCommand(outbox.removeFirst().second); cooldown = 24
+                mc.player?.connection?.sendCommand(outbox.removeFirst().second); cooldown = SEND_GAP_TICKS
             }
             val ended = DungeonState.runEnded
             if (isEnabled && ended && !wasEnded) {

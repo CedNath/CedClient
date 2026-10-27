@@ -170,7 +170,8 @@ object CosmeticsSync {
         thread.start()
     }
 
-    fun getOverride(ign: String): CosmeticOverride? = overridesMap[ign.lowercase()]
+    fun getOverride(ign: String): CosmeticOverride? =
+        ced.cedclient.achievements.RewardCosmetics.overlay(ign, overridesMap[ign.lowercase()])
 
     /** All IGNs that currently have a tag pushed for them (scale-only entries excluded). */
     fun allTags(): Map<String, String> =

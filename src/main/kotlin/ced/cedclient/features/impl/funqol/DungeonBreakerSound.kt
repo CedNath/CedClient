@@ -53,6 +53,7 @@ object DungeonBreakerSound : Module(
         val id = (if (sound.value == "Custom") customId.value else presets[sound.value]).orEmpty().trim()
         if (id.isEmpty()) return
         val event = runCatching { BuiltInRegistries.SOUND_EVENT.getOptional(Identifier.parse(id)).orElse(null) }.getOrNull() ?: return
+        ced.cedclient.utils.Debug.line("Dungeon Breaker Sound", "played $id")
         replaying = true
         try { Minecraft.getInstance().soundManager.play(SimpleSoundInstance.forUI(event, 1f, volume.value.toFloat())) } finally { replaying = false }
     }

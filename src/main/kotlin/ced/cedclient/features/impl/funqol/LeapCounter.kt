@@ -48,7 +48,7 @@ object LeapCounter : Module(
     private val almostColor = ColorSetting("Almost Color", Color(85, 85, 255), "Count while one player is still missing.")
     private val doneColor = ColorSetting("Done Color", Color(85, 255, 85), "Count once everyone has leaped.")
     private val textColor = ColorSetting("Text Color", Color(85, 85, 255), "Color of the rest of the text.")
-    private val background = BooleanSetting("Background", true, "Draw the HUD card behind the text.")
+    private val background = BooleanSetting("Background", false, "Draw the HUD card behind the text.")
     private val hideWhenDone = BooleanSetting("Hide When Done", true, "Hide the HUD a second after everyone has leaped (off: it stays while you are in the spot).")
 
     private val newRelic = BooleanSetting("ADG Leap Spots", false, "New ADG dungeon roles: the relic spot allows 3 leaps (not 4), and a second relic spot (1 leap) is counted in a big box around the relic area.")
@@ -111,6 +111,7 @@ object LeapCounter : Module(
                 spot.leaped += key
                 if (spot.leaped.size >= maxCount(spot)) {
                     spot.doneAt = now
+                    ced.cedclient.utils.Debug.line("Leap Counter", "all leaped at this spot")
                     if (alertComplete.value) {
                         mc.gui.hud.setTitle(Component.literal(completeText.value.replace('&', '§')))
                         mc.gui.hud.setTimes(5, 40, 10)
@@ -152,7 +153,7 @@ object LeapCounter : Module(
             out
         }
         val textW = parts.sumOf { HudCard.width(it.first, size).toDouble() }.toFloat()
-        val width = textW + pad * 2
+        val width = HudCard.steady("Leap Counter", textW + pad * 2, s)
         val height = size + pad * 2
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -177,7 +178,7 @@ object LeapCounter : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { CedPaths.file("leap_counter_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("leap_counter") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

@@ -51,8 +51,8 @@ object EntityESPHud : HudElement {
         private set
 
     private val gson = Gson()
-    private val saveFile: File by lazy {
-        CedPaths.file("entity_esp_hud.json")
+    private val saveFile by lazy {
+        CedPaths.hud("entity_esp")
     }
 
     // mirrors InventoryButtonManager's ensureLoaded() pattern: load once, lazily,
@@ -376,8 +376,7 @@ object EntityESPHud : HudElement {
                 NVGRenderer.scale(spaceRatio, spaceRatio)
                 NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
 
-                NVGRenderer.rect(0f, 0f, width, height, BACKGROUND_COLOR, cornerRadius)
-                NVGRenderer.hollowRect(0f, 0f, width, height, borderThickness, BORDER_COLOR, cornerRadius)
+                HudCard.card(width, height, panelScale, label = label)
 
                 val headerTextY = paddingY + (headerRowHeight - fontSize) / 2f
                 NVGRenderer.text(header, paddingX, headerTextY, fontSize, Colors.WHITE.rgba, font)

@@ -1,4 +1,3 @@
-//#if CHEAT
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.features.Category
@@ -24,7 +23,7 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 
 /**
- * Door ESP: boxes the wither doors (coal) and the blood door (red terracotta) through walls during clear.
+ * Door Highlight: boxes the wither doors (coal) and the blood door (red terracotta) during clear (through walls with See Through Walls, Cheat build).
  *
  * The blocks are read straight from the world, so it works without a map scan: every door
  * sits on the fixed dungeon grid (tile centers at -185 + 16 * n, door tiles = exactly one odd index), 3x3 wide
@@ -43,9 +42,9 @@ import net.minecraft.world.phys.Vec3
  * and the key color know whether the party holds a key for that door.
  */
 object DoorESP : Module(
-    "Door ESP",
-    Category.Cheats,
-    "Boxes wither doors and the blood door through walls during dungeon clear."
+    "Door Highlight",
+    Category.Skyblock,
+    "Boxes wither doors and the blood door during dungeon clear."
 ) {
     private val witherDoors = BooleanSetting("Wither Doors", true, "Box the coal (wither key) doors.")
     private val witherColor = ColorSetting("Wither Door Color", Color(255, 40, 40), "Wither door color (all but the next one once a wither key is picked up).")
@@ -57,7 +56,15 @@ object DoorESP : Module(
     private val onlyWithKey = BooleanSetting("Only With Key", false, "Only show doors whose key the party holds (and the fairy door).")
     private val highlightAll = BooleanSetting("Highlight All Doors", false, "After the run starts, still box every locked door instead of only the ones the dungeon map shows.")
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Outline")
+//#if CHEAT
+    private val throughWalls = BooleanSetting("See Through Walls", true, "Show the boxes through blocks (ESP). Off: they hide behind walls like normal.")
     private val tracers = BooleanSetting("Tracers", false, "Draws a line to the next door to open on the way to blood.")
+    private val xray get() = throughWalls.value
+    private val tracing get() = tracers.value
+//#else
+//$    private val xray get() = false
+//$    private val tracing get() = false
+//#endif
     private val onlyInDungeon = BooleanSetting("Only In Dungeons", true, "Off: also scan outside dungeons (e.g. a copied map).")
 
     private val CODES = Regex("§.")
@@ -93,7 +100,11 @@ object DoorESP : Module(
     private val mc get() = Minecraft.getInstance()
 
     init {
-        addSettings(witherDoors, witherColor, bloodDoor, bloodColor, fairyDoor, fairyColor, keyColor, onlyWithKey, highlightAll, style, tracers, onlyInDungeon)
+//#if CHEAT
+        addSettings(witherDoors, witherColor, bloodDoor, bloodColor, fairyDoor, fairyColor, keyColor, onlyWithKey, highlightAll, style, throughWalls, tracers, onlyInDungeon)
+//#else
+//$        addSettings(witherDoors, witherColor, bloodDoor, bloodColor, fairyDoor, fairyColor, keyColor, onlyWithKey, highlightAll, style, onlyInDungeon)
+//#endif
 
         ClientTickEvents.END_CLIENT_TICK.register { scan() }
 
@@ -102,7 +113,10 @@ object DoorESP : Module(
             keyPickupRegex.find(plain)?.let { if (it.groups["type"]!!.value == "Wither") witherKeys++ else bloodKeys++ }
             if (witherOpenedRegex.matches(plain)) witherKeys = maxOf(0, witherKeys - 1)
             if (plain == BLOOD_OPENED) bloodKeys = maxOf(0, bloodKeys - 1)
-            if (plain == RUN_STARTED) runStarted = true
+            if (plain == RUN_STARTED) {
+                runStarted = true
+                ced.cedclient.utils.Debug.line("Door Highlight", "run started, keys reset")
+            }
         }
 
         // 26.2: no BufferSource, boxes go through submitCustomGeometry in COLLECT_SUBMITS (see FloorDrops).
@@ -147,12 +161,12 @@ object DoorESP : Module(
                 Triple(door.box.move(-cam.x, -cam.y, -cam.z), c, door === tracerTo)
             }
             val outline = style.value != "Filled"
-            val tracer = tracers.value
-            if (style.value != "Outline") submit.submitCustomGeometry(poseStack, CustomRenderType.FILLED_ESP) { pose, fill ->
+            val tracer = tracing
+            if (style.value != "Outline") submit.submitCustomGeometry(poseStack, if (xray) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, fill ->
                 // See-through fill (40% of the colour's opacity) so the door itself stays visible.
                 for ((box, c, _) in shown) FilledBox.draw(pose, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
             }
-            submit.submitCustomGeometry(poseStack, CustomRenderType.LINES_ESP) { pose, buffer ->
+            submit.submitCustomGeometry(poseStack, if (xray) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
                 for ((box, c, traced) in shown) {
                     if (outline) LineBox.draw(pose, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
                     if (tracer && traced) LineBox.polyline(pose, buffer, listOf(look, box.center), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
@@ -208,4 +222,3 @@ object DoorESP : Module(
         doors = if (fairy != null && fairyDoor.value) found + Door(fairy.x, fairy.z, Kind.FAIRY) else found
     }
 }
-//#endif

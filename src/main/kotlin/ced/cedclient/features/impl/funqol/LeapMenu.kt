@@ -376,6 +376,7 @@ object LeapMenu : Module(
         lastClick = now
         val player = mc.player ?: return
         mc.gameMode?.handleContainerInput(screen.menu.containerId, mate.slot, 2, ContainerInput.CLONE, player)
+        ced.cedclient.utils.Debug.line("Leap Menu", "leap click: ${mate.name} (slot ${mate.slot})")
         if (debug) {
             fun ms(from: Long, to: Long) = if (from == 0L || to == 0L) "?" else "${to - from}ms"
             player.sendSystemMessage(ChatPrefix.msgFor("Leap Menu", 

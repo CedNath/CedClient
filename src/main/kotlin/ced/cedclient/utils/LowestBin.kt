@@ -60,6 +60,9 @@ object LowestBin {
     fun bazaarOf(stack: ItemStack): Pair<Double, Double>? =
         keys(stack).firstNotNullOfOrNull { k -> bazaar[k]?.let { it to (bazaarSell[k] ?: 0.0) } }
 
+    /** Bazaar instant-buy and instant-sell price by product ID ("ESSENCE_WITHER"), or null when it isn't a Bazaar product. */
+    fun bazaarOfId(id: String): Pair<Double, Double>? = bazaar[id]?.let { it to (bazaarSell[id] ?: 0.0) }
+
     /**
      * Price of one item by NEU repo ID ("ENCHANTED_DIAMOND", "INK_SACK-4", "ULTIMATE_WISE;5"): Bazaar instant-buy
      * when it's a Bazaar product, else lowest BIN. Null when nobody sells it.

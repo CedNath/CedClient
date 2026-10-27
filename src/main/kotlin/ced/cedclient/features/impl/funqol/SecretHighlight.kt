@@ -3,6 +3,8 @@ package ced.cedclient.features.impl.funqol
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.settings.ActionSetting
+import ced.cedclient.features.Category
+import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.DropdownSetting
@@ -13,7 +15,6 @@ import ced.cedclient.render.FilledBox
 import ced.cedclient.render.LineBox
 import ced.cedclient.render.pipeline.CustomRenderType
 import ced.cedclient.state.DungeonState
-import ced.cedclient.ui.clickgui.SettingsPopup
 import ced.cedclient.utils.Color
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
@@ -33,9 +34,12 @@ import net.minecraft.world.phys.AABB
  * Boxes the secrets you take in a dungeon for a moment: the chest / lever / skull you clicked, the item you picked
  * up, the bat you hit (it stays boxed where it died). Only your own actions count, so it shows which secrets were yours.
  */
-object SecretHighlight {
-    val on = BooleanSetting("Secret Clicked", true, "Boxes the secrets you click, pick up or kill in dungeons for a moment.")
-    val isEnabled get() = Secrets.isEnabled && on.value
+object SecretHighlight : Module(
+    "Secret Clicked",
+    Category.Skyblock,
+    "Boxes the secrets you click, pick up or kill in dungeons for a moment.",
+    defaultEnabled = true
+) {
     private val color = ColorSetting("Box Color", Color(80, 255, 120), "Color of the box.")
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Filled Outline")
     private val blocks = BooleanSetting("Clicked Blocks", true, "Chests, levers and skulls (wither essence, redstone key) you click.")
@@ -53,11 +57,7 @@ object SecretHighlight {
     private val throughWalls = BooleanSetting("Through Walls", false, "Show the box through blocks.")
     private val onlyInDungeon = BooleanSetting("Only In Dungeons", true, "Turn off to test elsewhere.")
 
-    val popupColumns get() = listOf(
-        listOf(SettingsPopup.Section("Box", listOf(color, style, throughWalls, duration)), SettingsPopup.Section("Triggers", listOf(blocks, items, bats, onlyInDungeon))),
-        listOf(SettingsPopup.Section("Sound", listOf(sound, soundChoice)), SettingsPopup.Section("Locked Chest", listOf(lockedTitle, lockedText, lockedColor, lockedSeconds))),
-    )
-    val popupActions get() = listOf(soundTest)
+    init { addSettings(color, style, throughWalls, duration, blocks, items, bats, onlyInDungeon, sound, soundChoice, soundTest, lockedTitle, lockedText, lockedColor, lockedSeconds) }
 
     private val SHOW_MS get() = (duration.value * 1000).toLong()
     private class Mark(var box: AABB, var until: Long)

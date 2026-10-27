@@ -310,7 +310,7 @@ object RoomTimes : Module(
         val gap = 10f * s
         val leftW = rows.maxOf { HudCard.width(it.first, size) }
         val rightW = rows.maxOf { HudCard.width(it.second, size) }
-        val width = leftW + gap + rightW + pad * 2
+        val width = HudCard.steady("Room Times", leftW + gap + rightW + pad * 2, s)
         val height = rows.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
@@ -338,7 +338,7 @@ object RoomTimes : Module(
 
     private data class HudPosition(val x: Int, val y: Int, val scale: Float)
     private val gson = Gson()
-    private val hudFile: File by lazy { CedPaths.file("room_times_hud.json") }
+    private val hudFile by lazy { CedPaths.hud("room_times") }
 
     init {
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

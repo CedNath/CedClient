@@ -35,7 +35,7 @@ import kotlin.random.Random
  * and CoralotHelper's Catch Key (Require Keybind) switches both on / off.
  */
 object TropicalFishHelper : Module(
-    "TropicalFishHelper(!!!)",
+    "TropicalFishHelper",
     Category.Cheats,
     "Nets every tropical fish in range, one after another"
 ) {

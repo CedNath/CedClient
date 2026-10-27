@@ -8,6 +8,7 @@ import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.brighter
 import ced.cedclient.utils.Color.Companion.darker
+import ced.cedclient.utils.Color.Companion.withAlpha
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.clickGuiScale
 import ced.cedclient.utils.ui.mouseX
@@ -39,6 +40,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
     private val nameWidth = NVGRenderer.textWidth(module.name, 21f, NVGRenderer.defaultFont)
     private val hoverHandler = HoverHandler(750)
     private val extendAnim = EaseInOutAnimation(250)
+    private val switchAnim = EaseInOutAnimation(150)
     private val hover = HoverHandler(250)
     var extended = false
 
@@ -87,11 +89,14 @@ class ModuleButton(val module: Module, val panel: Panel) {
         if (hover.isHovered) {
             if (click.button() == 0 && !module.alwaysEnabled) {
                 colorAnim.start()
+                switchAnim.start()
                 if (module.isAction) pressedAt = System.currentTimeMillis()
                 module.toggle()
                 return true
             } else if (click.button() == 1 || module.alwaysEnabled) {
-                if (module.settings.isNotEmpty()) {
+                if (ClickGUI.compact) {
+                    if (representableSettings.isNotEmpty()) CompactLayout.selectModule(this)
+                } else if (module.settings.isNotEmpty()) {
                     extendAnim.start()
                     extended = !extended
                 }
@@ -128,6 +133,91 @@ class ModuleButton(val module: Module, val panel: Panel) {
         return false
     }
 
-    private fun getSettingHeight(): Float =
+    /** Compact layout: this module as a card, name on the left and an ON / OFF pill on the right. */
+    fun drawCard(x: Float, y: Float, w: Float, h: Float) {
+        hoverHandler.handle(x, y, w, h, true)
+        hover.handle(x, y, w, h, true)
+        if (hoverHandler.percent() >= 100) ClickGUI.setDescription(module.description, x + w + 10f, y, hoverHandler)
+
+        NVGRenderer.rect(x, y, w, h, CompactLayout.tint(if (hover.isHovered) CompactLayout.CARD_HOVER else CompactLayout.CARD), 8f)
+        // The module whose settings are open gets an accent bar on its left edge.
+        if (extended) NVGRenderer.rect(x, y + 10f, 4f, h - 20f, ClickGUI.clickGUIColor.rgba, 2f)
+        val on = module.enabled || pressed()
+        NVGRenderer.text(module.name, x + 20f, y + h / 2f - 10.5f, 21f, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, NVGRenderer.defaultFont)
+
+        val track = colorAnim.get(ClickGUI.clickGUIColor, CompactLayout.PILL_OFF, on).rgba
+        if (module.isAction) {
+            val pw = 58f
+            val ph = 26f
+            val px = x + w - pw - 14f
+            val py = y + (h - ph) / 2f
+            NVGRenderer.rect(px, py, pw, ph, track, 8f)
+            val lw = NVGRenderer.textWidth("RUN", 15f, NVGRenderer.defaultFont)
+            NVGRenderer.text("RUN", px + pw / 2f - lw / 2f, py + ph / 2f - 7.5f, 15f, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, NVGRenderer.defaultFont)
+        } else {
+            // A sliding switch: track in the accent when on, knob moving right.
+            val tw = 44f
+            val th = 22f
+            val tx = x + w - tw - 16f
+            val ty = y + (h - th) / 2f
+            NVGRenderer.rect(tx, ty, tw, th, track, th / 2f)
+            val knob = th - 6f
+            val kx = tx + 3f + switchAnim.get(0f, tw - 6f - knob, !on)
+            NVGRenderer.rect(kx, ty + 3f, knob, knob, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, knob / 2f)
+        }
+    }
+
+    /** Compact layout: draws the settings stack at ([x], [y]) in ClickGUI's settings panel; returns its height. */
+    fun drawSettings(x: Float, y: Float): Float {
+        var drawY = 0f
+        var lastSection: String? = null
+        for (setting in representableSettings) {
+            if (!setting.isVisible) continue
+            val section = setting.section
+            if (section != null && section != lastSection) {
+                val tw = NVGRenderer.textWidth(section.uppercase(), 13f, NVGRenderer.defaultFont)
+                NVGRenderer.text(section.uppercase(), x + 14f, y + drawY + 8f, 13f, Colors.WHITE.withAlpha(0.55f).rgba, NVGRenderer.defaultFont)
+                NVGRenderer.rect(x + 14f + tw + 8f, y + drawY + 14f, CARD_WIDTH - 28f - tw - 8f, 1f, CompactLayout.EDGE.rgba)
+                drawY += SECTION_HEIGHT
+            }
+            lastSection = section ?: lastSection
+            // Each setting sits in its own faint card with a thin light outline, with the widget itself inset
+            // from the card's edges so labels and switches don't touch the border.
+            val h = setting.getHeight()
+            val cardH = h + 2 * CARD_PAD_Y
+            NVGRenderer.rect(x, y + drawY, CARD_WIDTH, cardH, Colors.WHITE.withAlpha(0.06f).rgba, 6f)
+            setting.render(x + CARD_PAD_X, y + drawY + CARD_PAD_Y, mouseX / clickGuiScale, mouseY / clickGuiScale)
+            NVGRenderer.hollowRect(x, y + drawY, CARD_WIDTH, cardH, 1f, Colors.WHITE.withAlpha(0.28f).rgba, 6f)
+            drawY += cardH + CARD_GAP
+        }
+        return drawY
+    }
+
+    fun clickSettings(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean =
+        representableSettings.any { it.isVisible && it.mouseClicked(mouseX, mouseY, click) }
+
+    /** [getSettingHeight] plus the section headings drawSettings adds. */
+    fun compactHeight(): Float {
+        var last: String? = null
+        var h = 0f
+        for (s in representableSettings) {
+            if (!s.isVisible) continue
+            if (s.section != null && s.section != last) h += SECTION_HEIGHT
+            last = s.section ?: last
+            h += s.getHeight() + 2 * CARD_PAD_Y + CARD_GAP
+        }
+        return h
+    }
+
+    private companion object {
+        /** Compact settings cards: the widget (Panel.WIDTH wide) sits this far in from the card edge; cards are CARD_GAP apart. */
+        const val CARD_PAD_X = 8f
+        const val CARD_PAD_Y = 5f
+        const val CARD_GAP = 6f
+        const val CARD_WIDTH = Panel.WIDTH + 2 * CARD_PAD_X
+        const val SECTION_HEIGHT = 28f
+    }
+
+    fun getSettingHeight(): Float =
         representableSettings.filter { it.isVisible }.sumOf { it.getHeight().toDouble() }.toFloat()
 }

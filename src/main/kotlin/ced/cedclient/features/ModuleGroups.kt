@@ -1,61 +1,40 @@
 package ced.cedclient.features
 
 /**
- * ClickGUI sub-headings: per panel (by Category name, so the same list works on every branch), the headings in order
- * and the modules (by name) under each. Modules a build doesn't have are skipped; unlisted ones go last, no heading.
+ * Which ClickGUI panel each module is in, and its order there (first = top). Names a build doesn't have are skipped;
+ * a module not listed stays in the category it was constructed with, after the listed ones. A panel whose Category
+ * this build lacks (Cheats in Legit) leaves its modules in their own category.
  */
 object ModuleGroups {
-    private val groups: Map<String, List<Pair<String, List<String>>>> = mapOf(
-        "Render" to listOf(
-            "Highlights" to listOf("StarredMobHighlight", "FloorDrops"),
-            "World" to listOf("Fullbright", "Saturation", "Clean View", "Render Optimizer", "Zoom"),
-            "Items & Tooltips" to listOf("Vanilla Textures", "Old Stars", "Custom Tooltips", "Scrollable Tooltips"),
-            "Screen" to listOf("Crosshair", "Hiders"),
-        ),
-        "HUD" to listOf(
-            "Scoreboard & Tab" to listOf("Compact Scoreboard", "Compact Tab"),
-            "Chat & Action Bar" to listOf("Chat Channel HUD", "Action Bar HUD"),
-            "Info" to listOf("Time HUD", "Item Cooldowns", "Daily Tasks"),
-        ),
-        "Cosmetic" to listOf(
-            "World" to listOf("Cosmetic Blocks"),
-            "Players" to listOf("Custom Nametag", "Cosmetics", "Player Scale", "Hide Armor"),
-            "Effects" to listOf("Falling Petals"),
-        ),
-        "Skyblock" to listOf(
-            "Dungeons" to listOf("Dungeon Map", "Leap Menu", "Dungeon Splits", "Positional Messages", "F7SoundCap", "CustomHypeSound", "Explosive Shot Damage", "Room Times", "Leap Counter", "Secrets", "Simon Says Lines", "Dungeonbreaker Sound"),
-            "Hunting" to listOf("Critter Safari"),
-            "Rift" to listOf("Sun Gecko"),
-            "Slayers" to listOf("Slayer Tracker"),
-            "Trading" to listOf("SearchOverlay", "Auction Price Input", "Item Value"),
-        ),
-        "Cheats" to listOf(
-            "ESP & Camera" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes", "Door ESP"),
-            "Fishing & Hunting" to listOf("FishingHelper", "LassoHelper", "PangolinCatcher(!!!)", "CoralotHelper(!!!)", "TropicalFishHelper(!!!)", "Auto Fusion"),
-            "Slayers" to listOf("Slayer Helper"),
-//#if CHEAT
-            "Farming" to listOf("FarmHelper"),
-//#endif
-            "Minigames" to listOf("TinyDancerHelper", "Auto Experiments", "Beacon Solver", "Dojo Helper"),
-//#if CHEAT
-            "Items" to listOf("Anvil Helper"),
-//#endif
-        ),
-        "Misc" to listOf(
-            "General" to listOf("Mod Settings", "AutoSprint", "WarpShortcuts", "InventoryButtons", "HideRecipeBook"),
-            "Chat" to listOf("Chat Features", "ChatFilter", "Party Commands", "Auto Requeue"),
-            "Window & Connection" to listOf("ScreenshotTweaks", "Borderless Fullscreen", "Keep Connection", "Texture Pack Fix"),
-            "Media" to listOf("Spotify"),
-            "Panels" to listOf("Advanced Mode", "Reset Panels", "Chat Prefix"),
-        ),
+    private val panels: Map<String, List<String>> = linkedMapOf(
+        "General" to listOf("Mod Settings", "ScreenshotTweaks", "Borderless Fullscreen", "AutoSprint", "HideRecipeBook", "Keep Connection", "Texture Pack Fix", "Config Share"),
+        "Visuals" to listOf("Fullbright", "Saturation", "Clean View", "Render Optimizer", "Zoom", "Custom Sky", "Crosshair", "Hiders", "Vanilla Textures", "Old Stars",
+            "Custom Tooltips", "Scrollable Tooltips", "Tooltip Dates", "Item Info Tooltip", "Item Rarity", "Enchant Colors"),
+        "Cheats" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes", "Auto Fusion", "Auto Terminals", "FishingHelper", "Beach Ball Helper", "LassoHelper", "PangolinCatcher", "CoralotHelper", "TropicalFishHelper",
+            "Slayer Helper", "FarmHelper", "Anvil Helper", "TinyDancerHelper", "Auto Experiments", "Beacon Solver", "Dojo Helper"),
+        "Skyblock" to listOf("Auction Price Input", "SearchOverlay", "Item Value", "Item Cooldowns", "Chat Channel HUD", "Deployable Timers", "Ragnarock Timer", "WarpShortcuts",
+            "InventoryButtons", "Daily Tasks", "Event Countdown", "Pet Display", "SB Kick Timer", "Protect Item", "Slot Binding", "Loadout Keybinds", "Wardrobe Keybinds", "Waypoints"),
+        "Dungeons" to listOf("Dungeon Map", "Leap Menu", "Leap Counter", "Terminal Solver", "Dungeon Splits", "Door Highlight", "StarredMobHighlight", "Room Times", "Run Profit",
+            "Secret Clicked", "Left Click Secrets", "Secret HUD", "Simon Says Lines", "Positional Messages", "Explosive Shot Damage", "F7SoundCap", "CustomHypeSound",
+            "Dungeonbreaker Sound", "Auto Requeue", "Terminal Simulator"),
+        "Combat" to listOf("Slayer Tracker", "Revenant Horror", "Tarantula Broodfather", "Sven Packmaster", "Voidgloom Seraph", "Inferno Demonlord", "Riftstalker Bloodfiend"),
+        "Farming" to listOf("Pest Highlighter"),
+        "Rift" to listOf("Sun Gecko"),
+        "Hunting" to listOf("Critter Safari", "FloorDrops"),
+        "Chat" to listOf("Chat Features", "Chat Ping", "ChatFilter", "Party Commands", "Chat Prefix"),
+        "Cosmetic" to listOf("Cosmetics", "Cosmetic Blocks", "Custom Nametag", "Player Scale", "Hide Armor", "Falling Petals"),
+        "Misc" to listOf("Music", "Time HUD", "Armor HUD", "Compact Scoreboard", "Compact Tab", "Mute Sounds", "Action Bar HUD", "Ping / FPS"),
+        "Dev" to listOf("Advanced Mode", "Debug Panel"),
     )
 
-    /** [modules] of one panel in heading order, each with its heading (null = no heading). */
+    private val panelOf: Map<String, String> = panels.flatMap { (panel, names) -> names.map { it to panel } }.toMap()
+
+    fun categoryOf(name: String, fallback: Category): Category =
+        panelOf[name]?.let { panel -> Category.entries.firstOrNull { it.name == panel } } ?: fallback
+
+    /** [modules] of one panel in list order, each with its heading (always null: panels have no sub-headings now). */
     fun arrange(category: Category, modules: List<Module>): List<Pair<String?, Module>> {
-        val list = groups[category.name] ?: return modules.map { null to it }
-        val byName = modules.associateBy { it.name }
-        val placed = list.flatMap { (heading, names) -> names.mapNotNull { byName[it] }.map { heading to it } }
-        val rest = modules.filter { m -> placed.none { it.second === m } }.map { null to it }
-        return placed + rest
+        val order = panels[category.name]?.withIndex()?.associate { it.value to it.index } ?: emptyMap()
+        return modules.sortedBy { order[it.name] ?: Int.MAX_VALUE }.map { null to it }
     }
 }

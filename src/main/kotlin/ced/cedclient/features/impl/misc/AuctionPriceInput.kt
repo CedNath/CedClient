@@ -89,6 +89,7 @@ object AuctionPriceInput : Module(
             else -> null
         } ?: return false
         val player = mc.player ?: return false
+        ced.cedclient.utils.Debug.line("Auction Price Input", "clicked slot ${slot.index} in \"$title\"")
         mc.gameMode?.handleContainerInput(screen.menu.containerId, slot.index, 0, ContainerInput.PICKUP, player)
         return true
     }

@@ -60,6 +60,8 @@ enum class ItemAbility(
     val clickType: ClickType = ClickType.RIGHT_CLICK,
     val ignoreMageCooldownReduction: Boolean = false,
     val soundSignature: SoundSignature? = null,
+    /** Timed by its own module (Ragnarock Timer): no click / sound / chat starts here, that module sets the slot timer. */
+    val managed: Boolean = false,
 ) {
     ALERT_FLARE(20, "Warning Flare", soundSignature = SoundSignature("minecraft:entity.firework_rocket.launch", 1.0f, 3.0f)), // confirmed same sound as SOS_FLARE
     // Activation plays an ascending ghast.scream sweep (0.49 -> 0.89); ~4s
@@ -117,7 +119,8 @@ enum class ItemAbility(
     // Charging plays 3x block.lever.click, but the actual throw/release is
     // this wolf.death -- confirmed by an Odin "Gained strength" line landing
     // right after it in the capture.
-    RAGNAROCK_AXE(20, "Ragnarock", soundSignature = SoundSignature("minecraft:entity.wolf.death", 1.4920635f, 1.0f)),
+    // Cast 3 s, buff 10 s, then the rest of 20 s: all of it is RagnarockTimer's job (managed).
+    RAGNAROCK_AXE(20, "Ragnarock", ignoreMageCooldownReduction = true, managed = true),
     ROGUE_SWORD(30, "Rogue Sword", ignoreMageCooldownReduction = true, soundSignature = SoundSignature("minecraft:block.lava.pop", 2.0f, 0.4f)),
     ROYAL_PIGEON(5, "Royal Pigeon"),
     SHADOW_FURY(15, "Shadow Fury"),
@@ -143,6 +146,10 @@ enum class ItemAbility(
     WEIRD_TUBA(20, "Weird Tuba", ignoreMageCooldownReduction = true),
     WITHER_CLOAK(10, "Wither Cloak");
 
+
+    /** Managed abilities only: what to draw on the slot instead of a plain countdown (null = nothing to show). */
+    var overlayText: String? = null
+    var overlayColor: Int = -1
 
     var cooldownEndMillis: Long = 0L
         private set
@@ -380,7 +387,7 @@ object ItemCooldowns : Module(
         // have just optimistically started, not reporting a real one.
         if (abilityFailureRegex.any { it.containsMatchIn(text) }) {
             val now = System.currentTimeMillis()
-            for (ability in ItemAbility.entries) {
+            for (ability in ItemAbility.entries.filter { !it.managed }) {
                 if (now - ability.lastItemClick in 0..CLICK_FAILURE_WINDOW_MS) {
                     ability.clearCooldown()
                 }
@@ -398,7 +405,7 @@ object ItemCooldowns : Module(
         // fired. Rare edge case (this path only runs on the "still on
         // cooldown" chat warning), not worth the complexity to fix yet.
         val heldItem = Minecraft.getInstance().player?.mainHandItem ?: return
-        for (ability in abilitiesFor(heldItem)) {
+        for (ability in abilitiesFor(heldItem).filter { !it.managed }) {
             ability.startCooldown(seconds)
         }
     }
@@ -425,6 +432,7 @@ object ItemCooldowns : Module(
         }
 
         for (ability in ItemAbility.entries) {
+            if (ability.managed) continue
             val sig = ability.soundSignature ?: continue
             if (sig.matches(soundName, pitch, volume)) {
                 ability.onMatchedSound()
@@ -447,7 +455,7 @@ object ItemCooldowns : Module(
         // ability), and without this filter a single right-click would
         // incorrectly start the left-click ability's cooldown too, just
         // because it's on the same item.
-        for (ability in abilitiesFor(stack).filter { it.clickType == clickType }) {
+        for (ability in abilitiesFor(stack).filter { it.clickType == clickType && !it.managed }) {
             ability.lastItemClick = now
 
             // Sound signatures aren't filled in yet (every ItemAbility.soundSignature
@@ -556,6 +564,13 @@ object ItemCooldowns : Module(
         // per click type -- e.g. Gyrokinetic Wand's left- and right-click
         // abilities), each drawn in its own corner by drawStatusText below.
         for (ability in abilitiesFor(stack)) {
+            if (ability.managed) {
+                // Ragnarock Timer's phase (cast / active / cooldown) with its colour, not a flat countdown.
+                val text = ability.overlayText
+                if (text != null) drawStatusText(g, font, x, y, ability.clickType, text, ability.overlayColor)
+                else if (showReadyIndicator.value) drawStatusText(g, font, x, y, ability.clickType, "R", readyColor.value.rgba)
+                continue
+            }
             val seconds = ability.secondsLeft()
             if (seconds != null) {
                 drawStatusText(g, font, x, y, ability.clickType, seconds.toString(), cooldownColor.value.rgba)

@@ -1,9 +1,10 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.features.Category
+import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonState
-import ced.cedclient.ui.clickgui.SettingsPopup
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.world.InteractionHand
@@ -13,12 +14,14 @@ import net.minecraft.world.phys.HitResult
 import kotlin.math.floor
 
 /** Left-clicking a dungeon secret (chest, lever, skull) uses it instead of starting to mine it. */
-object LeftClickSecrets {
-    val on = BooleanSetting("Left Click Secrets", false, "Lets left-clicking dungeon secrets interact with them instead of mining.")
-    val isEnabled get() = Secrets.isEnabled && on.value
+object LeftClickSecrets : Module(
+    "Left Click Secrets",
+    Category.Skyblock,
+    "Lets left-clicking dungeon secrets interact with them instead of mining."
+) {
     private val waterBoard = BooleanSetting("Water Board", false, "Also turns left-clicked levers into clicks in the Water Board room (off: you can still hit them to mine).")
 
-    val popupColumns get() = listOf(listOf(SettingsPopup.Section("Levers", listOf(waterBoard))))
+    init { addSettings(waterBoard) }
 
     private var lastHeld: BlockPos? = null
 
