@@ -1,6 +1,7 @@
 package ced.cedclient.ui.clickgui
 
 //#if CHEAT
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.render.EspStyle
 import ced.cedclient.features.settings.ColorSetting
 //#endif
@@ -10,7 +11,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
  * Shared chrome for EntityESP's three "Select ___" popups: a Blocked/Only
@@ -435,8 +435,8 @@ abstract class FilterPopup(
 
     override fun keyPressed(input: KeyEvent): Boolean {
         // Escape closes the popup (ClickGUI) instead of just leaving the always-focused search box.
-        if (input.key == GLFW.GLFW_KEY_ESCAPE) return false
-        val wasEnter = input.key == GLFW.GLFW_KEY_ENTER
+        if (input.key == Keys.ESCAPE) return false
+        val wasEnter = input.key == Keys.ENTER
         val handled = this.input.keyPressed(input)
         if (wasEnter) submitNewEntry()
         return handled || wasEnter

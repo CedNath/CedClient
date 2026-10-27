@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
@@ -37,7 +38,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.Vec3
-import org.lwjgl.glfw.GLFW
 
 /** One saved waypoint: where, what it is called, and how it is drawn (each waypoint has its own look). */
 class Waypoint(
@@ -90,7 +90,7 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
     private val chatSeconds = NumberSetting("Chat Lifetime (s)", 60.0, 5.0, 600.0, 5.0, "How long a chat waypoint stays.")
     private val chatColor = ColorSetting("Chat Color", Color(85, 255, 255), "Colour of chat waypoints.")
 
-    private val addKey = KeybindSetting("Add Key", GLFW.GLFW_KEY_UNKNOWN, "Adds a waypoint where you look (or at your feet) named \"Waypoint N\".")
+    private val addKey = KeybindSetting("Add Key", Keys.UNKNOWN, "Adds a waypoint where you look (or at your feet) named \"Waypoint N\".")
 
     private val gson = Gson()
     private val file by lazy { CedPaths.file("waypoints.json") }
@@ -153,7 +153,7 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
             if (!isEnabled) return@register
             val now = System.currentTimeMillis()
             temps.removeAll { it.until < now }
-            val down = mc.gui.screen() == null && addKey.value > 0 && InputConstants.isKeyDown(mc.window, addKey.value)
+            val down = mc.gui.screen() == null && addKey.value > 0 && Keys.isDown(addKey.value)
             if (down && !addDown) targetPos()?.let { add(nextName(), it) }
             addDown = down
             if (++tick % 10 == 0) {

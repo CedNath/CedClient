@@ -1,11 +1,11 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.features.settings.NumberSetting
-import org.lwjgl.glfw.GLFW
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
@@ -30,7 +30,7 @@ object Zoom : Module(
     defaultEnabled = true
 ) {
     /** Hold to zoom (polled in CedClient). */
-    val zoomKey = KeybindSetting("Zoom Key", GLFW.GLFW_KEY_C, "Hold to zoom.")
+    val zoomKey = KeybindSetting("Zoom Key", Keys.C, "Hold to zoom.")
 
     private val maxZoom = NumberSetting(
         "Max Zoom", 25.0, 2.0, 50.0, 1.0,

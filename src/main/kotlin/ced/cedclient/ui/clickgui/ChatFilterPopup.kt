@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.ChatFilter
 import ced.cedclient.features.impl.misc.ChatFilterEntry
 import ced.cedclient.render.nvg.NVGRenderer
@@ -8,7 +9,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
  * Opened by ChatFilter's "Configure Filters" ActionSetting. Lists every
@@ -228,8 +228,8 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
 
     override fun keyPressed(input: KeyEvent): Boolean {
         // Escape closes the popup (ClickGUI) instead of just leaving the always-focused search box.
-        if (input.key == GLFW.GLFW_KEY_ESCAPE) return false
-        val wasEnter = input.key == GLFW.GLFW_KEY_ENTER
+        if (input.key == Keys.ESCAPE) return false
+        val wasEnter = input.key == Keys.ENTER
         val handled = this.input.keyPressed(input)
         if (wasEnter) submitNewEntry()
         return handled || wasEnter

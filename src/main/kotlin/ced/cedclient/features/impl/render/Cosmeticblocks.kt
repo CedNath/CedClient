@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
@@ -46,7 +47,6 @@ import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
-import org.lwjgl.glfw.GLFW
 
 /**
  * Cosmetic Blocks -- client-only block replacements (the cb mod's feature set), organised per SkyBlock island and
@@ -254,38 +254,36 @@ object CosmeticBlocks : Module(
         tickMouse()
     }
 
-    private fun pressedOnce(setting: KeybindSetting, window: Long): Boolean {
+    private fun pressedOnce(setting: KeybindSetting): Boolean {
         val code = setting.value
-        val down = code > 0 && mc.gui.screen() == null && GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
+        val down = code > 0 && mc.gui.screen() == null && Keys.isDown(code)
         val was = keyWas[setting] ?: false
         keyWas[setting] = down
         return down && !was
     }
 
     private fun pollKeys() {
-        val window = GLFW.glfwGetCurrentContext()
-        if (window == 0L) return
-        if (pressedOnce(editKey, window)) toggleEdit()
-        if (pressedOnce(placeKey, window)) {
+        if (pressedOnce(editKey)) toggleEdit()
+        if (pressedOnce(placeKey)) {
             placeMode.value = !placeMode.value
             CosmeticChat.say("Place mode ${onOff(placeMode.value)}")
             ConfigManager.saveModulesOnly()
         }
-        if (pressedOnce(fillKey, window)) {
+        if (pressedOnce(fillKey)) {
             fillMode.value = !fillMode.value
             CosmeticChat.say("Fill mode ${onOff(fillMode.value)}" + if (fillMode.value) " - R-click flood-fills (limit ${fillLimit.value.toInt()})" else "")
             ConfigManager.saveModulesOnly()
         }
-        if (pressedOnce(worldEditKey, window)) toggleWorldEdit()
-        if (pressedOnce(rulerKey, window)) CosmeticTools.toggleRuler()
-        if (pressedOnce(undoKey, window)) CosmeticChat.say(undoText(CosmeticStore.undo()))
-        if (pressedOnce(selectorKey, window)) openSelectPopup()
-        if (pressedOnce(favoriteKey, window)) {
+        if (pressedOnce(worldEditKey)) toggleWorldEdit()
+        if (pressedOnce(rulerKey)) CosmeticTools.toggleRuler()
+        if (pressedOnce(undoKey)) CosmeticChat.say(undoText(CosmeticStore.undo()))
+        if (pressedOnce(selectorKey)) openSelectPopup()
+        if (pressedOnce(favoriteKey)) {
             val next = CosmeticFavorites.next(selectedBlock)
             if (next == null) CosmeticChat.say("No favourites yet (/cc cosmetic fav add)") else selectBrush(next)
         }
-        if (pressedOnce(presetMenuKey, window)) mc.gui.setScreen(CosmeticPresetScreen())
-        if (pressedOnce(nextPresetKey, window)) {
+        if (pressedOnce(presetMenuKey)) mc.gui.setScreen(CosmeticPresetScreen())
+        if (pressedOnce(nextPresetKey)) {
             val next = CosmeticStore.cyclePreset()
             CosmeticChat.say(if (next == null) "Only one preset on ${CosmeticStore.islandKey}" else "Now using '$next' on ${CosmeticStore.islandKey}")
         }
@@ -320,10 +318,9 @@ object CosmeticBlocks : Module(
         selectedBlock.removePrefix("minecraft:") + (currentShape?.let { " §7(as $it)" } ?: "")
 
     private fun tickMouse() {
-        val window = GLFW.glfwGetCurrentContext()
-        val left = GLFW.glfwGetMouseButton(window, 0) == 1
-        val right = GLFW.glfwGetMouseButton(window, 1) == 1
-        val middle = GLFW.glfwGetMouseButton(window, 2) == 1
+        val left = mc.mouseHandler.isLeftPressed()
+        val right = mc.mouseHandler.isRightPressed()
+        val middle = mc.mouseHandler.isMiddlePressed()
         try {
 //#if CHEAT
             val hit = CosmeticTools.aimHit()

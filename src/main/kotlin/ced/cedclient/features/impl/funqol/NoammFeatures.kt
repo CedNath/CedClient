@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.Keys
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import ced.cedclient.config.CedPaths
@@ -31,7 +32,6 @@ import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 internal val mc get() = Minecraft.getInstance()
 
@@ -39,7 +39,7 @@ internal fun say(msg: String) = mc.player?.sendSystemMessage(Component.literal("
 
 internal fun hovered(screen: Screen): Slot? = (screen as? AbstractContainerScreen<*>)?.let { (it as AbstractContainerScreenAccessor).`ced$getHoveredSlot`() }
 
-internal fun keyDown(key: Int) = key > 0 && InputConstants.isKeyDown(mc.window, key)
+internal fun keyDown(key: Int) = key > 0 && Keys.isDown(key)
 
 /** The slot of the open menu that shows player-inventory slot [index] (0-8 hotbar, 9-35 main), or null. */
 internal fun menuSlot(screen: AbstractContainerScreen<*>, index: Int): Slot? =

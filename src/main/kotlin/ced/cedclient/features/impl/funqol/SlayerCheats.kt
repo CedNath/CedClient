@@ -238,7 +238,7 @@ object SlayerCheats : Module(
         // Spirit Beam repaints a ~4x4 under you, so then look 3 blocks around instead of only straight down.
         val r = if (SunGecko.beamRecent()) 3 else 0
         val red = (-r..r).any { dx -> (-r..r).any { dz -> (0..2).any { dy ->
-            level.getBlockState(below.offset(dx, -dy, dz)).`is`(net.minecraft.world.level.block.Blocks.RED_TERRACOTTA) } } }
+            level.getBlockState(below.offset(dx, -dy, dz)).`is`(net.minecraft.world.level.block.Blocks.DYED_TERRACOTTA.red()) } } }
         if (!red) return
         if (startIce()) nukeIcedAt = System.currentTimeMillis()
     }
@@ -252,7 +252,7 @@ object SlayerCheats : Module(
     private var maniaTarget: net.minecraft.core.BlockPos? = null
     private val walkKeys get() = listOf(mc.options.keyUp, mc.options.keyDown, mc.options.keyLeft, mc.options.keyRight)
     private fun green(pos: net.minecraft.core.BlockPos) =
-        mc.level?.getBlockState(pos)?.`is`(net.minecraft.world.level.block.Blocks.GREEN_TERRACOTTA) == true
+        mc.level?.getBlockState(pos)?.`is`(net.minecraft.world.level.block.Blocks.DYED_TERRACOTTA.green()) == true
 
     /**
      * Mania: on green, stays centred on that tile; off green (it changed, or knockback), walks (WASD, camera left

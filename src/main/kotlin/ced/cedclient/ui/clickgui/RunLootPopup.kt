@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.funqol.RunProfit
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
@@ -7,7 +8,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 import java.text.SimpleDateFormat
 import java.util.Date
 
@@ -157,7 +157,7 @@ class RunLootPopup : Popup("Run Loot", WIDTH, HEIGHT) {
     }
 
     override fun keyPressed(input: KeyEvent): Boolean {
-        if (input.key == GLFW.GLFW_KEY_ESCAPE) return false
+        if (input.key == Keys.ESCAPE) return false
         return this.input.keyPressed(input)
     }
 

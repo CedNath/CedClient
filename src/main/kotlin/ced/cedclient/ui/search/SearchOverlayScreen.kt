@@ -1,5 +1,6 @@
 package ced.cedclient.ui.search
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.SearchOverlay
 import ced.cedclient.render.nvg.Gradient
 import ced.cedclient.render.nvg.NVGRenderer
@@ -22,7 +23,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.entity.SignBlockEntity
-import org.lwjgl.glfw.GLFW
 
 /**
  * Stands in for Hypixel's "Enter query" sign, drawn in the ClickGUI's style (NVG, accent colour).
@@ -260,14 +260,14 @@ class SearchOverlayScreen(
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
         when (keyEvent.key) {
             // TextInputHandler would only unfocus on Esc; close straight away instead.
-            GLFW.GLFW_KEY_ESCAPE -> { onClose(); return true }
-            GLFW.GLFW_KEY_DOWN -> { if (rows.isNotEmpty()) selected = (selected + 1) % rows.size; return true }
-            GLFW.GLFW_KEY_UP -> { if (rows.isNotEmpty()) selected = (selected - 1 + rows.size) % rows.size; return true }
-            GLFW.GLFW_KEY_TAB -> {
+            Keys.ESCAPE -> { onClose(); return true }
+            Keys.DOWN -> { if (rows.isNotEmpty()) selected = (selected + 1) % rows.size; return true }
+            Keys.UP -> { if (rows.isNotEmpty()) selected = (selected - 1 + rows.size) % rows.size; return true }
+            Keys.TAB -> {
                 rows.getOrNull(selected)?.let { text = it.text; refresh(); input.focus() }
                 return true
             }
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> { submit(rows.getOrNull(selected)?.text ?: text); return true }
+            Keys.ENTER, Keys.KP_ENTER -> { submit(rows.getOrNull(selected)?.text ?: text); return true }
         }
         if (input.keyPressed(keyEvent)) return true
         return super.keyPressed(keyEvent)

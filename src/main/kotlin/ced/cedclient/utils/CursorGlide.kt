@@ -1,13 +1,13 @@
 //#if CHEAT
 package ced.cedclient.utils
 
+import org.lwjgl.sdl.SDLMouse
 import ced.cedclient.mixin.accessor.AbstractContainerScreenAccessor
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
-import org.lwjgl.glfw.GLFW
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.random.Random
@@ -81,7 +81,7 @@ object CursorGlide {
         val u = 1 - e
         val x = u * u * fromX + 2 * u * e * bendX + e * e * toX
         val y = u * u * fromY + 2 * u * e * bendY + e * e * toY
-        GLFW.glfwSetCursorPos(mc.window.handle(), x, y)
+        SDLMouse.SDL_WarpMouseInWindow(mc.window.handle(), x.toFloat(), y.toFloat())
         if (now >= clickAt) {
             onArrive = null
             click()

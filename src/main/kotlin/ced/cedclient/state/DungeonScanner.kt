@@ -80,7 +80,7 @@ object DungeonScanner {
                     val state = level.getBlockState(pos.set(x, 69, z))
                     when {
                         state.`is`(Blocks.COAL_BLOCK) -> Spot.WITHER
-                        state.`is`(Blocks.RED_TERRACOTTA) -> Spot.BLOOD
+                        state.`is`(Blocks.DYED_TERRACOTTA.red()) -> Spot.BLOOD
                         state.`is`(Blocks.INFESTED_CHISELED_STONE_BRICKS) -> Spot.ENTRANCE
                         else -> Spot.NORMAL
                     }

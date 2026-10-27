@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.render.cosmetic.CosmeticBackup
 import ced.cedclient.render.cosmetic.CosmeticBackup.ImportData
 import ced.cedclient.render.cosmetic.CosmeticRooms
@@ -18,7 +19,6 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
 import kotlin.math.ceil
 import kotlin.math.sign
 import ced.cedclient.utils.ui.mouseX as cedMouseX
@@ -620,12 +620,12 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
     }
 
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
-        if (keyEvent.key == GLFW.GLFW_KEY_ENTER) {
+        if (keyEvent.key == Keys.ENTER) {
             if (mode == Mode.BROWSE && newName.isNotBlank()) { createPreset(); return true }
             if (mode == Mode.IMPORT && data != null) { doImport(); return true }
         }
         if (activeInput.keyPressed(keyEvent)) return true
-        if (keyEvent.key == GLFW.GLFW_KEY_ESCAPE) {
+        if (keyEvent.key == Keys.ESCAPE) {
             when {
                 transfer != null -> { transfer = null; return true }
                 mode == Mode.IMPORT -> { mode = Mode.BROWSE; status = ""; sideScroll = 0f; paneScroll = 0f; return true }

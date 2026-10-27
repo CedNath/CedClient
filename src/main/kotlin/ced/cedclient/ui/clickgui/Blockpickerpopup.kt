@@ -1,6 +1,6 @@
 package ced.cedclient.ui.clickgui
 
-import org.lwjgl.glfw.GLFW
+import ced.cedclient.utils.Keys
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.ui.TextInputHandler
@@ -233,7 +233,7 @@ class BlockPickerPopup(
 
     // Escape closes the popup (ClickGUI) instead of just leaving the always-focused search box.
     override fun keyPressed(input: KeyEvent): Boolean =
-        input.key != GLFW.GLFW_KEY_ESCAPE && this.input.keyPressed(input)
+        input.key != Keys.ESCAPE && this.input.keyPressed(input)
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     companion object {

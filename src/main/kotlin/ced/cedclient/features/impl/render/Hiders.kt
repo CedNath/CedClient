@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -13,7 +14,6 @@ import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.particle.Particle
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
-import org.lwjgl.glfw.GLFW
 
 /**
  * Declutter: hide the chat HUD (hold a key to peek), particles and real players near you.
@@ -27,7 +27,7 @@ object Hiders : Module(
     private val mc get() = Minecraft.getInstance()
 
     private val hideChat = BooleanSetting("Hide Chat", false, "Hides the chat HUD completely unless the peek key is held (the chat screen still works).")
-    private val peekKey = KeybindSetting("Peek Chat", GLFW.GLFW_KEY_UNKNOWN, "Hold to preview chat while Hide Chat is on.")
+    private val peekKey = KeybindSetting("Peek Chat", Keys.UNKNOWN, "Hold to preview chat while Hide Chat is on.")
         .withDependency { hideChat.value }
     private val hideParticles = BooleanSetting("Nearby Particles", false, "Hides all particles within a radius around you.")
     private val particleRadius = NumberSetting("Particle Radius", 4.0, 1.0, 32.0, 0.5, "Radius around you to hide particles in.")
@@ -44,7 +44,7 @@ object Hiders : Module(
     @JvmStatic fun hideChatHud(): Boolean {
         if (!isEnabled || !hideChat.value || mc.gui.screen() is ChatScreen) return false
         val key = peekKey.value
-        return key < 0 || !InputConstants.isKeyDown(mc.window, key)
+        return key < 0 || !Keys.isDown(key)
     }
 
     @JvmStatic fun hideParticle(p: Particle): Boolean {

@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.render.ActionBarHud
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -25,7 +26,6 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.animal.axolotl.Axolotl
 import net.minecraft.world.entity.decoration.ArmorStand
 import kotlin.random.Random
-import org.lwjgl.glfw.GLFW
 
 private enum class CoralotState { IDLE, CATCH_DELAY, CONFIRMING }
 
@@ -362,9 +362,8 @@ object CoralotHelper : Module(
 
     private fun pollCatchKey() {
         val code = catchKey.value
-        val window = GLFW.glfwGetCurrentContext()
-        val down = requireKeybind.value && code > 0 && window != 0L && mc.gui.screen() == null &&
-                GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
+        val down = requireKeybind.value && code > 0 && mc.gui.screen() == null &&
+                Keys.isDown(code)
         if (down && !keyWas) {
             armed = !armed
             if (!armed && state == CoralotState.CATCH_DELAY) reset()

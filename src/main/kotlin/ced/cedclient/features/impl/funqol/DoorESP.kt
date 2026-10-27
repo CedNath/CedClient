@@ -212,7 +212,7 @@ object DoorESP : Module(
         val found = DOOR_SPOTS.mapNotNull { (x, z) ->
             val state = level.getBlockState(pos.set(x, 69, z))
             when {
-                state.`is`(Blocks.RED_TERRACOTTA) -> if (bloodDoor.value) Door(x, z, Kind.BLOOD) else null
+                state.`is`(Blocks.DYED_TERRACOTTA.red()) -> if (bloodDoor.value) Door(x, z, Kind.BLOOD) else null
                 state.`is`(Blocks.COAL_BLOCK) -> if (witherDoors.value) Door(x, z, Kind.WITHER) else null
                 else -> null
             }

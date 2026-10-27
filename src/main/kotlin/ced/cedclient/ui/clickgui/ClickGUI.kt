@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.ChatPing
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.config.ConfigManager
@@ -16,7 +17,6 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
 import kotlin.math.sign
 import ced.cedclient.utils.ui.mouseX as cedMouseX
 import ced.cedclient.utils.ui.mouseY as cedMouseY
@@ -195,7 +195,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             return true
         }
         // Shift + wheel (or the wheel over empty space) slides the whole row of panels sideways.
-        if (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.window, 340) || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.window, 344)) { scrollPanels(actualAmount * 6f); return true }
+        if (Keys.isDown(Keys.LEFT_SHIFT) || Keys.isDown(Keys.RIGHT_SHIFT)) { scrollPanels(actualAmount * 6f); return true }
         for (i in panels.size - 1 downTo 0) {
             if (panels[i].handleScroll(actualAmount)) return true
         }
@@ -262,7 +262,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         activePopup?.let { popup ->
             // The popup gets first go, so a keybind setting inside it can take Escape to unbind.
             if (popup.keyPressed(keyEvent)) return true
-            if (keyEvent.key == GLFW.GLFW_KEY_ESCAPE) closePopup()
+            if (keyEvent.key == Keys.ESCAPE) closePopup()
             return true
         }
 

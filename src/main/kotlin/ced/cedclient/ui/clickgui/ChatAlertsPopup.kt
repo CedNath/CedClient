@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.ChatAlert
 import ced.cedclient.features.impl.misc.ChatPing
 import ced.cedclient.features.settings.ActionSetting
@@ -10,7 +11,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
  * Opened by Chat Features' "Alerts". Lists every [ChatAlert] with an on/off box; clicking a row opens that
@@ -202,8 +202,8 @@ class ChatAlertsPopup : Popup("Chat Alerts", WIDTH, HEIGHT) {
     }
 
     override fun keyPressed(input: KeyEvent): Boolean {
-        if (input.key == GLFW.GLFW_KEY_ESCAPE) return false
-        val wasEnter = input.key == GLFW.GLFW_KEY_ENTER
+        if (input.key == Keys.ESCAPE) return false
+        val wasEnter = input.key == Keys.ENTER
         val handled = this.input.keyPressed(input)
         if (wasEnter) submitNewEntry()
         return handled || wasEnter

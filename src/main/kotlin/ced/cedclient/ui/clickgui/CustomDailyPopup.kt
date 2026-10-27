@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.DailyReset
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
@@ -7,7 +8,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
  * Daily Tasks > "Custom Tasks": your own entries on the Daily Tasks HUD (same list as /cc daily add).
@@ -71,8 +71,8 @@ class CustomDailyPopup : Popup("Custom Daily Tasks", WIDTH, HEIGHT) {
     }
 
     override fun keyPressed(input: KeyEvent): Boolean {
-        if (input.key == GLFW.GLFW_KEY_ESCAPE) return false
-        if (input.key == GLFW.GLFW_KEY_ENTER) { submit(); return true }
+        if (input.key == Keys.ESCAPE) return false
+        if (input.key == Keys.ENTER) { submit(); return true }
         return this.input.keyPressed(input)
     }
 

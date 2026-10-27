@@ -1,38 +1,32 @@
 package ced.cedclient.features.settings
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
 import com.google.gson.JsonElement
-import com.google.gson.JsonPrimitive
+import com.google.gson.JsonObject
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
- * Not in the original roadmap — added as a stub. Stores a GLFW key code
- * (-1 = unbound). Click to start listening (reuses RenderableSetting's
- * `listening` field), next keyPressed() captures and binds it, Escape clears
- * it.
- *
- * NOTE: `input.key()` below assumes KeyEvent exposes its key code the same
- * way MouseButtonEvent exposes x()/y() elsewhere in this codebase. I don't
- * have the Minecraft/Fabric jars in this environment to confirm that against
- * the real 1.21.9+ KeyEvent API — check it compiles against the actual
- * mappings before relying on it.
+ * Stores a key as an SDL scancode (see [Keys]; -1 = unbound). Click to start listening
+ * (reuses RenderableSetting's `listening` field), next keyPressed() captures and binds it,
+ * Escape / Backspace / Delete clears it. Saved as {"sdl": code}; a bare number is a pre-26.3
+ * GLFW key code and is converted on load.
  */
 class KeybindSetting(
     name: String,
-    override val default: Int = GLFW.GLFW_KEY_UNKNOWN,
+    override val default: Int = Keys.UNKNOWN,
     description: String = ""
 ) : RenderableSetting<Int>(name, description), Saving {
 
     override var value: Int = default
 
     private fun keyName(): String {
-        if (value == GLFW.GLFW_KEY_UNKNOWN || value < 0) return "None"
-        return GLFW.glfwGetKeyName(value, 0) ?: "Key $value"
+        if (value == Keys.UNKNOWN || value < 0) return "None"
+        return Keys.name(value)
     }
 
     override fun render(x: Float, y: Float, mouseX: Float, mouseY: Float): Float {
@@ -53,8 +47,8 @@ class KeybindSetting(
     /** Left-click: listen for a key. Right-click: unbind. */
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (!isHovered) return false
-        if (click.button() == 1) {
-            value = GLFW.GLFW_KEY_UNKNOWN
+        if (click.button() == Keys.MOUSE_RIGHT) {
+            value = Keys.UNKNOWN
             listening = false
         } else {
             listening = true
@@ -67,8 +61,8 @@ class KeybindSetting(
         if (!listening) return false
 
         val key = input.key()
-        if (key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_BACKSPACE || key == GLFW.GLFW_KEY_DELETE) {
-            value = GLFW.GLFW_KEY_UNKNOWN
+        if (key == Keys.ESCAPE || key == Keys.BACKSPACE || key == Keys.DELETE) {
+            value = Keys.UNKNOWN
         } else {
             value = key
         }
@@ -79,8 +73,8 @@ class KeybindSetting(
     override fun keyTyped(input: CharacterEvent): Boolean = listening
 
     override fun read(element: JsonElement, gson: Gson) {
-        value = element.asInt
+        value = if (element.isJsonObject) element.asJsonObject.get("sdl").asInt else Keys.fromGlfw(element.asInt)
     }
 
-    override fun write(gson: Gson): JsonElement = JsonPrimitive(value)
+    override fun write(gson: Gson): JsonElement = JsonObject().also { it.addProperty("sdl", value) }
 }

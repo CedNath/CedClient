@@ -1,12 +1,12 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.utils.Keys
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 import net.minecraft.network.chat.Component
 
@@ -233,9 +233,9 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (search.isFocused && event.key() != GLFW.GLFW_KEY_ESCAPE) { search.keyPressed(event); return true }
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && open) { open = false; search.setFocused(false); return true }
-        if (event.key() == GLFW.GLFW_KEY_G) { grid = !grid; return true }
+        if (search.isFocused && event.key() != Keys.ESCAPE) { search.keyPressed(event); return true }
+        if (event.key() == Keys.ESCAPE && open) { open = false; search.setFocused(false); return true }
+        if (event.key() == Keys.G) { grid = !grid; return true }
         return super.keyPressed(event)
     }
 

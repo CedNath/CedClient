@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.ActionSetting
@@ -14,7 +15,6 @@ import ced.cedclient.utils.Debug
 import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
 
 object InventoryButtons : Module(
     "InventoryButtons",
@@ -54,7 +54,7 @@ object InventoryButtons : Module(
     private val newName = TextSetting("Preset Name", "", "Name for Save Preset. An existing preset of yours with that name is replaced.", 24)
     private val savePreset = ActionSetting("Save Current As Preset", "Saves your buttons under the name above, so you can switch back to them any time.") { saveCurrent() }
     private val deletePreset = ActionSetting("Delete Preset", "Deletes the chosen preset (one you saved).") { deleteSelected() }
-    private val nextKey = KeybindSetting("Next Preset Key", GLFW.GLFW_KEY_UNKNOWN, "Switches to the next preset (outside of menus).")
+    private val nextKey = KeybindSetting("Next Preset Key", Keys.UNKNOWN, "Switches to the next preset (outside of menus).")
     private var keyHeld = false
 
     private fun say(text: String) = Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msgFor("InventoryButtons", text))
@@ -100,7 +100,7 @@ object InventoryButtons : Module(
         addSettings(openEditor, preset, loadPreset, newName, savePreset, deletePreset, nextKey)
         ClientTickEvents.END_CLIENT_TICK.register {
             val mc = Minecraft.getInstance()
-            val down = isEnabled && mc.gui.screen() == null && nextKey.value > 0 && InputConstants.isKeyDown(mc.window, nextKey.value)
+            val down = isEnabled && mc.gui.screen() == null && nextKey.value > 0 && Keys.isDown(nextKey.value)
             if (down && !keyHeld) cyclePreset()
             keyHeld = down
         }

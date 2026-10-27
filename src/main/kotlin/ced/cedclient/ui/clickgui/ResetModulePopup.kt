@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Module
 import ced.cedclient.features.ModuleManager
@@ -10,7 +11,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
  * Client Settings > "Reset a Module": every module with settings, grouped by panel. Clicking one arms it
@@ -74,7 +74,7 @@ class ResetModulePopup : Popup("Reset a Module", WIDTH, HEIGHT) {
         return true
     }
 
-    override fun keyPressed(input: KeyEvent): Boolean = input.key != GLFW.GLFW_KEY_ESCAPE && this.input.keyPressed(input)
+    override fun keyPressed(input: KeyEvent): Boolean = input.key != Keys.ESCAPE && this.input.keyPressed(input)
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     override fun mouseScrolled(mouseX: Float, mouseY: Float, amount: Int): Boolean {

@@ -1,5 +1,6 @@
 package ced.cedclient.utils.ui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import net.minecraft.client.Minecraft
@@ -7,7 +8,6 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.util.StringUtil
-import org.lwjgl.glfw.GLFW
 import kotlin.math.max
 import kotlin.math.min
 
@@ -121,24 +121,24 @@ class TextInputHandler(
         if (!isActive) return false
 
         val handled = when (input.key) {
-            GLFW.GLFW_KEY_BACKSPACE -> handleBackspace(input)
-            GLFW.GLFW_KEY_DELETE -> handleDelete(input)
-            GLFW.GLFW_KEY_LEFT -> moveCaret(-1, input)
-            GLFW.GLFW_KEY_RIGHT -> moveCaret(+1, input)
-            GLFW.GLFW_KEY_HOME -> {
+            Keys.BACKSPACE -> handleBackspace(input)
+            Keys.DELETE -> handleDelete(input)
+            Keys.LEFT -> moveCaret(-1, input)
+            Keys.RIGHT -> moveCaret(+1, input)
+            Keys.HOME -> {
                 caret = 0
                 if (!input.hasShiftDown()) clearSelection()
                 true
             }
 
-            GLFW.GLFW_KEY_END -> {
+            Keys.END -> {
                 caret = text.length
                 if (!input.hasShiftDown()) clearSelection()
                 true
             }
 
-            GLFW.GLFW_KEY_ESCAPE,
-            GLFW.GLFW_KEY_ENTER -> {
+            Keys.ESCAPE,
+            Keys.ENTER -> {
                 isActive = false; true
             }
 
@@ -230,27 +230,27 @@ class TextInputHandler(
         if (!input.hasControlDown() || input.hasShiftDown()) return false
         val mc = Minecraft.getInstance()
         return when (input.key) {
-            GLFW.GLFW_KEY_V -> {
+            Keys.V -> {
                 insert(mc.keyboardHandler.clipboard); true
             }
 
-            GLFW.GLFW_KEY_C -> if (hasSelection()) {
+            Keys.C -> if (hasSelection()) {
                 mc.keyboardHandler.clipboard = selectedText(); true
             } else false
 
-            GLFW.GLFW_KEY_X -> if (hasSelection()) {
+            Keys.X -> if (hasSelection()) {
                 mc.keyboardHandler.clipboard = selectedText(); deleteSelection(); true
             } else false
 
-            GLFW.GLFW_KEY_A -> {
+            Keys.A -> {
                 selectAll(); true
             }
 
-            GLFW.GLFW_KEY_Z -> {
+            Keys.Z -> {
                 undo(); true
             }
 
-            GLFW.GLFW_KEY_Y -> {
+            Keys.Y -> {
                 redo(); true
             }
 

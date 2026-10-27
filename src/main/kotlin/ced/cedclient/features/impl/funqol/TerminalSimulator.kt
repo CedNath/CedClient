@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -27,7 +28,6 @@ import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
 import kotlin.random.Random
 
 /**
@@ -413,7 +413,7 @@ private class TerminalSimScreen private constructor(
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (event.key == GLFW.GLFW_KEY_R) { open(kind); return true }
+        if (event.key == Keys.R) { open(kind); return true }
         return super.keyPressed(event)
     }
 

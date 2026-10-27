@@ -1,5 +1,6 @@
 package ced.cedclient.features.settings
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
@@ -9,7 +10,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 import ced.cedclient.utils.ui.TextInputHandler
 import kotlin.math.roundToLong
 
@@ -133,16 +133,16 @@ class NumberSetting(
     override fun keyPressed(input: KeyEvent): Boolean {
         if (this.input.isActive) {
             when (input.key()) {
-                GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> commitEdit()
-                GLFW.GLFW_KEY_ESCAPE -> this.input.deactivate()
+                Keys.ENTER, Keys.KP_ENTER -> commitEdit()
+                Keys.ESCAPE -> this.input.deactivate()
                 else -> this.input.keyPressed(input)
             }
             return true // typing owns the keyboard until Enter / Esc
         }
         if (!isHovered) return false
         val dir = when (input.key()) {
-            GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_DOWN -> -1
-            GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP -> 1
+            Keys.LEFT, Keys.DOWN -> -1
+            Keys.RIGHT, Keys.UP -> 1
             else -> return false
         }
         value += dir * step * (if (Minecraft.getInstance().hasShiftDown()) 10 else 1)

@@ -345,8 +345,8 @@ object LeapMenu : Module(
     fun keyPressed(screen: AbstractContainerScreen<*>, key: Int): Boolean {
         if (!numberKeys.value) return false
         val n = when (key) {
-            in 49..53 -> key - 49 // GLFW_KEY_1..5
-            in 321..325 -> key - 321 // GLFW_KEY_KP_1..5
+            in 30..34 -> key - 30 // number row 1..5
+            in 89..93 -> key - 89 // keypad 1..5
             else -> return false
         }
         if (keyMode.value == "Class") {

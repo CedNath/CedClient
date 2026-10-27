@@ -1,5 +1,6 @@
 package ced.cedclient
 
+import ced.cedclient.utils.Keys
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import ced.cedclient.utils.ChatPrefix
@@ -103,7 +104,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegis
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.minecraft.client.KeyMapping
 import net.minecraft.resources.Identifier
-import org.lwjgl.glfw.GLFW
 
 class CedClient : ClientModInitializer {
 
@@ -517,7 +517,7 @@ class CedClient : ClientModInitializer {
 
     private fun registerKeybinds() {
         openGuiKey = KeyMappingHelper.registerKeyMapping(
-            KeyMapping("CedClient Gui", GLFW.GLFW_KEY_P, cedclientCategory)
+            KeyMapping("CedClient Gui", Keys.P, cedclientCategory)
         )
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (openGuiKey.consumeClick()) {
@@ -530,9 +530,8 @@ class CedClient : ClientModInitializer {
 //$            // The Zoom key is a KeybindSetting on its module (rebindable in the ClickGUI), polled here.
 //#endif
             // Only while no screen is open, so typing in chat doesn't trigger them.
-            val window = GLFW.glfwGetCurrentContext()
-            fun down(code: Int) = code > 0 && window != 0L && client.gui.screen() == null &&
-                    GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
+            fun down(code: Int) = code > 0 && client.gui.screen() == null &&
+                    Keys.isDown(code)
 
 //#if CHEAT
             val freecamDown = down(Freecam.toggleKey.value)

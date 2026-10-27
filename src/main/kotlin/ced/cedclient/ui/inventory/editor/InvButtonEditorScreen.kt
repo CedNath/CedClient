@@ -1,5 +1,6 @@
 package ced.cedclient.ui.inventory.editor
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.InventoryButtons
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.inventory.InvButton
@@ -30,7 +31,6 @@ import net.minecraft.world.item.Item
 import ced.cedclient.features.impl.misc.SearchOverlay
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
 import java.util.Base64
 import kotlin.math.ceil
 import kotlin.math.max
@@ -534,14 +534,14 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
         }
 
         when (keyEvent.key) {
-            GLFW.GLFW_KEY_BACKSPACE, GLFW.GLFW_KEY_DELETE -> {
+            Keys.BACKSPACE, Keys.DELETE -> {
                 selected?.let {
                     InventoryButtonManager.removeButton(it)
                     selected = null
                     return true
                 }
             }
-            GLFW.GLFW_KEY_S -> {
+            Keys.S -> {
                 InventoryButtons.snapEnabled = !InventoryButtons.snapEnabled
                 return true
             }

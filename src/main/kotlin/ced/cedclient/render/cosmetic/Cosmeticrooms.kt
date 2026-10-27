@@ -446,7 +446,7 @@ object CosmeticRooms {
         for (y in ys) for ((rot, xz) in candidates) {
             val pos = BlockPos(xz.first, y, xz.second)
             val state = try { level.getBlockState(pos) } catch (_: Exception) { continue }
-            if (state.block != Blocks.BLUE_TERRACOTTA) continue
+            if (state.block != Blocks.DYED_TERRACOTTA.blue()) continue
             room.clayPos = pos
             room.rotation = rot
             return

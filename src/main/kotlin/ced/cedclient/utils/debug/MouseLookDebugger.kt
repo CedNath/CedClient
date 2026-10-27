@@ -1,13 +1,13 @@
 //#if CHEAT
 package ced.cedclient.utils.debug
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.utils.HumanLook
 import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
 
 /**
  * Debug tool: while enabled, feeds your REAL mouse look each tick as the
@@ -32,7 +32,7 @@ object MouseLookDebugger {
     private val toggleKey = KeyMapping(
         "key.cedclient.mouse_debug_toggle",
         InputConstants.Type.KEYSYM,
-        GLFW.GLFW_KEY_UNKNOWN, // unbound by default, bind it in Options > Controls
+        Keys.UNKNOWN, // unbound by default, bind it in Options > Controls
         KeyMapping.Category.MISC
     )
 

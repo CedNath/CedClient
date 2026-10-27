@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -17,7 +18,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.entity.SignBlockEntity
-import org.lwjgl.glfw.GLFW
 import java.math.BigDecimal
 
 /**
@@ -112,7 +112,7 @@ object AuctionPriceInput : Module(
         ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
             if (screen !is AbstractContainerScreen<*>) return@register
             ScreenKeyboardEvents.allowKeyPress(screen).register { s, event ->
-                val enter = event.key == GLFW.GLFW_KEY_ENTER || event.key == GLFW.GLFW_KEY_KP_ENTER
+                val enter = event.key == Keys.ENTER || event.key == Keys.KP_ENTER
                 !(isEnabled && enterSubmits.value && enter && "auction" in s.title.string.lowercase() && clickButton(s as AbstractContainerScreen<*>))
             }
         }

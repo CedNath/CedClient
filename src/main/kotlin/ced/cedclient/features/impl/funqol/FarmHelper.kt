@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.farmhelper.FarmConfig
@@ -39,7 +40,6 @@ import net.minecraft.core.BlockPos
 import net.minecraft.util.Mth
 import net.minecraft.world.level.block.Block
 import kotlin.math.abs
-import org.lwjgl.glfw.GLFW
 import java.io.File
 
 /**
@@ -55,7 +55,7 @@ object FarmHelper : Module(
 
     private val mc get() = Minecraft.getInstance()
 
-    val toggleKey = KeybindSetting("Toggle Key", GLFW.GLFW_KEY_UNKNOWN, "Starts / stops the macro (Garden only)")
+    val toggleKey = KeybindSetting("Toggle Key", Keys.UNKNOWN, "Starts / stops the macro (Garden only)")
     private val statusHud = BooleanSetting("Status HUD", true, "Macro state, crop, run time and failsafe warnings")
 
     // Timings
@@ -207,7 +207,7 @@ object FarmHelper : Module(
 
         ClientTickEvents.END_CLIENT_TICK.register {
             val key = toggleKey.value
-            val down = isEnabled && key > 0 && mc.gui.screen() == null && GLFW.glfwGetKey(mc.window.handle(), key) == GLFW.GLFW_PRESS
+            val down = isEnabled && key > 0 && mc.gui.screen() == null && Keys.isDown(key)
             if (down && !keyWasDown) MacroHandler.getInstance().toggleMacro()
             keyWasDown = down
             // Held macro keys aren't "input" to vanilla, so it would drop to the AFK FPS limit after a minute.

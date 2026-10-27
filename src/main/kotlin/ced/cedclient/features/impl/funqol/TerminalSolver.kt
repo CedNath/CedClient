@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.impl.render.HudCard
@@ -22,7 +23,6 @@ import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
 import kotlin.math.abs
 
 /**
@@ -42,8 +42,8 @@ object TerminalSolver : Module(
     private val clickDelay = NumberSetting("Click Delay", 100.0, 0.0, 500.0, 10.0, "Milliseconds between clicks (Correct All The Panes only).")
     private val resync = NumberSetting("Resync Timeout", 800.0, 0.0, 2000.0, 50.0, "Forget clicks the server never answered after this long. 0: off.")
     private val allowDrop = BooleanSetting("Allow Drop Key", true, "The drop key clicks the tile under the mouse (left; right with Ctrl).")
-    private val keyLeft = KeybindSetting("Left Click Key", GLFW.GLFW_KEY_UNKNOWN, "Left clicks the tile under the mouse.")
-    private val keyRight = KeybindSetting("Right Click Key", GLFW.GLFW_KEY_UNKNOWN, "Right clicks the tile under the mouse.")
+    private val keyLeft = KeybindSetting("Left Click Key", Keys.UNKNOWN, "Left clicks the tile under the mouse.")
+    private val keyRight = KeybindSetting("Right Click Key", Keys.UNKNOWN, "Right clicks the tile under the mouse.")
     private val onNumbers = BooleanSetting("Click In Order", true, "Solve this terminal.")
     private val onPanes = BooleanSetting("Correct All The Panes", true, "Solve this terminal.")
     private val onRubix = BooleanSetting("Change All To Same Color", true, "Solve this terminal.")
@@ -56,7 +56,7 @@ object TerminalSolver : Module(
     private val rubixLeft = BooleanSetting("Rubix Left Click Only", true, "Any mouse button clicks a lit tile; the terminal still gets the click the solution needs (a right click where the short way round is backwards). Off: you must press the shown button.")
     private val melodyPrevent = BooleanSetting("Melody Prevent Wrong Clicks", false, "The button only works while the lime pane is on the magenta one.")
     private val melodyKeys = BooleanSetting("Melody Number Keys", false, "Keys click the button of lane 1-4.")
-    private val melodyBinds = (1..4).map { KeybindSetting("Melody Key $it", GLFW.GLFW_KEY_0 + it, "Clicks the button of lane $it.").withDependency { melodyKeys.value } }
+    private val melodyBinds = (1..4).map { KeybindSetting("Melody Key $it", Keys.digit(it), "Clicks the button of lane $it.").withDependency { melodyKeys.value } }
 
     // ---- gui
     private val scale = NumberSetting("Scale", 1.0, 0.1, 4.0, 0.1, "Size of the panel (also grows when your GUI scale is below 4).")
@@ -298,7 +298,7 @@ object TerminalSolver : Module(
         val g = geo(screen, kind)
 //#if CHEAT
         val now = System.currentTimeMillis()
-        if (dragClick.value && GLFW.glfwGetMouseButton(mc.window.handle(), 0) == GLFW.GLFW_PRESS && now - lastClick >= dragDelay.value) {
+        if (dragClick.value && mc.mouseHandler.isLeftPressed() && now - lastClick >= dragDelay.value) {
             slotAt(g, mouseX.toDouble(), mouseY.toDouble())?.let { tryClick(screen, kind, it, 0) }
         }
         AutoTerminals.tick(screen, kind.title, tiles.filter { it.clickable }.map { it.slot })
@@ -343,14 +343,14 @@ object TerminalSolver : Module(
         sync(screen)
         val key = event.key
         if (kind == Kind.MELODY && melodyKeys.value) {
-            val lane = melodyBinds.indexOfFirst { it.value == key && key != GLFW.GLFW_KEY_UNKNOWN }
+            val lane = melodyBinds.indexOfFirst { it.value == key && key != Keys.UNKNOWN }
             if (lane >= 0) { tryClick(screen, kind, (lane + 1) * 9 + 7, 0); return true }
         }
         val (mx, my) = mouse()
         val hover = slotAt(geo(screen, kind), mx, my)
         val button = when {
-            keyLeft.value != GLFW.GLFW_KEY_UNKNOWN && key == keyLeft.value -> 0
-            keyRight.value != GLFW.GLFW_KEY_UNKNOWN && key == keyRight.value -> 1
+            keyLeft.value != Keys.UNKNOWN && key == keyLeft.value -> 0
+            keyRight.value != Keys.UNKNOWN && key == keyRight.value -> 1
             allowDrop.value && mc.options.keyDrop.matches(event) -> if (event.hasControlDown()) 1 else 0
             else -> return false
         }

@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.impl.render.HudCard
@@ -40,7 +41,6 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
-import org.lwjgl.glfw.GLFW
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.file.Files
@@ -71,9 +71,9 @@ object Spotify : Module(
     private val chatArtistColor = ColorSetting("Chat Artist Color", Color(85, 255, 255), "Artist in party song lines.").withDependency { prettyParty.value }
     private val chatSongColor = ColorSetting("Chat Song Color", Color(255, 215, 90), "Song in party song lines.").withDependency { prettyParty.value }
     private val keybinds = BooleanSetting("Media Keybinds", true, "Use the keybinds below (outside of menus).")
-    private val prevKey = KeybindSetting("Previous Key", GLFW.GLFW_KEY_UNKNOWN, "Previous track.")
-    private val pauseKey = KeybindSetting("Play / Pause Key", GLFW.GLFW_KEY_UNKNOWN, "Play or pause.")
-    private val nextKey = KeybindSetting("Next Key", GLFW.GLFW_KEY_UNKNOWN, "Next track.")
+    private val prevKey = KeybindSetting("Previous Key", Keys.UNKNOWN, "Previous track.")
+    private val pauseKey = KeybindSetting("Play / Pause Key", Keys.UNKNOWN, "Play or pause.")
+    private val nextKey = KeybindSetting("Next Key", Keys.UNKNOWN, "Next track.")
 
     // Now-playing HUD (all in the "HUD Options" popup).
     private val showHud = BooleanSetting("Show HUD", true, "A now-playing card. Open chat to click its buttons.")
@@ -306,7 +306,7 @@ object Spotify : Module(
     /** True once per key press. */
     private fun pressed(key: Int): Boolean {
         if (key < 0) return false
-        if (!InputConstants.isKeyDown(mc.window, key)) { down.remove(key); return false }
+        if (!Keys.isDown(key)) { down.remove(key); return false }
         return down.add(key)
     }
 
@@ -533,7 +533,7 @@ object Spotify : Module(
         if (!seeking) return
         val b = seekBar
         if (b != null) seekFrac = ((mouseX() - b[0]) / b[2]).toFloat().coerceIn(0f, 1f)
-        if (org.lwjgl.glfw.GLFW.glfwGetMouseButton(mc.window.handle(), org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS && b != null) return
+        if (mc.mouseHandler.isLeftPressed() && b != null) return
         seeking = false
         if (b == null || smtcEndMs <= 0) return
         val pos = (seekFrac * smtcEndMs).toLong()

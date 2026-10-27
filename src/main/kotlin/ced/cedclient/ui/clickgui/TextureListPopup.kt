@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.render.VanillaTextures
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
@@ -7,7 +8,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
  * Vanilla Textures > "Choose Textures": every SkyBlock item, searchable by name or ID. Click one to keep
@@ -84,7 +84,7 @@ class TextureListPopup : Popup("Choose Textures", WIDTH, HEIGHT) {
         return true
     }
 
-    override fun keyPressed(input: KeyEvent): Boolean = input.key != GLFW.GLFW_KEY_ESCAPE && this.input.keyPressed(input)
+    override fun keyPressed(input: KeyEvent): Boolean = input.key != Keys.ESCAPE && this.input.keyPressed(input)
     override fun keyTyped(input: CharacterEvent): Boolean = this.input.keyTyped(input)
 
     override fun mouseScrolled(mouseX: Float, mouseY: Float, amount: Int): Boolean {

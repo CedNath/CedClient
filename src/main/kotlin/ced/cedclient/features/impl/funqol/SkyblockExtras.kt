@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
@@ -209,7 +210,7 @@ object ItemInfoTooltip : Module("Item Info Tooltip", Category.Visuals, "Adds the
             if (!isEnabled) return@register
             val data = stack.skyblockData ?: return@register
             val window = Minecraft.getInstance().window
-            if (shiftOnly.value && !(com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) || com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT))) return@register
+            if (shiftOnly.value && !(Keys.isDown(Keys.LEFT_SHIFT) || Keys.isDown(Keys.RIGHT_SHIFT))) return@register
             if (showQuality.value) {
                 val quality = data.getIntOr("baseStatBoostPercentage", -1)
                 if (quality >= 0) {

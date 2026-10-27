@@ -1,5 +1,6 @@
 package ced.cedclient.ui.search
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.AuctionPriceInput
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
@@ -21,7 +22,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.entity.SignBlockEntity
-import org.lwjgl.glfw.GLFW
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DecimalFormat
@@ -133,9 +133,9 @@ class PriceInputScreen(
 
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
         when (keyEvent.key) {
-            GLFW.GLFW_KEY_ESCAPE -> { onClose(); return true }
-            GLFW.GLFW_KEY_TAB -> { if (lowestBin != null) undercut = !undercut; return true }
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+            Keys.ESCAPE -> { onClose(); return true }
+            Keys.TAB -> { if (lowestBin != null) undercut = !undercut; return true }
+            Keys.ENTER, Keys.KP_ENTER -> {
                 value = result()?.toPlainString() ?: text.trim()
                 AuctionPriceInput.onSubmit(text.trim())
                 onClose()
@@ -152,7 +152,7 @@ class PriceInputScreen(
     }
 
     override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
-        if (mouseButtonEvent.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && overToggle(cedMouseX / scale, cedMouseY / scale)) {
+        if (mouseButtonEvent.button() == Keys.MOUSE_LEFT && overToggle(cedMouseX / scale, cedMouseY / scale)) {
             undercut = !undercut
             input.focus()
             return true

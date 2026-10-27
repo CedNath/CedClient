@@ -1,5 +1,6 @@
 package ced.cedclient.features.settings
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.ui.clickgui.Panel
 import ced.cedclient.render.nvg.Gradient
 import ced.cedclient.render.nvg.NVGRenderer
@@ -11,7 +12,6 @@ import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 /**
  * Draws the swatch plus, when clicked, an inline HSB picker below the row --
@@ -261,7 +261,7 @@ class ColorSetting(
 
     override fun keyPressed(input: KeyEvent): Boolean {
         if (!hexInput.isActive) return false
-        if (input.key() == GLFW.GLFW_KEY_ESCAPE) beforeEdit?.let { value = it.copy() }
+        if (input.key() == Keys.ESCAPE) beforeEdit?.let { value = it.copy() }
         hexInput.keyPressed(input)
         return true // typing owns the keyboard until Enter / Esc
     }

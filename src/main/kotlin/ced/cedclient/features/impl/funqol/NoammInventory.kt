@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -36,7 +37,6 @@ import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
 
 // ------------------------------------------------------------------------------------------------ Protect Item
 
@@ -50,7 +50,7 @@ import org.lwjgl.glfw.GLFW
  */
 object ProtectItem : Module("Protect Item", Category.Skyblock, "Mark items so you can't drop or sell them by accident.") {
     private val notify = BooleanSetting("Protect Notification", true, "Say so when an action is blocked.")
-    private val protectKey = KeybindSetting("Protect Key", GLFW.GLFW_KEY_L, "Hover an item in a menu and press this to protect / unprotect it.")
+    private val protectKey = KeybindSetting("Protect Key", Keys.L, "Hover an item in a menu and press this to protect / unprotect it.")
     private val showProtected = BooleanSetting("Show Protected Items", true, "A small P on protected items in menus.")
     private val protectUuid = BooleanSetting("Protect UUID", true, "Items marked by their UUID.")
     private val protectId = BooleanSetting("Protect Skyblock ID", true, "Items marked by their SkyBlock id (all items with it).")
@@ -194,7 +194,7 @@ object ProtectItem : Module("Protect Item", Category.Skyblock, "Mark items so yo
  * cycles through its slots. Bound slots get a border and a line between the pair.
  */
 object SlotBinding : Module("Slot Binding", Category.Skyblock, "Link inventory slots to hotbar slots (several to one), then Shift + click to swap.") {
-    private val bindKey = KeybindSetting("Binding Key", GLFW.GLFW_KEY_R, "Press while hovering a hotbar slot and an inventory slot to link them.")
+    private val bindKey = KeybindSetting("Binding Key", Keys.R, "Press while hovering a hotbar slot and an inventory slot to link them.")
     private val showBound = BooleanSetting("Show Bound Slots", true, "Draw the links.")
     private val hoverOnly = BooleanSetting("Hover Only", false, "Only show a link while you hover one of its slots.").withDependency { showBound.value }
     private val drawBorder = BooleanSetting("Draw Border", true, "A border around bound slots.").withDependency { showBound.value }
@@ -230,7 +230,7 @@ object SlotBinding : Module("Slot Binding", Category.Skyblock, "Link inventory s
         when {
             first == null -> when {
                 idx >= 9 && bindings.containsKey(idx) -> { bindings.remove(idx); save(); say("Binding removed.") }
-                idx < 9 && bindings.containsValue(idx) && !keyDown(GLFW.GLFW_KEY_LEFT_SHIFT) -> { bindings.entries.removeIf { it.value == idx }; save(); say("Removed all links of hotbar ${idx + 1}.") }
+                idx < 9 && bindings.containsValue(idx) && !keyDown(Keys.LEFT_SHIFT) -> { bindings.entries.removeIf { it.value == idx }; save(); say("Removed all links of hotbar ${idx + 1}.") }
                 else -> {
                     pending = idx
                     say(if (idx < 9) "Hotbar ${idx + 1}: press the key on each inventory slot to link, then on this slot again to finish."
@@ -285,7 +285,7 @@ object SlotBinding : Module("Slot Binding", Category.Skyblock, "Link inventory s
                 false
             }
             ScreenMouseEvents.allowMouseClick(screen).register { s, event ->
-                if (!isEnabled || event.button() != 0 || !(keyDown(GLFW.GLFW_KEY_LEFT_SHIFT) || keyDown(GLFW.GLFW_KEY_RIGHT_SHIFT))) return@register true
+                if (!isEnabled || event.button() != 0 || !(keyDown(Keys.LEFT_SHIFT) || keyDown(Keys.RIGHT_SHIFT))) return@register true
                 val slot = hovered(s) ?: return@register true
                 if (slot.container !is Inventory) return@register true
                 val (main, hot) = swapFor(slot) ?: return@register true
@@ -344,7 +344,7 @@ private class MenuKeys(
             ScreenKeyboardEvents.allowKeyPress(screen).register { s, event ->
                 val cs = s as AbstractContainerScreen<*>
                 if (!module.isEnabled || !titleOk(cs.title.string)) return@register true
-                if (event.key == GLFW.GLFW_KEY_ESCAPE || mc.options.keyInventory.matches(event)) return@register true
+                if (event.key == Keys.ESCAPE || mc.options.keyInventory.matches(event)) return@register true
                 val idx = if (useHotbar.value) mc.options.keyHotbarSlots.indexOfFirst { it.matches(event) }.takeIf { it in slots.indices }
                 else keys.indexOfFirst { it.value == event.key && event.key > 0 }.takeIf { it >= 0 }
                 if (idx == null) return@register true
@@ -373,8 +373,8 @@ object LoadoutKeybinds : Module("Loadout Keybinds", Category.Skyblock, "Keys tha
     private val blockBarrier = BooleanSetting("Block Barrier Click", true, "Clicking the barrier slot of the menu does nothing.")
     private val useHotbar = BooleanSetting("Use Hotbar Binds", false, "Use the hotbar number keys instead of the keys below.")
     private val closeAfter = BooleanSetting("Close After Use", false, "Close the menu once a loadout is equipped.")
-    private val defaults = listOf(GLFW.GLFW_KEY_1, GLFW.GLFW_KEY_2, GLFW.GLFW_KEY_3, GLFW.GLFW_KEY_4, GLFW.GLFW_KEY_5, GLFW.GLFW_KEY_6,
-        GLFW.GLFW_KEY_7, GLFW.GLFW_KEY_8, GLFW.GLFW_KEY_9, GLFW.GLFW_KEY_0, GLFW.GLFW_KEY_MINUS, GLFW.GLFW_KEY_EQUAL)
+    private val defaults = listOf(Keys.digit(1), Keys.digit(2), Keys.digit(3), Keys.digit(4), Keys.digit(5), Keys.digit(6),
+        Keys.digit(7), Keys.digit(8), Keys.digit(9), Keys.digit(0), Keys.MINUS, Keys.EQUAL)
     private val keys = defaults.mapIndexed { i, k -> KeybindSetting("Loadout Slot ${i + 1}", k, "Equips loadout ${i + 1}.").withDependency { !useHotbar.value } }
     private val TITLE = Regex("""^\(\d+/\d+\) Loadouts$""")
     private val SLOTS = listOf(14, 15, 16, 23, 24, 25, 32, 33, 34, 41, 42, 43)
@@ -400,7 +400,7 @@ object WardrobeKeybinds : Module("Wardrobe Keybinds", Category.Skyblock, "Keys t
     private val useHotbar = BooleanSetting("Use Hotbar Binds", false, "Use the hotbar number keys instead of the keys below.")
     private val preventUnequip = BooleanSetting("Prevent Unequip", true, "A key for the set you already wear does nothing.")
     private val closeAfter = BooleanSetting("Close After Use", false, "Close the menu once a set is equipped.")
-    private val keys = (0 until 9).map { KeybindSetting("Wardrobe Slot ${it + 1}", GLFW.GLFW_KEY_1 + it, "Equips armor set ${it + 1}.").withDependency { !useHotbar.value } }
+    private val keys = (0 until 9).map { KeybindSetting("Wardrobe Slot ${it + 1}", Keys.digit(1 + it), "Equips armor set ${it + 1}.").withDependency { !useHotbar.value } }
     private val TITLE = Regex("""^\(\d+/\d+\) Armor Sets$|^Wardrobe \(\d+/\d+\)$""")
     private val SLOTS = (36..44).toList()
 
