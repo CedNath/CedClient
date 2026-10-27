@@ -106,7 +106,10 @@ object EtherwarpOverlay : Module(
     private val alwaysShow = BooleanSetting("Always Show", false, "Also draw while standing (not only sneaking).")
     private val phase = BooleanSetting("See Through Walls", true, "Draw the box through walls.")
     private val okColor = ColorSetting("OK Color", Color(85, 255, 85), "A warp that works.")
-    private val farColor = ColorSetting("Far Color", Color(255, 255, 85), "A warp that works but is near the maximum range.")
+    private val style = ced.cedclient.features.settings.DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Outline", "How the box looks.")
+    private val fillOpacity = NumberSetting("Fill Opacity %", 30.0, 5.0, 100.0, 5.0, "How solid the fill is.").withDependency { style.value != "Outline" }
+    private val useFar = BooleanSetting("Use Far Color", true, "Fade the box towards the far colour as the target nears the maximum range. Off: always the OK colour.")
+    private val farColor = ColorSetting("Far Color", Color(255, 255, 85), "A warp that works but is near the maximum range.").withDependency { useFar.value }
     private val failColor = ColorSetting("Fail Color", Color(255, 85, 85), "A warp that fails.").withDependency { showFail.value }
 
     private val ITEMS = setOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END", "ETHERWARP_CONDUIT", "ETHERWARP_MERGER")
@@ -131,7 +134,7 @@ object EtherwarpOverlay : Module(
     }
 
     init {
-        addSettings(range, showFail, alwaysShow, phase, okColor, farColor, failColor)
+        addSettings(range, showFail, alwaysShow, phase, style, fillOpacity, okColor, useFar, farColor, failColor)
         net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_SOLID_FEATURES.register(
             net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterSolidFeatures { context ->
                 if (!isEnabled) return@AfterSolidFeatures
@@ -141,15 +144,22 @@ object EtherwarpOverlay : Module(
                 val k = (t.distance / range.value).coerceIn(0.0, 1.0)
                 val base = if (!t.ok) failColor.value else okColor.value
                 val far = farColor.value
-                val c = if (!t.ok) base else Color(
+                val c = if (!t.ok || !useFar.value) base else Color(
                     (base.red + (far.red - base.red) * k).toInt(), (base.green + (far.green - base.green) * k).toInt(),
                     (base.blue + (far.blue - base.blue) * k).toInt()
                 )
                 val box = net.minecraft.world.phys.AABB(t.pos).inflate(0.002).move(-cam.x, -cam.y, -cam.z)
                 val buffers = context.bufferSource()
-                val buffer = buffers.getBuffer(if (phase.value) ced.cedclient.render.pipeline.CustomRenderType.LINES_ESP else ced.cedclient.render.pipeline.CustomRenderType.LINES_DEPTH)
-                ced.cedclient.render.LineBox.draw(context.poseStack(), buffer, box, c.redFloat, c.greenFloat, c.blueFloat, 1f)
-                buffers.endBatch()
+                if (style.value != "Outline") {
+                    val fill = buffers.getBuffer(if (phase.value) ced.cedclient.render.pipeline.CustomRenderType.FILLED_ESP else ced.cedclient.render.pipeline.CustomRenderType.FILLED)
+                    ced.cedclient.render.FilledBox.draw(context.poseStack(), fill, box, c.redFloat, c.greenFloat, c.blueFloat, fillOpacity.value.toFloat() / 100f)
+                    buffers.endBatch()
+                }
+                if (style.value != "Filled") {
+                    val buffer = buffers.getBuffer(if (phase.value) ced.cedclient.render.pipeline.CustomRenderType.LINES_ESP else ced.cedclient.render.pipeline.CustomRenderType.LINES_DEPTH)
+                    ced.cedclient.render.LineBox.draw(context.poseStack(), buffer, box, c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                    buffers.endBatch()
+                }
             }
         )
     }

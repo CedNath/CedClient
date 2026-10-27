@@ -193,6 +193,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(Zoom)
         ModuleManager.register(ced.cedclient.features.impl.render.CrosshairTweaks)
         ModuleManager.register(ced.cedclient.features.impl.render.Hiders)
+        ModuleManager.register(ced.cedclient.features.impl.render.HubMap)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ModHider)
         ModuleManager.register(ced.cedclient.features.impl.render.CustomSky)
         ModuleManager.register(ced.cedclient.features.impl.misc.TooltipDates)
         ModuleManager.register(ced.cedclient.features.impl.render.OldStars)
@@ -338,6 +340,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.SnappyTappy)
             ModuleManager.register(ced.cedclient.features.impl.funqol.WitherDragons)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BlazeSolver)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.PuzzleSolvers)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)

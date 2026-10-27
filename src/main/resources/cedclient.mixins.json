@@ -88,6 +88,12 @@
     "accessor.LivingEntityRendererAccessor",
     "accessor.CustomDataAccessor",
     "accessor.MapItemSavedDataAccessor",
+    "accessor.LanguageAccessor",
+    "accessor.LanguageManagerAccessor",
+    "screen.ModHiderAnvilMenuMixin",
+    "screen.ModHiderAnvilScreenMixin",
+    "screen.ModHiderSignEditMixin",
+    "render.MapRendererHubMixin",
     "accessor.PlayerTabOverlayAccessor",
 
 
