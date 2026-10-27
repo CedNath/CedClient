@@ -1,4 +1,4 @@
-package ced.cedclient.mixin.accessor;
+package ced.cedclient.accessor;
 
 import net.minecraft.core.Holder;
 import net.minecraft.world.clock.WorldClock;

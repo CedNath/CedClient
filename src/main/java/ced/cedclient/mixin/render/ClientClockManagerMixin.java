@@ -1,6 +1,6 @@
 package ced.cedclient.mixin.render;
 
-import ced.cedclient.mixin.accessor.ClockInstanceAccess;
+import ced.cedclient.accessor.ClockInstanceAccess;
 import net.minecraft.client.ClientClockManager;
 import net.minecraft.core.Holder;
 import net.minecraft.world.clock.WorldClock;

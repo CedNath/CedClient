@@ -83,7 +83,9 @@ object NVGRenderer {
 
     fun devicePixelRatio(): Float {
         val window = Minecraft.getInstance().window
-        return if (window.screenWidth == 0) 1f else (window.width / window.screenWidth).toFloat()
+        // Rounded: a borderless fullscreen framebuffer can be a pixel narrower than the window (26.3 pads it), and
+        // the integer division this used to be then gave 0.
+        return if (window.screenWidth == 0) 1f else Math.round(window.width.toFloat() / window.screenWidth).coerceAtLeast(1).toFloat()
     }
 
     fun beginFrame(width: Float, height: Float) {

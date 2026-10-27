@@ -113,6 +113,14 @@ class CedClient : ClientModInitializer {
     }
 
     override fun onInitializeClient() {
+        if (System.getProperty("cedclient.mixinAudit") != null) {
+            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register {
+                runCatching { org.spongepowered.asm.mixin.MixinEnvironment.getCurrentEnvironment().audit() }
+                    .onFailure { println("MIXIN AUDIT FAILED: $it") }
+                println("MIXIN AUDIT DONE")
+                net.minecraft.client.Minecraft.getInstance().options.keyMappings.forEach { println("KEYMAP ${it.getName()} ${it.saveString()}") }
+            }
+        }
         println("CedClient initialized (client)")
         // First, so errors while the rest starts up are caught too.
         ced.cedclient.utils.debug.Diag.start()

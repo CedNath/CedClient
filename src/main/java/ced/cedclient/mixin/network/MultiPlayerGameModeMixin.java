@@ -62,12 +62,4 @@ public class MultiPlayerGameModeMixin {
         ItemStack stack = player.getItemInHand(hand);
         new ItemClickEvent(stack, ClickType.RIGHT_CLICK).post();
     }
-
-    // Cosmetic Blocks: the "hitting a block" sound matches what the block looks like.
-    @Redirect(method = "continueDestroyBlock", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/level/block/state/BlockState;getSoundType()Lnet/minecraft/world/level/block/SoundType;"))
-    private SoundType cedclient$cosmeticHitSound(BlockState state, BlockPos pos, Direction side) {
-        BlockState r = CosmeticHooks.effectReplacement(pos, state);
-        return r != null ? r.getSoundType() : state.getSoundType();
-    }
 }

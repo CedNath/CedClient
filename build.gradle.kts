@@ -33,6 +33,8 @@ loom {
         named("client") {
             // -Pdevauth=0 launches offline (random "Player###" name) instead of your account
             vmArg("-Ddevauth.enabled=" + (findProperty("devauth") ?: "1"))
+            // -PmixinAudit loads every mixin target at startup and logs the ones that fail to apply
+            if (findProperty("mixinAudit") != null) vmArg("-Dcedclient.mixinAudit=1")
         }
     }
 }

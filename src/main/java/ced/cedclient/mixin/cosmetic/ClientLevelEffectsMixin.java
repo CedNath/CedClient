@@ -4,6 +4,7 @@ import ced.cedclient.render.cosmetic.CosmeticHooks;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,5 +27,13 @@ public class ClientLevelEffectsMixin {
         BlockState world = level.getBlockState(pos);
         BlockState r = CosmeticHooks.effectReplacement(pos, world);
         return r != null ? r : world;
+    }
+
+    // the "hitting a block" sound matches what the block looks like.
+    @Redirect(method = "playBreakingSound", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/level/block/state/BlockState;getSoundType()Lnet/minecraft/world/level/block/SoundType;"))
+    private SoundType cedclient$cosmeticHitSound(BlockState state, BlockPos pos, BlockState stateArg) {
+        BlockState r = CosmeticHooks.effectReplacement(pos, state);
+        return r != null ? r.getSoundType() : state.getSoundType();
     }
 }

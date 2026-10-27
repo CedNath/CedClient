@@ -1,7 +1,7 @@
 package ced.cedclient.mixin.render;
 
 import ced.cedclient.features.impl.render.CustomSky;
-import ced.cedclient.mixin.accessor.ClockInstanceAccess;
+import ced.cedclient.accessor.ClockInstanceAccess;
 import net.minecraft.core.Holder;
 import net.minecraft.world.clock.WorldClock;
 import org.spongepowered.asm.mixin.Mixin;
