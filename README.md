@@ -158,6 +158,8 @@ src/main
 ## Credits
 
 - Architecture and several feature ideas are inspired by [SkyHanni](https://github.com/hannibal002/SkyHanni). No code is copied from it.
+- The puzzle solvers, Hub Map, Mod Hider and several dungeon / inventory features are ported from [NoammAddons](https://github.com/Noamm9/NoammAddons) by Noamm9 (CC0).
+- The Terminal Solver, terminal simulator and enchant tiers follow [Athen](https://modrinth.com/mod/athen) by skies-starred ([BSD 3-Clause](https://github.com/skies-starred/Athen/blob/HEAD/LICENSE); the notice ships in the jar as `assets/cedclient/THIRD_PARTY_NOTICES.txt`).
 - Built on [Fabric](https://fabricmc.net/), [Fabric API](https://github.com/FabricMC/fabric) and [Fabric Language Kotlin](https://github.com/FabricMC/fabric-language-kotlin).
 
 ## License
