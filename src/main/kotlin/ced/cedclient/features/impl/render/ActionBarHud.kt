@@ -37,7 +37,7 @@ object ActionBarHud : Module(
     /** Shows [text] for [ms]; falls back to the vanilla action bar while this module is off. */
     @JvmStatic
     fun notify(text: Component, ms: Long = 2000) {
-        if (!isEnabled) return mc.gui.setOverlayMessage(text, false)
+        if (!isEnabled) return mc.gui.hud.setOverlayMessage(text, false)
         Notices.text = text
         Notices.until = System.currentTimeMillis() + ms
     }

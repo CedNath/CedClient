@@ -1,5 +1,7 @@
 package ced.cedclient.ui.search
 
+import ced.cedclient.utils.textOf
+import ced.cedclient.utils.signSlot
 import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.SearchOverlay
 import ced.cedclient.render.nvg.Gradient
@@ -306,8 +308,8 @@ class SearchOverlayScreen(
 
     override fun removed() {
         val (first, second) = splitLines(query)
-        val lines = sign.getText(front).getMessages(false)
-        mc.connection?.send(ServerboundSignUpdatePacket(sign.blockPos, front, first, second, lines[2].string, lines[3].string))
+        val lines = sign.textOf(front).getMessages(false)
+        mc.connection?.send(ServerboundSignUpdatePacket(sign.blockPos, listOf(first, second, lines[2].string, lines[3].string), signSlot(front)))
     }
 
     override fun isPauseScreen(): Boolean = false

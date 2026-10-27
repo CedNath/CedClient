@@ -475,7 +475,7 @@ object DailyReset : Module(
         // local-only notices (e.g. "Please select a Realm"), so it never
         // touches the server and is never mistaken for a real chat/command
         // line by anything else listening on ChatMessageEvent.
-        val chat = Minecraft.getInstance().gui?.hud.chat ?: return
+        val chat = Minecraft.getInstance().gui?.hud?.chat ?: return
         val message = Component.literal("[CedClient] ")
             .withStyle(Style.EMPTY.withColor(PREFIX_COLOR).withBold(true))
             .append(

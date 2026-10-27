@@ -227,7 +227,6 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
                 context.submitNodeCollector().submitNameTag(poseStack, Vec3.ZERO, 0, label, true, 0xF000F0, context.levelState().cameraRenderState)
                 poseStack.popPose()
             }
-            bufferSource.endBatch()
         })
     }
 

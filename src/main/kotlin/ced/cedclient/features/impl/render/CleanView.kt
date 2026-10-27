@@ -44,7 +44,7 @@ object CleanView : Module(
     @JvmStatic
     fun hideParticle(x: Double, y: Double, z: Double): Boolean {
         if (!particles.value || !active()) return false
-        val cam = mc.gameRenderer.mainCamera.position()
+        val cam = mc.gameRenderer.mainCamera().position()
         val dx = x - cam.x
         val dy = y - cam.y
         val dz = z - cam.z

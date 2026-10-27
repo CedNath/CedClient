@@ -1,5 +1,7 @@
 package ced.cedclient.ui.search
 
+import ced.cedclient.utils.textOf
+import ced.cedclient.utils.signSlot
 import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.misc.AuctionPriceInput
 import ced.cedclient.render.nvg.NVGRenderer
@@ -168,8 +170,8 @@ class PriceInputScreen(
     }
 
     override fun removed() {
-        val lines = sign.getText(front).getMessages(false)
-        mc.connection?.send(ServerboundSignUpdatePacket(sign.blockPos, front, value.take(MAX_INPUT), lines[1].string, lines[2].string, lines[3].string))
+        val lines = sign.textOf(front).getMessages(false)
+        mc.connection?.send(ServerboundSignUpdatePacket(sign.blockPos, listOf(value.take(MAX_INPUT), lines[1].string, lines[2].string, lines[3].string), signSlot(front)))
     }
 
     override fun isPauseScreen(): Boolean = false

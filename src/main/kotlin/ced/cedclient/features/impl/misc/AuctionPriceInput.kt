@@ -1,5 +1,7 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.utils.textOf
+import ced.cedclient.utils.signSlot
 import ced.cedclient.utils.Keys
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
@@ -54,7 +56,7 @@ object AuctionPriceInput : Module(
     @JvmStatic
     fun tryOpen(sign: SignBlockEntity, front: Boolean): Boolean {
         if (!isEnabled) return false
-        val lines = sign.getText(front).getMessages(false).map { it.string }
+        val lines = sign.textOf(front).getMessages(false).map { it.string }
         if (!lines[1].startsWith("^^^")) return false
         // Auction House only. Hypixel closes the menu before the sign opens, so use what the last AH menu showed.
         if (System.currentTimeMillis() - lastAuctionAt > 3000) return false

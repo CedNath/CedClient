@@ -1,5 +1,7 @@
 package ced.cedclient.features.impl.misc
 
+import ced.cedclient.utils.textOf
+import ced.cedclient.utils.signSlot
 import ced.cedclient.config.ConfigManager
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -106,7 +108,7 @@ object SearchOverlay : Module(
     fun tryOpen(sign: SignBlockEntity, front: Boolean): Boolean {
         if (!isEnabled) return false
         if (repoStamp != loadedStamp) startLoad()
-        if (!sign.getText(front).getMessage(3, false).string.equals("enter query", ignoreCase = true)) return false
+        if (!sign.textOf(front).getMessages(false)[3].string.equals("enter query", ignoreCase = true)) return false
         val title = mc.gui.screen()?.title?.string?.lowercase() ?: return false
         val location = when {
             "bazaar" in title -> Location.BAZAAR

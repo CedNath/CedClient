@@ -162,7 +162,7 @@ object ScreenshotTweaks : Module(
     }
 
     private fun announceCopied() {
-        val chat = Minecraft.getInstance().gui?.hud.chat ?: return
+        val chat = Minecraft.getInstance().gui?.hud?.chat ?: return
         val message = Component.literal("[CedClient] ")
             .withStyle(Style.EMPTY.withColor(PREFIX_COLOR).withBold(true))
             .append(Component.literal("\u2714 ").withStyle(Style.EMPTY.withColor(CHECK_COLOR).withBold(true)))

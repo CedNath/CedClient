@@ -101,7 +101,7 @@ object SecretHitboxes : Module(
     private fun remeshDevice() {
         if (mc.level == null) return
         try {
-            mc.levelRenderer.setSectionDirty(60 shr 4, 134 shr 4, 142 shr 4)
+            mc.levelExtractor.setSectionDirty(60 shr 4, 134 shr 4, 142 shr 4)
         } catch (_: Exception) {
         }
     }

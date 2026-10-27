@@ -31,7 +31,7 @@ object MouseLookDebugger {
 
     private val toggleKey = KeyMapping(
         "key.cedclient.mouse_debug_toggle",
-        InputConstants.Type.KEYSYM,
+        InputConstants.Type.KEYBOARD,
         Keys.UNKNOWN, // unbound by default, bind it in Options > Controls
         KeyMapping.Category.MISC
     )

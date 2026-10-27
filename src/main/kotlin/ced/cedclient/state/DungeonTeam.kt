@@ -16,7 +16,7 @@ object DungeonTeam {
     fun members(): List<Member> {
         val self = Minecraft.getInstance().player?.gameProfile?.name
         // onlinePlayers has no useful order: the map icons follow the drawn tab order (party order).
-        val drawn = (Minecraft.getInstance().gui.tabList as ced.cedclient.mixin.accessor.PlayerTabOverlayAccessor).`ced$playerInfos`()
+        val drawn = (Minecraft.getInstance().gui.hud.tabList as ced.cedclient.mixin.accessor.PlayerTabOverlayAccessor).`ced$playerInfos`()
             .withIndex().associate { (i, info) -> info.profile.id to i }
         return TabListCache.entries.sortedBy { drawn[it.info.profile.id] ?: Int.MAX_VALUE }.mapNotNull { e ->
             val m = TAB_ROW.find(e.stripped.trim()) ?: return@mapNotNull null

@@ -20,8 +20,13 @@ object OldStars : Module(
     Category.Render,
     "Reverts Hypixel star item names to the old colored-star layout, with master stars before normal stars."
 ) {
-    private val colors = ChatFormatting.entries.filter { it.isColor }
-        .associateBy { it.getName().split('_').joinToString(" ") { w -> w.replaceFirstChar(Char::uppercase) } }
+    private val colors = linkedMapOf(
+        "Black" to TextColor.BLACK, "Dark Blue" to TextColor.DARK_BLUE, "Dark Green" to TextColor.DARK_GREEN,
+        "Dark Aqua" to TextColor.DARK_AQUA, "Dark Red" to TextColor.DARK_RED, "Dark Purple" to TextColor.DARK_PURPLE,
+        "Gold" to TextColor.GOLD, "Gray" to TextColor.GRAY, "Dark Gray" to TextColor.DARK_GRAY, "Blue" to TextColor.BLUE,
+        "Green" to TextColor.GREEN, "Aqua" to TextColor.AQUA, "Red" to TextColor.RED, "Light Purple" to TextColor.LIGHT_PURPLE,
+        "Yellow" to TextColor.YELLOW, "White" to TextColor.WHITE
+    )
     private val names = colors.keys.toList()
 
     private val normalColor = DropdownSetting("Normal Star Color", names, "Gold", "Color of the first five stars.")
@@ -35,7 +40,7 @@ object OldStars : Module(
     private const val STAR = '✪'
     private const val MASTER = "➊➋➌➍➎"
 
-    private fun color(name: String) = TextColor.fromLegacyFormat(colors[name]!!)
+    private fun color(name: String) = colors[name]!!
 
     private class Part(val text: String, val style: Style)
 

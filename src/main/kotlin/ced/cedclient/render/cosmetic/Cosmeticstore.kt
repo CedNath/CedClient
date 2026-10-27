@@ -614,7 +614,7 @@ object CosmeticStore {
     /** Dirty the sections touching one edited block right now (an edit should feel instant). */
     fun markImmediate(x: Int, y: Int, z: Int) {
         if (mc.level == null) return
-        val renderer = mc.levelRenderer
+        val renderer = mc.levelExtractor
         val sections = HashSet<Long>()
         sectionsAround(x, y, z, sections)
         try {
@@ -641,7 +641,7 @@ object CosmeticStore {
             pendingSet.clear()
             return
         }
-        val renderer = mc.levelRenderer
+        val renderer = mc.levelExtractor
         try {
             var n = 0
             while (n < 12) {

@@ -8,16 +8,13 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.BufferBuilder
 import com.mojang.blaze3d.vertex.ByteBufferBuilder
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
-import com.mojang.renderpearl.api.vertex.VertexFormat
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.texture.DynamicTexture
-import org.joml.Matrix4f
-import org.joml.Vector3f
-import org.joml.Vector4f
 import java.io.File
 import java.util.OptionalDouble
-import java.util.OptionalInt
+import java.util.Optional
 import java.util.function.Supplier
 
 /**
@@ -66,7 +63,7 @@ object SkyBox {
     private fun build(w: Float, h: Float): GpuBuffer {
         val fmt = DefaultVertexFormat.POSITION_TEX_COLOR
         ByteBufferBuilder.exactlySized(24 * fmt.vertexSize).use { bytes ->
-            val b = BufferBuilder(bytes, VertexFormat.Mode.QUADS, fmt)
+            val b = BufferBuilder(bytes, PrimitiveTopology.QUADS, fmt)
             val r = 100f
             // face(column, row, top-left, top-right, bottom-right, bottom-left), corners as seen from inside the cube
             fun face(col: Int, row: Int, tl: FloatArray, tr: FloatArray, br: FloatArray, bl: FloatArray) {
@@ -93,20 +90,20 @@ object SkyBox {
         if (loaded != name) load(name)
         val tex = texture ?: return
         val buf = buffer ?: return
-        val quads = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS)
+        val quads = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS)
         val indices = quads.getBuffer(36)
-        val target = Minecraft.getInstance().mainRenderTarget
-        val transform = RenderSystem.getDynamicUniforms().writeTransform(RenderSystem.getModelViewMatrix(), Vector4f(1f, 1f, 1f, 1f), Vector3f(), Matrix4f())
+        val target = Minecraft.getInstance().gameRenderer.mainRenderTarget()
+        val transform = RenderSystem.getDynamicUniforms().writeTransform(RenderSystem.getModelViewMatrixCopy())
         RenderSystem.getDevice().createCommandEncoder()
-            .createRenderPass(Supplier { "CedClient skybox" }, target.colorTextureView!!, OptionalInt.empty(), target.depthTextureView, OptionalDouble.empty())
+            .createRenderPass(Supplier { "CedClient skybox" }, target.colorTextureView!!, Optional.empty(), target.depthTextureView, OptionalDouble.empty())
             .use { pass ->
-                pass.setPipeline(RenderPipelines.END_SKY)
+                pass.setPipeline(RenderSystem.getCompiledPipeline(RenderPipelines.END_SKY))
                 RenderSystem.bindDefaultUniforms(pass)
                 pass.setUniform("DynamicTransforms", transform)
-                pass.bindTexture("Sampler0", tex.textureView, tex.sampler)
-                pass.setVertexBuffer(0, buf)
+                pass.setUniform("Sampler0", tex.textureView, tex.sampler)
+                pass.setVertexBuffer(0, buf.slice())
                 pass.setIndexBuffer(indices, quads.type())
-                pass.drawIndexed(0, 0, 36, 1)
+                pass.drawIndexed(36, 1, 0, 0, 0)
             }
     }
 }

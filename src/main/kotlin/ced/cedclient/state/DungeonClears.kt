@@ -109,7 +109,7 @@ object DungeonClears {
     }
 
     private fun print() {
-        val chat = Minecraft.getInstance().gui?.hud.chat ?: return
+        val chat = Minecraft.getInstance().gui?.hud?.chat ?: return
         val shown = stats.values.filter { it.solo.isNotEmpty() || it.stacked.isNotEmpty() || it.deaths.isNotEmpty() }
         if (shown.isEmpty()) return
         chat.addClientSystemMessage(ChatPrefix.msgFor("Dungeon Clears", "§6Clear breakdown"))

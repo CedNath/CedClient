@@ -37,7 +37,7 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
 
     private val buttons = listOf(
         Btn({ updateLabel() }, { progress == -2f }) { onUpdate() },
-        Btn({ "Open GitHub page" }, { true }) { Util.getPlatform().openUri(release.pageUrl) },
+        Btn({ "Open GitHub page" }, { true }) { com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(release.pageUrl)) },
         Btn({ "Remind me later" }, { true }) { onClose() },
         Btn({ "Skip this version" }, { true }) { UpdateChecker.skip(release.version); onClose() },
     )
@@ -58,7 +58,7 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
     private fun onUpdate() {
         // No jar to replace (dev environment) or no matching download: the page is the best we can do.
         if (!UpdateChecker.canInstall) {
-            Util.getPlatform().openUri(release.pageUrl)
+            com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(release.pageUrl))
             return
         }
         UpdateChecker.handled = true

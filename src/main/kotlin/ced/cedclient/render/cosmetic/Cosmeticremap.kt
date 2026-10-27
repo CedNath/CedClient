@@ -82,7 +82,7 @@ object CosmeticRemap {
         resolved = map
         if (refreshWorld) {
             val mc = Minecraft.getInstance()
-            if (mc.level != null) mc.levelRenderer.allChanged()
+            if (mc.level != null) mc.levelExtractor.allChanged()
         }
     }
 

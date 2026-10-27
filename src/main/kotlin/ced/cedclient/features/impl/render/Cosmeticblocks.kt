@@ -172,7 +172,7 @@ object CosmeticBlocks : Module(
         CosmeticRemap.load()
         CosmeticStore.setEnabled(true)
         // Also called while the config loads at startup, before there is a level renderer.
-        if (mc.level != null) mc.levelRenderer.allChanged()
+        if (mc.level != null) mc.levelExtractor.allChanged()
     }
 
     override fun onDisable() {
@@ -181,7 +181,7 @@ object CosmeticBlocks : Module(
         if (CosmeticTools.rulerActive) CosmeticTools.toggleRuler()
         CosmeticStore.setEnabled(false)
         CosmeticConfig.enabled = false
-        if (mc.level != null) mc.levelRenderer.allChanged()
+        if (mc.level != null) mc.levelExtractor.allChanged()
     }
 
     // ------------------------------------------------------------------
@@ -225,7 +225,7 @@ object CosmeticBlocks : Module(
         }
         if (renderChangeDelay > 0 && --renderChangeDelay == 0 && mc.level != null) {
             CosmeticStore.clearKeepSizeCaches()
-            mc.levelRenderer.allChanged()
+            mc.levelExtractor.allChanged()
         }
 
         if (pendingSelect) {
@@ -767,7 +767,7 @@ object CosmeticBlocks : Module(
             .then(lit("replace").executes(run { feedback(it, pasteConfig(replace = true)) })))
         .then(lit("folder").executes(run {
             CosmeticBackup.dir.mkdirs()
-            net.minecraft.util.Util.getPlatform().openFile(CosmeticBackup.dir)
+            com.mojang.blaze3d.Blaze3D.openPath(CosmeticBackup.dir.toPath())
             feedback(it, "Opened cosmetic_exports")
         }))
 

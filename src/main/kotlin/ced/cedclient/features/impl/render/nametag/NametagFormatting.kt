@@ -31,13 +31,13 @@ import net.minecraft.network.chat.TextColor
 object NametagFormatting {
 
     private val LEGACY_COLORS: Map<Char, TextColor> = mapOf(
-        '0' to ChatFormatting.BLACK, '1' to ChatFormatting.DARK_BLUE, '2' to ChatFormatting.DARK_GREEN,
-        '3' to ChatFormatting.DARK_AQUA, '4' to ChatFormatting.DARK_RED, '5' to ChatFormatting.DARK_PURPLE,
-        '6' to ChatFormatting.GOLD, '7' to ChatFormatting.GRAY, '8' to ChatFormatting.DARK_GRAY,
-        '9' to ChatFormatting.BLUE, 'a' to ChatFormatting.GREEN, 'b' to ChatFormatting.AQUA,
-        'c' to ChatFormatting.RED, 'd' to ChatFormatting.LIGHT_PURPLE, 'e' to ChatFormatting.YELLOW,
-        'f' to ChatFormatting.WHITE
-    ).mapValues { (_, formatting) -> TextColor.fromRgb(formatting.color ?: 0xFFFFFF) }
+        '0' to TextColor.BLACK, '1' to TextColor.DARK_BLUE, '2' to TextColor.DARK_GREEN,
+        '3' to TextColor.DARK_AQUA, '4' to TextColor.DARK_RED, '5' to TextColor.DARK_PURPLE,
+        '6' to TextColor.GOLD, '7' to TextColor.GRAY, '8' to TextColor.DARK_GRAY,
+        '9' to TextColor.BLUE, 'a' to TextColor.GREEN, 'b' to TextColor.AQUA,
+        'c' to TextColor.RED, 'd' to TextColor.LIGHT_PURPLE, 'e' to TextColor.YELLOW,
+        'f' to TextColor.WHITE
+    )
 
     private data class RunStyle(
         var color: TextColor? = null,
