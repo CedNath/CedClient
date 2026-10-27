@@ -6,6 +6,7 @@ import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
+import ced.cedclient.features.settings.Setting.Companion.withDependency
 import ced.cedclient.features.settings.TextSetting
 import ced.cedclient.render.pipeline.CustomRenderType
 import ced.cedclient.utils.Debug
@@ -53,12 +54,16 @@ object BeachBallHelper : Module(
     private val mc = Minecraft.getInstance()
 
     private val autoWalk = BooleanSetting("Auto Walk", true, "Walk under the landing spot, crouched (you stand up to run when it is far).")
+    private val followBall = BooleanSetting("Walk To Ball", true, "Walk to where the ball is right now (smooth, like SkyHanni's marker). Off: walk to the predicted landing spot.")
+    private val steer = BooleanSetting("Steer To Start", true, "Stands a little off-centre so the ball bounces back toward where it was thrown (stand left of the spot and it goes right), keeping it away from walls and edges.")
+    private val steerStrength = NumberSetting("Steer Strength", 0.07, 0.0, 1.0, 0.01, "Blocks of off-centre per block the spot is from the start.").withDependency { steer.value }
+    private val steerMax = NumberSetting("Steer Max Offset (blocks)", 0.3, 0.1, 1.5, 0.05, "Never stand further than this from the centre; much more and the hit stops counting.").withDependency { steer.value }
     private val farDistance = NumberSetting("Run Distance (blocks)", 6.0, 2.0, 30.0, 0.5, "Further than this you stand up and run; otherwise you stay crouched.")
     private val missAt = NumberSetting("Miss At Combo", 40.0, 1.0, 200.0, 1.0, "Walk away from the landing spot once this many bounces are reached.")
     private val awayDistance = NumberSetting("Walk Away (blocks)", 3.0, 1.0, 10.0, 0.5)
     private val detectRange = NumberSetting("Detect Range (blocks)", 40.0, 5.0, 100.0, 1.0)
-    private val maxDrift = NumberSetting("Max Prediction Drift (blocks)", 5.0, 1.0, 20.0, 0.5, "The landing spot is never further than this from where the ball is. Lower = calmer, but slower to follow a ball that really travels.")
     private val showMarker = BooleanSetting("Landing Marker", true)
+    private val showPath = BooleanSetting("Path Line", true, "The ball's arc since it last passed you (dark) and the predicted arc (bright).")
     private val popup = BooleanSetting("Popup When Ball Ends", true)
     private val throwNext = BooleanSetting("Throw Next Ball", false, "Right-click a Bouncy Beach Ball from the hotbar after one ends.")
     private val texture = TextSetting("Ball Texture", BALL_TEXTURE, "Head texture of the ball (base64 value or a part of it). Empty: the built-in one.", 400)
@@ -83,8 +88,6 @@ object BeachBallHelper : Module(
     private const val BOUNCE_MIN_MOVE = 0.3
     private const val BOUNCE_MIN_GAP_MS = 800L
     private const val MAX_PATH_TICKS = 300
-    private const val TARGET_EASE = 0.3
-    private const val MAX_TARGET_STEP = 0.4
 
     // Walking: players on Hypixel often have a lot of speed, so you coast and overshoot unless this is allowed for.
     private const val COAST_TICKS = 4.0
@@ -109,6 +112,9 @@ object BeachBallHelper : Module(
     /** Where the ball is expected to come down (x, z matter), eased so it doesn't step. */
     private var target: Vec3? = null
 
+    /** Where the ball was when you threw it: the steering aims the ball back here. */
+    private var home: Vec3? = null
+
     /** Ball head entity id -> (when first seen, distance from you then). */
     private val seen = HashMap<Int, Pair<Long, Float>>()
     private val decoded = HashMap<String, String>()
@@ -132,7 +138,7 @@ object BeachBallHelper : Module(
     init {
         listOf(lookSmoothMs, awayDistance, logHeads).forEach { it.advanced = true }
         addSettings(
-            autoWalk, farDistance, missAt, awayDistance, detectRange, maxDrift, showMarker, popup, throwNext,
+            autoWalk, followBall, steer, steerStrength, steerMax, farDistance, missAt, awayDistance, detectRange, showMarker, showPath, popup, throwNext,
             texture, lookSmoothMs, logHeads
         )
 
@@ -167,21 +173,32 @@ object BeachBallHelper : Module(
         }
 
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!isEnabled || !showMarker.value) return@AfterSolidFeatures
-            val land = target ?: return@AfterSolidFeatures
+            if (!isEnabled || ball == null) return@AfterSolidFeatures
             val player = mc.player ?: return@AfterSolidFeatures
             val poseStack = context.poseStack()
             val cam = context.gameRenderer().mainCamera.position()
             val bufferSource = context.bufferSource()
 
+            if (showPath.value) {
+                val buf = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
+                drawPath(poseStack, buf, data.subList(startIndex, data.size).toList(), cam, 0.1f, 0.5f, 0.1f)
+                drawPath(poseStack, buf, predictedPath, cam, 0.3f, 1f, 0.3f)
+                bufferSource.endBatch()
+            }
+            // Like SkyHanni: the marker rides the ball's own smooth movement (not the stepping prediction), at your height.
+            val pt = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
+            val land = ball?.getPosition(pt)
+            if (!showMarker.value || land == null) return@AfterSolidFeatures
+
             // Like SkyHanni: green right under it, orange close, red otherwise.
-            val off = hypot(land.x - player.x, land.z - player.z)
+            val me = player.getPosition(pt)
+            val off = hypot(land.x - me.x, land.z - me.z)
             val (r, g, b) = when {
                 off < 0.3 -> Triple(0.2f, 1f, 0.2f)
                 off < 0.9 -> Triple(1f, 0.65f, 0.1f)
                 else -> Triple(1f, 0.2f, 0.2f)
             }
-            val y = player.y
+            val y = me.y
             val box = AABB(land.x - 0.3, y, land.z - 0.3, land.x + 0.3, y + 0.05, land.z + 0.3).move(-cam.x, -cam.y, -cam.z)
             drawBox(poseStack, bufferSource.getBuffer(CustomRenderType.LINES_ESP), box, r, g, b, 1f)
 
@@ -241,15 +258,20 @@ object BeachBallHelper : Module(
         lastDy = pos.y - minY
         if (idleTicks > IDLE_END_TICKS) return endBall("sat still")
 
-        // The spot can't be further from the ball than it can really drift, and it can't jump: no sudden sprints.
-        var end = predictedPath.lastOrNull() ?: pos
-        val off = drift(end, pos)
-        if (off > maxDrift.value) end = Vec3(pos.x + (end.x - pos.x) * maxDrift.value / off, end.y, pos.z + (end.z - pos.z) * maxDrift.value / off)
-        target = target?.let { old ->
-            val step = end.subtract(old).scale(TARGET_EASE)
-            old.add(if (step.horizontalDistance() > MAX_TARGET_STEP) step.scale(MAX_TARGET_STEP / step.horizontalDistance()) else step)
-        } ?: end
+        val spot = if (followBall.value) pos else predictedPath.lastOrNull() ?: pos
+        target = if (steer.value) steered(spot) else spot
         walk(player)
+    }
+
+    /** The ball is pushed away from the side you hit it on: stand opposite the start so it drifts back there. */
+    private fun steered(spot: Vec3): Vec3 {
+        val home = home ?: return spot
+        val dx = home.x - spot.x
+        val dz = home.z - spot.z
+        val dist = hypot(dx, dz)
+        if (dist < 0.01) return spot
+        val mag = minOf(steerMax.value, dist * steerStrength.value)
+        return Vec3(spot.x - dx / dist * mag, spot.y, spot.z - dz / dist * mag)
     }
 
     /** The server shows the bounce count in the action bar: that is the real count, so it replaces our own while it shows. */
@@ -323,14 +345,9 @@ object BeachBallHelper : Module(
     private fun predict(): List<Vec3> {
         val cur = data.lastIndex
         val present = cur - startIndex
-        val inRange = models.filter { it.minSamples <= present }
+        val fits = models.filter { it.minSamples <= present }
             .mapNotNull { m -> fit(m, cur)?.let { m to it } }
             .filter { (_, path) -> path.last().y in (minY - 1)..(minY + 1) }
-        // A fit that ends far from where the ball is now is a bad extrapolation, not a real landing: ignore it.
-        val fits = inRange.filter { (_, path) -> drift(path.last(), data.last()) <= maxDrift.value }
-        if (inRange.isNotEmpty() && fits.size < inRange.size) {
-            Debug.line("BeachBall", "Ignored predictions ${inRange.joinToString { "%.1f".format(drift(it.second.last(), data.last())) }}m from the ball (max ${maxDrift.value})")
-        }
         if (fits.isEmpty()) return listOf(data.last())
 
         val total = fits.sumOf { it.first.weight }
@@ -341,8 +358,6 @@ object BeachBallHelper : Module(
             (l.x - ax) * (l.x - ax) + (l.z - az) * (l.z - az)
         }.second
     }
-
-    private fun drift(a: Vec3, b: Vec3) = hypot(a.x - b.x, a.z - b.z)
 
     /** The path [m] expects from now until the ball is back down at the bounce height. */
     private fun fit(m: Model, cur: Int): List<Vec3>? {
@@ -428,6 +443,7 @@ object BeachBallHelper : Module(
         sincePredict = 0
         rising = true
         lastDirPos = b.position()
+        home = b.position()
         lastBounceMs = 0L
         combo = 0
         idleTicks = 0
@@ -458,6 +474,7 @@ object BeachBallHelper : Module(
         data.clear()
         predictedPath = emptyList()
         target = null
+        home = null
         combo = 0
         look = null
         lastFrameNanos = 0L
@@ -533,6 +550,10 @@ object BeachBallHelper : Module(
             Debug.line("BeachBall", "${e.type} #${e.id} ${"%.1f".format(player.distanceTo(e))}m y=${"%.2f".format(e.y)}" +
                     (head?.let { " head=${it.hoverName.string} tex=${(e as ArmorStand).getWornSkullTexture()}" } ?: ""))
         }
+    }
+
+    private fun drawPath(poseStack: PoseStack, buf: VertexConsumer, path: List<Vec3>, cam: Vec3, r: Float, g: Float, b: Float) {
+        for (i in 1 until path.size) edge(poseStack, buf, path[i - 1].subtract(cam), path[i].subtract(cam), r, g, b, 1f)
     }
 
     private fun drawBox(poseStack: PoseStack, buf: VertexConsumer, b: AABB, r: Float, g: Float, bl: Float, a: Float) {
