@@ -11,6 +11,7 @@ import ced.cedclient.state.DungeonState
 import ced.cedclient.state.DungeonState.DungeonClass
 import ced.cedclient.state.DungeonTeam
 import ced.cedclient.utils.Color
+import ced.cedclient.utils.skyblockId
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
 
@@ -135,7 +136,8 @@ object MaskTimers : RowHud("Mask Timers", "Cooldowns of Bonzo's Mask, Spirit Mas
     private val showReady = BooleanSetting("Show Ready Masks", false, "Keep masks that are ready in the list.")
     private val chatMessage = BooleanSetting("Proc Message", false, "A message in chat when a mask saves you, with the cooldown.")
 
-    private val BONZO = Regex("""Your (?:⚚ )?Bonzo's Mask saved your life!""")
+    private val BONZO = Regex("""Your (?:.+ )?Bonzo's Mask saved your life!""")
+    private val COOLDOWN_LINE = Regex("""^Cooldown: ([\d.]+)s$""")
     private val SPIRIT = Regex("""Second Wind Activated! Your Spirit Mask saved your life!""")
     private val PHOENIX = Regex("""Your Phoenix Pet saved you from certain death!""")
 
@@ -161,12 +163,26 @@ object MaskTimers : RowHud("Mask Timers", "Cooldowns of Bonzo's Mask, Spirit Mas
         Triple("Bonzo", "92.4s", bonzo.color), Triple("Spirit", "3.1s", 0xFF55FF55.toInt()), Triple("Phoenix", "Ready", 0xFF55FF55.toInt())
     )
 
+    /** The cooldown printed on the worn helmet ("Cooldown: 150s", it shrinks with upgrades), else the mask's default. */
+    private fun cooldownOf(mask: Mask): Long {
+        val helmet = mc.player?.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD) ?: return mask.cooldownMs
+        val id = helmet.skyblockId ?: return mask.cooldownMs
+        val wanted = when (mask) { bonzo -> "BONZO_MASK"; spirit -> "SPIRIT_MASK"; else -> return mask.cooldownMs }
+        if (!id.contains(wanted)) return mask.cooldownMs
+        val lore = helmet.get(net.minecraft.core.component.DataComponents.LORE)?.lines() ?: return mask.cooldownMs
+        for (line in lore) {
+            val m = COOLDOWN_LINE.find(line.string.trim()) ?: continue
+            return (m.groupValues[1].toDouble() * 1000).toLong()
+        }
+        return mask.cooldownMs
+    }
+
     private fun proc(mask: Mask) {
         if (!active()) return
-        mask.readyAt = System.currentTimeMillis() + mask.cooldownMs
+        mask.readyAt = System.currentTimeMillis() + cooldownOf(mask)
         mask.alerted = false
         if (chatMessage.value) mc.player?.sendSystemMessage(
-            net.minecraft.network.chat.Component.literal("§b${mask.label} §7saved you, ready in ${mask.cooldownMs / 1000}s")
+            net.minecraft.network.chat.Component.literal("§b${mask.label} §7saved you, ready in ${cooldownOf(mask) / 1000}s")
         )
     }
 
@@ -193,59 +209,72 @@ object MaskTimers : RowHud("Mask Timers", "Cooldowns of Bonzo's Mask, Spirit Mas
 }
 
 /**
- * Dungeon blessings found so far, from the "DUNGEON BUFF!" chat lines. Unique: levels found by several players add up
- * the way the game stacks them, it names who found it last, and the list resets with every new world.
+ * The dungeon blessings you have, read from the tab list footer ("Blessing of Power XIV"), like the game shows them.
+ * Unique: a dot bar next to the level (one dot per 3 levels), an optional colour that follows the level (dim at low,
+ * bright at high), and blessings you do not have are hidden instead of showing 0.
  */
-object BlessingDisplay : RowHud("Blessing Display", "The dungeon blessings you have found this run.", "blessing_display", 3, 260) {
-    private val LINE = Regex("""DUNGEON BUFF! (\w{1,16}) found a Blessing of (\w+) ([IVX]+)!""")
-    private val order = listOf("Power", "Time", "Wisdom", "Life", "Stone")
+object BlessingDisplay : RowHud("Blessing Display", "The dungeon blessings you have, from the tab list.", "blessing_display", 3, 260) {
+    private val patterns = linkedMapOf(
+        "Power" to Regex("Blessing of Power (X{0,3}(?:IX|IV|V?I{0,3}))"),
+        "Time" to Regex("Blessing of Time (V)"),
+        "Wisdom" to Regex("Blessing of Wisdom (X{0,3}(?:IX|IV|V?I{0,3}))"),
+        "Life" to Regex("Blessing of Life (X{0,3}(?:IX|IV|V?I{0,3}))"),
+        "Stone" to Regex("Blessing of Stone (X{0,3}(?:IX|IV|V?I{0,3}))")
+    )
     private val colors = mapOf(
         "Power" to 0xFFFF5555.toInt(), "Time" to 0xFF55FFFF.toInt(), "Wisdom" to 0xFF5555FF.toInt(),
         "Life" to 0xFFFF55FF.toInt(), "Stone" to 0xFFAAAAAA.toInt()
     )
-
-    private class Found(var level: Int, var by: String)
-
-    private val found = LinkedHashMap<String, Found>()
-    private var world: Any? = null
 
     private val power = BooleanSetting("Power", true, "Power blessing.")
     private val time = BooleanSetting("Time", true, "Time blessing.")
     private val wisdom = BooleanSetting("Wisdom", false, "Wisdom blessing.")
     private val life = BooleanSetting("Life", false, "Life blessing.")
     private val stone = BooleanSetting("Stone", false, "Stone blessing.")
-    private val showBy = BooleanSetting("Show Finder", true, "Who found it.")
+    private val dots = BooleanSetting("Level Dots", true, "A small dot bar next to the level (one dot per 3 levels).")
+    private val byLevel = BooleanSetting("Dim Low Levels", true, "Low levels are drawn dimmer than high ones.")
     private val shown = mapOf("Power" to power, "Time" to time, "Wisdom" to wisdom, "Life" to life, "Stone" to stone)
+
+    private val levels = LinkedHashMap<String, Int>()
+    private var readAt = 0L
+
+    private fun read() {
+        val now = System.currentTimeMillis()
+        if (now - readAt < 500) return
+        readAt = now
+        levels.clear()
+        val footer = (Minecraft.getInstance().gui.tabList as ced.cedclient.mixin.accessor.PlayerTabOverlayAccessor).`ced$getFooter`()?.string ?: return
+        for ((name, rx) in patterns) {
+            val m = rx.find(footer) ?: continue
+            val level = roman(m.groupValues[1])
+            if (level > 0) levels[name] = level
+        }
+    }
+
+    private fun dim(color: Int, level: Int): Int {
+        if (!byLevel.value) return color
+        val k = (0.55f + 0.45f * (level / 20f).coerceAtMost(1f))
+        val r = ((color shr 16 and 255) * k).toInt(); val g = ((color shr 8 and 255) * k).toInt(); val b = ((color and 255) * k).toInt()
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+    }
 
     override fun rows(): List<Triple<String, String, Int>>? {
         if (!isEnabled || !DungeonState.inDungeon) return null
-        val out = order.filter { shown[it]?.value == true }.mapNotNull { n ->
-            val f = found[n] ?: return@mapNotNull null
-            Triple("$n +${f.level}", if (showBy.value) f.by else "", colors[n] ?: 0xFFFFFFFF.toInt())
+        read()
+        val out = patterns.keys.filter { shown[it]?.value == true }.mapNotNull { n ->
+            val level = levels[n] ?: return@mapNotNull null
+            val bar = if (dots.value) " " + "●".repeat(((level + 2) / 3).coerceAtMost(7)) else ""
+            Triple("$n +$level", bar.trim(), dim(colors.getValue(n), level))
         }
         return out.ifEmpty { null }
     }
 
     override fun preview() = listOf(
-        Triple("Power +5", "Ced", colors.getValue("Power")), Triple("Time +4", "Nathan", colors.getValue("Time"))
+        Triple("Power +14", "●●●●●", colors.getValue("Power")), Triple("Time +5", "●●", colors.getValue("Time"))
     )
 
     init {
-        addSettings(power, time, wisdom, life, stone, showBy)
+        addSettings(power, time, wisdom, life, stone, dots, byLevel)
         loadPosition()
-        on<ChatMessageEvent> {
-            if (!isEnabled) return@on
-            val m = LINE.find(it.unformattedText.trim()) ?: return@on
-            val name = m.groupValues[2]
-            val lvl = roman(m.groupValues[3])
-            if (lvl == 0) return@on
-            val f = found.getOrPut(name) { Found(0, m.groupValues[1]) }
-            f.level += lvl
-            f.by = m.groupValues[1]
-        }
-        ClientTickEvents.END_CLIENT_TICK.register {
-            val current = Minecraft.getInstance().level
-            if (current !== world) { world = current; found.clear() }
-        }
     }
 }
