@@ -305,6 +305,11 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.SlayerCheats)
             ModuleManager.register(ced.cedclient.features.impl.funqol.FarmHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.DojoHelper)
+            ModuleManager.register(ced.cedclient.features.impl.render.Box3D)
+            ModuleManager.register(ced.cedclient.features.impl.render.WitherESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.TerminalESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.TeammateESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.F4Features)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
