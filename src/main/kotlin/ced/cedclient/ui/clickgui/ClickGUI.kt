@@ -43,6 +43,8 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
  */
 class ClickGUI : Screen(Component.literal("Click GUI")) {
 
+    init { ced.cedclient.achievements.Achievements.bump("gui_opens") }
+
     private val panelSettings: List<PanelSetting> =
         Category.entries.filter { ced.cedclient.features.ModuleManager.modulesByCategory.containsKey(it) }.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }
 

@@ -70,6 +70,7 @@ open class Module(
 
         enabled = value
         println("Set $name → $enabled")
+        if (value && !ConfigManager.isLoading) ced.cedclient.achievements.Achievements.moduleEnabled(name, category.name)
         ced.cedclient.utils.Debug.line(name, if (enabled) "enabled" else "disabled")
 
         if (enabled) onEnable() else onDisable()

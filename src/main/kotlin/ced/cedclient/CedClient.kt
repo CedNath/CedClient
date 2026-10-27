@@ -151,6 +151,7 @@ class CedClient : ClientModInitializer {
         IslandState.init()
         PlayerChatManager.init()
         PartyApi.init()
+        ced.cedclient.achievements.Achievements.init()
 
         ClientTickEvents.END_CLIENT_TICK.register {
             InventoryButtonManager.ensureLoaded()
@@ -237,6 +238,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.MaskTimers)
         ModuleManager.register(ced.cedclient.features.impl.funqol.BlessingDisplay)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ScoreCalculator)
+        ModuleManager.register(ced.cedclient.features.impl.misc.AchievementsModule)
         ModuleManager.register(ced.cedclient.features.impl.funqol.EnchantColors)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ProtectItem)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SlotBinding)

@@ -28,7 +28,7 @@ object CedPaths {
         ).forEach { put(it, "filters") }
         listOf(
             "chat_history.json", "chat_channel_state.json", "daily_reset.json", "dungeon_splits.json", "room_times_pb.json",
-            "sun_gecko_pbs.json", "critter_safari_map.json", "critter_runs.json", "run_profit.json", "friends.txt", "friends_synced.flag"
+            "sun_gecko_pbs.json", "critter_safari_map.json", "critter_runs.json", "run_profit.json", "achievements.json", "friends.txt", "friends_synced.flag"
         ).forEach { put(it, "data") }
         listOf("hypixel_pack.zip", "hypixel_pack.key", "hypixel_pack.new.zip", "hypixel_pack.new.key").forEach { put(it, "cache") }
     }

@@ -20,6 +20,8 @@ import net.minecraft.network.chat.Component
  */
 class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
+    init { ced.cedclient.achievements.Achievements.bump("hud_edits") }
+
     private val elements: List<HudElement> = HudElement.all
     private var dragging: HudElement? = null
     private var selected: HudElement? = null
