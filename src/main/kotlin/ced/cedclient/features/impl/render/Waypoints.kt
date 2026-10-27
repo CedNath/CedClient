@@ -224,7 +224,7 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
                 if (showDistance.value) label.append(Component.literal(" ${dist.toInt()}m").withStyle(ChatFormatting.YELLOW))
                 poseStack.pushPose()
                 poseStack.translate((wp.x + 0.5 - cam.x).toFloat(), (wp.y + size + 0.6 - cam.y).toFloat(), (wp.z + 0.5 - cam.z).toFloat())
-                context.submitNodeCollector().submitNameTag(poseStack, Vec3.ZERO, 0, label, true, 0xF000F0, dist * dist * 4 + 64.0, context.levelState().cameraRenderState)
+                context.submitNodeCollector().submitNameTag(poseStack, Vec3.ZERO, 0, label, true, 0xF000F0, context.levelState().cameraRenderState)
                 poseStack.popPose()
             }
             bufferSource.endBatch()

@@ -225,48 +225,48 @@ object StarredMobHighlight : Module(
 //#endif
     // ------------------------------------------------------------------
     private fun drawLineBox(
-        poseStack: PoseStack, buffer: VertexConsumer, box: AABB,
+        pose: PoseStack.Pose, buffer: VertexConsumer, box: AABB,
         r: Float, g: Float, b: Float, a: Float, w: Float
     ) {
         val x0 = box.minX; val y0 = box.minY; val z0 = box.minZ
         val x1 = box.maxX; val y1 = box.maxY; val z1 = box.maxZ
 
         // bottom
-        edge(poseStack, buffer, x0, y0, z0, x1, y0, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z0, x1, y0, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z1, x0, y0, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x0, y0, z1, x0, y0, z0, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z0, x1, y0, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z0, x1, y0, z1, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z1, x0, y0, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z1, x0, y0, z0, r, g, b, a, w)
         // top
-        edge(poseStack, buffer, x0, y1, z0, x1, y1, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y1, z0, x1, y1, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y1, z1, x0, y1, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x0, y1, z1, x0, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x0, y1, z0, x1, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y1, z0, x1, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x1, y1, z1, x0, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y1, z1, x0, y1, z0, r, g, b, a, w)
         // verticals
-        edge(poseStack, buffer, x0, y0, z0, x0, y1, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z0, x1, y1, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z1, x1, y1, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x0, y0, z1, x0, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z0, x0, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z0, x1, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z1, x1, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z1, x0, y1, z1, r, g, b, a, w)
     }
 
     private fun edge(
-        poseStack: PoseStack, buffer: VertexConsumer,
+        pose: PoseStack.Pose, buffer: VertexConsumer,
         x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double,
         r: Float, g: Float, b: Float, a: Float, w: Float
-    ) = drawLine(poseStack, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b, a, w)
+    ) = drawLine(pose, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b, a, w)
 
     private fun drawLine(
-        poseStack: PoseStack, buffer: VertexConsumer, from: Vec3, to: Vec3,
+        pose: PoseStack.Pose, buffer: VertexConsumer, from: Vec3, to: Vec3,
         r: Float, g: Float, b: Float, a: Float, w: Float
     ) {
-        val pose = poseStack.last().pose()
+        val m = pose.pose()
         val n = to.subtract(from).normalize()
 
-        buffer.addVertex(pose, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
+        buffer.addVertex(m, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
             .setColor(r, g, b, a)
             .setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat())
             .setLineWidth(w)
 
-        buffer.addVertex(pose, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
+        buffer.addVertex(m, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
             .setColor(r, g, b, a)
             .setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat())
             .setLineWidth(w)

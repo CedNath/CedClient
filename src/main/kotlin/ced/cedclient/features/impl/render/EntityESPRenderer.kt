@@ -61,7 +61,7 @@ object EntityESPRenderer {
      * Draws the 12 edges of an AABB using the same buffer/vertex pattern as drawLine.
      */
     private fun drawLineBox(
-        poseStack: PoseStack,
+        pose: PoseStack.Pose,
         buffer: VertexConsumer,
         box: AABB,
         r: Float, g: Float, b: Float
@@ -70,50 +70,50 @@ object EntityESPRenderer {
         val maxX = box.maxX; val maxY = box.maxY; val maxZ = box.maxZ
 
         // Bottom face
-        edge(poseStack, buffer, minX, minY, minZ, maxX, minY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, minZ, maxX, minY, maxZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, maxZ, minX, minY, maxZ, r, g, b)
-        edge(poseStack, buffer, minX, minY, maxZ, minX, minY, minZ, r, g, b)
+        edge(pose, buffer, minX, minY, minZ, maxX, minY, minZ, r, g, b)
+        edge(pose, buffer, maxX, minY, minZ, maxX, minY, maxZ, r, g, b)
+        edge(pose, buffer, maxX, minY, maxZ, minX, minY, maxZ, r, g, b)
+        edge(pose, buffer, minX, minY, maxZ, minX, minY, minZ, r, g, b)
 
         // Top face
-        edge(poseStack, buffer, minX, maxY, minZ, maxX, maxY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b)
-        edge(poseStack, buffer, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b)
-        edge(poseStack, buffer, minX, maxY, maxZ, minX, maxY, minZ, r, g, b)
+        edge(pose, buffer, minX, maxY, minZ, maxX, maxY, minZ, r, g, b)
+        edge(pose, buffer, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, maxX, maxY, maxZ, minX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, minX, maxY, maxZ, minX, maxY, minZ, r, g, b)
 
         // Vertical edges
-        edge(poseStack, buffer, minX, minY, minZ, minX, maxY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, minZ, maxX, maxY, minZ, r, g, b)
-        edge(poseStack, buffer, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b)
-        edge(poseStack, buffer, minX, minY, maxZ, minX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, minX, minY, minZ, minX, maxY, minZ, r, g, b)
+        edge(pose, buffer, maxX, minY, minZ, maxX, maxY, minZ, r, g, b)
+        edge(pose, buffer, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b)
+        edge(pose, buffer, minX, minY, maxZ, minX, maxY, maxZ, r, g, b)
     }
 
     private fun edge(
-        poseStack: PoseStack,
+        pose: PoseStack.Pose,
         buffer: VertexConsumer,
         x1: Double, y1: Double, z1: Double,
         x2: Double, y2: Double, z2: Double,
         r: Float, g: Float, b: Float
     ) {
-        drawLine(poseStack, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b)
+        drawLine(pose, buffer, Vec3(x1, y1, z1), Vec3(x2, y2, z2), r, g, b)
     }
 
     private fun drawLine(
-        poseStack: PoseStack,
+        pose: PoseStack.Pose,
         buffer: VertexConsumer,
         from: Vec3,
         to: Vec3,
         r: Float, g: Float, b: Float
     ) {
-        val pose = poseStack.last().pose()
+        val m = pose.pose()
         val normal = to.subtract(from).normalize()
 
-        buffer.addVertex(pose, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
+        buffer.addVertex(m, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
             .setColor(r, g, b, 1.0f)
             .setNormal(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
             .setLineWidth(2.0f)
 
-        buffer.addVertex(pose, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
+        buffer.addVertex(m, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
             .setColor(r, g, b, 1.0f)
             .setNormal(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
             .setLineWidth(2.0f)

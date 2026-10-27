@@ -30,7 +30,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.renderer.MultiBufferSource
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.renderer.state.level.CameraRenderState
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.core.BlockPos
@@ -132,7 +132,7 @@ object VampireSlayer : Module(
         on<ced.cedclient.events.SubtitleEvent> { if (it.unformattedText.contains("Impel", true)) impelTitleAt = System.currentTimeMillis() }
         on<TickEvent.End> { tick() }
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            renderWorld(context.poseStack(), context.bufferSource(), context.levelState().cameraRenderState)
+            renderWorld(context)
         })
     }
 
@@ -443,7 +443,7 @@ object VampireSlayer : Module(
     private val WALK_TARGET_COLOR = Color(255, 255, 85)
 
     /** Line from you over [walkPath] tile tops, corners rounded off (Chaikin, 3 passes). */
-    private fun drawWalkPath(poseStack: PoseStack, bufferSource: MultiBufferSource.BufferSource, camera: CameraRenderState) {
+    private fun drawWalkPath(context: LevelRenderContext, camera: CameraRenderState) {
         val player = mc.player ?: return
         val path = walkPath.takeIf { it.isNotEmpty() } ?: return
         val feet = player.getPosition(mc.deltaTracker.getGameTimeDeltaPartialTick(false))
@@ -461,12 +461,14 @@ object VampireSlayer : Module(
         }
         val cam = camera.pos
         val c = WALK_TARGET_COLOR
-        LineBox.polyline(poseStack, bufferSource.getBuffer(CustomRenderType.LINES_ESP), pts.map { it.subtract(cam.x, cam.y, cam.z) },
-            c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-        bufferSource.endBatch()
+        val points = pts.map { it.subtract(cam.x, cam.y, cam.z) }
+        context.geometry(CustomRenderType.LINES_ESP) { pose, buffer ->
+            LineBox.polyline(pose, buffer, points, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+        }
     }
 
-    private fun renderWorld(poseStack: PoseStack, bufferSource: MultiBufferSource.BufferSource, camera: CameraRenderState) {
+    private fun renderWorld(context: LevelRenderContext) {
+        val camera = context.levelState().cameraRenderState
         if (!isEnabled) return
         captureLaser(camera)
         val boxes = ArrayList<Pair<AABB, Color>>()
@@ -481,8 +483,8 @@ object VampireSlayer : Module(
                 if (beaconAlert.value) SlayerBosses.beacons.forEach { styled(it, beaconColor.value, beaconStyle.value, xrayBoxes, xrayFills) }
                 if (nukekubi.value) SlayerBosses.skulls.forEach { styled(it, nukekubiColor.value, nukekubiStyle.value, xrayBoxes, xrayFills) }
             }
-            drawBoxes(poseStack, bufferSource, camera, boxes, fills)
-            drawBoxes(poseStack, bufferSource, camera, xrayBoxes, xrayFills, throughWalls = true)
+            drawBoxes(context, camera, boxes, fills)
+            drawBoxes(context, camera, xrayBoxes, xrayFills, throughWalls = true)
             return
         }
         boss?.takeIf { bossBox.value }?.let { boxes += smoothBox(it).inflate(0.1) to if (canSteak(it)) steakColor.value else bossColor.value }
@@ -506,9 +508,9 @@ object VampireSlayer : Module(
                 if (effigyXray.value) styled(it, effigyColor.value, "Filled + Outline", xrayBoxes, xrayFills) else styled(it, effigyColor.value, "Filled + Outline", boxes, fills)
             }
         }
-        drawBoxes(poseStack, bufferSource, camera, boxes, fills)
-        drawBoxes(poseStack, bufferSource, camera, xrayBoxes, xrayFills, throughWalls = true)
-        drawWalkPath(poseStack, bufferSource, camera)
+        drawBoxes(context, camera, boxes, fills)
+        drawBoxes(context, camera, xrayBoxes, xrayFills, throughWalls = true)
+        drawWalkPath(context, camera)
     }
 
     /** [e]'s box where it is drawn this frame (between its last two tick positions), so the box doesn't step every tick. */
@@ -523,17 +525,17 @@ object VampireSlayer : Module(
         if (style != "Outline") fills += box to color
     }
 
-    private fun drawBoxes(poseStack: PoseStack, bufferSource: MultiBufferSource.BufferSource, camera: CameraRenderState,
+    private fun drawBoxes(context: LevelRenderContext, camera: CameraRenderState,
                           boxes: List<Pair<AABB, Color>>, fills: List<Pair<AABB, Color>> = emptyList(), throughWalls: Boolean = false) {
         if (boxes.isEmpty() && fills.isEmpty()) return
         val cam = camera.pos
         if (fills.isNotEmpty()) {
-            None.geometry(if (throughWalls) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, fillBuffer ->
+            context.geometry(if (throughWalls) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, fillBuffer ->
                 // See-through fill (40% of the colour's opacity) so the beacon / skull inside stays visible.
                 for ((box, c) in fills) ced.cedclient.render.FilledBox.draw(pose, fillBuffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
             }
         }
-        None.geometry(if (throughWalls) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
+        context.geometry(if (throughWalls) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
             for ((box, c) in boxes) LineBox.draw(pose, buffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
         }
     }

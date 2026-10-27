@@ -207,43 +207,43 @@ object FloorDrops : Module(
     // Rendering helpers (same vertex pattern as BlockESPRenderer)
     // ------------------------------------------------------------------
     private fun drawLineBox(
-        poseStack: PoseStack, buffer: VertexConsumer, box: AABB,
+        pose: PoseStack.Pose, buffer: VertexConsumer, box: AABB,
         r: Float, g: Float, b: Float, a: Float, w: Float
     ) {
         val x0 = box.minX; val y0 = box.minY; val z0 = box.minZ
         val x1 = box.maxX; val y1 = box.maxY; val z1 = box.maxZ
 
         // bottom
-        edge(poseStack, buffer, x0, y0, z0, x1, y0, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z0, x1, y0, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z1, x0, y0, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x0, y0, z1, x0, y0, z0, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z0, x1, y0, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z0, x1, y0, z1, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z1, x0, y0, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z1, x0, y0, z0, r, g, b, a, w)
         // top
-        edge(poseStack, buffer, x0, y1, z0, x1, y1, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y1, z0, x1, y1, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y1, z1, x0, y1, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x0, y1, z1, x0, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x0, y1, z0, x1, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y1, z0, x1, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x1, y1, z1, x0, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y1, z1, x0, y1, z0, r, g, b, a, w)
         // verticals
-        edge(poseStack, buffer, x0, y0, z0, x0, y1, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z0, x1, y1, z0, r, g, b, a, w)
-        edge(poseStack, buffer, x1, y0, z1, x1, y1, z1, r, g, b, a, w)
-        edge(poseStack, buffer, x0, y0, z1, x0, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z0, x0, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z0, x1, y1, z0, r, g, b, a, w)
+        edge(pose, buffer, x1, y0, z1, x1, y1, z1, r, g, b, a, w)
+        edge(pose, buffer, x0, y0, z1, x0, y1, z1, r, g, b, a, w)
     }
 
     private fun edge(
-        poseStack: PoseStack, buffer: VertexConsumer,
+        pose: PoseStack.Pose, buffer: VertexConsumer,
         x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double,
         r: Float, g: Float, b: Float, a: Float, w: Float
     ) {
-        val pose = poseStack.last().pose()
+        val m = pose.pose()
         val n = Vec3(x2 - x1, y2 - y1, z2 - z1).normalize()
 
-        buffer.addVertex(pose, x1.toFloat(), y1.toFloat(), z1.toFloat())
+        buffer.addVertex(m, x1.toFloat(), y1.toFloat(), z1.toFloat())
             .setColor(r, g, b, a)
             .setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat())
             .setLineWidth(w)
 
-        buffer.addVertex(pose, x2.toFloat(), y2.toFloat(), z2.toFloat())
+        buffer.addVertex(m, x2.toFloat(), y2.toFloat(), z2.toFloat())
             .setColor(r, g, b, a)
             .setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat())
             .setLineWidth(w)

@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -92,7 +93,7 @@ object DojoHelper : Module(
         // Aim and sword checks every rendered frame, so they don't step at 20 Hz.
         LevelRenderEvents.START_MAIN.register { if (isEnabled) frame() }
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { ctx ->
-            if (isEnabled && swiftDebug.value && challenge("Swiftness")) drawDebug(ctx.poseStack(), ctx.bufferSource(), ctx.gameRenderer().mainCamera().position())
+            if (isEnabled && swiftDebug.value && challenge("Swiftness")) drawDebug(ctx, ctx.gameRenderer().mainCamera().position())
         })
     }
 
@@ -290,10 +291,9 @@ object DojoHelper : Module(
         mc.player?.sendSystemMessage(ChatPrefix.msgFor("Dojo Helper", "§8[swift] $msg"))
     }
 
-    private fun drawDebug(pose: com.mojang.blaze3d.vertex.PoseStack, buffers: net.minecraft.client.renderer.MultiBufferSource.BufferSource, cam: Vec3) {
-        val buf = buffers.getBuffer(CustomRenderType.LINES_ESP)
+    private fun drawDebug(ctx: net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext, cam: Vec3) = ctx.geometry(CustomRenderType.LINES_ESP) { pose, buf ->
         fun line(a: Vec3, b: Vec3, rgb: Int) {
-            val m = pose.last().pose()
+            val m = pose.pose()
             val n = b.subtract(a).normalize()
             val r = (rgb shr 16 and 255) / 255f
             val g = (rgb shr 8 and 255) / 255f
@@ -319,7 +319,6 @@ object DojoHelper : Module(
             mc.player?.let { p -> line(p.position().add(0.0, 0.05, 0.0), Vec3(t.x + 0.5, t.y + 1.0, t.z + 0.5), 0x55FFFF) }
         }
         for ((p, ok) in dbgSamples) box(AABB(p, p).inflate(0.06), if (ok) 0x55FF55 else 0xFF5555)
-        buffers.endBatch()
     }
 
     private fun stopWalking() {

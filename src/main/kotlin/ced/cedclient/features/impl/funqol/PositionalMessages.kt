@@ -35,7 +35,7 @@ import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import com.mojang.blaze3d.vertex.PoseStack
-import net.minecraft.client.renderer.MultiBufferSource
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.HitResult
@@ -166,7 +166,7 @@ object PositionalMessages : Module(
         ClientTickEvents.END_CLIENT_TICK.register { tick() }
         on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            renderWorld(context.poseStack(), context.bufferSource(), context.levelState().cameraRenderState)
+            renderWorld(context)
         })
     }
 
@@ -254,7 +254,8 @@ object PositionalMessages : Module(
     private val viewProj = Matrix4f()
     private val clip = Vector4f()
 
-    private fun renderWorld(poseStack: PoseStack, bufferSource: MultiBufferSource.BufferSource, camera: CameraRenderState) {
+    private fun renderWorld(context: LevelRenderContext) {
+        val camera = context.levelState().cameraRenderState
         val list = active
         val selection = selectionBox()
         if (!isEnabled || (list.isEmpty() && selection == null)) {
@@ -264,7 +265,7 @@ object PositionalMessages : Module(
         val cam = camera.pos
 
         if (showBoxes.value || selection != null) {
-            None.geometry(if (seeThrough.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
+            context.geometry(if (seeThrough.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
                 if (showBoxes.value) {
                     val c = boxColor.value
                     for (a in list) {

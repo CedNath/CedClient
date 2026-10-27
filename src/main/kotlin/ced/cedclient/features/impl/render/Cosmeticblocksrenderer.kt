@@ -37,7 +37,6 @@ object CosmeticBlocksRenderer {
 //$            if (!selection && !ruler && !wire) return@AfterSolidFeatures
 //#endif
 
-            val pose = context.poseStack()
             val cam = context.gameRenderer().mainCamera().position()
             context.geometry(CustomRenderType.LINES_ESP) { pose, buf ->
 
@@ -80,11 +79,11 @@ object CosmeticBlocksRenderer {
         })
     }
 
-    private fun blockBox(pose: PoseStack, buf: VertexConsumer, cam: Vec3, p: BlockPos, r: Float, g: Float, b: Float, a: Float) =
+    private fun blockBox(pose: PoseStack.Pose, buf: VertexConsumer, cam: Vec3, p: BlockPos, r: Float, g: Float, b: Float, a: Float) =
         box(pose, buf, cam, p.x - 0.002, p.y - 0.002, p.z - 0.002, p.x + 1.002, p.y + 1.002, p.z + 1.002, r, g, b, a)
 
     private fun box(
-        pose: PoseStack, buf: VertexConsumer, cam: Vec3,
+        pose: PoseStack.Pose, buf: VertexConsumer, cam: Vec3,
         x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double,
         r: Float, g: Float, b: Float, a: Float
     ) {
@@ -99,11 +98,11 @@ object CosmeticBlocksRenderer {
     }
 
     private fun line(
-        pose: PoseStack, buf: VertexConsumer,
+        pose: PoseStack.Pose, buf: VertexConsumer,
         x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double,
         r: Float, g: Float, b: Float, a: Float
     ) {
-        val m = pose.last().pose()
+        val m = pose.pose()
         val n = Vec3(x2 - x1, y2 - y1, z2 - z1).normalize()
         buf.addVertex(m, x1.toFloat(), y1.toFloat(), z1.toFloat()).setColor(r, g, b, a)
             .setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat()).setLineWidth(2f)
