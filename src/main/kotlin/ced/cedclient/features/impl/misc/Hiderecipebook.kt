@@ -31,7 +31,7 @@ object HideRecipeBook : Module(
 
     /** InventoryCraftingGridMixin / InventoryCraftingSlotMixin: only in the player inventory screen. */
     @JvmStatic
-    fun hideCraftingGrid() = isEnabled && craftingGrid.value && net.minecraft.client.Minecraft.getInstance().screen is InventoryScreen
+    fun hideCraftingGrid() = isEnabled && craftingGrid.value && net.minecraft.client.Minecraft.getInstance().gui.screen() is InventoryScreen
 
     init {
         addSettings(alsoCraftingTable, craftingGrid)

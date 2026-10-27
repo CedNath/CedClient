@@ -82,7 +82,7 @@ object CustomTooltips : Module(
     private val behaviourSettings = listOf<RenderableSetting<*>>(slideIn, hideLines, collapseBlank)
 
     private val customize = ActionSetting("Customize", "Colours, border, header, shadow, glow, slide-in and hidden lines.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(SettingsPopup("Custom Tooltips", listOf(
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Custom Tooltips", listOf(
             listOf(SettingsPopup.Section("Background", styleSettings), SettingsPopup.Section("Border", borderSettings)),
             listOf(SettingsPopup.Section("Shadow & Glow", effectSettings), SettingsPopup.Section("Behaviour", behaviourSettings)),
         )))

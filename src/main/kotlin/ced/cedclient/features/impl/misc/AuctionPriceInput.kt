@@ -59,7 +59,7 @@ object AuctionPriceInput : Module(
         // Auction House only. Hypixel closes the menu before the sign opens, so use what the last AH menu showed.
         if (System.currentTimeMillis() - lastAuctionAt > 3000) return false
         val hint = (lines[2] + " " + lines[3]).trim()
-        mc.setScreen(PriceInputScreen(sign, front, hint, lastAuctionItem))
+        mc.gui.setScreen(PriceInputScreen(sign, front, hint, lastAuctionItem))
         return true
     }
 
@@ -67,7 +67,7 @@ object AuctionPriceInput : Module(
     private var lastAuctionAt = 0L
 
     private fun auctionScreen(): AbstractContainerScreen<*>? =
-        (mc.screen as? AbstractContainerScreen<*>)?.takeIf { "auction" in it.title.string.lowercase() }
+        (mc.gui.screen() as? AbstractContainerScreen<*>)?.takeIf { "auction" in it.title.string.lowercase() }
 
     /** The item being sold / bid on: slot 13 in Create Auction and Auction View, else any SkyBlock item in the menu. */
     private fun auctionItem(screen: AbstractContainerScreen<*>): ItemStack? {

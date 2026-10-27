@@ -154,7 +154,7 @@ object BeachBallHelper : Module(
 
         // Camera: only the pitch moves (straight down), every rendered frame.
         LevelRenderEvents.START_MAIN.register {
-            if (!isEnabled || ball == null || !autoWalk.value || mc.screen != null) return@register
+            if (!isEnabled || ball == null || !autoWalk.value || mc.gui.screen() != null) return@register
             val player = mc.player ?: return@register
             val now = System.nanoTime()
             if (lastFrameNanos == 0L) { lastFrameNanos = now; return@register }
@@ -211,7 +211,7 @@ object BeachBallHelper : Module(
         if (throwIn > 0) throwIn--
         else if (throwIn == 0) {
             throwIn = -1
-            if (ball == null && mc.screen == null) throwBall(player)
+            if (ball == null && mc.gui.screen() == null) throwBall(player)
         }
 
         if (logHeads.value && tickCount % 40 == 0) logNearbyHeads()
@@ -443,9 +443,9 @@ object BeachBallHelper : Module(
         Debug.line("BeachBall", "Ball ended ($reason): $combo bounces, $balls balls, avg ${"%.1f".format(avg)}; " +
             "last seen ${"%.2f".format(lastOff)}m off you, ${"%.2f".format(lastDy)}m above bounce height")
         if (popup.value) {
-            mc.gui.setTitle(Component.literal("§aBall #$balls: $combo bounces"))
-            mc.gui.setSubtitle(Component.literal("§7Avg §e${"%.1f".format(avg)}§7 bounces per ball"))
-            mc.gui.setTimes(5, 50, 10)
+            mc.gui.hud.setTitle(Component.literal("§aBall #$balls: $combo bounces"))
+            mc.gui.hud.setSubtitle(Component.literal("§7Avg §e${"%.1f".format(avg)}§7 bounces per ball"))
+            mc.gui.hud.setTimes(5, 50, 10)
         }
         release()
         reset()
@@ -479,7 +479,7 @@ object BeachBallHelper : Module(
      */
     private fun walk(player: LocalPlayer) {
         val land = target
-        if (!autoWalk.value || land == null || mc.screen != null) return release()
+        if (!autoWalk.value || land == null || mc.gui.screen() != null) return release()
         val dist = hypot(land.x - player.x, land.z - player.z)
         val away = combo >= missAt.value
         if (away && dist >= awayDistance.value) return release()

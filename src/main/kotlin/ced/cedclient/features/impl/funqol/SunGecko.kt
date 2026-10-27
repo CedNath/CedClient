@@ -60,7 +60,7 @@ object SunGecko : Module(
         "Orbs" to BooleanSetting("Orbs", true), "Last run" to BooleanSetting("Last Run", true),
         "Modifiers" to BooleanSetting("Modifiers", false), "PB" to BooleanSetting("PB", true))
     private val hudButton = ActionSetting("HUD Lines", "Pick what the Sun Gecko HUD shows.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(
             SettingsPopup("Sun Gecko HUD", listOf(listOf(SettingsPopup.Section("Lines", hudLines.values.toList())))))
     }
 
@@ -158,9 +158,9 @@ object SunGecko : Module(
     }
 
     private fun alert(text: String, pitch: Float) {
-        mc.gui.setTimes(2, 30, 8)
-        mc.gui.setTitle(Component.literal(text))
-        mc.gui.setSubtitle(Component.empty())
+        mc.gui.hud.setTimes(2, 30, 8)
+        mc.gui.hud.setTitle(Component.literal(text))
+        mc.gui.hud.setSubtitle(Component.empty())
         mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
         ced.cedclient.utils.Debug.line("Sun Gecko", "alert: $text")
     }
@@ -232,7 +232,7 @@ object SunGecko : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
-        if (!isEnabled || !hud.value || mc.options.hideGui) return
+        if (!isEnabled || !hud.value || mc.gui.hud.isHidden) return
         val area = ced.cedclient.state.Sidebar.area ?: return
         if (!area.contains("Time Chamber", ignoreCase = true) && !area.contains("Continuum", ignoreCase = true)) return
         // Only around a run: during it, and while its result is still worth seeing.

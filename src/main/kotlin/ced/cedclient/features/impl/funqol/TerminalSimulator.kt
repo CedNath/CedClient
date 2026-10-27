@@ -437,7 +437,7 @@ private class TerminalSimScreen private constructor(
             val term = makeTerminal(if (kind < 0) lastRandom else kind)
             val container = SimpleContainer(term.rows * 9)
             val menu = ChestMenu(MenuType.GENERIC_9x6, 900 + ids++ % 50, player.inventory, container, term.rows)
-            mc.setScreen(TerminalSimScreen(kind, term, container, menu, player.inventory))
+            mc.gui.setScreen(TerminalSimScreen(kind, term, container, menu, player.inventory))
         }
     }
 }

@@ -83,7 +83,7 @@ object FishingHelper : Module(
 
         // Any open screen (inventory, chest, pause menu, chat, ClickGUI, ...) means the player
         // isn't actually fishing right now. Drop queued actions so nothing fires on close.
-        if (client.screen != null) {
+        if (client.gui.screen() != null) {
             clearPending()
             return
         }
@@ -159,7 +159,7 @@ object FishingHelper : Module(
         val bob = world.getEntitiesOfClass(FishingHook::class.java, searchBox) { true }
             .firstOrNull { it.id == pr.bobId }
 
-        if (bob != null && mc.screen == null && isHoldingRod(player)) {
+        if (bob != null && mc.gui.screen() == null && isHoldingRod(player)) {
             performReel(player)
             lastReelAt[bob.id] = now
 
@@ -180,7 +180,7 @@ object FishingHelper : Module(
         val now = System.currentTimeMillis()
         if (now < prc.executeAt) return
 
-        if (mc.screen == null && isHoldingRod(player)) performCast(player)
+        if (mc.gui.screen() == null && isHoldingRod(player)) performCast(player)
         pendingRecast = null
         if (FishinghelperConfig.debugLogging) {
             println("[FishingHelper] Performed recast")

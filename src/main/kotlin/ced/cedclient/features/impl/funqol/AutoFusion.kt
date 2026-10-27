@@ -78,7 +78,7 @@ object AutoFusion : Module(
     }
 
     private fun tick() {
-        val screen = mc.screen as? AbstractContainerScreen<*>
+        val screen = mc.gui.screen() as? AbstractContainerScreen<*>
         if (screen == null) {
             // Short gaps happen between Hypixel menus; only a real close stops it.
             if (++closedTicks >= CLOSED_TICKS) stop("menu closed")

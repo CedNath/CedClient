@@ -59,7 +59,7 @@ object ChatPing : Module(
     private val hudShadow = BooleanSetting("HUD Text Shadow", true).withDependency { hudMcFont.value }
     val test = ActionSetting("Play Test Sound") { playSound(BELL, volume.value.toFloat(), 1f) }
     val configure = ActionSetting("Alerts", "Your own chat alerts: trigger words, sound, highlight, HUD message, copy.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(ChatAlertsPopup())
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(ChatAlertsPopup())
     }
 
     val nameSettings: List<RenderableSetting<*>> = listOf(ownName, extraWords, ignoreOwn, highlight, color, sound, volume)

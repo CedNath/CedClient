@@ -91,10 +91,10 @@ object Theme : Module(
     }
 
     private val resetPanels = ActionSetting("Reset Panels", "Moves every ClickGUI panel back to its default position.") {
-        (Minecraft.getInstance().screen as? ced.cedclient.ui.clickgui.ClickGUI)?.let { ced.cedclient.config.ConfigManager.resetPanelsToDefaults(it.getPanels()) }
+        (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.let { ced.cedclient.config.ConfigManager.resetPanelsToDefaults(it.getPanels()) }
     }
     private val resetModule = ActionSetting("Reset a Module", "Pick one module to put back to its defaults.") {
-        (Minecraft.getInstance().screen as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.ResetModulePopup())
+        (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.ResetModulePopup())
     }
 
     init {
@@ -114,7 +114,7 @@ object Theme : Module(
         }
         HudElement.all.forEach { it.resetPosition(); it.save() }
         HudElement.layoutEdited()
-        (Minecraft.getInstance().screen as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
         ConfigManager.saveModulesOnly()
         Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§fEverything reset to defaults"))
     }

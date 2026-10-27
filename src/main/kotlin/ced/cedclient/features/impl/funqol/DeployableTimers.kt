@@ -138,7 +138,7 @@ object DeployableTimers : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui) return
+        if (!isEnabled || mc.gui.hud.isHidden) return
         var shown = rows.filter { wanted(it) && (!onlyInRange.value || it.inRange) }
         shown = when (sortBy.value) {
             "Distance" -> shown.sortedBy { it.distance }

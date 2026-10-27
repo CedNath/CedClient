@@ -182,7 +182,7 @@ object DungeonMap : Module(
     /** One "Map Options" button in the panel; each column's sections open in a popup from it. */
     private fun addPopupSettings(vararg columns: List<Pair<String, List<RenderableSetting<*>>>>) {
         addSettings(ActionSetting("Map Options", "Rooms, players, card style and colours.") {
-            (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Dungeon Map", columns.map { col -> col.map { (title, list) -> SettingsPopup.Section(title, list) } }, height = 650f))
+            (mc.gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Dungeon Map", columns.map { col -> col.map { (title, list) -> SettingsPopup.Section(title, list) } }, height = 650f))
         })
         val all = columns.flatMap { col -> col.flatMap { it.second } }
         addSettings(*all.toTypedArray())
@@ -272,7 +272,7 @@ object DungeonMap : Module(
     private fun toMap(world: Double) = ((world - START) / 32 * PITCH + ROOM / 2).toFloat()
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui || !DungeonState.active || DungeonState.inBoss) return
+        if (!isEnabled || mc.gui.hud.isHidden || !DungeonState.active || DungeonState.inBoss) return
         safely("Dungeon Map HUD") { renderInternal(g) }
     }
 

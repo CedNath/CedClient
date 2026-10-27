@@ -213,7 +213,7 @@ class BlockPickerPopup(
         if (mouseY in listY..(listY + listHeight)) {
             val index = ((mouseY - listY - scrollOffset) / ROW_HEIGHT).toInt()
             val entry = filtered.getOrNull(index) ?: return true
-            (net.minecraft.client.Minecraft.getInstance().screen as? ClickGUI)?.closePopup()
+            (net.minecraft.client.Minecraft.getInstance().gui.screen() as? ClickGUI)?.closePopup()
             onPick(entry.block)
             return true
         }

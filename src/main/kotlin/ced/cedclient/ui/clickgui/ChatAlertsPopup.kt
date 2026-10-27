@@ -53,7 +53,7 @@ class ChatAlertsPopup : Popup("Chat Alerts", WIDTH, HEIGHT) {
     }
 
     private fun openEditor(alert: ChatAlert) {
-        val gui = Minecraft.getInstance().screen as? ClickGUI ?: return
+        val gui = Minecraft.getInstance().gui.screen() as? ClickGUI ?: return
         val back = ActionSetting("Back") {
             ChatPing.saveAlerts()
             gui.openPopup(ChatAlertsPopup())

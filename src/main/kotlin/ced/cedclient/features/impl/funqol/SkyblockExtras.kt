@@ -37,9 +37,9 @@ internal object Alerts {
 
     fun title(tag: String, title: String, subtitle: String, color: Int, sound: Boolean, pitch: Float) {
         if (mc.player == null) return
-        mc.gui.setTimes(5, 40, 10)
-        mc.gui.setTitle(Component.literal(title).withColor(color))
-        mc.gui.setSubtitle(Component.literal(subtitle))
+        mc.gui.hud.setTimes(5, 40, 10)
+        mc.gui.hud.setTitle(Component.literal(title).withColor(color))
+        mc.gui.hud.setSubtitle(Component.literal(subtitle))
         Debug.line(tag, "alert: $title $subtitle")
         if (sound) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
     }
@@ -56,7 +56,7 @@ abstract class RowHud(name: String, description: String, private val key: String
     protected abstract fun preview(): List<Triple<String, String, Int>>
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui) return
+        if (!isEnabled || mc.gui.hud.isHidden) return
         draw(g, rows() ?: return)
     }
 

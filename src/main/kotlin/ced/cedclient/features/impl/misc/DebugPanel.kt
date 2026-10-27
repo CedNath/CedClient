@@ -34,7 +34,7 @@ object DebugPanel : Module("Debug Panel", Category.Misc, "In-game log of what ea
 
     override fun onAction() {
         val mc = Minecraft.getInstance()
-        mc.execute { mc.setScreen(DebugScreen()) }
+        mc.execute { mc.gui.setScreen(DebugScreen()) }
     }
 }
 

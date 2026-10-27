@@ -89,7 +89,7 @@ object ChatFeatures : Module(
     @JvmStatic fun keepOnDisconnect(): Boolean = isEnabled && keepOnDisconnect.value
 
     private val mc get() = Minecraft.getInstance()
-    private val chat get() = mc.gui.chat as ChatHistoryAccess
+    private val chat get() = mc.gui.hud.chat as ChatHistoryAccess
 
     // ---------------------------------------------------------------- timestamps
 
@@ -115,7 +115,7 @@ object ChatFeatures : Module(
     private fun refreshTimestamps() {
         val now = "${timestamps.value}${timeFormat.value}${timeColor.value.rgba}"
         if (now == shownAs) return
-        if (shownAs.isNotEmpty() && isEnabled) mc.gui.chat.rescaleChat()
+        if (shownAs.isNotEmpty() && isEnabled) mc.gui.hud.chat.rescaleChat()
         shownAs = now
         formatter = DateTimeFormatter.ofPattern(timeFormat.value)
     }
@@ -156,7 +156,7 @@ object ChatFeatures : Module(
             val line = Component.literal("[").withStyle(ChatFormatting.DARK_GRAY)
                 .append(Component.literal(server).withStyle(ChatFormatting.AQUA))
                 .append(Component.literal("]").withStyle(ChatFormatting.DARK_GRAY))
-            chat.`cedclient$insert`(line, mc.gui.guiTicks, System.currentTimeMillis())
+            chat.`cedclient$insert`(line, mc.gui.hud.guiTicks, System.currentTimeMillis())
         }
     }
 
@@ -184,7 +184,7 @@ object ChatFeatures : Module(
             }
         }
         val sent = JsonArray()
-        mc.gui.chat.recentChat.forEach { sent.add(it) }
+        mc.gui.hud.chat.recentChat.forEach { sent.add(it) }
         val root = JsonObject().apply { add("messages", messages); add("times", times); add("sent", sent) }
         runCatching { file.parentFile?.mkdirs(); file.writeText(gson.toJson(root)) }
             .onFailure { println("[ChatFeatures] Failed to save chat: ${it.message}") }
@@ -196,7 +196,7 @@ object ChatFeatures : Module(
             val root = JsonParser.parseString(file.readText()).asJsonObject
             val ops = RegistryOps.create(JsonOps.INSTANCE, access)
             // Old enough that they don't pop up over the game; they show when chat is opened.
-            val addedTime = mc.gui.guiTicks - 100_000
+            val addedTime = mc.gui.hud.guiTicks - 100_000
             // Files from before Timestamps have no "times": those lines get the restore time.
             val times = root.getAsJsonArray("times")
             val now = System.currentTimeMillis()
@@ -204,7 +204,7 @@ object ChatFeatures : Module(
                 val time = times?.takeIf { i < it.size() }?.get(i)?.asLong ?: now
                 ComponentSerialization.CODEC.parse(ops, element).result().ifPresent { chat.`cedclient$insert`(it, addedTime, time) }
             }
-            val recent = mc.gui.chat.recentChat
+            val recent = mc.gui.hud.chat.recentChat
             if (recent.isEmpty()) root.getAsJsonArray("sent")?.forEach { recent.add(it.asString) }
         }.onFailure { println("[ChatFeatures] Failed to restore chat: ${it.message}") }
     }

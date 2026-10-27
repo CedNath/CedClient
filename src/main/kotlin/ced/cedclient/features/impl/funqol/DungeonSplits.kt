@@ -91,7 +91,7 @@ object DungeonSplits : Module(
     private val tickColor = ColorSetting("Tick Color", Color(180, 180, 200), "The tick time column.")
 
     private val customizeHud = ActionSetting("Customize HUD", "Which rows show, and how the splits card looks.") {
-        (mc.screen as? ClickGUI)?.openPopup(
+        (mc.gui.screen() as? ClickGUI)?.openPopup(
             SettingsPopup(
                 "Dungeon Splits HUD",
                 columns = listOf(

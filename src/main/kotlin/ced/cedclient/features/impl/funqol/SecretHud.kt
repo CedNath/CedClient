@@ -64,7 +64,7 @@ object SecretHud : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui || !DungeonState.active || DungeonState.inBoss || !live()) return
+        if (!isEnabled || mc.gui.hud.isHidden || !DungeonState.active || DungeonState.inBoss || !live()) return
         if (hideDone.value && found >= total) return
         safely("Secret HUD") { renderInternal(g) }
     }

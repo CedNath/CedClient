@@ -66,11 +66,11 @@ object UpdateChecker {
     /** Opens the update screen once the title screen has been up for half a second (not another mod's screen). */
     private fun tick(mc: Minecraft) {
         if (handled) return
-        if (mc.screen !is TitleScreen) { titleTicks = 0; return }
+        if (mc.gui.screen() !is TitleScreen) { titleTicks = 0; return }
         if (++titleTicks < 10) return
         val release = latest ?: return
         if (release.version == skippedVersion()) { handled = true; return }
-        mc.setScreen(UpdateScreen(mc.screen, release))
+        mc.gui.setScreen(UpdateScreen(mc.gui.screen(), release))
     }
 
     private fun get(url: String, accept: String): HttpResponse<String> =

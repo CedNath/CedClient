@@ -274,7 +274,7 @@ object CosmeticTools {
 
     /** Mouse wheel while the ruler is on changes how far it reaches into the air. */
     fun onScroll(amount: Double): Boolean {
-        if (!rulerActive || mc.screen != null) return false
+        if (!rulerActive || mc.gui.screen() != null) return false
         airReach = (airReach + amount).coerceIn(1.0, 100.0)
         ActionBarHud.notify(net.minecraft.network.chat.Component.literal("§bRuler reach: ${airReach.toInt()}"))
         return true

@@ -104,7 +104,7 @@ object PositionalMessages : Module(
     )
 
     private val customize = ActionSetting("Customize", "F7 presets and how spots are drawn.") {
-        (mc.screen as? ClickGUI)?.openPopup(
+        (mc.gui.screen() as? ClickGUI)?.openPopup(
             SettingsPopup(
                 "Positional Messages",
                 columns = listOf(

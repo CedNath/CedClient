@@ -44,7 +44,7 @@ object InventoryButtons : Module(
         InventoryButtonManager.ensureLoaded()
         Debug.log("InventoryButtons: opening InvButtonEditorScreen -- buttons = ${InventoryButtonManager.buttons.size}")
 
-        Minecraft.getInstance().setScreen(InvButtonEditorScreen())
+        Minecraft.getInstance().gui.setScreen(InvButtonEditorScreen())
     }
 
     // Presets: the dropdown lists built-in and saved ones (it is refreshed when you save / delete).
@@ -100,7 +100,7 @@ object InventoryButtons : Module(
         addSettings(openEditor, preset, loadPreset, newName, savePreset, deletePreset, nextKey)
         ClientTickEvents.END_CLIENT_TICK.register {
             val mc = Minecraft.getInstance()
-            val down = isEnabled && mc.screen == null && nextKey.value > 0 && InputConstants.isKeyDown(mc.window, nextKey.value)
+            val down = isEnabled && mc.gui.screen() == null && nextKey.value > 0 && InputConstants.isKeyDown(mc.window, nextKey.value)
             if (down && !keyHeld) cyclePreset()
             keyHeld = down
         }

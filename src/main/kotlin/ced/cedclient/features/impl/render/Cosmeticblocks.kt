@@ -119,7 +119,7 @@ object CosmeticBlocks : Module(
         CosmeticChat.say(pasteConfig(replace = false))
     }
     private val settingsAction = ActionSetting("Open Settings", "All Cosmetic Blocks settings in one window.") {
-        (mc.screen as? ClickGUI)?.openPopup(settingsPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(settingsPopup())
     }
 
     var editMode = false
@@ -230,24 +230,24 @@ object CosmeticBlocks : Module(
 
         if (pendingSelect) {
             pendingSelect = false
-            mc.setScreen(ClickGUI())
+            mc.gui.setScreen(ClickGUI())
             showSelectPopup()
         }
         if (pendingSettings) {
             pendingSettings = false
             val gui = ClickGUI()
-            mc.setScreen(gui)
+            mc.gui.setScreen(gui)
             gui.openPopup(settingsPopup())
         }
         if (pendingPresetScreen) {
             pendingPresetScreen = false
-            mc.setScreen(CosmeticPresetScreen())
+            mc.gui.setScreen(CosmeticPresetScreen())
         }
         if (!isEnabled) return
 
         pollKeys()
         CosmeticTools.tickRuler()
-        if (mc.screen != null || mc.level == null) {
+        if (mc.gui.screen() != null || mc.level == null) {
             leftWas = false; rightWas = false; middleWas = false
             return
         }
@@ -256,7 +256,7 @@ object CosmeticBlocks : Module(
 
     private fun pressedOnce(setting: KeybindSetting, window: Long): Boolean {
         val code = setting.value
-        val down = code > 0 && mc.screen == null && GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
+        val down = code > 0 && mc.gui.screen() == null && GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
         val was = keyWas[setting] ?: false
         keyWas[setting] = down
         return down && !was
@@ -284,7 +284,7 @@ object CosmeticBlocks : Module(
             val next = CosmeticFavorites.next(selectedBlock)
             if (next == null) CosmeticChat.say("No favourites yet (/cc cosmetic fav add)") else selectBrush(next)
         }
-        if (pressedOnce(presetMenuKey, window)) mc.setScreen(CosmeticPresetScreen())
+        if (pressedOnce(presetMenuKey, window)) mc.gui.setScreen(CosmeticPresetScreen())
         if (pressedOnce(nextPresetKey, window)) {
             val next = CosmeticStore.cyclePreset()
             CosmeticChat.say(if (next == null) "Only one preset on ${CosmeticStore.islandKey}" else "Now using '$next' on ${CosmeticStore.islandKey}")
@@ -452,11 +452,11 @@ object CosmeticBlocks : Module(
     // ------------------------------------------------------------------
 
     private fun openSelectPopup() {
-        if (mc.screen is ClickGUI) showSelectPopup() else pendingSelect = true
+        if (mc.gui.screen() is ClickGUI) showSelectPopup() else pendingSelect = true
     }
 
     private fun showSelectPopup() {
-        val gui = mc.screen as? ClickGUI ?: return
+        val gui = mc.gui.screen() as? ClickGUI ?: return
         val favs = CosmeticFavorites.all().take(3)
         val buttons = favs.map { id -> id.removePrefix("minecraft:").replace('_', ' ') to { gui.closePopup(); selectBrush(id) } }
         gui.openPopup(BlockPickerPopup("Select Block", buttons) { block ->

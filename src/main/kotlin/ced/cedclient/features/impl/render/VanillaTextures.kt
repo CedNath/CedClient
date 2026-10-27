@@ -44,7 +44,7 @@ object VanillaTextures : Module(
     private val retexture = BooleanSetting("Old Item Textures", true, "Items and heads look like before the texture update.")
     private val keep = TextSetting("Keep Custom Textures", "", "SkyBlock item IDs that keep Hypixel's texture, comma-separated, e.g. HYPERION.", maxLength = 16384)
     private val chooser = ActionSetting("Choose Textures", "Search every SkyBlock item and pick which ones keep Hypixel's texture.") {
-        (Minecraft.getInstance().screen as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.TextureListPopup())
+        (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.TextureListPopup())
     }
     private val tooltips = BooleanSetting("Vanilla Tooltips", true)
     private val colors = BooleanSetting("Vanilla Colors", true, "Turns off Hypixel's colour shader. Applies after Reload Resources (F3+T).")

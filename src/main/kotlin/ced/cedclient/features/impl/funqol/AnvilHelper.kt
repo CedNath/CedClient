@@ -56,7 +56,7 @@ object AnvilHelper : Module(
     }
 
     private fun tick() {
-        val screen = mc.screen as? AbstractContainerScreen<*>
+        val screen = mc.gui.screen() as? AbstractContainerScreen<*>
         if (screen == null || screen.title.string.trim() != "Anvil" || screen.menu.slots.size < 54 + 36) {
             stop("menu closed")
             return

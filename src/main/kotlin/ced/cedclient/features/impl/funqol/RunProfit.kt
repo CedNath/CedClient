@@ -65,7 +65,7 @@ object RunProfit : Module(
     private val croesusBest = BooleanSetting("Highlight Best Chest", true, "Marks the most profitable chest gold.")
     private val fancy = BooleanSetting("Fancy Menu", false, "Replaces the reward chest screen with a clean item list and an Open button.")
     private val historyButton = ActionSetting("Loot History", "Every logged chest (same as /cc loot).") {
-        (mc.screen as? ClickGUI)?.openPopup(RunLootPopup())
+        (mc.gui.screen() as? ClickGUI)?.openPopup(RunLootPopup())
     }
 
     private val mc get() = Minecraft.getInstance()
@@ -119,8 +119,8 @@ object RunProfit : Module(
     private fun tick() {
         if (pendingPopup) {
             pendingPopup = false
-            mc.setScreen(ClickGUI())
-            (mc.screen as? ClickGUI)?.openPopup(RunLootPopup())
+            mc.gui.setScreen(ClickGUI())
+            (mc.gui.screen() as? ClickGUI)?.openPopup(RunLootPopup())
         }
         if (!isEnabled || ++ticks % 20 != 0) return
         if (DungeonState.inDungeon) {
@@ -308,7 +308,7 @@ object RunProfit : Module(
 
     /** Mixin: right after the slots are drawn, so tooltips stay on top. */
     fun drawOverlays(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor) {
-        if (!isEnabled || !croesus.value || screen !== mc.screen || screen !is ContainerScreen) return
+        if (!isEnabled || !croesus.value || screen !== mc.gui.screen() || screen !is ContainerScreen) return
         contextFromTitle(screen)
         val chests = croesusChests(screen)
         if (chests.isEmpty()) return
@@ -419,7 +419,7 @@ object RunProfit : Module(
     // ---------------------------------------------------------------- HUD
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || !hud.value || mc.options.hideGui) return
+        if (!isEnabled || !hud.value || mc.gui.hud.isHidden) return
         val inKuudra = Sidebar.area?.contains("Kuudra") == true
         if (!DungeonState.inDungeon && !inKuudra && session().isEmpty()) return
         renderInternal(g)

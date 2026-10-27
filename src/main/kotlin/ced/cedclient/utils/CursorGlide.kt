@@ -71,7 +71,7 @@ object CursorGlide {
 
     private fun update() {
         val click = onArrive ?: return
-        if (mc.screen !== screen) {
+        if (mc.gui.screen() !== screen) {
             onArrive = null // menu changed under us; the caller re-plans
             return
         }

@@ -160,10 +160,10 @@ object RagnarockTimer : Module(
 
     private fun notify(enabled: Boolean, title: String, color: Int, pitch: Float) {
         if (!enabled || mc.player == null) return
-        mc.gui.setTimes(5, 30, 10)
-        mc.gui.setTitle(Component.literal(title).withColor(color))
+        mc.gui.hud.setTimes(5, 30, 10)
+        mc.gui.hud.setTitle(Component.literal(title).withColor(color))
         ced.cedclient.utils.Debug.line("Ragnarock Timer", "alert: $title")
-        mc.gui.setSubtitle(Component.empty())
+        mc.gui.hud.setSubtitle(Component.empty())
         if (sound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
     }
 
@@ -197,7 +197,7 @@ object RagnarockTimer : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || !hud.value || mc.options.hideGui) return
+        if (!isEnabled || !hud.value || mc.gui.hud.isHidden) return
         draw(g, rows() ?: return)
     }
 

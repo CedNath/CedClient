@@ -457,7 +457,7 @@ object CustomNametagText {
         // Nothing to replace -> the cheapest possible exit.
         if (c.map.isEmpty()) return original
 
-        if (isFunctionalMenu(Minecraft.getInstance().screen)) return original
+        if (isFunctionalMenu(Minecraft.getInstance().gui.screen())) return original
 
         synchronized(itemResultCache) {
             if (itemCacheOwner !== c || itemResultCache.size > ITEM_CACHE_MAX) {

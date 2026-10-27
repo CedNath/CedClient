@@ -475,7 +475,7 @@ object DailyReset : Module(
         // local-only notices (e.g. "Please select a Realm"), so it never
         // touches the server and is never mistaken for a real chat/command
         // line by anything else listening on ChatMessageEvent.
-        val chat = Minecraft.getInstance().gui?.chat ?: return
+        val chat = Minecraft.getInstance().gui?.hud.chat ?: return
         val message = Component.literal("[CedClient] ")
             .withStyle(Style.EMPTY.withColor(PREFIX_COLOR).withBold(true))
             .append(
@@ -1062,14 +1062,14 @@ object DailyReset : Module(
             ActionSetting("Dailies", "Turn each tracked daily on or off.") {
                 val toggles = entryToggles.values.toList()
                 val half = (toggles.size + 1) / 2
-                (net.minecraft.client.Minecraft.getInstance().screen as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(
+                (net.minecraft.client.Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(
                     ced.cedclient.ui.clickgui.SettingsPopup("Daily Tasks", listOf(
                         listOf(ced.cedclient.ui.clickgui.SettingsPopup.Section("Dailies", toggles.take(half))),
                         listOf(ced.cedclient.ui.clickgui.SettingsPopup.Section("", toggles.drop(half))),
                     )))
             },
             ActionSetting("Custom Tasks", "Add your own tasks to the list.") {
-                (net.minecraft.client.Minecraft.getInstance().screen as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.CustomDailyPopup())
+                (net.minecraft.client.Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.CustomDailyPopup())
             },
         )
         addSettings(

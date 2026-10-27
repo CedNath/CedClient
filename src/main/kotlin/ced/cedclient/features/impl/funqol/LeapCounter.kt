@@ -113,8 +113,8 @@ object LeapCounter : Module(
                     spot.doneAt = now
                     ced.cedclient.utils.Debug.line("Leap Counter", "all leaped at this spot")
                     if (alertComplete.value) {
-                        mc.gui.setTitle(Component.literal(completeText.value.replace('&', '§')))
-                        mc.gui.setTimes(5, 40, 10)
+                        mc.gui.hud.setTitle(Component.literal(completeText.value.replace('&', '§')))
+                        mc.gui.hud.setTimes(5, 40, 10)
                         if (alertSound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1f, 1f))
                     }
                 }
@@ -123,7 +123,7 @@ object LeapCounter : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui || current == null) return
+        if (!isEnabled || mc.gui.hud.isHidden || current == null) return
         renderInternal(g)
     }
 

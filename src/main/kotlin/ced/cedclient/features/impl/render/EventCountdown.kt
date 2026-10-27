@@ -76,7 +76,7 @@ object EventCountdown : Module(
     private var lastLogged = ""
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui || mc.level == null) return
+        if (!isEnabled || mc.gui.hud.isHidden || mc.level == null) return
         val now = System.currentTimeMillis()
         val list = rows(now)
         val head = list.firstOrNull()?.let { "${it.name}${if (it.active) " active" else " next"}" } ?: ""

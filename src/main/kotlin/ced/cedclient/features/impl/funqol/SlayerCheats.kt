@@ -82,7 +82,7 @@ object SlayerCheats : Module(
 
     private fun tick() {
         val player = mc.player ?: return
-        if (!isEnabled || mc.screen != null) { VampireSlayer.walkTarget = null; VampireSlayer.walkPath = emptyList(); releaseSneak(); return stopWalk() }
+        if (!isEnabled || mc.gui.screen() != null) { VampireSlayer.walkTarget = null; VampireSlayer.walkPath = emptyList(); releaseSneak(); return stopWalk() }
         precise = false
         heading = null
         headingPath = emptyList()

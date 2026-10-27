@@ -416,7 +416,7 @@ object PartyCommands : Module(
     private fun openPopup() {
         fun section(name: String, vararg cmdNames: String) =
             SettingsPopup.Section(name, cmds.filter { it.name in cmdNames }.map { it.perm })
-        (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Party Commands", listOf(
+        (mc.gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Party Commands", listOf(
             listOf(section("Info", "help", "ping", "tps", "coords", "time", "song"), section("Fun", "coinflip", "8ball", "dice", "dt")),
             listOf(section("Party (leader only)", "invite", "allinvite", "warp", "transfer", "ptme", "promote", "demote", "kick", "queue")),
             listOf(

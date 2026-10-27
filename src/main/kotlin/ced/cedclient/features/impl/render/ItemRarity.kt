@@ -67,7 +67,7 @@ object ItemRarity : Module("Item Rarity", Category.Visuals, "Colored background 
     @JvmStatic
     fun drawBehind(g: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
         if (!isEnabled || stack.isEmpty) return
-        if (Minecraft.getInstance().screen == null && !hotbar.value) return
+        if (Minecraft.getInstance().gui.screen() == null && !hotbar.value) return
         val r = rarityOf(stack) ?: return
         if (r == SkyblockRarity.COMMON && !showCommon.value) return
         val rgb = (if (colorStyle.value == "Hypixel") HYPIXEL else DEFAULT)[r] ?: return

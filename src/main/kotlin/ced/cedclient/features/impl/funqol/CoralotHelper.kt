@@ -363,7 +363,7 @@ object CoralotHelper : Module(
     private fun pollCatchKey() {
         val code = catchKey.value
         val window = GLFW.glfwGetCurrentContext()
-        val down = requireKeybind.value && code > 0 && window != 0L && mc.screen == null &&
+        val down = requireKeybind.value && code > 0 && window != 0L && mc.gui.screen() == null &&
                 GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
         if (down && !keyWas) {
             armed = !armed
@@ -538,8 +538,8 @@ object CoralotHelper : Module(
         }
 
         if (showTitle.value) {
-            mc.gui.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
-            mc.gui.setTimes(5, 40, 10)
+            mc.gui.hud.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
+            mc.gui.hud.setTimes(5, 40, 10)
         }
 
         reset()

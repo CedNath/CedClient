@@ -23,7 +23,7 @@ object ChatPrefixSettings : Module("Chat Prefix", Category.Misc, "Choose which m
     override fun onAction() {
         val all = ChatPrefix.toggles.values.toList()
         val half = (all.size + 1) / 2
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(
             SettingsPopup(
                 "Chat Prefix",
                 listOf(

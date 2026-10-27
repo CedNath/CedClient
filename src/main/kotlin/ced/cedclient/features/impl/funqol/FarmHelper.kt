@@ -112,7 +112,7 @@ object FarmHelper : Module(
     }
     private val cropConfigButton = ActionSetting("Crop Config", "Yaw / pitch and lane keys per crop.") {
         runCatching { PlayerUtils.getFarmingCrop() }.getOrNull()?.let { c -> configOf(c)?.let { cropPicker.value = it.crop.label } }
-        (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Crop Config", listOf(listOf(
+        (mc.gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Crop Config", listOf(listOf(
             SettingsPopup.Section("Crop", listOf(cropPicker)),
             SettingsPopup.Section("Settings (click a number to type it)", cropConfigSettings.drop(1)),
         )), listOf(useCurrentAngles)))
@@ -183,7 +183,7 @@ object FarmHelper : Module(
     private val failsafeSettings = listOf<RenderableSetting<*>>(failsafeDelay, rotationSensitivity, teleportDistance, knockbackThreshold, bpsCheck, minBps, failsafeSound, pauseOnGuest)
 
     private val options = ActionSetting("Options", "Timings, behaviour and failsafes.") {
-        (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("FarmHelper", listOf(
+        (mc.gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("FarmHelper", listOf(
             listOf(SettingsPopup.Section("Timings", timingSettings), SettingsPopup.Section("Behaviour", behaviourSettings)),
             listOf(SettingsPopup.Section("Failsafes", failsafeSettings)),
         )))
@@ -207,7 +207,7 @@ object FarmHelper : Module(
 
         ClientTickEvents.END_CLIENT_TICK.register {
             val key = toggleKey.value
-            val down = isEnabled && key > 0 && mc.screen == null && GLFW.glfwGetKey(mc.window.handle(), key) == GLFW.GLFW_PRESS
+            val down = isEnabled && key > 0 && mc.gui.screen() == null && GLFW.glfwGetKey(mc.window.handle(), key) == GLFW.GLFW_PRESS
             if (down && !keyWasDown) MacroHandler.getInstance().toggleMacro()
             keyWasDown = down
             // Held macro keys aren't "input" to vanilla, so it would drop to the AFK FPS limit after a minute.
@@ -280,7 +280,7 @@ object FarmHelper : Module(
     // ---- HUD
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui) return
+        if (!isEnabled || mc.gui.hud.isHidden) return
         drawFailsafeWarning(g)
         if (!statusHud.value) return
         if (!MacroHandler.getInstance().isMacroToggled && !GameStateHandler.getInstance().inGarden()) return

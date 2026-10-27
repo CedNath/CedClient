@@ -63,7 +63,7 @@ object RenderOptimizer : Module(
     )
 
     private val settingsAction = ActionSetting("Open Settings", "All Render Optimizer toggles in one window.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(
             SettingsPopup(
                 "Render Optimizer",
                 columns = listOf(

@@ -58,7 +58,7 @@ object ArmorHud : Module(
     private var lastCount = -1
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || mc.options.hideGui || mc.player == null) return
+        if (!isEnabled || mc.gui.hud.isHidden || mc.player == null) return
         val list = pieces()
         if (list.size != lastCount) { lastCount = list.size; Debug.line("ArmorHud", "showing ${list.size} pieces") }
         draw(g, list)

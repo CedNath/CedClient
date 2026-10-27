@@ -101,26 +101,26 @@ object CritterSafari : Module(
 
     private val hudSettings: List<RenderableSetting<*>> = listOf(showPerPlayer, showHotspot, uniqueOnly, nearby, showValue, priceSide, showBoth, subtractTax)
     private val hudOptions = ActionSetting("HUD Options", "What the panels show: per player, hotspot, nearby counts, shard value.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(SettingsPopup("Critter HUD", listOf(
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Critter HUD", listOf(
             listOf(SettingsPopup.Section("Panels", listOf(showPerPlayer, showHotspot, uniqueOnly, nearby))),
             listOf(SettingsPopup.Section("Shard Value", listOf(showValue, priceSide, showBoth, subtractTax))),
         )))
     }
     private val alerts = ActionSetting("Alerts", "Encounters, birds, sparkling critters, milestones; each can also go to party chat.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(SettingsPopup("Critter Alerts", listOf(
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Critter Alerts", listOf(
             listOf(SettingsPopup.Section("Encounters", listOf(alertSound, gemzie, wumpa, doomspiral, macawAlert, birdAlert))),
             listOf(SettingsPopup.Section("Run", listOf(sparklingAlert, hotspotAlert, tradeAlert, biomeDone, allButMacaw, allDone))),
         )))
     }
     private val highlights = ActionSetting("Highlights", "Boxes in the world: Bloodbats, recatch spots, floor drops, mounds, trades.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(SettingsPopup("Critter Highlights", listOf(
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Critter Highlights", listOf(
             listOf(SettingsPopup.Section("Critters", listOf(hardToFind, hardToFindColor, recatch, recatchColor, removeDarkness))),
             listOf(SettingsPopup.Section("World", listOf(floorDrops, floorDropColor, highlightMounds, moundColor, highlightTrades, tradeColor))),
             listOf(SettingsPopup.Section("Spots", listOf(snooperWalls, troodonWalls, wallColor, beeSpots, beeColor, beeNestColor, perches, perchColor, perchFoundColor))),
         ), height = 650f))
     }
     private val history = ActionSetting("Run History", "Your saved Safari runs.") {
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(CritterHistoryPopup())
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(CritterHistoryPopup())
     }
 
     init {
@@ -669,7 +669,7 @@ object CritterSafari : Module(
 
     object ProgressHud : PanelHud("Critter Progress", "progress", 3, 2, 0.9f) {
         fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
-            if (!isEnabled || Minecraft.getInstance().options.hideGui || !showsHere()) return
+            if (!isEnabled || Minecraft.getInstance().gui.hud.isHidden || !showsHere()) return
             draw(g, progressPanel(), this)
         }
         override fun renderInternal(g: GuiGraphicsExtractor) = draw(g, progressPanel(), this)
@@ -689,7 +689,7 @@ object CritterSafari : Module(
 
     object TradesHud : PanelHud("Critter Trades", "trades", 144, 6, 0.7f) {
         fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
-            if (!isEnabled || !showTrades.value || Minecraft.getInstance().options.hideGui || !showsHere()) return
+            if (!isEnabled || !showTrades.value || Minecraft.getInstance().gui.hud.isHidden || !showsHere()) return
             draw(g, tradesPanel() ?: return, this)
         }
         override fun renderInternal(g: GuiGraphicsExtractor) {
@@ -700,7 +700,7 @@ object CritterSafari : Module(
 
     object MissingHud : PanelHud("Critter Missing", "missing", 978, 0) {
         fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
-            if (!isEnabled || !showMissing.value || Minecraft.getInstance().options.hideGui) return
+            if (!isEnabled || !showMissing.value || Minecraft.getInstance().gui.hud.isHidden) return
             val b = biome ?: return
             if (!showsHere()) return
             draw(g, missingPanel(b), this)

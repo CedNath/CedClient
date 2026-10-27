@@ -324,7 +324,7 @@ class CedClient : ClientModInitializer {
     private fun hudLast(id: Identifier, element: net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement) =
         HudElementRegistry.addLast(id) { graphics, tickCounter ->
             val hidden = id.path != "spotify" && id.path != "hud_keep_on_screen" &&
-                net.minecraft.client.Minecraft.getInstance().screen is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>
+                net.minecraft.client.Minecraft.getInstance().gui.screen() is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>
             if (!hidden) element.extractRenderState(graphics, tickCounter)
         }
 
@@ -521,7 +521,7 @@ class CedClient : ClientModInitializer {
         )
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             if (openGuiKey.consumeClick()) {
-                client.setScreen(ClickGUI())
+                client.gui.setScreen(ClickGUI())
             }
 
 //#if CHEAT
@@ -531,7 +531,7 @@ class CedClient : ClientModInitializer {
 //#endif
             // Only while no screen is open, so typing in chat doesn't trigger them.
             val window = GLFW.glfwGetCurrentContext()
-            fun down(code: Int) = code > 0 && window != 0L && client.screen == null &&
+            fun down(code: Int) = code > 0 && window != 0L && client.gui.screen() == null &&
                     GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS
 
 //#if CHEAT

@@ -218,7 +218,7 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
     override fun onClose() {
         // Buttons and Escape: done for this launch. (Another mod replacing this screen doesn't come through here.)
         UpdateChecker.handled = true
-        minecraft.setScreen(parent)
+        minecraft.gui.setScreen(parent)
     }
 
     companion object {

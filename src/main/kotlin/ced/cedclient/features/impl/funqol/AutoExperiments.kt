@@ -104,7 +104,7 @@ object AutoExperiments : Module(
     }
 
     private fun tick() {
-        val screen = mc.screen
+        val screen = mc.gui.screen()
         if (screen !== lastScreen) {
             lastScreen = screen
             if (solving != null) dbg("screen changed to '${screen?.title?.string}', state reset")
@@ -232,7 +232,7 @@ object AutoExperiments : Module(
     }
 
     private fun drawSolver(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor) {
-        if (screen !== mc.screen) return
+        if (screen !== mc.gui.screen()) return
         val pending = pendingSlots()
         if (pending.isEmpty()) return
         val acc = screen as AbstractContainerScreenAccessor
@@ -252,7 +252,7 @@ object AutoExperiments : Module(
      * green = its pair is known too, yellow = seen once, blue = powerup.
      */
     private fun drawSuperpairs(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor) {
-        if (screen !== mc.screen || superpairsSeen.isEmpty() || !screen.title.string.startsWith("Superpairs (")) return
+        if (screen !== mc.gui.screen() || superpairsSeen.isEmpty() || !screen.title.string.startsWith("Superpairs (")) return
         val slots = screen.menu.slots
         val hidden = superpairsSeen.filterKeys { slots.getOrNull(it)?.item?.isHiddenCard() == true }
         val keyCounts = hidden.values.groupingBy { it.pairKey() }.eachCount()
@@ -276,7 +276,7 @@ object AutoExperiments : Module(
      * Auto Click off: a click on the right slot moves the solver on to the next one.
      */
     private fun onMouseClick(screen: AbstractContainerScreen<*>, mx: Double, my: Double): Boolean {
-        if (!isEnabled || screen !== mc.screen) return true
+        if (!isEnabled || screen !== mc.gui.screen()) return true
         val pending = pendingSlots()
         if (pending.isEmpty()) return true
         if (autoClick.value) return false

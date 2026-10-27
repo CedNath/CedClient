@@ -98,9 +98,9 @@ object SecretHighlight : Module(
 
         on<ChatMessageEvent> {
             if (!lockedTitle.value || !active() || !it.unformattedText.trim().equals("That chest is locked!", true)) return@on
-            mc.gui.setTimes(3, (lockedSeconds.value * 20).toInt(), 10)
-            mc.gui.setTitle(Component.literal(lockedText.value).withColor(lockedColor.value.rgba and 0xFFFFFF))
-            mc.gui.setSubtitle(Component.empty())
+            mc.gui.hud.setTimes(3, (lockedSeconds.value * 20).toInt(), 10)
+            mc.gui.hud.setTitle(Component.literal(lockedText.value).withColor(lockedColor.value.rgba and 0xFFFFFF))
+            mc.gui.hud.setSubtitle(Component.empty())
         }
 
         UseBlockCallback.EVENT.register(UseBlockCallback { _, level, _, hit ->

@@ -99,7 +99,7 @@ object VampireSlayer : Module(
     private val popupSettings = alertSettings
 
     private fun popup(title: String, vararg columns: SettingsPopup.Section) =
-        (Minecraft.getInstance().screen as? ClickGUI)?.openPopup(SettingsPopup(title, columns.map { listOf(it) }))
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(SettingsPopup(title, columns.map { listOf(it) }))
 
     private val alertsButton = ActionSetting("Alerts", "Boss soon, boss spawned, mini-boss titles.") {
         popup("Slayer Alerts", SettingsPopup.Section("Every Slayer", alertSettings))
@@ -306,15 +306,15 @@ object VampireSlayer : Module(
     private var impelTitleAt = 0L
 
     private fun title(text: String, sub: String) {
-        mc.gui.setTimes(0, 10, 2)
-        mc.gui.setTitle(Component.literal(text))
-        mc.gui.setSubtitle(Component.literal(sub))
+        mc.gui.hud.setTimes(0, 10, 2)
+        mc.gui.hud.setTitle(Component.literal(text))
+        mc.gui.hud.setSubtitle(Component.literal(sub))
     }
 
     private fun alert(text: String, sub: String, pitch: Float) {
-        mc.gui.setTimes(2, 30, 8)
-        mc.gui.setTitle(Component.literal(text))
-        mc.gui.setSubtitle(Component.literal(sub))
+        mc.gui.hud.setTimes(2, 30, 8)
+        mc.gui.hud.setTitle(Component.literal(text))
+        mc.gui.hud.setSubtitle(Component.literal(sub))
         ping(pitch)
     }
 
@@ -586,8 +586,8 @@ object VampireSlayer : Module(
     }
 
     fun render(g: GuiGraphicsExtractor, tickCounter: DeltaTracker) {
-        if (isEnabled && !mc.options.hideGui) drawLaser(g)
-        if (!isEnabled || !hud.value || mc.options.hideGui) return
+        if (isEnabled && !mc.gui.hud.isHidden) drawLaser(g)
+        if (!isEnabled || !hud.value || mc.gui.hud.isHidden) return
         if (!inSlayerArea()) return
         if (lastSlayer == null && !(inRift() && effigyKnown)) return
         draw(g, rows())

@@ -142,18 +142,18 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
     init {
         addSettings(defaultColor, defOutline, defFill, defBeam, defText, defTracer, showDistance, throughWalls, fillOpacity, boxSize, beamWidth,
             hideWithin, maxDistance, onlyIsland, removeReached, chatWaypoints, chatSeconds, chatColor, addKey,
-            ActionSetting("Edit Waypoints", "Rename, move, recolour and choose how each waypoint is drawn.") { mc.setScreen(WaypointScreen()) },
+            ActionSetting("Edit Waypoints", "Rename, move, recolour and choose how each waypoint is drawn.") { mc.gui.setScreen(WaypointScreen()) },
             ActionSetting("Clear All", "Delete every waypoint.") { points.clear(); temps.clear(); save() },
         )
         load()
 
         ClientTickEvents.END_CLIENT_TICK.register {
             // A command runs while chat is open; the editor opens on the next tick, after chat has closed.
-            if (pendingEdit) { pendingEdit = false; mc.setScreen(WaypointScreen()) }
+            if (pendingEdit) { pendingEdit = false; mc.gui.setScreen(WaypointScreen()) }
             if (!isEnabled) return@register
             val now = System.currentTimeMillis()
             temps.removeAll { it.until < now }
-            val down = mc.screen == null && addKey.value > 0 && InputConstants.isKeyDown(mc.window, addKey.value)
+            val down = mc.gui.screen() == null && addKey.value > 0 && InputConstants.isKeyDown(mc.window, addKey.value)
             if (down && !addDown) targetPos()?.let { add(nextName(), it) }
             addDown = down
             if (++tick % 10 == 0) {

@@ -120,7 +120,7 @@ object BeaconSolver : Module(
 
         ClientTickEvents.END_CLIENT_TICK.register {
             tickNow++
-            val screen = mc.screen
+            val screen = mc.gui.screen()
             if (screen !== lastScreen) { lastScreen = screen; reset() }
             if (!isEnabled || !open()) return@register
             read(screen as AbstractContainerScreen<*>)
@@ -130,7 +130,7 @@ object BeaconSolver : Module(
 
     private var sameVotes = 0
 
-    private fun open() = (mc.screen as? AbstractContainerScreen<*>)?.let { it.title.string.contains("Tune Frequency") && it.menu.slots.size >= 54 } == true
+    private fun open() = (mc.gui.screen() as? AbstractContainerScreen<*>)?.let { it.title.string.contains("Tune Frequency") && it.menu.slots.size >= 54 } == true
 
     private fun reset() {
         axes.forEach { it.ref = null; it.ours = null }

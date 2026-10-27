@@ -274,7 +274,7 @@ object Spotify : Module(
             ),
         )
         addSettings(ActionSetting("HUD Options", "The now-playing card: layout, buttons, colours.") {
-            (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Spotify HUD", columns))
+            (mc.gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Spotify HUD", columns))
         })
         val all = columns.flatten().flatMap { it.settings }
         addSettings(*all.toTypedArray())
@@ -296,7 +296,7 @@ object Spotify : Module(
                 announced = t
                 mc.player?.sendSystemMessage(songLine(t))
             }
-            if (!keybinds.value || mc.screen != null) { down.clear(); return@register }
+            if (!keybinds.value || mc.gui.screen() != null) { down.clear(); return@register }
             if (pressed(prevKey.value)) press(VK_PREV)
             if (pressed(pauseKey.value)) press(VK_PLAY_PAUSE)
             if (pressed(nextKey.value)) press(VK_NEXT)
@@ -458,7 +458,7 @@ object Spotify : Module(
                 1
             })
 
-    private fun share(t: String) = mc.setScreen(ChatScreen("Now playing: $t", false))
+    private fun share(t: String) = mc.gui.setScreen(ChatScreen("Now playing: $t", false))
 
     // ------------------------------------------------------------------
     // HUD
@@ -471,7 +471,7 @@ object Spotify : Module(
     @Volatile private var buttons: List<Btn> = emptyList()
 
     /** A screen the buttons can be clicked in: chat, or (Click In Inventory) an inventory / container. */
-    private fun inClickScreen() = mc.screen.let { it is ChatScreen || (clickInventory.value && it is AbstractContainerScreen<*>) }
+    private fun inClickScreen() = mc.gui.screen().let { it is ChatScreen || (clickInventory.value && it is AbstractContainerScreen<*>) }
 
     /** Mouse in GUI units (the same space as the HUD panel). */
     private fun mouseX() = mc.mouseHandler.xpos() * mc.window.guiScaledWidth / mc.window.screenWidth
@@ -505,10 +505,10 @@ object Spotify : Module(
     fun onContainerClick(x: Double, y: Double): Boolean = clickInventory.value && onChatClick(x, y, 0)
 
     /** The player inventory: the card is drawn in front of it (renderOnTop); other containers keep the normal HUD layer, still clickable. */
-    private fun inInventory() = clickInventory.value && mc.screen is InventoryScreen
+    private fun inInventory() = clickInventory.value && mc.gui.screen() is InventoryScreen
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
-        if (!isEnabled || !showHud.value || mc.options.hideGui || track == null || (visibility.value == "Chat Open Only" && !inClickScreen())) {
+        if (!isEnabled || !showHud.value || mc.gui.hud.isHidden || track == null || (visibility.value == "Chat Open Only" && !inClickScreen())) {
             buttons = emptyList()
             return
         }
@@ -519,7 +519,7 @@ object Spotify : Module(
     /** Called at the end of an inventory / container screen's render (AbstractContainerScreen mixin): the card in front of the screen. */
     @JvmStatic
     fun renderOnTop(g: GuiGraphicsExtractor) {
-        if (!isEnabled || !showHud.value || mc.options.hideGui || track == null || !inInventory()) return
+        if (!isEnabled || !showHud.value || mc.gui.hud.isHidden || track == null || !inInventory()) return
         renderInternal(g)
     }
 

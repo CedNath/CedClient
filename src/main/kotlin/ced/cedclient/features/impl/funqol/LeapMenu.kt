@@ -158,7 +158,7 @@ object LeapMenu : Module(
     /** One "Leap Options" button in the panel; [sections] open in a popup from it. */
     private fun addPopupSettings(vararg sections: Pair<String, List<RenderableSetting<*>>>) {
         addSettings(ActionSetting("Leap Options", "Number keys, door opener highlight, leap announce.") {
-            (mc.screen as? ClickGUI)?.openPopup(SettingsPopup("Leap Menu", sections.map { (title, list) -> listOf(SettingsPopup.Section(title, list)) }))
+            (mc.gui.screen() as? ClickGUI)?.openPopup(SettingsPopup("Leap Menu", sections.map { (title, list) -> listOf(SettingsPopup.Section(title, list)) }))
         })
         val all = sections.flatMap { it.second }
         addSettings(*all.toTypedArray())
@@ -195,7 +195,7 @@ object LeapMenu : Module(
 
     /** While the menu is open: queues [draw] (a full-canvas NVG draw) to render behind the menu; false when it isn't open. */
     fun defer(draw: () -> Unit): Boolean {
-        val screen = mc.screen as? AbstractContainerScreen<*> ?: return false
+        val screen = mc.gui.screen() as? AbstractContainerScreen<*> ?: return false
         if (!handles(screen)) return false
         behind += draw
         return true
