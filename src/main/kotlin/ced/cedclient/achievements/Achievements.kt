@@ -94,6 +94,7 @@ object Achievements {
         Achievement("s1", "S Rank", "Reach 270 score in a run.", "Dungeons", "s_runs", 1),
         Achievement("splus1", "Perfect Run", "Reach 300 score in a run.", "Dungeons", "splus_runs", 1, rewards["level_sunset"]),
         Achievement("splus10", "Clean Sweep", "Reach 300 score in 10 runs.", "Dungeons", "splus_runs", 10),
+        Achievement("necron5", "Gravity Check", "See your Necron drag landing predicted 5 times.", "Dungeons", "necron_drops", 5),
         Achievement("secrets30", "Secret Hunter", "Find 30 secrets in one run.", "Dungeons", "secrets_run", 30),
         // Features of the mod
         Achievement("dungmods", "Dungeoneer's Kit", "Turn on 5 different modules from the Dungeons panel.", "Features", "dungeon_modules", 5),

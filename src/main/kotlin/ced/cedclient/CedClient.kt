@@ -315,6 +315,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.render.F4Features)
             ModuleManager.register(ced.cedclient.features.impl.funqol.EtherwarpOverlay)
             ModuleManager.register(ced.cedclient.features.impl.funqol.ArchitectDraft)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.NecronDrop)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
