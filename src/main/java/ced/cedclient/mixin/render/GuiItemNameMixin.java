@@ -1,7 +1,7 @@
 package ced.cedclient.mixin.render;
 
 import ced.cedclient.features.impl.render.ActionBarHud;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Action Bar HUD > Held Item Name: draws vanilla's held item name where it was dragged to in the HUD editor, and Always Show Item Name keeps it from fading. */
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public class GuiItemNameMixin {
 
     @Shadow private int toolHighlightTimer;

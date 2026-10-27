@@ -56,6 +56,8 @@
     "render.ChatHudHideMixin",
     "render.ParticleEngineMixin",
     "render.ClientClockManagerMixin",
+    "render.ClientLevelWeatherMixin",
+    "render.ClientClockInstanceMixin",
     "render.ItemDecorationsMixin",
     "client.PackCompatibilityMixin",
 
@@ -102,6 +104,7 @@
 
   "client": [
     "client.MinecraftMixin",
+    "client.GuiSetScreenMixin",
     "client.SoundEngineMixin",
     "client.LocalPlayerSignMixin",
     "client.LocalPlayerDropMixin",

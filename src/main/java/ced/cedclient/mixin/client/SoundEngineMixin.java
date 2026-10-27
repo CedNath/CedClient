@@ -24,7 +24,7 @@ public class SoundEngineMixin {
 
     // After resolve(): before it, the instance has no Sound yet and getVolume() / getPitch() throw.
     @Inject(method = "play", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
-            target = "Lnet/minecraft/client/resources/sounds/SoundInstance;resolve(Lnet/minecraft/client/sounds/SoundManager;)Lnet/minecraft/client/sounds/WeighedSoundEvents;"),
+            target = "Lnet/minecraft/client/resources/sounds/SoundInstance;getOrResolve(Lnet/minecraft/client/sounds/SoundManager;)Lnet/minecraft/client/sounds/WeighedSoundEvents;"),
             cancellable = true)
     private void cedclient$hypeSound(SoundInstance instance, CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
         if (CustomHypeSound.shouldCancel(instance)) cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);

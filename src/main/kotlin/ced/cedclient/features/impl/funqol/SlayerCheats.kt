@@ -126,7 +126,7 @@ object SlayerCheats : Module(
 
     /** Ticks until the follow-up action bar line after a Holy Ice use ("NOT ENOUGH MANA" shows there), 0 = none. */
     private var iceLogTicks = 0
-    private fun actionBar() = (mc.gui as ced.cedclient.mixin.accessor.GuiAccessor).`ced$getOverlayMessage`()?.string?.let { "\"$it\"" }
+    private fun actionBar() = (mc.gui.hud as ced.cedclient.mixin.accessor.GuiAccessor).`ced$getOverlayMessage`()?.string?.let { "\"$it\"" }
 
     private fun maniaDebug() {
         if (!ced.cedclient.utils.DevAccess.isDev || IslandState.island != IslandState.Island.THE_RIFT) return

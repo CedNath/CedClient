@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
  * the target below.
  */
 @Pseudo
-@Mixin(targets = "net.minecraft.client.gui.Gui$DisplayEntry")
+@Mixin(targets = "net.minecraft.client.gui.Hud$1DisplayEntry")
 public abstract class ScoreboardEntryMixin {
 
     @ModifyVariable(method = "<init>", at = @At("HEAD"), argsOnly = true, ordinal = 0)

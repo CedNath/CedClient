@@ -22,8 +22,8 @@ public class BlockBreakParticlesMixin {
         if (RenderOptimizer.hideBlockBreaking()) ci.cancel();
     }
 
-    @Inject(method = "addBreakingBlockEffect", at = @At("HEAD"), cancellable = true)
-    private void cedclient$noCrackParticles(BlockPos pos, Direction side, CallbackInfo ci) {
+    @Inject(method = "addBreakingBlockEffects", at = @At("HEAD"), cancellable = true)
+    private void cedclient$noCrackParticles(BlockPos pos, Direction side, boolean fromServer, CallbackInfo ci) {
         if (RenderOptimizer.hideBlockBreaking()) ci.cancel();
     }
 }

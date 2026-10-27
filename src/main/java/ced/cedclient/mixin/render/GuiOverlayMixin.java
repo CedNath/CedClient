@@ -1,7 +1,7 @@
 package ced.cedclient.mixin.render;
 
 import ced.cedclient.features.impl.render.RenderOptimizer;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Render Optimizer: HUD camera overlays (vignette, pumpkin, freezing, portal, nausea). */
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public class GuiOverlayMixin {
 
     @Inject(method = "extractVignette", at = @At("HEAD"), cancellable = true)

@@ -20,9 +20,9 @@ public class ClientLevelEffectsMixin {
         return r != null ? r : state;
     }
 
-    @Redirect(method = "addBreakingBlockEffect", at = @At(value = "INVOKE",
+    @Redirect(method = "addBreakingBlockEffects", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/multiplayer/ClientLevel;getBlockState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"))
-    private BlockState cedclient$crackParticles(ClientLevel level, BlockPos pos, BlockPos posArg, Direction side) {
+    private BlockState cedclient$crackParticles(ClientLevel level, BlockPos pos, BlockPos posArg, Direction side, boolean fromServer) {
         BlockState world = level.getBlockState(pos);
         BlockState r = CosmeticHooks.effectReplacement(pos, world);
         return r != null ? r : world;
