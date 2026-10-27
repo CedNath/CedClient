@@ -321,6 +321,9 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.NecronDrop)
             ModuleManager.register(ced.cedclient.features.impl.funqol.GateHighlight)
             ModuleManager.register(ced.cedclient.features.impl.funqol.TrevorHelper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.GyroHelper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.CameraTweaks)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.NoItemPlace)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
