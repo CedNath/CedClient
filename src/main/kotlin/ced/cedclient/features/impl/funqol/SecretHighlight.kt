@@ -134,8 +134,8 @@ object SecretHighlight : Module(
             }
         }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (marks.isEmpty() || !active()) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (marks.isEmpty() || !active()) return@CollectSubmits
             val poseStack = context.poseStack()
             val cam = context.gameRenderer().mainCamera().position()
             val shown = marks.map { it.box.move(-cam.x, -cam.y, -cam.z) }

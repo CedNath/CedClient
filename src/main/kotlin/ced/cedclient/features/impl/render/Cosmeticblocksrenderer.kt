@@ -22,8 +22,8 @@ object CosmeticBlocksRenderer {
     private const val MAX_WIREFRAMES = 3000
 
     fun register() {
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!CosmeticBlocks.isEnabled) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (!CosmeticBlocks.isEnabled) return@CollectSubmits
             val p1 = CosmeticTools.pos1
             val p2 = CosmeticTools.pos2
             val selection = CosmeticBlocks.worldEditMode && (p1 != null || p2 != null)
@@ -32,9 +32,9 @@ object CosmeticBlocksRenderer {
 //#if CHEAT
             // Freecam: vanilla's outline is still the player's target, so mark the block the camera aims at.
             val aim = if (Freecam.isActive && (CosmeticBlocks.editMode || CosmeticBlocks.worldEditMode)) CosmeticTools.aimHit()?.blockPos else null
-            if (!selection && !ruler && !wire && aim == null) return@AfterSolidFeatures
+            if (!selection && !ruler && !wire && aim == null) return@CollectSubmits
 //#else
-//$            if (!selection && !ruler && !wire) return@AfterSolidFeatures
+//$            if (!selection && !ruler && !wire) return@CollectSubmits
 //#endif
 
             val cam = context.gameRenderer().mainCamera().position()

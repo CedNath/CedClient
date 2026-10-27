@@ -85,9 +85,18 @@
     "accessor.AbstractContainerScreenAccessor",
     "accessor.GuiAccessor",
     "accessor.PictureInPictureRendererAccessor",
+    "render.FluidStateModelSetMixin",
+    "render.LavaFogMixin",
+    "entity.PlayerBowMixin",
     "accessor.LivingEntityRendererAccessor",
     "accessor.CustomDataAccessor",
     "accessor.MapItemSavedDataAccessor",
+    "accessor.LanguageAccessor",
+    "accessor.LanguageManagerAccessor",
+    "screen.ModHiderAnvilMenuMixin",
+    "screen.ModHiderAnvilScreenMixin",
+    "screen.ModHiderSignEditMixin",
+    "render.MapRendererHubMixin",
     "accessor.PlayerTabOverlayAccessor",
 
 

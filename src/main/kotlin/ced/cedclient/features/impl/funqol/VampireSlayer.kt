@@ -131,7 +131,7 @@ object VampireSlayer : Module(
         on<ced.cedclient.events.TitleEvent> { if (it.unformattedText.contains("Impel", true)) impelTitleAt = System.currentTimeMillis() }
         on<ced.cedclient.events.SubtitleEvent> { if (it.unformattedText.contains("Impel", true)) impelTitleAt = System.currentTimeMillis() }
         on<TickEvent.End> { tick() }
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
             renderWorld(context)
         })
     }

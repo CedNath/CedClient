@@ -250,9 +250,14 @@ object PetDisplay : RowHud("Pet Display", "HUD with the pet you have out: name i
 
     private val TAB = Regex("""^\[Lvl (\d+)] (.+?)(?: ✦)?$""")
     private val SUMMON = Regex("""You summoned your (.+?)!""")
+    // "Autopet equipped your [Lvl 100] Ender Dragon! VIEW RULE" (autopet rules and loadout swaps)
+    private val AUTOPET = Regex("""Autopet equipped your \[Lvl (\d+)] (.+?)(?: ✦)?! VIEW RULE""")
+    // "You equipped Loadout 9!" / "You equipped ARCH CLEAR! (x2)": names are user-set and no pet is named, so only re-read the tab.
+    private val LOADOUT = Regex("""^You equipped (.+?)!(?: \(x\d+\))?$""")
     private val DESPAWN = Regex("""You despawned your (.+?)!""")
     private var chatPet: String? = null
     private var tabSeen = 0L
+    private var loadoutUntil = 0L
 
     private class Found(val name: String, val level: String, val rgb: Int?)
     private var found: Found? = null
@@ -277,14 +282,31 @@ object PetDisplay : RowHud("Pet Display", "HUD with the pet you have out: name i
         }
     }
 
+    /** A loadout swap names no pet, but the Loadouts menu (still open) shows the active loadout's pet in slot 21 once the server refreshes it. */
+    private fun readLoadoutMenu() {
+        if (System.currentTimeMillis() > loadoutUntil) return
+        val screen = net.minecraft.client.Minecraft.getInstance().gui.screen() as? net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*> ?: return
+        if (!screen.title.string.endsWith(") Loadouts") || screen.menu.slots.size <= 21) return
+        val stack = screen.menu.getSlot(21).item
+        if (stack.isEmpty) return
+        val m = Regex("""\[Lvl (\d+)] (.+?)(?: ✦)?$""").find(stack.hoverName.string.replace("⭐", "").trim()) ?: return
+        var rgb: Int? = null
+        stack.hoverName.visit({ style, text ->
+            if (text.isNotBlank() && text.trim() != "✦" && !text.startsWith("[")) style.color?.let { rgb = it.value }
+            java.util.Optional.empty<Unit>()
+        }, net.minecraft.network.chat.Style.EMPTY)
+        found = Found(m.groupValues[2], m.groupValues[1], rgb)
+    }
+
     override fun rows(): List<Triple<String, String, Int>>? {
         scan()
+        readLoadoutMenu()
         val f = found
         val name = f?.name ?: chatPet
         if (name == null) return if (hideWhenNone.value) null else listOf(Triple("No pet", "", color.value.rgba))
         val c = if (rarityColor.value && f?.rgb != null) 0xFF000000.toInt() or f.rgb else color.value.rgba
         // One row: the name (in its rarity color) and, on the right, the level.
-        return listOf(Triple(name, if (showLevel.value && f != null) "Lvl ${f.level}" else "", c))
+        return listOf(Triple(name, if (showLevel.value && f != null && f.level.isNotEmpty()) "Lvl ${f.level}" else "", c))
     }
 
     override fun preview() = listOf(Triple("Ender Dragon", "Lvl 100", 0xFFFFAA00.toInt()))
@@ -295,7 +317,10 @@ object PetDisplay : RowHud("Pet Display", "HUD with the pet you have out: name i
         on<ChatMessageEvent> {
             if (!isEnabled) return@on
             val text = it.unformattedText
-            SUMMON.find(text)?.let { m -> chatPet = m.groupValues[1]; Debug.line("Pet Display", "summoned $chatPet") }
+            // Chat is newer than the tab widget (which lags), so a chat pet change drops the stale tab reading until the tab changes again.
+            SUMMON.find(text)?.let { m -> chatPet = m.groupValues[1]; found = null; Debug.line("Pet Display", "summoned $chatPet") }
+            AUTOPET.find(text)?.let { m -> chatPet = m.groupValues[2]; found = Found(m.groupValues[2], m.groupValues[1], null); Debug.line("Pet Display", "autopet $chatPet") }
+            LOADOUT.find(text.trim())?.let { chatPet = null; loadoutUntil = System.currentTimeMillis() + 3000; Debug.line("Pet Display", "loadout ${it.groupValues[1]}") }
             DESPAWN.find(text)?.let { chatPet = null; found = null; Debug.line("Pet Display", "despawned") }
         }
     }

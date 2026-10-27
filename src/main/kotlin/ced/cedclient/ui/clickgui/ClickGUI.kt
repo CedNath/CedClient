@@ -34,7 +34,7 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
  * the live, currently-open panel layout.
  *
  * openPopup()/closePopup() (Phase 6) give EntityESP.kt's three "Select ___"
- * ActionSettings — `(mc.screen as? ClickGUI)?.openPopup(MobFilterPopup())`
+ * ActionSettings — `(mc.gui.screen() as? ClickGUI)?.openPopup(MobFilterPopup())`
  * etc. — a modal to open into. Only one popup can be open at a time; opening
  * a second just replaces the first. While a popup is open it gets first and
  * exclusive claim on input (see the override methods below) — panels don't
@@ -42,6 +42,8 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
  * close button, clicking outside it, or Escape.
  */
 class ClickGUI : Screen(Component.literal("Click GUI")) {
+
+    init { ced.cedclient.achievements.Achievements.bump("gui_opens") }
 
     private val panelSettings: List<PanelSetting> =
         Category.entries.filter { ced.cedclient.features.ModuleManager.modulesByCategory.containsKey(it) }.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }

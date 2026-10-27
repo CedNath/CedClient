@@ -34,6 +34,9 @@ object ConfigManager {
     // cascade of redundant writes -- see loadModulesOnly() / load().
     private var suppressAutoSave = false
 
+    /** True while the saved config is being replayed (modules switch on without the player doing it). */
+    val isLoading: Boolean get() = suppressAutoSave
+
     // Used only when a category has no saved position yet (first launch,
     // or a brand new category that's never been dragged before).
     // Panel.WIDTH is 320f as of the bigger-text pass -- 15px left margin,

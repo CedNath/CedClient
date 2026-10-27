@@ -104,10 +104,10 @@ object StarredMobHighlight : Module(
             scan(client)
         }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!isEnabled) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (!isEnabled) return@CollectSubmits
             val current = targets
-            if (current.isEmpty()) return@AfterSolidFeatures
+            if (current.isEmpty()) return@CollectSubmits
 
             val poseStack = context.poseStack()
             val camera = context.gameRenderer().mainCamera()

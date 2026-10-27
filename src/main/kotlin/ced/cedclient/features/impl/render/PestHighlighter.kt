@@ -66,9 +66,9 @@ object PestHighlighter : Module(
             pests = scan()
         }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
             val current = pests
-            if (!shouldProcess() || current.isEmpty()) return@AfterSolidFeatures
+            if (!shouldProcess() || current.isEmpty()) return@CollectSubmits
 
             val poseStack = context.poseStack()
             val cam = context.gameRenderer().mainCamera().position()

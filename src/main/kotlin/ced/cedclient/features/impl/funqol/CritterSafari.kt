@@ -129,7 +129,7 @@ object CritterSafari : Module(
         (hudSettings + alertSettings + highlightSettings).forEach { it.inPopup = true }
         on<ChatMessageEvent> { onChat(it.formattedText) }
         on<TickEvent.End> { tick(); CritterWorld.tick(); CritterAlerts.tick() }
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
             CritterWorld.render(context)
         })
     }

@@ -120,10 +120,10 @@ object DoorESP : Module(
             }
         }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!isEnabled) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (!isEnabled) return@CollectSubmits
             val current = doors
-            if (current.isEmpty()) return@AfterSolidFeatures
+            if (current.isEmpty()) return@CollectSubmits
 
             val camera = context.gameRenderer().mainCamera()
             val cam = camera.position()

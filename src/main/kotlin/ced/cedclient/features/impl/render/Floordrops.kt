@@ -127,8 +127,8 @@ object FloorDrops : Module(
 
         ClientPlayConnectionEvents.JOIN.register { _, _, _ -> forestNodes.clear() }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!shouldProcess() || forestNodes.isEmpty()) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (!shouldProcess() || forestNodes.isEmpty()) return@CollectSubmits
 
             val poseStack = context.poseStack()
             val cameraPos = context.gameRenderer().mainCamera().position()

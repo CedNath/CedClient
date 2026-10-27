@@ -92,7 +92,7 @@ object DojoHelper : Module(
         ClientTickEvents.END_CLIENT_TICK.register { if (isEnabled) tick() }
         // Aim and sword checks every rendered frame, so they don't step at 20 Hz.
         LevelRenderEvents.START_MAIN.register { if (isEnabled) frame() }
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { ctx ->
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { ctx ->
             if (isEnabled && swiftDebug.value && challenge("Swiftness")) drawDebug(ctx, ctx.gameRenderer().mainCamera().position())
         })
     }

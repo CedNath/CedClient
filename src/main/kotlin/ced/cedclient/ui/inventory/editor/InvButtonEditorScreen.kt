@@ -45,7 +45,7 @@ import kotlin.math.roundToInt
  * side panel (not a popup) handles naming, commands, and icon search for
  * whichever button is currently selected.
  *
- * Opened directly via `Minecraft.getInstance().setScreen(InvButtonEditorScreen())`
+ * Opened directly via `Minecraft.getInstance().gui.setScreen(InvButtonEditorScreen())`
  * — no need to first open the real InventoryScreen underneath it.
  */
 class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor")) {

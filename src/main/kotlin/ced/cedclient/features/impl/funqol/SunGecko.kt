@@ -80,9 +80,9 @@ object SunGecko : Module(
         hudLines.values.forEach { it.inPopup = true }
         on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }
         on<TickEvent.End> { tick() }
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            val gecko = gecko ?: return@AfterSolidFeatures
-            if (!isEnabled || !box.value || runStart == 0L) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            val gecko = gecko ?: return@CollectSubmits
+            if (!isEnabled || !box.value || runStart == 0L) return@CollectSubmits
             val cam = context.levelState().cameraRenderState.pos
             val pt = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
             val b = gecko.boundingBox.move(gecko.getPosition(pt).subtract(gecko.position())).inflate(0.1).move(-cam.x, -cam.y, -cam.z)

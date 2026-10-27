@@ -176,16 +176,16 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
             Debug.line("Waypoints", "chat waypoint from $who at $x $y $z")
         }
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!isEnabled) return@AfterSolidFeatures
-            val player = mc.player ?: return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (!isEnabled) return@CollectSubmits
+            val player = mc.player ?: return@CollectSubmits
             val camera = context.gameRenderer().mainCamera()
             val cam = camera.position()
             val list = all().filter { wp ->
                 val d = Math.sqrt(player.distanceToSqr(wp.x + 0.5, wp.y + 0.5, wp.z + 0.5))
                 d >= hideWithin.value && (maxDistance.value <= 0.0 || d <= maxDistance.value)
             }
-            if (list.isEmpty()) return@AfterSolidFeatures
+            if (list.isEmpty()) return@CollectSubmits
             val poseStack = context.poseStack()
             val size = boxSize.value
             val half = size / 2

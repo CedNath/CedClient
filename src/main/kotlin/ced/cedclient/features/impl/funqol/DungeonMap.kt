@@ -634,9 +634,9 @@ object DungeonMap : Module(
     }
 
     init {
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
             val chests = mimicChests
-            if (!isEnabled || !mimicEsp.value || chests.isEmpty()) return@AfterSolidFeatures
+            if (!isEnabled || !mimicEsp.value || chests.isEmpty()) return@CollectSubmits
             val cam = context.gameRenderer().mainCamera().position()
             context.geometry(CustomRenderType.LINES_ESP) { pose, buffer ->
                 for (pos in chests) LineBox.draw(pose, buffer, AABB(pos).move(-cam.x, -cam.y, -cam.z), 1f, 0.15f, 0.15f, 1f)

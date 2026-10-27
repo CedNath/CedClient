@@ -158,6 +158,7 @@ class CedClient : ClientModInitializer {
         IslandState.init()
         PlayerChatManager.init()
         PartyApi.init()
+        ced.cedclient.achievements.Achievements.init()
 
         ClientTickEvents.END_CLIENT_TICK.register {
             InventoryButtonManager.ensureLoaded()
@@ -199,6 +200,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(Zoom)
         ModuleManager.register(ced.cedclient.features.impl.render.CrosshairTweaks)
         ModuleManager.register(ced.cedclient.features.impl.render.Hiders)
+        ModuleManager.register(ced.cedclient.features.impl.render.HubMap)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ModHider)
         ModuleManager.register(ced.cedclient.features.impl.render.CustomSky)
         ModuleManager.register(ced.cedclient.features.impl.misc.TooltipDates)
         ModuleManager.register(ced.cedclient.features.impl.render.OldStars)
@@ -239,6 +242,17 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.DeployableTimers)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RagnarockTimer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.PingFpsHud)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ClassColors)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.F7Titles)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.MaskTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.BlessingDisplay)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ScoreCalculator)
+        ModuleManager.register(ced.cedclient.features.impl.misc.AchievementsModule)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.TickTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.WarpCooldown)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RoomAlerts)
+        ModuleManager.register(ced.cedclient.features.impl.render.LavaToWater)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ArrowFix)
         ModuleManager.register(ced.cedclient.features.impl.funqol.EnchantColors)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ProtectItem)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SlotBinding)
@@ -307,9 +321,35 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.SlayerCheats)
             ModuleManager.register(ced.cedclient.features.impl.funqol.FarmHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.DojoHelper)
+            ModuleManager.register(ced.cedclient.features.impl.render.Box3D)
+            ModuleManager.register(ced.cedclient.features.impl.render.WitherESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.TerminalESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.TeammateESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.F4Features)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.EtherwarpOverlay)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.ArchitectDraft)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.NecronDrop)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.GateHighlight)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.TrevorHelper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.GyroHelper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.CameraTweaks)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.NoItemPlace)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.ArrowAlign)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.I4Helper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.M7Relics)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.LividSolver)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BloodCamp)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.IHateDiorite)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.DoorFix)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.IHateDoors)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.SpringBoots)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.SnappyTappy)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.WitherDragons)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BlazeSolver)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.PuzzleSolvers)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
-        ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         ModuleManager.register(TinyDancerHelper)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoExperiments)
         ModuleManager.register(ced.cedclient.features.impl.funqol.BeaconSolver)
@@ -348,6 +388,21 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "farmhelper")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "blood_camp")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.BloodCamp.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "spring_boots")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.SpringBoots.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "wither_dragons")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.WitherDragons.render(graphics, tickCounter)
         }
 //#endif
         hudLast(
@@ -454,6 +509,26 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "ping_fps")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.PingFpsHud.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "mask_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.MaskTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "blessing_display")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.BlessingDisplay.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "tick_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.TickTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "warp_cooldown")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.WarpCooldown.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "sb_kick_timer")

@@ -79,10 +79,10 @@ object SimonSaysLines : Module(
             InteractionResult.PASS
         })
 
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!active()) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (!active()) return@CollectSubmits
             val rest = order.drop(progress).let { if (onlyNext.value) it.take(2) else it }
-            if (rest.size < 2) return@AfterSolidFeatures
+            if (rest.size < 2) return@CollectSubmits
             val cam = context.gameRenderer().mainCamera().position()
             val points = rest.map { Vec3(it.x + 0.2, it.y + 0.5, it.z + 0.5).subtract(cam) }
             context.geometry(CustomRenderType.LINES_DEPTH) { pose, buffer ->

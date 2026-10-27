@@ -7,6 +7,7 @@ import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.utils.SkyblockRarity
 import ced.cedclient.utils.loreLines
+import ced.cedclient.utils.petInfo
 import ced.cedclient.utils.skyblockId
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -46,7 +47,9 @@ object ItemRarity : Module("Item Rarity", Category.Visuals, "Colored background 
         if (now - cacheAt > 1500) { cache.clear(); cacheAt = now }
         return cache.getOrPut(stack) {
             if (stack.skyblockId == null) null
-            else stack.loreLines.asReversed().firstNotNullOfOrNull { l -> SkyblockRarity.fromLine(l).takeIf { SkyblockRarity.isRarityLine(l) } }
+            // Pets (pet menu, held pets) have no rarity word in their lore; the tier is in petInfo.
+            else stack.petInfo?.get("tier")?.asString?.let { t -> SkyblockRarity.entries.firstOrNull { it.name == t } }
+                ?: stack.loreLines.asReversed().firstNotNullOfOrNull { l -> SkyblockRarity.fromLine(l).takeIf { SkyblockRarity.isRarityLine(l) } }
         }
     }
 

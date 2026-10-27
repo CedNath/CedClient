@@ -8,6 +8,7 @@
     "client.FarmFrameMixin",
     "screen.ContainerContentsMixin",
     "input.KeyboardInputMixin",
+    "client.CameraDistanceMixin",
     "accessor.CameraAccessor",
     "accessor.ClientInputAccessor",
     "client.MinecraftTurnMixin"

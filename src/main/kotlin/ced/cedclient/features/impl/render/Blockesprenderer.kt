@@ -21,9 +21,9 @@ import net.minecraft.world.phys.Vec3
 object BlockESPRenderer {
 
     fun register() {
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            if (!BlockESP.isEnabled) return@AfterSolidFeatures
-            if (!BlockESP.boxesEnabled && !BlockESP.tracersEnabled && !BlockESP.labelsEnabled) return@AfterSolidFeatures
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
+            if (!BlockESP.isEnabled) return@CollectSubmits
+            if (!BlockESP.boxesEnabled && !BlockESP.tracersEnabled && !BlockESP.labelsEnabled) return@CollectSubmits
 
             val poseStack = context.poseStack()
             val camera = context.gameRenderer().mainCamera()

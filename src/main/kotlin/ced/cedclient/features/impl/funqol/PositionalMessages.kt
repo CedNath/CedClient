@@ -165,7 +165,7 @@ object PositionalMessages : Module(
         load()
         ClientTickEvents.END_CLIENT_TICK.register { tick() }
         on<ChatMessageEvent> { onChat(it.unformattedText.trim()) }
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
             renderWorld(context)
         })
     }

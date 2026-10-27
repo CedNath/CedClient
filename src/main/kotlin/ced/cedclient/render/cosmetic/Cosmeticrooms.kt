@@ -343,7 +343,8 @@ object CosmeticRooms {
         return coreToRoom[coreAt(x, z, chunk).hash]
     }
 
-    private fun scanRoom(center: RoomTile, level: ClientLevel): ScannedRoom? {
+    /** Identifies the room whose tile is [center] and finds its rotation; null while chunks load or the room is unknown. Used by the puzzle solvers. */
+    fun scanRoom(center: RoomTile, level: ClientLevel): ScannedRoom? {
         val chunk = chunkAt(level, center.x, center.z) ?: return fail("chunk not loaded")
         val core = coreAt(center.x, center.z, chunk)
         if (core.highest == 0) return fail("tile is empty (chunk still loading?)")

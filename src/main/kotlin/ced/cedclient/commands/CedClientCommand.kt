@@ -39,6 +39,8 @@ object CedClientCommand {
 
     @Volatile
     private var pendingOpenDebug = false
+    @Volatile
+    private var pendingOpenAchievements = false
 
     fun register() {
         // One persistent listener, registered once — checks the flags every
@@ -53,6 +55,10 @@ object CedClientCommand {
             if (pendingOpenHudEdit) {
                 pendingOpenHudEdit = false
                 client.gui.setScreen(MasterHudEditScreen())
+            }
+            if (pendingOpenAchievements) {
+                pendingOpenAchievements = false
+                client.gui.setScreen(ced.cedclient.achievements.AchievementsScreen())
             }
             if (pendingOpenDebug) {
                 pendingOpenDebug = false
@@ -98,6 +104,7 @@ object CedClientCommand {
 
         return ClientCommands.literal(rootName)
             .executes(openGuiExecutes)   // bare /cedclient or /cc opens GUI
+            .then(ClientCommands.literal("achievements").executes { pendingOpenAchievements = true; 1 })
             .then(PositionalMessages.commandTree())
             .then(ced.cedclient.features.impl.funqol.RoomTimes.commandTree())
             .then(ced.cedclient.features.impl.funqol.RunProfit.commandTree())

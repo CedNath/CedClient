@@ -12,12 +12,12 @@ import net.minecraft.world.phys.Vec3
 object EntityESPRenderer {
 
     fun register() {
-        LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
+        LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
             // Labels are drawn on the HUD later this frame; project them now, while this frame's camera is known.
             EntityESPLabels.capture(context.levelState().cameraRenderState)
 
-            if (!EntityESP.isEnabled) return@AfterSolidFeatures
-            if (!EntityESP.boxesEnabled && !EntityESP.tracersEnabled) return@AfterSolidFeatures
+            if (!EntityESP.isEnabled) return@CollectSubmits
+            if (!EntityESP.boxesEnabled && !EntityESP.tracersEnabled) return@CollectSubmits
 
             val poseStack = context.poseStack()
             val camera = context.gameRenderer().mainCamera()
