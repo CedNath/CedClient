@@ -236,6 +236,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.F7Titles)
         ModuleManager.register(ced.cedclient.features.impl.funqol.MaskTimers)
         ModuleManager.register(ced.cedclient.features.impl.funqol.BlessingDisplay)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ScoreCalculator)
         ModuleManager.register(ced.cedclient.features.impl.funqol.EnchantColors)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ProtectItem)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SlotBinding)
@@ -310,6 +311,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.render.TerminalESP)
             ModuleManager.register(ced.cedclient.features.impl.render.TeammateESP)
             ModuleManager.register(ced.cedclient.features.impl.render.F4Features)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.EtherwarpOverlay)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
