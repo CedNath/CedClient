@@ -104,9 +104,16 @@ object CameraTweaks : Module(
     private val noBlind = BooleanSetting("Disable Blindness", true, "Hide the blindness effect.")
     private val noNausea = BooleanSetting("Disable Nausea", true, "Hide the nausea wobble.")
     private val dungeonOnly = BooleanSetting("Effects: Dungeons Only", false, "Only hide the effects inside a dungeon.")
+    private val customDist = BooleanSetting("Custom Camera Distance", false, "Set how far the third person camera sits from you.")
+    private val distance = NumberSetting("Camera Distance", 4.0, 1.0, 10.0, 0.1, "Blocks behind you.")
+    private val noClip = BooleanSetting("Camera Clip", false, "The third person camera no longer stops at walls.")
+
+    /** Read by CameraDistanceMixin: the chosen distance, or null for vanilla's. */
+    fun customDistance(): Double? = if (isEnabled && customDist.value) distance.value else null
+    val noClipActive get() = isEnabled && noClip.value
 
     init {
-        addSettings(noFront, noBlind, noNausea, dungeonOnly)
+        addSettings(noFront, noBlind, noNausea, dungeonOnly, customDist, distance, noClip)
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             if (!isEnabled) return@register
             if (noFront.value && mc.options.cameraType == CameraType.THIRD_PERSON_FRONT) mc.options.setCameraType(CameraType.FIRST_PERSON)

@@ -82,6 +82,9 @@
 
     "accessor.AbstractContainerScreenAccessor",
     "accessor.GuiAccessor",
+    "render.FluidStateModelSetMixin",
+    "render.LavaFogMixin",
+    "entity.PlayerBowMixin",
     "accessor.LivingEntityRendererAccessor",
     "accessor.CustomDataAccessor",
     "accessor.MapItemSavedDataAccessor",

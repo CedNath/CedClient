@@ -33,6 +33,16 @@ public abstract class KeyboardInputMixin {
             return;
         }
 
+        // Snappy Tappy: two opposite keys held at once keep the one pressed last (vanilla cancels both).
+        Input held = ((net.minecraft.client.player.ClientInput) (Object) this).keyPresses;
+        Input snapped = ced.cedclient.features.impl.funqol.SnappyTappy.resolve(held);
+        if (snapped != held) {
+            accessor.ced$setKeyPresses(snapped);
+            float f = (snapped.forward() ? 1.0F : 0.0F) - (snapped.backward() ? 1.0F : 0.0F);
+            float l = (snapped.left() ? 1.0F : 0.0F) - (snapped.right() ? 1.0F : 0.0F);
+            accessor.ced$setMoveVector(new Vec2(l, f));
+        }
+
         // Tiny Dancer helper: force the scripted key presses for this tick.
         Input forced = TinyDancerHelper.overrideInput();
         if (forced != null) {

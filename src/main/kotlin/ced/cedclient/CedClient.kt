@@ -242,6 +242,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.TickTimers)
         ModuleManager.register(ced.cedclient.features.impl.funqol.WarpCooldown)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RoomAlerts)
+        ModuleManager.register(ced.cedclient.features.impl.render.LavaToWater)
+        ModuleManager.register(ced.cedclient.features.impl.misc.ArrowFix)
         ModuleManager.register(ced.cedclient.features.impl.funqol.EnchantColors)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ProtectItem)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SlotBinding)
@@ -329,6 +331,11 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.M7Relics)
             ModuleManager.register(ced.cedclient.features.impl.funqol.LividSolver)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BloodCamp)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.IHateDiorite)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.DoorFix)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.IHateDoors)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.SpringBoots)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.SnappyTappy)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
@@ -375,6 +382,11 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "blood_camp")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.BloodCamp.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "spring_boots")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.SpringBoots.render(graphics, tickCounter)
         }
 //#endif
         hudLast(
