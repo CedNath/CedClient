@@ -324,6 +324,10 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.GyroHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.CameraTweaks)
             ModuleManager.register(ced.cedclient.features.impl.funqol.NoItemPlace)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.ArrowAlign)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.I4Helper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.M7Relics)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.LividSolver)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
