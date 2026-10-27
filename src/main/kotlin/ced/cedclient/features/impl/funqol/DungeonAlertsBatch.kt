@@ -70,30 +70,52 @@ object ClassColors : Module(
 }
 
 /**
- * F7 chat titles: "<name> activated a terminal! (3/7)" / "completed a device!" / "activated a lever!" as a title.
- * Unique: the title carries the player's class colour and symbol, a bigger "section done" title when the last one of
- * a section is done, and a per-type sound pitch (terminal < device < lever).
+ * F7 titles: terminals / devices / levers ("<name> activated a terminal! (3/7)") in the player's class colour, plus the boss
+ * fight lines turned into titles (Maxor Stunned, Storm Crushed, Storm / Goldor / Necron Dead) and the Goldor gate lines.
+ * Unique: class colour and symbol on names, a bigger "Section done" title when the last one of a section is done, a
+ * different sound pitch per kind, an "Only My Own" option, and each boss title has its own sound.
  */
 object F7Titles : Module(
     "F7 Titles",
     Category.Dungeons,
-    "Titles for terminals, devices and levers in the Goldor fight, in the player's class colour."
+    "Titles for terminals, devices, levers, the gate and the boss phases of F7."
 ) {
     private val terminals = BooleanSetting("Terminal Titles", true, "A title for every terminal activated.")
     private val devices = BooleanSetting("Device Titles", true, "A title for every device completed.")
     private val levers = BooleanSetting("Lever Titles", true, "A title for every lever activated.")
     private val sectionDone = BooleanSetting("Section Done Title", true, "A bigger title when the last terminal / device / lever of a section is done.")
     private val onlyMine = BooleanSetting("Only My Own", false, "Only show titles for what you did yourself.")
-    private val sound = BooleanSetting("Sound", true, "A pling, higher for levers.")
+    private val bossTitles = BooleanSetting("Boss Titles", true, "Maxor Stunned, Storm Crushed, Storm / Goldor / Necron Dead.")
+    private val gateTitles = BooleanSetting("Gate Titles", true, "The Goldor gate: opening in 5 seconds, and destroyed.")
+    private val sound = BooleanSetting("Sound", true, "A pling, higher for levers and boss events.")
     private val doneColor = ColorSetting("Section Done Color", Color(85, 255, 85), "Colour of the section done title.").withDependency { sectionDone.value }
 
     private val ACTION = Regex("""^(\w{1,16}) (activated a terminal|completed a device|activated a lever)! \((\d+)/(\d+)\)$""")
 
+    /** Boss lines and what they become: title colour, text, pitch. */
+    private val BOSS = mapOf(
+        "[BOSS] Maxor: YOU TRICKED ME!" to Triple(0xFF55FF, "Maxor Stunned!", 1.1f),
+        "[BOSS] Maxor: THAT BEAM! IT HURTS! IT HURTS!!" to Triple(0xFF55FF, "Maxor Stunned!", 1.1f),
+        "[BOSS] Storm: Oof" to Triple(0x55FFFF, "Storm Crushed!", 1.2f),
+        "[BOSS] Storm: Ouch, that hurt!" to Triple(0x55FFFF, "Storm Crushed!", 1.2f),
+        "[BOSS] Storm: I should have known that I stood no chance." to Triple(0x55FFFF, "Storm Dead!", 1.4f),
+        "The Core entrance is opening!" to Triple(0xAAAAAA, "Goldor Dead!", 1.4f),
+        "[BOSS] Necron: ARGH!" to Triple(0xFF5555, "Necron Dead!!", 1.6f),
+    )
+    private const val GATE_SOON = "The gate will open in 5 seconds!"
+    private const val GATE_GONE = "The gate has been destroyed!"
+
     init {
-        addSettings(terminals, devices, levers, sectionDone, onlyMine, sound, doneColor)
+        addSettings(terminals, devices, levers, sectionDone, onlyMine, bossTitles, gateTitles, sound, doneColor)
         on<ChatMessageEvent> {
             if (!isEnabled || !DungeonState.inDungeon) return@on
-            val m = ACTION.find(it.unformattedText.trim()) ?: return@on
+            val text = it.unformattedText.trim()
+            if (bossTitles.value) BOSS[text]?.let { (color, title, pitch) -> Alerts.title("F7 Titles", title, "", color, sound.value, pitch); return@on }
+            if (gateTitles.value) {
+                if (text == GATE_SOON) { Alerts.title("F7 Titles", "GATE!", "opens in 5 seconds", 0xFF5555, sound.value, 1.0f); return@on }
+                if (text == GATE_GONE) { Alerts.title("F7 Titles", "Gate Destroyed!", "", 0xFF5555, sound.value, 0.8f); return@on }
+            }
+            val m = ACTION.find(text) ?: return@on
             val name = m.groupValues[1]
             val type = m.groupValues[2]
             val done = m.groupValues[3].toInt()

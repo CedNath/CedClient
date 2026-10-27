@@ -239,6 +239,9 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.BlessingDisplay)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ScoreCalculator)
         ModuleManager.register(ced.cedclient.features.impl.misc.AchievementsModule)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.TickTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.WarpCooldown)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.RoomAlerts)
         ModuleManager.register(ced.cedclient.features.impl.funqol.EnchantColors)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ProtectItem)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SlotBinding)
@@ -316,6 +319,8 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.EtherwarpOverlay)
             ModuleManager.register(ced.cedclient.features.impl.funqol.ArchitectDraft)
             ModuleManager.register(ced.cedclient.features.impl.funqol.NecronDrop)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.GateHighlight)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.TrevorHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
@@ -473,6 +478,16 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "blessing_display")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.BlessingDisplay.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "tick_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.TickTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "warp_cooldown")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.WarpCooldown.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "sb_kick_timer")
