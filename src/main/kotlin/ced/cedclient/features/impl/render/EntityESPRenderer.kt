@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.render.geometry
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
@@ -19,39 +20,38 @@ object EntityESPRenderer {
             if (!EntityESP.boxesEnabled && !EntityESP.tracersEnabled) return@AfterSolidFeatures
 
             val poseStack = context.poseStack()
-            val camera = context.gameRenderer().mainCamera
+            val camera = context.gameRenderer().mainCamera()
             val cameraPos = camera.position()
-            val bufferSource = context.bufferSource()
 
-            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
+            context.geometry(CustomRenderType.LINES_ESP) { pose, lineBuffer ->
 
-            val partial = net.minecraft.client.Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(false)
-            for (scanned in EntityESP.scannedEntities) {
-                val entity = scanned.entity
-                // Where the entity is drawn this frame (between its last two ticks), so boxes glide instead of stepping.
-                val shift = entity.getPosition(partial).subtract(entity.position())
-                val custom = scanned.style.color
-                val (r, g, b) = if (custom != null) Triple(custom.redFloat, custom.greenFloat, custom.blueFloat) else colorFor(scanned.category)
+                val partial = net.minecraft.client.Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(false)
+                for (scanned in EntityESP.scannedEntities) {
+                    val entity = scanned.entity
+                    // Where the entity is drawn this frame (between its last two ticks), so boxes glide instead of stepping.
+                    val shift = entity.getPosition(partial).subtract(entity.position())
+                    val custom = scanned.style.color
+                    val (r, g, b) = if (custom != null) Triple(custom.redFloat, custom.greenFloat, custom.blueFloat) else colorFor(scanned.category)
 
-                if (EntityESP.boxesEnabled && scanned.style.box) {
-                    val box: AABB = entity.boundingBox.move(shift).inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-                    drawLineBox(poseStack, lineBuffer, box, r, g, b)
+                    if (EntityESP.boxesEnabled && scanned.style.box) {
+                        val box: AABB = entity.boundingBox.move(shift).inflate(0.05).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                        drawLineBox(pose, lineBuffer, box, r, g, b)
+                    }
+
+                    if (EntityESP.tracersEnabled && scanned.style.tracer) {
+                        val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
+                        val targetPos: Vec3 = entity.getPosition(partial).add(0.0, entity.bbHeight / 2.0, 0.0)
+                        drawLine(
+                            pose,
+                            lineBuffer,
+                            direction,
+                            targetPos.subtract(cameraPos),
+                            r, g, b
+                        )
+                    }
                 }
 
-                if (EntityESP.tracersEnabled && scanned.style.tracer) {
-                    val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                    val targetPos: Vec3 = entity.getPosition(partial).add(0.0, entity.bbHeight / 2.0, 0.0)
-                    drawLine(
-                        poseStack,
-                        lineBuffer,
-                        direction,
-                        targetPos.subtract(cameraPos),
-                        r, g, b
-                    )
-                }
             }
-
-            bufferSource.endBatch()
         })
     }
 

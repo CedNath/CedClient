@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
 import ced.cedclient.features.impl.render.ActionBarHud
 import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
@@ -527,14 +528,14 @@ object VampireSlayer : Module(
         if (boxes.isEmpty() && fills.isEmpty()) return
         val cam = camera.pos
         if (fills.isNotEmpty()) {
-            val fillBuffer = bufferSource.getBuffer(if (throughWalls) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED)
-            // See-through fill (40% of the colour's opacity) so the beacon / skull inside stays visible.
-            for ((box, c) in fills) ced.cedclient.render.FilledBox.draw(poseStack, fillBuffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
-            bufferSource.endBatch()
+            None.geometry(if (throughWalls) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, fillBuffer ->
+                // See-through fill (40% of the colour's opacity) so the beacon / skull inside stays visible.
+                for ((box, c) in fills) ced.cedclient.render.FilledBox.draw(pose, fillBuffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
+            }
         }
-        val buffer = bufferSource.getBuffer(if (throughWalls) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
-        for ((box, c) in boxes) LineBox.draw(poseStack, buffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-        bufferSource.endBatch()
+        None.geometry(if (throughWalls) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
+            for ((box, c) in boxes) LineBox.draw(pose, buffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+        }
     }
 
     // ---------------------------------------------------------------- HUD

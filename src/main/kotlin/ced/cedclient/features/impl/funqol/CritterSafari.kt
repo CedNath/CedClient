@@ -130,7 +130,7 @@ object CritterSafari : Module(
         on<ChatMessageEvent> { onChat(it.formattedText) }
         on<TickEvent.End> { tick(); CritterWorld.tick(); CritterAlerts.tick() }
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
-            CritterWorld.render(context.poseStack(), context.bufferSource(), context.levelState().cameraRenderState)
+            CritterWorld.render(context)
         })
     }
 

@@ -1,5 +1,7 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
+import net.minecraft.world.level.block.entity.BlockEntityTypes
 import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -601,7 +603,7 @@ object DungeonMap : Module(
         for (cx in chunks) for (cz in chunks) {
             val chunk = level.chunkSource.getChunk(cx, cz, ChunkStatus.FULL, false) ?: continue
             for ((pos, be) in chunk.blockEntities) {
-                if (be.type != BlockEntityType.TRAPPED_CHEST) continue
+                if (be.type != BlockEntityTypes.TRAPPED_CHEST) continue
                 val i = Math.floorDiv(pos.x - START + 16, 32)
                 val j = Math.floorDiv(pos.z - START + 16, 32)
                 if (i !in 0..5 || j !in 0..5) continue
@@ -635,10 +637,10 @@ object DungeonMap : Module(
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
             val chests = mimicChests
             if (!isEnabled || !mimicEsp.value || chests.isEmpty()) return@AfterSolidFeatures
-            val cam = context.gameRenderer().mainCamera.position()
-            val buffer = context.bufferSource().getBuffer(CustomRenderType.LINES_ESP)
-            for (pos in chests) LineBox.draw(context.poseStack(), buffer, AABB(pos).move(-cam.x, -cam.y, -cam.z), 1f, 0.15f, 0.15f, 1f)
-            context.bufferSource().endBatch()
+            val cam = context.gameRenderer().mainCamera().position()
+            context.geometry(CustomRenderType.LINES_ESP) { pose, buffer ->
+                for (pos in chests) LineBox.draw(pose, buffer, AABB(pos).move(-cam.x, -cam.y, -cam.z), 1f, 0.15f, 0.15f, 1f)
+            }
         })
     }
 //#endif

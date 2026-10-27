@@ -406,6 +406,6 @@ object WardrobeKeybinds : Module("Wardrobe Keybinds", Category.Skyblock, "Keys t
 
     init {
         addSettings(useHotbar, preventUnequip, closeAfter, *keys.toTypedArray())
-        MenuKeys(this, { TITLE.matches(it.trim()) }, SLOTS, keys, useHotbar, { !(preventUnequip.value && it.item.`is`(Items.LIME_DYE)) }, closeAfter, "Wardrobe Keybinds").register()
+        MenuKeys(this, { TITLE.matches(it.trim()) }, SLOTS, keys, useHotbar, { !(preventUnequip.value && it.item.`is`(Items.DYE.lime())) }, closeAfter, "Wardrobe Keybinds").register()
     }
 }

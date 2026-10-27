@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.swingMainHand
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -48,7 +49,7 @@ object LeftClickSecrets : Module(
         val gm = mc.gameMode ?: return
         val lp = mc.player ?: return
         gm.useItemOn(lp, InteractionHand.MAIN_HAND, hit)
-        lp.swing(InteractionHand.MAIN_HAND)
+        lp.swingMainHand(attack = true)
     }
 
     /** The secret under the crosshair, or null when the click should act normally. */

@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.swingMainHand
 import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.events.PlaySoundEvent
 import ced.cedclient.events.SubtitleEvent
@@ -426,7 +427,7 @@ object TinyDancerHelper : Module(
         } catch (t: Throwable) {
             false
         }
-        if (!clicked) player.swing(InteractionHand.MAIN_HAND)
+        if (!clicked) player.swingMainHand()
     }
 
     private fun nearDanceFloor(): Boolean {

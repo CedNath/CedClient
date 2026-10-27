@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.render.geometry
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -109,48 +110,47 @@ object StarredMobHighlight : Module(
             if (current.isEmpty()) return@AfterSolidFeatures
 
             val poseStack = context.poseStack()
-            val camera = context.gameRenderer().mainCamera
+            val camera = context.gameRenderer().mainCamera()
             val cameraPos = camera.position()
-            val bufferSource = context.bufferSource()
 //#if CHEAT
-            val lineBuffer = bufferSource.getBuffer(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
-//#else
-//$            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_DEPTH)
-//#endif
+            context.geometry(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, lineBuffer ->
+    //#else
+    //$            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_DEPTH)
+    //#endif
 
-            val width = lineWidth.value.toFloat()
-            val pt = partialTick()
+                val width = lineWidth.value.toFloat()
+                val pt = partialTick()
 
-            for (target in current) {
-                val mob = target.entity
-                if (!mob.isAlive || mob.isRemoved) continue
+                for (target in current) {
+                    val mob = target.entity
+                    if (!mob.isAlive || mob.isRemoved) continue
 
-                val c = if (target.assassin) assassinColor.value else boxColor.value
-                val r = c.redFloat
-                val g = c.greenFloat
-                val b = c.blueFloat
-                val a = c.alphaFloat
+                    val c = if (target.assassin) assassinColor.value else boxColor.value
+                    val r = c.redFloat
+                    val g = c.greenFloat
+                    val b = c.blueFloat
+                    val a = c.alphaFloat
 
-                // Interpolate between last and current tick so the box glides instead of stepping.
-                val ix = Mth.lerp(pt, mob.xOld, mob.x)
-                val iy = Mth.lerp(pt, mob.yOld, mob.y)
-                val iz = Mth.lerp(pt, mob.zOld, mob.z)
-                val box: AABB = mob.boundingBox
-                    .move(ix - mob.x, iy - mob.y, iz - mob.z)
-                    .inflate(0.05)
-                    .move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-                drawLineBox(poseStack, lineBuffer, box, r, g, b, a, width)
-//#if CHEAT
+                    // Interpolate between last and current tick so the box glides instead of stepping.
+                    val ix = Mth.lerp(pt, mob.xOld, mob.x)
+                    val iy = Mth.lerp(pt, mob.yOld, mob.y)
+                    val iz = Mth.lerp(pt, mob.zOld, mob.z)
+                    val box: AABB = mob.boundingBox
+                        .move(ix - mob.x, iy - mob.y, iz - mob.z)
+                        .inflate(0.05)
+                        .move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                    drawLineBox(pose, lineBuffer, box, r, g, b, a, width)
+    //#if CHEAT
 
-                if (showTracers.value) {
-                    val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                    val target = Vec3(ix, iy + mob.bbHeight / 2.0, iz).subtract(cameraPos)
-                    drawLine(poseStack, lineBuffer, direction, target, r, g, b, a, width)
+                    if (showTracers.value) {
+                        val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
+                        val target = Vec3(ix, iy + mob.bbHeight / 2.0, iz).subtract(cameraPos)
+                        drawLine(pose, lineBuffer, direction, target, r, g, b, a, width)
+                    }
+    //#endif
                 }
-//#endif
-            }
 
-            bufferSource.endBatch()
+            }
         })
     }
 

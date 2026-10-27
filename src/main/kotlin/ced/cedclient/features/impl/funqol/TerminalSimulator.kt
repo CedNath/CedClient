@@ -107,9 +107,9 @@ private abstract class Terminal(val name: String, val rows: Int, val title: Stri
     /** Called every frame while running with the ms since the start, for terminals that move on their own. */
     open fun tick(ms: Long) {}
 
-    fun isBlankSlot(slot: Int) = slots[slot].`is`(Items.BLACK_STAINED_GLASS_PANE)
+    fun isBlankSlot(slot: Int) = slots[slot].`is`(Items.STAINED_GLASS_PANE.black())
 
-    protected fun blank() = pane(Items.BLACK_STAINED_GLASS_PANE)
+    protected fun blank() = pane(Items.STAINED_GLASS_PANE.black())
 
     protected fun pane(item: Item, name: String = " ", count: Int = 1) =
         ItemStack(item, count).also { it.set(DataComponents.CUSTOM_NAME, Component.literal(name)) }
@@ -123,7 +123,7 @@ private abstract class Terminal(val name: String, val rows: Int, val title: Stri
         /** Rows 1-4, columns 1-7 of the chest. */
         val INNER4 = (1..4).flatMap { r -> (1..7).map { c -> r * 9 + c } }
         val INNER3 = (1..3).flatMap { r -> (1..7).map { c -> r * 9 + c } }
-        val CYCLE = listOf(Items.RED_STAINED_GLASS_PANE, Items.ORANGE_STAINED_GLASS_PANE, Items.YELLOW_STAINED_GLASS_PANE, Items.GREEN_STAINED_GLASS_PANE, Items.BLUE_STAINED_GLASS_PANE)
+        val CYCLE = listOf(Items.STAINED_GLASS_PANE.red(), Items.STAINED_GLASS_PANE.orange(), Items.STAINED_GLASS_PANE.yellow(), Items.STAINED_GLASS_PANE.green(), Items.STAINED_GLASS_PANE.blue())
     }
 }
 
@@ -131,16 +131,16 @@ private abstract class Terminal(val name: String, val rows: Int, val title: Stri
 private class ClickInOrder : Terminal("Click In Order", 4, "Click in order!") {
     init {
         val spots = (11..15) + (20..24)
-        (1..10).shuffled().zip(spots).forEach { (n, slot) -> slots[slot] = pane(Items.RED_STAINED_GLASS_PANE, "§a$n", n) }
+        (1..10).shuffled().zip(spots).forEach { (n, slot) -> slots[slot] = pane(Items.STAINED_GLASS_PANE.red(), "§a$n", n) }
     }
 
     override fun click(slot: Int, button: Int) {
         val st = slots[slot]
-        if (!st.`is`(Items.RED_STAINED_GLASS_PANE)) return
-        val lowest = slots.filter { it.`is`(Items.RED_STAINED_GLASS_PANE) }.minOf { it.count }
+        if (!st.`is`(Items.STAINED_GLASS_PANE.red())) return
+        val lowest = slots.filter { it.`is`(Items.STAINED_GLASS_PANE.red()) }.minOf { it.count }
         if (st.count != lowest) { misses++; return }
-        slots[slot] = pane(Items.LIME_STAINED_GLASS_PANE, " ", st.count)
-        if (slots.none { it.`is`(Items.RED_STAINED_GLASS_PANE) }) done = true
+        slots[slot] = pane(Items.STAINED_GLASS_PANE.lime(), " ", st.count)
+        if (slots.none { it.`is`(Items.STAINED_GLASS_PANE.red()) }) done = true
     }
 }
 
@@ -226,14 +226,14 @@ private class CorrectPanes : Terminal("Correct All The Panes", 5, "Correct all t
     private val spots = (1..3).flatMap { r -> (2..6).map { c -> r * 9 + c } }
 
     init {
-        spots.forEach { slots[it] = pane(if (Random.nextDouble() < 0.25) Items.LIME_STAINED_GLASS_PANE else Items.RED_STAINED_GLASS_PANE) }
-        if (spots.none { slots[it].`is`(Items.RED_STAINED_GLASS_PANE) }) slots[spots.random()] = pane(Items.RED_STAINED_GLASS_PANE)
+        spots.forEach { slots[it] = pane(if (Random.nextDouble() < 0.25) Items.STAINED_GLASS_PANE.lime() else Items.STAINED_GLASS_PANE.red()) }
+        if (spots.none { slots[it].`is`(Items.STAINED_GLASS_PANE.red()) }) slots[spots.random()] = pane(Items.STAINED_GLASS_PANE.red())
     }
 
     override fun click(slot: Int, button: Int) {
         if (slot !in spots) return
-        slots[slot] = pane(if (slots[slot].`is`(Items.LIME_STAINED_GLASS_PANE)) Items.RED_STAINED_GLASS_PANE else Items.LIME_STAINED_GLASS_PANE)
-        if (spots.none { slots[it].`is`(Items.RED_STAINED_GLASS_PANE) }) done = true
+        slots[slot] = pane(if (slots[slot].`is`(Items.STAINED_GLASS_PANE.lime())) Items.STAINED_GLASS_PANE.red() else Items.STAINED_GLASS_PANE.lime())
+        if (spots.none { slots[it].`is`(Items.STAINED_GLASS_PANE.red()) }) done = true
     }
 }
 
@@ -274,11 +274,11 @@ private class Melody : Terminal("Melody", 5, "Click the button on time!") {
     private fun draw() {
         for (i in slots.indices) slots[i] = blank()
         for (c in 1..5) {
-            val p = if (c == magenta) Items.MAGENTA_STAINED_GLASS_PANE else Items.BLACK_STAINED_GLASS_PANE
+            val p = if (c == magenta) Items.STAINED_GLASS_PANE.magenta() else Items.STAINED_GLASS_PANE.black()
             slots[c] = pane(p); slots[4 * 9 + c] = pane(p)
         }
-        for (r in 1..3) slots[r * 9 + 7] = pane(if (r == round + 1) Items.GREEN_TERRACOTTA else Items.RED_TERRACOTTA, if (r == round + 1) "Click me!" else " ")
-        if (round < 3) for (c in 1..5) slots[(round + 1) * 9 + c] = pane(if (c == lime) Items.LIME_STAINED_GLASS_PANE else Items.RED_STAINED_GLASS_PANE)
+        for (r in 1..3) slots[r * 9 + 7] = pane(if (r == round + 1) Items.DYED_TERRACOTTA.green() else Items.DYED_TERRACOTTA.red(), if (r == round + 1) "Click me!" else " ")
+        if (round < 3) for (c in 1..5) slots[(round + 1) * 9 + c] = pane(if (c == lime) Items.STAINED_GLASS_PANE.lime() else Items.STAINED_GLASS_PANE.red())
     }
 
     override fun tick(ms: Long) {

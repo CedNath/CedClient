@@ -34,7 +34,6 @@ import ced.cedclient.features.impl.misc.SearchOverlay
 import ced.cedclient.features.impl.misc.AdvancedMode
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.features.impl.misc.AutoSprint
-import ced.cedclient.features.impl.misc.BorderlessFullscreen
 import ced.cedclient.features.impl.misc.KeepConnection
 import ced.cedclient.state.UpdateChecker
 import ced.cedclient.state.Sidebar
@@ -158,10 +157,10 @@ class CedClient : ClientModInitializer {
         InventoryButtonManager.ensureLoaded()
 
         PictureInPictureRendererRegistry.register { context ->
-            NVGSpecialRenderer(context.bufferSource())
+            NVGSpecialRenderer()
         }
         PictureInPictureRendererRegistry.register { context ->
-            NVGSpecialRenderer(context.bufferSource(), NVGSpecialRenderer.TooltipState::class.java)
+            NVGSpecialRenderer(NVGSpecialRenderer.TooltipState::class.java)
         }
 
 //#if CHEAT
@@ -274,7 +273,6 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.misc.PartyCommands)
         ModuleManager.register(ced.cedclient.features.impl.misc.AutoRequeue)
         ModuleManager.register(ScreenshotTweaks)
-        ModuleManager.register(BorderlessFullscreen)
         ModuleManager.register(KeepConnection)
         ModuleManager.register(ced.cedclient.features.impl.misc.TexturePackFix)
         ModuleManager.register(ced.cedclient.features.impl.misc.Spotify)

@@ -1,12 +1,14 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import net.minecraft.world.entity.EntityTypes
 import ced.cedclient.farmhelper.util.KeyBindUtils
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.TextSetting
+import ced.cedclient.render.geometry
 import ced.cedclient.render.pipeline.CustomRenderType
 import ced.cedclient.utils.Debug
 import ced.cedclient.utils.HumanLook
@@ -171,8 +173,7 @@ object BeachBallHelper : Module(
             val land = target ?: return@AfterSolidFeatures
             val player = mc.player ?: return@AfterSolidFeatures
             val poseStack = context.poseStack()
-            val cam = context.gameRenderer().mainCamera.position()
-            val bufferSource = context.bufferSource()
+            val cam = context.gameRenderer().mainCamera().position()
 
             // Like SkyHanni: green right under it, orange close, red otherwise.
             val off = hypot(land.x - player.x, land.z - player.z)
@@ -183,17 +184,16 @@ object BeachBallHelper : Module(
             }
             val y = player.y
             val box = AABB(land.x - 0.3, y, land.z - 0.3, land.x + 0.3, y + 0.05, land.z + 0.3).move(-cam.x, -cam.y, -cam.z)
-            drawBox(poseStack, bufferSource.getBuffer(CustomRenderType.LINES_ESP), box, r, g, b, 1f)
+            context.geometry(CustomRenderType.LINES_ESP) { pose, buf -> drawBox(pose, buf, box, r, g, b, 1f) }
 
             poseStack.pushPose()
             poseStack.translate((land.x - cam.x).toFloat(), (y + 0.7 - cam.y).toFloat(), (land.z - cam.z).toFloat())
             context.submitNodeCollector().submitNameTag(
                 poseStack, Vec3.ZERO, 0,
                 Component.literal("Bounces: $combo").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD),
-                true, 0xF000F0, 4096.0, context.levelState().cameraRenderState
+                true, 0xF000F0, context.levelState().cameraRenderState
             )
             poseStack.popPose()
-            bufferSource.endBatch()
         })
     }
 
@@ -414,7 +414,7 @@ object BeachBallHelper : Module(
     }
 
     private fun isBallCandidate(e: Entity) =
-        e.type == EntityType.SLIME || (e is ArmorStand && !e.getItemBySlot(EquipmentSlot.HEAD).isEmpty)
+        e.type == EntityTypes.SLIME || (e is ArmorStand && !e.getItemBySlot(EquipmentSlot.HEAD).isEmpty)
 
     private fun startBall(b: Entity) {
         ball = b
@@ -535,21 +535,21 @@ object BeachBallHelper : Module(
         }
     }
 
-    private fun drawBox(poseStack: PoseStack, buf: VertexConsumer, b: AABB, r: Float, g: Float, bl: Float, a: Float) {
+    private fun drawBox(pose: PoseStack.Pose, buf: VertexConsumer, b: AABB, r: Float, g: Float, bl: Float, a: Float) {
         val xs = doubleArrayOf(b.minX, b.maxX)
         val ys = doubleArrayOf(b.minY, b.maxY)
         val zs = doubleArrayOf(b.minZ, b.maxZ)
-        for (y in ys) for (z in zs) edge(poseStack, buf, Vec3(xs[0], y, z), Vec3(xs[1], y, z), r, g, bl, a)
-        for (x in xs) for (z in zs) edge(poseStack, buf, Vec3(x, ys[0], z), Vec3(x, ys[1], z), r, g, bl, a)
-        for (x in xs) for (y in ys) edge(poseStack, buf, Vec3(x, y, zs[0]), Vec3(x, y, zs[1]), r, g, bl, a)
+        for (y in ys) for (z in zs) edge(pose, buf, Vec3(xs[0], y, z), Vec3(xs[1], y, z), r, g, bl, a)
+        for (x in xs) for (z in zs) edge(pose, buf, Vec3(x, ys[0], z), Vec3(x, ys[1], z), r, g, bl, a)
+        for (x in xs) for (y in ys) edge(pose, buf, Vec3(x, y, zs[0]), Vec3(x, y, zs[1]), r, g, bl, a)
     }
 
-    private fun edge(poseStack: PoseStack, buf: VertexConsumer, from: Vec3, to: Vec3, r: Float, g: Float, b: Float, a: Float) {
-        val pose = poseStack.last().pose()
+    private fun edge(pose: PoseStack.Pose, buf: VertexConsumer, from: Vec3, to: Vec3, r: Float, g: Float, b: Float, a: Float) {
+        val m = pose.pose()
         val n = to.subtract(from).normalize()
-        buf.addVertex(pose, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
+        buf.addVertex(m, from.x.toFloat(), from.y.toFloat(), from.z.toFloat())
             .setColor(r, g, b, a).setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat()).setLineWidth(2.0f)
-        buf.addVertex(pose, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
+        buf.addVertex(m, to.x.toFloat(), to.y.toFloat(), to.z.toFloat())
             .setColor(r, g, b, a).setNormal(n.x.toFloat(), n.y.toFloat(), n.z.toFloat()).setLineWidth(2.0f)
     }
 }

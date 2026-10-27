@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.render.geometry
 import ced.cedclient.utils.Keys
 import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
@@ -178,7 +179,7 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { context ->
             if (!isEnabled) return@AfterSolidFeatures
             val player = mc.player ?: return@AfterSolidFeatures
-            val camera = context.gameRenderer().mainCamera
+            val camera = context.gameRenderer().mainCamera()
             val cam = camera.position()
             val list = all().filter { wp ->
                 val d = Math.sqrt(player.distanceToSqr(wp.x + 0.5, wp.y + 0.5, wp.z + 0.5))
@@ -186,7 +187,6 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
             }
             if (list.isEmpty()) return@AfterSolidFeatures
             val poseStack = context.poseStack()
-            val bufferSource = context.bufferSource()
             val size = boxSize.value
             val half = size / 2
             val bw = beamWidth.value
@@ -197,24 +197,24 @@ object Waypoints : Module("Waypoints", Category.Skyblock, "Mark places and see t
             // fills, then the beams
             val fills = list.filter { it.fill || it.beam }
             if (fills.isNotEmpty()) {
-                val buf = bufferSource.getBuffer(if (throughWalls.value) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED)
-                for (wp in fills) {
-                    val c = Color(wp.color)
-                    if (wp.fill) FilledBox.draw(poseStack, buf, boxOf(wp), c.redFloat, c.greenFloat, c.blueFloat, fillA)
-                    if (wp.beam) FilledBox.draw(poseStack, buf, AABB(wp.x + 0.5 - bw, wp.y + size, wp.z + 0.5 - bw, wp.x + 0.5 + bw, wp.y + 320.0, wp.z + 0.5 + bw).move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, fillA + 0.1f)
+                context.geometry(if (throughWalls.value) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, buf ->
+                    for (wp in fills) {
+                        val c = Color(wp.color)
+                        if (wp.fill) FilledBox.draw(pose, buf, boxOf(wp), c.redFloat, c.greenFloat, c.blueFloat, fillA)
+                        if (wp.beam) FilledBox.draw(pose, buf, AABB(wp.x + 0.5 - bw, wp.y + size, wp.z + 0.5 - bw, wp.x + 0.5 + bw, wp.y + 320.0, wp.z + 0.5 + bw).move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, fillA + 0.1f)
+                    }
                 }
-                bufferSource.endBatch()
             }
             // outlines and tracers
             if (list.any { it.outline || it.tracer }) {
-                val buf = bufferSource.getBuffer(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
-                val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                for (wp in list) {
-                    val c = Color(wp.color)
-                    if (wp.outline) LineBox.draw(poseStack, buf, boxOf(wp), c.redFloat, c.greenFloat, c.blueFloat, 1f)
-                    if (wp.tracer) LineBox.polyline(poseStack, buf, listOf(look, Vec3(wp.x + 0.5 - cam.x, wp.y + half - cam.y, wp.z + 0.5 - cam.z)), c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                context.geometry(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buf ->
+                    val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
+                    for (wp in list) {
+                        val c = Color(wp.color)
+                        if (wp.outline) LineBox.draw(pose, buf, boxOf(wp), c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                        if (wp.tracer) LineBox.polyline(pose, buf, listOf(look, Vec3(wp.x + 0.5 - cam.x, wp.y + half - cam.y, wp.z + 0.5 - cam.z)), c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                    }
                 }
-                bufferSource.endBatch()
             }
             // names
             for (wp in list) {

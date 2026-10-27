@@ -87,7 +87,7 @@ internal object SlayerBosses {
 
     /** The mob class each boss is, null when unknown. */
     private fun bodyType(boss: String?): Class<out LivingEntity>? = when (boss) {
-        "Voidgloom Seraph" -> net.minecraft.world.entity.monster.EnderMan::class.java
+        "Voidgloom Seraph" -> net.minecraft.world.entity.monster.Enderman::class.java
         "Revenant Horror", "Atoned Horror" -> net.minecraft.world.entity.monster.zombie.Zombie::class.java
         "Tarantula Broodfather" -> net.minecraft.world.entity.monster.spider.Spider::class.java
         "Sven Packmaster" -> net.minecraft.world.entity.animal.wolf.Wolf::class.java

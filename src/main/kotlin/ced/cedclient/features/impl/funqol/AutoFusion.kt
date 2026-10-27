@@ -112,7 +112,7 @@ object AutoFusion : Module(
     private fun confirmSlot(screen: AbstractContainerScreen<*>): Slot? {
         if ("Confirm Fusion" !in screen.title.string) return null
         return menuSlots(screen).firstOrNull { s -> s.item.loreLines.any { "click to fuse" in it.lowercase() } }
-            ?: menuSlots(screen).firstOrNull { it.item.`is`(Items.GREEN_TERRACOTTA) }
+            ?: menuSlots(screen).firstOrNull { it.item.`is`(Items.DYED_TERRACOTTA.green()) }
     }
 
     /** "Repeat Previous Fusion" ("Click to repeat this fusion!"). */

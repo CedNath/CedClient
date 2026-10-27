@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.swingMainHand
 import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.render.ActionBarHud
 import ced.cedclient.features.Category
@@ -175,7 +176,7 @@ object TropicalFishHelper : Module(
             return
         }
         mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
-        player.swing(InteractionHand.MAIN_HAND)
+        player.swingMainHand()
         lastPos = fish.position()
         tried[fish.id] = System.currentTimeMillis()
         target = null

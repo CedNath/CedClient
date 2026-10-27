@@ -3,7 +3,7 @@ package ced.cedclient.mixin.screen;
 import ced.cedclient.features.impl.misc.HideRecipeBook;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.Identifier;
@@ -27,7 +27,7 @@ public class InventoryCraftingGridMixin {
     }
 
     @WrapOperation(method = "extractBackground", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"))
+            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"))
     private void cedclient$backgroundAroundGrid(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier texture, int x, int y,
                                                 float u, float v, int w, int h, int texW, int texH, Operation<Void> original) {
         if (!HideRecipeBook.hideCraftingGrid()) {

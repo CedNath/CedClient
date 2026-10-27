@@ -10,8 +10,8 @@ import net.minecraft.world.phys.AABB
  */
 object FilledBox {
 
-    fun draw(poseStack: PoseStack, buffer: VertexConsumer, box: AABB, r: Float, g: Float, b: Float, a: Float) {
-        val m = poseStack.last().pose()
+    fun draw(pose: PoseStack.Pose, buffer: VertexConsumer, box: AABB, r: Float, g: Float, b: Float, a: Float) {
+        val m = pose.pose()
         val x0 = box.minX.toFloat(); val y0 = box.minY.toFloat(); val z0 = box.minZ.toFloat()
         val x1 = box.maxX.toFloat(); val y1 = box.maxY.toFloat(); val z1 = box.maxZ.toFloat()
         fun v(x: Float, y: Float, z: Float) { buffer.addVertex(m, x, y, z).setColor(r, g, b, a) }

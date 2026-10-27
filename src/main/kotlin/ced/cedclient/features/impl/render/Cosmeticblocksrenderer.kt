@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.render.geometry
 import ced.cedclient.render.cosmetic.CosmeticStore
 import ced.cedclient.render.cosmetic.CosmeticTools
 import ced.cedclient.render.pipeline.CustomRenderType
@@ -37,46 +38,45 @@ object CosmeticBlocksRenderer {
 //#endif
 
             val pose = context.poseStack()
-            val cam = context.gameRenderer().mainCamera.position()
-            val bufferSource = context.bufferSource()
-            val buf = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
+            val cam = context.gameRenderer().mainCamera().position()
+            context.geometry(CustomRenderType.LINES_ESP) { pose, buf ->
 
-//#if CHEAT
-            aim?.let { blockBox(pose, buf, cam, it, 1f, 1f, 1f, 1f) }
+    //#if CHEAT
+                aim?.let { blockBox(pose, buf, cam, it, 1f, 1f, 1f, 1f) }
 
-//#endif
-            if (selection) {
-                if (p1 != null && p2 != null) {
-                    box(pose, buf, cam, minOf(p1.x, p2.x).toDouble(), minOf(p1.y, p2.y).toDouble(), minOf(p1.z, p2.z).toDouble(),
-                        maxOf(p1.x, p2.x) + 1.0, maxOf(p1.y, p2.y) + 1.0, maxOf(p1.z, p2.z) + 1.0, 0.3f, 1f, 0.3f, 0.9f)
+    //#endif
+                if (selection) {
+                    if (p1 != null && p2 != null) {
+                        box(pose, buf, cam, minOf(p1.x, p2.x).toDouble(), minOf(p1.y, p2.y).toDouble(), minOf(p1.z, p2.z).toDouble(),
+                            maxOf(p1.x, p2.x) + 1.0, maxOf(p1.y, p2.y) + 1.0, maxOf(p1.z, p2.z) + 1.0, 0.3f, 1f, 0.3f, 0.9f)
+                    }
+                    p1?.let { blockBox(pose, buf, cam, it, 1f, 0.6f, 0.1f, 0.9f) }
+                    p2?.let { blockBox(pose, buf, cam, it, 0.2f, 0.6f, 1f, 0.9f) }
                 }
-                p1?.let { blockBox(pose, buf, cam, it, 1f, 0.6f, 0.1f, 0.9f) }
-                p2?.let { blockBox(pose, buf, cam, it, 0.2f, 0.6f, 1f, 0.9f) }
-            }
 
-            if (ruler) {
-                val start = CosmeticTools.rulerStart
-                if (start == null) CosmeticTools.rulerReachTarget?.let { blockBox(pose, buf, cam, it, 0.5f, 1f, 0.5f, 0.6f) }
-                else blockBox(pose, buf, cam, start, 1f, 1f, 0f, 0.9f)
-                for (p in CosmeticTools.rulerPreview) blockBox(pose, buf, cam, p, 1f, 1f, 1f, 0.5f)
-            }
-
-            if (wire) {
-                val c = CosmeticBlocks.overlayColor.value
-                val range = CosmeticBlocks.overlayRange.value
-                val rangeSq = range * range
-                var n = 0
-                for (key in CosmeticStore.cache.keys) {
-                    val x = BlockPos.getX(key); val y = BlockPos.getY(key); val z = BlockPos.getZ(key)
-                    val dx = x + 0.5 - cam.x; val dy = y + 0.5 - cam.y; val dz = z + 0.5 - cam.z
-                    if (dx * dx + dy * dy + dz * dz > rangeSq) continue
-                    box(pose, buf, cam, x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0,
-                        c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat.coerceAtLeast(0.3f))
-                    if (++n >= MAX_WIREFRAMES) break
+                if (ruler) {
+                    val start = CosmeticTools.rulerStart
+                    if (start == null) CosmeticTools.rulerReachTarget?.let { blockBox(pose, buf, cam, it, 0.5f, 1f, 0.5f, 0.6f) }
+                    else blockBox(pose, buf, cam, start, 1f, 1f, 0f, 0.9f)
+                    for (p in CosmeticTools.rulerPreview) blockBox(pose, buf, cam, p, 1f, 1f, 1f, 0.5f)
                 }
-            }
 
-            bufferSource.endBatch()
+                if (wire) {
+                    val c = CosmeticBlocks.overlayColor.value
+                    val range = CosmeticBlocks.overlayRange.value
+                    val rangeSq = range * range
+                    var n = 0
+                    for (key in CosmeticStore.cache.keys) {
+                        val x = BlockPos.getX(key); val y = BlockPos.getY(key); val z = BlockPos.getZ(key)
+                        val dx = x + 0.5 - cam.x; val dy = y + 0.5 - cam.y; val dz = z + 0.5 - cam.z
+                        if (dx * dx + dy * dy + dz * dz > rangeSq) continue
+                        box(pose, buf, cam, x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0,
+                            c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat.coerceAtLeast(0.3f))
+                        if (++n >= MAX_WIREFRAMES) break
+                    }
+                }
+
+            }
         })
     }
 

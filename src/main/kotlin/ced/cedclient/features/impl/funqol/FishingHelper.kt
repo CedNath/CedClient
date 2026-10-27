@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.swingMainHand
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -212,16 +213,16 @@ object FishingHelper : Module(
     }
 
     private fun performReel(player: LocalPlayer) {
-        player.swing(InteractionHand.MAIN_HAND)
+        player.swingMainHand()
         if (serverReel.value) mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
     }
 
     private fun performCast(player: LocalPlayer) {
         if (serverReel.value) {
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
-            player.swing(InteractionHand.MAIN_HAND)
+            player.swingMainHand()
         } else {
-            player.swing(InteractionHand.MAIN_HAND)
+            player.swingMainHand()
         }
     }
 

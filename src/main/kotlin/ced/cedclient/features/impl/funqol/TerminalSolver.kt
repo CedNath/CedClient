@@ -107,7 +107,7 @@ object TerminalSolver : Module(
     private val CODES = Regex("§.")
 
     // Change all to same color: left click moves a pane one step along this order, right click one step back.
-    private val CYCLE = listOf(Items.RED_STAINED_GLASS_PANE, Items.ORANGE_STAINED_GLASS_PANE, Items.YELLOW_STAINED_GLASS_PANE, Items.GREEN_STAINED_GLASS_PANE, Items.BLUE_STAINED_GLASS_PANE)
+    private val CYCLE = listOf(Items.STAINED_GLASS_PANE.red(), Items.STAINED_GLASS_PANE.orange(), Items.STAINED_GLASS_PANE.yellow(), Items.STAINED_GLASS_PANE.green(), Items.STAINED_GLASS_PANE.blue())
     private val RUBIX_SLOTS = listOf(12, 13, 14, 21, 22, 23, 30, 31, 32)
     private val NAME_FIX = listOf("light gray" to "silver", "wool" to "white", "bone" to "white", "ink" to "black", "lapis" to "blue", "cocoa" to "brown", "dandelion" to "yellow", "rose" to "red", "cactus" to "green")
 
@@ -159,7 +159,7 @@ object TerminalSolver : Module(
 
     private fun containerSlots(screen: AbstractContainerScreen<*>) = screen.menu.slots.size - 36
 
-    private fun filler(stack: ItemStack) = stack.isEmpty || stack.`is`(Items.BLACK_STAINED_GLASS_PANE)
+    private fun filler(stack: ItemStack) = stack.isEmpty || stack.`is`(Items.STAINED_GLASS_PANE.black())
 
     /** A terminal marks a picked item with a glint; items that always glint (enchanted books ...) don't count. */
     private fun picked(stack: ItemStack) = stack.hasFoil() && !stack.item.defaultInstance.hasFoil()
@@ -194,13 +194,13 @@ object TerminalSolver : Module(
         val out = ArrayList<Tile>()
         when (kind) {
             Kind.NUMBERS -> {
-                val red = (0 until n).filter { slots[it].item.`is`(Items.RED_STAINED_GLASS_PANE) && !hidden(it, slots[it].item) }.sortedBy { slots[it].item.count }
+                val red = (0 until n).filter { slots[it].item.`is`(Items.STAINED_GLASS_PANE.red()) && !hidden(it, slots[it].item) }.sortedBy { slots[it].item.count }
                 val colors = listOf(cFirst, cSecond, cThird)
                 red.take(3).forEachIndexed { i, s ->
                     out += Tile(s, 0, colors[i].value.rgba, if (showText.value) "${slots[s].item.count}" else "", i == 0)
                 }
             }
-            Kind.PANES -> (0 until n).filter { slots[it].item.`is`(Items.RED_STAINED_GLASS_PANE) && !hidden(it, slots[it].item) }.forEach { out += Tile(it, 0, cSolution.value.rgba) }
+            Kind.PANES -> (0 until n).filter { slots[it].item.`is`(Items.STAINED_GLASS_PANE.red()) && !hidden(it, slots[it].item) }.forEach { out += Tile(it, 0, cSolution.value.rgba) }
             Kind.COLORS -> {
                 val color = fix(SELECT.find(title)!!.groupValues[1])
                 (0 until n).filter { s -> val st = slots[s].item; !filler(st) && !picked(st) && !hidden(s, st) && fix(nameOf(st)).startsWith(color) }
@@ -228,9 +228,9 @@ object TerminalSolver : Module(
             Kind.MELODY -> {
                 val rows = n / 9
                 var correct = -1
-                for (c in 1..5) for (r in intArrayOf(0, rows - 1)) if (slots[r * 9 + c].item.`is`(Items.MAGENTA_STAINED_GLASS_PANE)) correct = c
+                for (c in 1..5) for (r in intArrayOf(0, rows - 1)) if (slots[r * 9 + c].item.`is`(Items.STAINED_GLASS_PANE.magenta())) correct = c
                 var row = -1; var current = -1
-                for (r in 1..rows - 2) for (c in 1..5) if (slots[r * 9 + c].item.`is`(Items.LIME_STAINED_GLASS_PANE)) { row = r; current = c }
+                for (r in 1..rows - 2) for (c in 1..5) if (slots[r * 9 + c].item.`is`(Items.STAINED_GLASS_PANE.lime())) { row = r; current = c }
                 if (row < 0 || correct < 0) return out
                 melodyCurrent = current; melodyCorrect = correct
                 val aligned = current == correct

@@ -1,5 +1,7 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
+import net.minecraft.world.entity.EntityTypes
 import ced.cedclient.features.impl.funqol.CritterSafari.Biome
 import ced.cedclient.features.impl.funqol.CritterSafari.Critter
 import ced.cedclient.render.LineBox
@@ -7,7 +9,7 @@ import ced.cedclient.render.pipeline.CustomRenderType
 import ced.cedclient.utils.Color
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.MultiBufferSource
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.renderer.state.level.CameraRenderState
 import net.minecraft.core.BlockPos
 import net.minecraft.world.effect.MobEffects
@@ -152,8 +154,8 @@ internal object CritterWorld {
         return null
     }
 
-    private fun isBody(e: Entity) = e.type != EntityType.ARMOR_STAND && e.type != EntityType.INTERACTION && e.type != EntityType.TEXT_DISPLAY &&
-        e.type != EntityType.BLOCK_DISPLAY && e.type != EntityType.ITEM_DISPLAY && e.type != EntityType.PLAYER && e.type != EntityType.ITEM
+    private fun isBody(e: Entity) = e.type != EntityTypes.ARMOR_STAND && e.type != EntityTypes.INTERACTION && e.type != EntityTypes.TEXT_DISPLAY &&
+        e.type != EntityTypes.BLOCK_DISPLAY && e.type != EntityTypes.ITEM_DISPLAY && e.type != EntityTypes.PLAYER && e.type != EntityTypes.ITEM
 
     private fun clearLine(mc: Minecraft, e: Entity): Boolean {
         val player = mc.player ?: return false
@@ -195,7 +197,8 @@ internal object CritterWorld {
     private fun smoothBox(e: Entity): AABB =
         e.boundingBox.move(e.getPosition(Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(false)).subtract(e.position()))
 
-    fun render(poseStack: PoseStack, bufferSource: MultiBufferSource.BufferSource, camera: CameraRenderState) {
+    fun render(context: LevelRenderContext) {
+        val camera = context.levelState().cameraRenderState
         val s = CritterSafari
         if (!s.isEnabled || !s.inSafari()) return
         val boxes = ArrayList<Pair<AABB, Color>>()
@@ -228,11 +231,11 @@ internal object CritterWorld {
         if (boxes.isEmpty()) return
         val cam = camera.pos
         // Block markers (everything but the critter bodies) also get a see-through fill, like waypoints.
-        val fillBuffer = bufferSource.getBuffer(CustomRenderType.FILLED)
-        for ((box, c) in boxes.drop(boxCountBeforeBlocks)) ced.cedclient.render.FilledBox.draw(poseStack, fillBuffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
-        bufferSource.endBatch()
-        val buffer = bufferSource.getBuffer(CustomRenderType.LINES_DEPTH)
-        for ((box, c) in boxes) LineBox.draw(poseStack, buffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-        bufferSource.endBatch()
+        context.geometry(CustomRenderType.FILLED) { pose, fillBuffer ->
+            for ((box, c) in boxes.drop(boxCountBeforeBlocks)) ced.cedclient.render.FilledBox.draw(pose, fillBuffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
+        }
+        context.geometry(CustomRenderType.LINES_DEPTH) { pose, buffer ->
+            for ((box, c) in boxes) LineBox.draw(pose, buffer, box.move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+        }
     }
 }

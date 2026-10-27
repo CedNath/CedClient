@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -82,12 +83,12 @@ object SimonSaysLines : Module(
             if (!active()) return@AfterSolidFeatures
             val rest = order.drop(progress).let { if (onlyNext.value) it.take(2) else it }
             if (rest.size < 2) return@AfterSolidFeatures
-            val cam = context.gameRenderer().mainCamera.position()
+            val cam = context.gameRenderer().mainCamera().position()
             val points = rest.map { Vec3(it.x + 0.2, it.y + 0.5, it.z + 0.5).subtract(cam) }
-            val buffer = context.bufferSource().getBuffer(CustomRenderType.LINES_DEPTH)
-            val c = color.value
-            LineBox.polyline(context.poseStack(), buffer, points, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-            context.bufferSource().endBatch()
+            context.geometry(CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                val c = color.value
+                LineBox.polyline(pose, buffer, points, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+            }
         })
     }
 

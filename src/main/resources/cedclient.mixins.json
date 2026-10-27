@@ -82,6 +82,7 @@
 
     "accessor.AbstractContainerScreenAccessor",
     "accessor.GuiAccessor",
+    "accessor.PictureInPictureRendererAccessor",
     "accessor.LivingEntityRendererAccessor",
     "accessor.CustomDataAccessor",
     "accessor.MapItemSavedDataAccessor",
@@ -101,7 +102,6 @@
 
   "client": [
     "client.MinecraftMixin",
-    "client.WindowBorderlessMixin",
     "client.SoundEngineMixin",
     "client.LocalPlayerSignMixin",
     "client.LocalPlayerDropMixin",

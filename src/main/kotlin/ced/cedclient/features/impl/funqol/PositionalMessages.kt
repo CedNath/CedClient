@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
 import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
@@ -263,19 +264,19 @@ object PositionalMessages : Module(
         val cam = camera.pos
 
         if (showBoxes.value || selection != null) {
-            val buffer = bufferSource.getBuffer(if (seeThrough.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
-            if (showBoxes.value) {
-                val c = boxColor.value
-                for (a in list) {
-                    LineBox.draw(
-                        poseStack, buffer, a.box.move(-cam.x, -cam.y, -cam.z),
-                        c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat
-                    )
+            None.geometry(if (seeThrough.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                if (showBoxes.value) {
+                    val c = boxColor.value
+                    for (a in list) {
+                        LineBox.draw(
+                            pose, buffer, a.box.move(-cam.x, -cam.y, -cam.z),
+                            c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat
+                        )
+                    }
                 }
+                // Corners being picked for /cc posmsg addbox: yellow preview.
+                selection?.let { LineBox.draw(pose, buffer, it.move(-cam.x, -cam.y, -cam.z), 1f, 0.85f, 0.2f, 1f) }
             }
-            // Corners being picked for /cc posmsg addbox: yellow preview.
-            selection?.let { LineBox.draw(poseStack, buffer, it.move(-cam.x, -cam.y, -cam.z), 1f, 0.85f, 0.2f, 1f) }
-            bufferSource.endBatch()
         }
 
         if (!showText.value) {

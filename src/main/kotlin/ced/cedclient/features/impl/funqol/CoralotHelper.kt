@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.utils.swingMainHand
 import ced.cedclient.utils.Keys
 import ced.cedclient.features.impl.render.ActionBarHud
 import ced.cedclient.features.Category
@@ -507,7 +508,7 @@ object CoralotHelper : Module(
         }
 
         mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
-        player.swing(InteractionHand.MAIN_HAND)
+        player.swingMainHand()
         dbg("Threw at #${axo.id}, aimed=${isLookingAt(player, axo, aimToleranceDeg.value.toFloat())}")
 
         state = CoralotState.CONFIRMING

@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
@@ -124,10 +125,8 @@ object DoorESP : Module(
             val current = doors
             if (current.isEmpty()) return@AfterSolidFeatures
 
-            val poseStack = context.poseStack()
-            val camera = context.gameRenderer().mainCamera
+            val camera = context.gameRenderer().mainCamera()
             val cam = camera.position()
-            val bufferSource = context.bufferSource()
             val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
 
             // The fairy door counts as the next door while it is ahead; it goes green with the wither key from the room before it.
@@ -160,17 +159,17 @@ object DoorESP : Module(
                 Triple(door.box.move(-cam.x, -cam.y, -cam.z), c, door === tracerTo)
             }
             if (style.value != "Outline") {
-                val fill = bufferSource.getBuffer(if (xray) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED)
                 // See-through fill (40% of the colour's opacity) so the door itself stays visible.
-                for ((box, c, _) in shown) FilledBox.draw(poseStack, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
-                bufferSource.endBatch()
+                context.geometry(if (xray) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED) { pose, fill ->
+                    for ((box, c, _) in shown) FilledBox.draw(pose, fill, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * 0.4f)
+                }
             }
-            val buffer = bufferSource.getBuffer(if (xray) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
-            for ((box, c, traced) in shown) {
-                if (style.value != "Filled") LineBox.draw(poseStack, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-                if (tracing && traced) LineBox.polyline(poseStack, buffer, listOf(look, box.center), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+            context.geometry(if (xray) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                for ((box, c, traced) in shown) {
+                    if (style.value != "Filled") LineBox.draw(pose, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+                    if (tracing && traced) LineBox.polyline(pose, buffer, listOf(look, box.center), c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+                }
             }
-            bufferSource.endBatch()
         })
     }
 

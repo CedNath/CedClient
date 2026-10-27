@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
 import ced.cedclient.config.CedPaths
 import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.SubtitleEvent
@@ -86,9 +87,9 @@ object SunGecko : Module(
             val pt = mc.deltaTracker.getGameTimeDeltaPartialTick(false)
             val b = gecko.boundingBox.move(gecko.getPosition(pt).subtract(gecko.position())).inflate(0.1).move(-cam.x, -cam.y, -cam.z)
             val c = boxColor.value
-            val buffer = context.bufferSource().getBuffer(CustomRenderType.LINES_DEPTH)
-            LineBox.draw(context.poseStack(), buffer, b, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
-            context.bufferSource().endBatch()
+            context.geometry(CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                LineBox.draw(pose, buffer, b, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat)
+            }
         })
     }
 

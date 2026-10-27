@@ -92,7 +92,7 @@ object DojoHelper : Module(
         // Aim and sword checks every rendered frame, so they don't step at 20 Hz.
         LevelRenderEvents.START_MAIN.register { if (isEnabled) frame() }
         LevelRenderEvents.AFTER_SOLID_FEATURES.register(LevelRenderEvents.AfterSolidFeatures { ctx ->
-            if (isEnabled && swiftDebug.value && challenge("Swiftness")) drawDebug(ctx.poseStack(), ctx.bufferSource(), ctx.gameRenderer().mainCamera.position())
+            if (isEnabled && swiftDebug.value && challenge("Swiftness")) drawDebug(ctx.poseStack(), ctx.bufferSource(), ctx.gameRenderer().mainCamera().position())
         })
     }
 
@@ -145,7 +145,7 @@ object DojoHelper : Module(
         val under = BlockPos.containing(player.x, player.y - 0.2, player.z)
         // betweenClosed hands out one reused mutable pos: copy each before keeping it.
         val wool = BlockPos.betweenClosed(feet.offset(-6, -3, -6), feet.offset(6, 1, 6)).map { it.immutable() }
-            .filter { level.getBlockState(it).block.let { b -> b == Blocks.LIME_WOOL || b == Blocks.GREEN_WOOL } }
+            .filter { level.getBlockState(it).block.let { b -> b == Blocks.WOOL.lime() || b == Blocks.WOOL.green() } }
         visited.retainAll(wool.toSet())
         if (player.onGround() && under in wool) visited.add(under.immutable())
         val target = wool.filter { it != under && it !in visited }.minByOrNull { it.distToCenterSqr(player.position()) }

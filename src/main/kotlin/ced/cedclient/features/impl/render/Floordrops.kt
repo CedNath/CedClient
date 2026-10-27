@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.render.geometry
 import ced.cedclient.events.ParticleEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
@@ -130,8 +131,7 @@ object FloorDrops : Module(
             if (!shouldProcess() || forestNodes.isEmpty()) return@AfterSolidFeatures
 
             val poseStack = context.poseStack()
-            val cameraPos = context.gameRenderer().mainCamera.position()
-            val bufferSource = context.bufferSource()
+            val cameraPos = context.gameRenderer().mainCamera().position()
 
             // Read the settings once per frame, not once per node.
 //#if CHEAT
@@ -139,18 +139,18 @@ object FloorDrops : Module(
 //#else
 //$            val renderType = CustomRenderType.LINES_DEPTH
 //#endif
-            val lineBuffer = bufferSource.getBuffer(renderType)
-            val c = highlightColor.value
-            val width = lineWidth.value.toFloat()
-            val now = System.currentTimeMillis()
+            context.geometry(renderType) { pose, lineBuffer ->
+                val c = highlightColor.value
+                val width = lineWidth.value.toFloat()
+                val now = System.currentTimeMillis()
 
-            for (node in forestNodes.values) {
-                if (node.lastConfirmed + EXPIRE_AFTER_MS <= now) continue
-                val box: AABB = AABB(node.pos).inflate(0.02).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-                drawLineBox(poseStack, lineBuffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat, width)
+                for (node in forestNodes.values) {
+                    if (node.lastConfirmed + EXPIRE_AFTER_MS <= now) continue
+                    val box: AABB = AABB(node.pos).inflate(0.02).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                    drawLineBox(pose, lineBuffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat, width)
+                }
+
             }
-
-            bufferSource.endBatch()
         })
     }
 

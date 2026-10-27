@@ -1,6 +1,7 @@
 //#if CHEAT
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.render.geometry
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
@@ -25,45 +26,44 @@ object BlockESPRenderer {
             if (!BlockESP.boxesEnabled && !BlockESP.tracersEnabled && !BlockESP.labelsEnabled) return@AfterSolidFeatures
 
             val poseStack = context.poseStack()
-            val camera = context.gameRenderer().mainCamera
+            val camera = context.gameRenderer().mainCamera()
             val cameraPos = camera.position()
-            val bufferSource = context.bufferSource()
             val submitNodeCollector = context.submitNodeCollector()
             val cameraRenderState = context.levelState().cameraRenderState
 
-            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
+            context.geometry(CustomRenderType.LINES_ESP) { pose, lineBuffer ->
 
-            for (scanned in BlockESP.scannedBlocks) {
-                val pos = scanned.pos
+                for (scanned in BlockESP.scannedBlocks) {
+                    val pos = scanned.pos
 
-                if (BlockESP.boxesEnabled && scanned.style.box) {
-                    val boxColor = scanned.style.color ?: BlockESP.boxColorValue
-                    val box: AABB = AABB(pos).inflate(0.02).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-                    drawLineBox(
-                        poseStack, lineBuffer, box,
-                        boxColor.redFloat, boxColor.greenFloat, boxColor.blueFloat, boxColor.alphaFloat
-                    )
+                    if (BlockESP.boxesEnabled && scanned.style.box) {
+                        val boxColor = scanned.style.color ?: BlockESP.boxColorValue
+                        val box: AABB = AABB(pos).inflate(0.02).move(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+                        drawLineBox(
+                            pose, lineBuffer, box,
+                            boxColor.redFloat, boxColor.greenFloat, boxColor.blueFloat, boxColor.alphaFloat
+                        )
+                    }
+
+                    if (BlockESP.tracersEnabled && scanned.style.tracer) {
+                        val tracerColor = scanned.style.color ?: BlockESP.tracerColorValue
+                        val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
+                        val targetPos = Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
+                        drawLine(
+                            pose,
+                            lineBuffer,
+                            direction,
+                            targetPos.subtract(cameraPos),
+                            tracerColor.redFloat, tracerColor.greenFloat, tracerColor.blueFloat, tracerColor.alphaFloat
+                        )
+                    }
+
+                    if (BlockESP.labelsEnabled && scanned.style.label) {
+                        submitLabel(pose, submitNodeCollector, scanned, cameraPos, cameraRenderState)
+                    }
                 }
 
-                if (BlockESP.tracersEnabled && scanned.style.tracer) {
-                    val tracerColor = scanned.style.color ?: BlockESP.tracerColorValue
-                    val direction = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
-                    val targetPos = Vec3(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5)
-                    drawLine(
-                        poseStack,
-                        lineBuffer,
-                        direction,
-                        targetPos.subtract(cameraPos),
-                        tracerColor.redFloat, tracerColor.greenFloat, tracerColor.blueFloat, tracerColor.alphaFloat
-                    )
-                }
-
-                if (BlockESP.labelsEnabled && scanned.style.label) {
-                    submitLabel(poseStack, submitNodeCollector, scanned, cameraPos, cameraRenderState)
-                }
             }
-
-            bufferSource.endBatch()
         })
     }
 
