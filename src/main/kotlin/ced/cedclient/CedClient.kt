@@ -328,6 +328,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.I4Helper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.M7Relics)
             ModuleManager.register(ced.cedclient.features.impl.funqol.LividSolver)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BloodCamp)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
@@ -369,6 +370,11 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "farmhelper")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "blood_camp")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.BloodCamp.render(graphics, tickCounter)
         }
 //#endif
         hudLast(
