@@ -336,6 +336,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.IHateDoors)
             ModuleManager.register(ced.cedclient.features.impl.funqol.SpringBoots)
             ModuleManager.register(ced.cedclient.features.impl.funqol.SnappyTappy)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.WitherDragons)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
         }
         ModuleManager.register(FishingHelper)
@@ -387,6 +388,11 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "spring_boots")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.SpringBoots.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "wither_dragons")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.WitherDragons.render(graphics, tickCounter)
         }
 //#endif
         hudLast(
