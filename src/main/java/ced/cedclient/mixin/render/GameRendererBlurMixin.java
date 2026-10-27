@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
 public class GameRendererBlurMixin {
     @ModifyExpressionValue(method = "extractOptions", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Options;getMenuBackgroundBlurriness()I"))
     private int cedclient$clickGuiBlur(int original) {
-        if (Minecraft.getInstance().screen instanceof ClickGUI gui && Theme.INSTANCE.getMenuBlur().getValue()) return gui.blurRadius();
+        if (Minecraft.getInstance().gui.screen() instanceof ClickGUI gui && Theme.INSTANCE.getMenuBlur().getValue()) return gui.blurRadius();
         return original;
     }
 }

@@ -115,7 +115,7 @@ public class RotationHandler {
     /** Every frame (FarmFrameMixin). */
     public void onFrame() {
         if (!rotating || configuration == null || mc.player == null) return;
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             endTime = System.currentTimeMillis() + configuration.time;
             return;
         }

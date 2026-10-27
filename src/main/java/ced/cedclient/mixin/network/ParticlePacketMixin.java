@@ -24,7 +24,7 @@ public abstract class ParticlePacketMixin {
     // Render Optimizer: drop explosion particles (Hyperion's Wither Impact) before anything spawns them.
     @Inject(method = "handleParticleEvent", at = @At("HEAD"), cancellable = true)
     private void cedclient$hideExplosions(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
-        if (RenderOptimizer.hideParticle(packet.getParticle().getType())) ci.cancel();
+        if (RenderOptimizer.hideParticle(packet.particle().getType())) ci.cancel();
     }
 
     @Inject(method = "handleParticleEvent", at = @At("TAIL"))

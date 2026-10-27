@@ -164,7 +164,7 @@ public class MacroHandler {
         }
         if (!isMacroToggled) return;
         if (mc.player == null || mc.level == null) return;
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             KeyBindUtils.stopMovement();
             screenWasOpen = true;
             return;

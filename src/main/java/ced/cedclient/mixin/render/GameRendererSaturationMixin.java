@@ -24,6 +24,6 @@ public abstract class GameRendererSaturationMixin {
     private void cedclient$saturation(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
         if (minecraft.level == null || !Saturation.INSTANCE.active()) return;
         PostChain chain = minecraft.getShaderManager().getPostChain(Saturation.INSTANCE.getCHAIN(), LevelTargetBundle.MAIN_TARGETS);
-        if (chain != null) chain.process(minecraft.getMainRenderTarget(), resourcePool);
+        if (chain != null) chain.process(((GameRenderer) (Object) this).mainRenderTarget(), resourcePool);
     }
 }

@@ -185,7 +185,7 @@ public class PlayerUtils {
     }
 
     public static void closeScreen() {
-        if (mc.screen != null && mc.player != null) mc.execute(() -> mc.player.closeContainer());
+        if (mc.gui.screen() != null && mc.player != null) mc.execute(() -> mc.player.closeContainer());
     }
 }
 //#endif

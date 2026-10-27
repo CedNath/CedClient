@@ -63,7 +63,7 @@ public class HaloLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
         model.root().translateAndRotate(poseStack);
         model.translateToHead(poseStack);
         poseStack.translate(0.0F, HEIGHT + ((anim & BOB) != 0 ? Mth.sin(t * 2.0F) * 0.04F : 0.0F), 0.0F);
-        if ((anim & SPIN) != 0) poseStack.mulPose(Axis.YP.rotationDegrees(t * 90.0F % 360.0F));
+        if ((anim & SPIN) != 0) poseStack.rotateDegrees(Axis.YP, t * 90.0F % 360.0F);
         poseStack.translate(-SHAPE.length * PX / 2, 0.0F, -SHAPE.length * PX / 2);
         collector.submitCustomGeometry(poseStack, CustomRenderType.INSTANCE.getSOLID_QUADS(), (pose, buffer) -> {
             for (int z = 0; z < SHAPE.length; z++)

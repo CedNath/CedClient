@@ -14,8 +14,7 @@ import ced.cedclient.farmhelper.util.PlayerUtils;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket;
-import net.minecraft.world.item.AxeItem;
-import net.minecraft.world.item.HoeItem;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
 
 public class ItemChangeFailsafe extends Failsafe {
@@ -45,7 +44,7 @@ public class ItemChangeFailsafe extends Failsafe {
         ItemStack newItem = slotPacket.getItem();
         // Player inventory menu: hotbar slot i is menu slot 36 + i.
         if (slotPacket.getSlot() == 36 + toolSlot && !newItem.isEmpty()
-                && !(newItem.getItem() instanceof HoeItem) && !(newItem.getItem() instanceof AxeItem)) {
+                && !newItem.is(ItemTags.HOES) && !newItem.is(ItemTags.AXES)) {
             FailsafeManager.getInstance().possibleDetection(this);
         }
     }

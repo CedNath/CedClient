@@ -33,7 +33,7 @@ public class KeyBindUtils {
     }
 
     public static void setKeyBindState(KeyMapping key, boolean pressed) {
-        if (pressed && mc.screen != null && key != null) {
+        if (pressed && mc.gui.screen() != null && key != null) {
             realSetKeyBindState(key, false);
             return;
         }
