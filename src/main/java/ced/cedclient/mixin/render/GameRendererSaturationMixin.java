@@ -2,7 +2,6 @@ package ced.cedclient.mixin.render;
 
 import ced.cedclient.features.impl.render.Saturation;
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
@@ -21,7 +20,7 @@ public abstract class GameRendererSaturationMixin {
     @Shadow @Final private CrossFrameResourcePool resourcePool;
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/fog/FogRenderer;endFrame()V"))
-    private void cedclient$saturation(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
+    private void cedclient$saturation(CallbackInfo ci) {
         if (minecraft.level == null || !Saturation.INSTANCE.active()) return;
         PostChain chain = minecraft.getShaderManager().getPostChain(Saturation.INSTANCE.getCHAIN(), LevelTargetBundle.MAIN_TARGETS);
         if (chain != null) chain.process(((GameRenderer) (Object) this).mainRenderTarget(), resourcePool);

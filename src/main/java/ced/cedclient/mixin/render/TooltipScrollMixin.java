@@ -20,7 +20,7 @@ public class TooltipScrollMixin {
     private boolean cedclient$scaled;
 
     @WrapOperation(
-            method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V",
+            method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;Z)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;positionTooltip(IIIIII)Lorg/joml/Vector2ic;"))
     private Vector2ic cedclient$placeTooltip(ClientTooltipPositioner positioner, int screenW, int screenH, int mouseX, int mouseY, int w, int h, Operation<Vector2ic> original) {
         Vector2ic placed = ScrollableTooltips.position(original.call(positioner, screenW, screenH, mouseX, mouseY, w, h), screenW, screenH, w, h);
@@ -37,7 +37,7 @@ public class TooltipScrollMixin {
         return pos;
     }
 
-    @Inject(method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V", at = @At("RETURN"))
+    @Inject(method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;Z)V", at = @At("RETURN"))
     private void cedclient$unscaleTooltip(CallbackInfo ci) {
         if (cedclient$scaled) {
             ((GuiGraphicsExtractor) (Object) this).pose().popMatrix();

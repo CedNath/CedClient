@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class EntityRenderDispatcherMixin {
 
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
-    private void cedclient$cleanView(Entity entity, Frustum culler, double camX, double camY, double camZ, CallbackInfoReturnable<Boolean> cir) {
+    private void cedclient$cleanView(Entity entity, Frustum culler, double camX, double camY, double camZ, float partialTick, CallbackInfoReturnable<Boolean> cir) {
         if (CleanView.hideEntity(entity, camX, camY, camZ) || StarredMobHighlight.hideNametag(entity) || ced.cedclient.features.impl.funqol.LeapMenu.hideEntity(entity)
                 || ced.cedclient.features.impl.render.Hiders.hidePlayer(entity)) cir.setReturnValue(false);
     }

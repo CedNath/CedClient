@@ -107,7 +107,7 @@
     "client.GuiSetScreenMixin",
     "client.SoundEngineMixin",
     "client.LocalPlayerSignMixin",
-    "client.LocalPlayerDropMixin",
+    "client.GameModeDropMixin",
     "accessor.MinecraftAccessor"
   ],
 
