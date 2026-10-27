@@ -232,6 +232,10 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.DeployableTimers)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RagnarockTimer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.PingFpsHud)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ClassColors)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.F7Titles)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.MaskTimers)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.BlessingDisplay)
         ModuleManager.register(ced.cedclient.features.impl.funqol.EnchantColors)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ProtectItem)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SlotBinding)
@@ -448,6 +452,16 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "ping_fps")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.PingFpsHud.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "mask_timers")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.MaskTimers.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "blessing_display")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.BlessingDisplay.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "sb_kick_timer")
