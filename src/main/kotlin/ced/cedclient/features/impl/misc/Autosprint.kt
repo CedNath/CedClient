@@ -47,7 +47,7 @@ object AutoSprint : Module(
 //#if CHEAT
         val shouldSprint = client.gui.screen() == null && !Freecam.isActive && !inWater
 //#else
-//$        val shouldSprint = client.screen == null && !inWater
+//$        val shouldSprint = client.gui.screen() == null && !inWater
 //#endif
 
         if (shouldSprint) {

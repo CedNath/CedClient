@@ -1,7 +1,7 @@
 package ced.cedclient.ui.clickgui
 
-//#if CHEAT
 import ced.cedclient.utils.Keys
+//#if CHEAT
 import ced.cedclient.features.impl.render.EspStyle
 import ced.cedclient.features.settings.ColorSetting
 //#endif

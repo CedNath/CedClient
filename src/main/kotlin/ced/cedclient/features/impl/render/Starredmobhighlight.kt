@@ -112,11 +112,13 @@ object StarredMobHighlight : Module(
             val poseStack = context.poseStack()
             val camera = context.gameRenderer().mainCamera()
             val cameraPos = camera.position()
+            context.geometry(
 //#if CHEAT
-            context.geometry(if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH) { pose, lineBuffer ->
-    //#else
-    //$            val lineBuffer = bufferSource.getBuffer(CustomRenderType.LINES_DEPTH)
-    //#endif
+                if (throughWalls.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH
+//#else
+//$                CustomRenderType.LINES_DEPTH
+//#endif
+            ) { pose, lineBuffer ->
 
                 val width = lineWidth.value.toFloat()
                 val pt = partialTick()
