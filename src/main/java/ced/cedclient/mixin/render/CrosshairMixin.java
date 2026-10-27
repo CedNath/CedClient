@@ -5,14 +5,14 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.CameraType;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /** Crosshair module: third-person crosshair and custom shapes. */
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public class CrosshairMixin {
 
     @WrapOperation(method = "extractCrosshair", at = @At(value = "INVOKE",
