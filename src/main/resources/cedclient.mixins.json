@@ -120,6 +120,9 @@
     "client.PerspectiveTurnMixin",
     "render.PerspectiveCameraMixin",
     "gui.GuiTabListMixin",
+    "gui.HudActionBarMixin",
+    "chat.ChatTabsMixin",
+    "chat.SmoothChatMixin",
     "accessor.MinecraftAccessor"
   ],
 
