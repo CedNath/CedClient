@@ -45,10 +45,9 @@ dependencies {
     implementation("net.fabricmc:fabric-language-kotlin:${property("kotlin_loader_version")}")
     implementation("net.fabricmc.fabric-api:fabric-api:${property("fabric_version")}")
 
-    implementation("org.lwjgl:lwjgl-nanovg:3.4.1")
-    runtimeOnly("org.lwjgl:lwjgl-nanovg:3.4.1:natives-windows")
-    runtimeOnly("org.lwjgl:lwjgl-nanovg:3.4.1:natives-linux")
-    runtimeOnly("org.lwjgl:lwjgl-nanovg:3.4.1:natives-macos")
+    // 26.3's launcher meta has no lwjgl-nanovg, so it ships inside the jar
+    implementation(include("org.lwjgl:lwjgl-nanovg:3.4.1")!!)
+    for (os in listOf("windows", "linux", "macos")) runtimeOnly(include("org.lwjgl:lwjgl-nanovg:3.4.1:natives-$os")!!)
     localRuntime("maven.modrinth:dev-auth-neo:1.1.0")
 }
 
@@ -130,6 +129,8 @@ tasks.named<KotlinCompile>("compileLegitKotlin") {
 }
 tasks.named("compileLegitJava") { dependsOn(preprocessLegitSources) }
 
+val nestedJarNames = listOf("lwjgl-nanovg-3.4.1.jar") + listOf("windows", "linux", "macos").map { "lwjgl-nanovg-3.4.1-natives-$it.jar" }
+
 fun ProcessResources.expandModJson(cheat: Boolean) {
     inputs.property("version", project.version)
     filteringCharset = "UTF-8"
@@ -141,7 +142,9 @@ fun ProcessResources.expandModJson(cheat: Boolean) {
                 "loader_version" to project.property("loader_version"),
                 "kotlin_loader_version" to project.property("kotlin_loader_version"),
                 "fabric_version" to project.property("fabric_version"),
-                "cheat_mixins" to if (cheat) ", \"cedclient.cheat.mixins.json\"" else ""
+                "cheat_mixins" to if (cheat) ", \"cedclient.cheat.mixins.json\"" else "",
+                // Loom adds "jars" to the cheat jar itself; the legit jar is a plain Jar, so it lists them here.
+                "nested_jars" to if (cheat) "" else ", \"jars\": [" + nestedJarNames.joinToString { "{\"file\": \"META-INF/jars/$it\"}" } + "]"
             )
         )
     }
@@ -173,6 +176,7 @@ tasks.jar {
 val jarLegit by tasks.registering(Jar::class) {
     archiveClassifier.set("legit")
     from(legitSourceSet.output)
+    from(zipTree(tasks.jar.flatMap { it.archiveFile })) { include("META-INF/jars/**") }
     from("LICENSE") {
         rename { "${it}_${project.base.archivesName.get()}" }
     }
