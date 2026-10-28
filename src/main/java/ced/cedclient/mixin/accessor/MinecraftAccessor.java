@@ -9,4 +9,8 @@ public interface MinecraftAccessor {
     /** Vanilla left-click handler: the same code a real mouse click runs. */
     @Invoker("startAttack")
     boolean cedStartAttack();
+
+    /** Vanilla right-click handler: the same code a real mouse click runs. */
+    @Invoker("startUseItem")
+    void cedStartUseItem();
 }

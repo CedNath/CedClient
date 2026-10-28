@@ -10,7 +10,7 @@ object ModuleGroups {
         "General" to listOf("Mod Settings", "ScreenshotTweaks", "Screenshot Preview", "Borderless Fullscreen", "AutoSprint", "HideRecipeBook", "Keep Connection", "Texture Pack Fix", "Config Share", "Hotbar Keybinds"),
         "Visuals" to listOf("Fullbright", "Saturation", "Clean View", "Render Optimizer", "Zoom", "Custom Sky", "Crosshair", "Hiders", "Vanilla Textures", "Old Stars",
             "Custom Tooltips", "Scrollable Tooltips", "Tooltip Dates", "Item Info Tooltip", "Item Rarity", "Enchant Colors", "Perspective"),
-        "Cheats" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes", "Auto Fusion", "Auto Terminals", "FishingHelper", "Beach Ball Helper", "LassoHelper", "PangolinCatcher", "CoralotHelper", "TropicalFishHelper",
+        "Cheats" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes", "Auto Clicker", "Arrow Align Triggerbot", "Lights Device Triggerbot", "Auto Fusion", "Auto Terminals", "FishingHelper", "Beach Ball Helper", "LassoHelper", "PangolinCatcher", "CoralotHelper", "TropicalFishHelper",
             "Slayer Helper", "FarmHelper", "Anvil Helper", "TinyDancerHelper", "Auto Experiments", "Beacon Solver", "Dojo Helper"),
         "Skyblock" to listOf("Auction Price Input", "SearchOverlay", "Item Value", "Item Cooldowns", "Chat Channel HUD", "Deployable Timers", "Ragnarock Timer", "WarpShortcuts",
             "InventoryButtons", "Daily Tasks", "Event Countdown", "Pet Display", "SB Kick Timer", "Stat Bars", "Skill Display", "Storage Overlay", "Protect Item", "Slot Binding", "Loadout Keybinds", "Wardrobe Keybinds", "Waypoints"),

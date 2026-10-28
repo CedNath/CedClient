@@ -373,6 +373,9 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoFusion)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AutoTerminals)
         ModuleManager.register(ced.cedclient.features.impl.funqol.AnvilHelper)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.AutoClicker)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.ArrowAlignTriggerbot)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.LightsDeviceTriggerbot)
 
 //#endif
         // Defensive: touch ModuleManager.modules to force initialization (if it's lazily initialized)

@@ -72,6 +72,15 @@ object ArrowAlign : Module(
     )
 
     private fun active() = isEnabled && DungeonState.inDungeon && DungeonState.f7Phase == 3
+
+    /** Clicks [frame] still needs (0 = none, or unknown yet). Read by the Arrow Align Triggerbot. */
+    fun clicksNeeded(frame: ItemFrame): Int {
+        if (!active() || frame.item.item != Items.ARROW) return 0
+        val pos = frame.blockPosition()
+        if (pos.x != corner.x) return 0
+        return remaining[(pos.y - corner.y) + (pos.z - corner.z) * 5] ?: 0
+    }
+
     private fun clicks(current: Int, target: Int) = if (target == -1) 0 else (8 - current + target) % 8
     private fun reset() { rotations.fill(-1); remaining.clear(); clickedAt.clear(); layout = -1 }
 
