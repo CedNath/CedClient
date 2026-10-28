@@ -7,7 +7,7 @@ package ced.cedclient.features
  */
 object ModuleGroups {
     private val panels: Map<String, List<String>> = linkedMapOf(
-        "General" to listOf("Mod Settings", "ScreenshotTweaks", "Borderless Fullscreen", "AutoSprint", "HideRecipeBook", "Keep Connection", "Texture Pack Fix", "Config Share", "Hotbar Keybinds"),
+        "General" to listOf("Mod Settings", "ScreenshotTweaks", "Screenshot Preview", "Borderless Fullscreen", "AutoSprint", "HideRecipeBook", "Keep Connection", "Texture Pack Fix", "Config Share", "Hotbar Keybinds"),
         "Visuals" to listOf("Fullbright", "Saturation", "Clean View", "Render Optimizer", "Zoom", "Custom Sky", "Crosshair", "Hiders", "Vanilla Textures", "Old Stars",
             "Custom Tooltips", "Scrollable Tooltips", "Tooltip Dates", "Item Info Tooltip", "Item Rarity", "Enchant Colors", "Perspective"),
         "Cheats" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes", "Auto Fusion", "Auto Terminals", "FishingHelper", "Beach Ball Helper", "LassoHelper", "PangolinCatcher", "CoralotHelper", "TropicalFishHelper",
@@ -24,7 +24,7 @@ object ModuleGroups {
         "Chat" to listOf("Chat Features", "Chat Tabs", "Smooth Chat", "Chat Ping", "ChatFilter", "Party Commands", "Chat Prefix"),
         "Cosmetic" to listOf("Cosmetics", "Cosmetic Blocks", "Custom Nametag", "Player Scale", "China Hat", "Hide Armor", "Falling Petals"),
         "Misc" to listOf("Music", "Time HUD", "Armor HUD", "Compact Scoreboard", "Scoreboard Toggle", "Compact Tab", "Tab List Toggle", "Mute Sounds", "ADHD", "Action Bar HUD", "Ping / FPS"),
-        "Dev" to listOf("Advanced Mode", "Debug Panel", "Copy Item Data", "Copy Entity Data", "Dumpers"),
+        "Dev" to listOf("Advanced Mode", "Debug Panel", "Copy Item Data", "Copy Entity Data", "Dumpers", "Freeze Capture"),
     )
 
     private val panelOf: Map<String, String> = panels.flatMap { (panel, names) -> names.map { it to panel } }.toMap()

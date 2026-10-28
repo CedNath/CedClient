@@ -74,15 +74,20 @@ object ScreenshotTweaks : Module(
      * @return true if the line should be hidden.
      */
     fun handleChatMessage(message: Component): Boolean {
-        if (!isEnabled) return false
+        val preview = ScreenshotPreview.isEnabled
+        if (!isEnabled && !preview) return false
         if (!containsKey(message, SUCCESS_KEY)) return false
+
+        // Screenshot Preview shows its own thumbnail; it can hide the chat line even when this module is off.
+        val hideForPreview = preview && ScreenshotPreview.onScreenshot()
+        if (!isEnabled) return hideForPreview
 
         val now = System.currentTimeMillis()
         if (copyToClipboard.value && now - lastHandledAt > 1000L) {
             lastHandledAt = now
             copyNewestScreenshot()
         }
-        return hideMessage.value
+        return hideMessage.value || hideForPreview
     }
 
     /**
