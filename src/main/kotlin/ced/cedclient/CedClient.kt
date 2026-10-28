@@ -208,6 +208,14 @@ class CedClient : ClientModInitializer {
 
         // HUD: vanilla UI tweaks, then info overlays
         ModuleManager.register(CompactScoreboard)
+        // After Compact Scoreboard: its HUD wrapper has to be the outer one to hide that panel too.
+        ModuleManager.register(ced.cedclient.features.impl.misc.ScoreboardToggle)
+        ModuleManager.register(ced.cedclient.features.impl.misc.TabListToggle)
+        ModuleManager.register(ced.cedclient.features.impl.render.Perspective)
+        ModuleManager.register(ced.cedclient.features.impl.misc.HotbarKeybinds)
+        ModuleManager.register(ced.cedclient.features.impl.misc.CopyItemData)
+        ModuleManager.register(ced.cedclient.features.impl.misc.CopyEntityData)
+        ModuleManager.register(ced.cedclient.features.impl.misc.Dumpers)
         ModuleManager.register(CompactTab)
         ModuleManager.register(ChatChannelHud)
         ModuleManager.register(ced.cedclient.features.impl.render.ActionBarHud)

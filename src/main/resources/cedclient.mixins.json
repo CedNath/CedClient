@@ -117,6 +117,9 @@
     "client.SoundEngineMixin",
     "client.LocalPlayerSignMixin",
     "client.GameModeDropMixin",
+    "client.PerspectiveTurnMixin",
+    "render.PerspectiveCameraMixin",
+    "gui.GuiTabListMixin",
     "accessor.MinecraftAccessor"
   ],
 

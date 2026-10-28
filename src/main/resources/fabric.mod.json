@@ -30,4 +30,5 @@
     "fabric-api": ">=${fabric_version}",
     "minecraft": "${minecraft_version}"
   }
+${nested_jars}
 }

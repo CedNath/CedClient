@@ -7,9 +7,9 @@ package ced.cedclient.features
  */
 object ModuleGroups {
     private val panels: Map<String, List<String>> = linkedMapOf(
-        "General" to listOf("Mod Settings", "ScreenshotTweaks", "Borderless Fullscreen", "AutoSprint", "HideRecipeBook", "Keep Connection", "Texture Pack Fix", "Config Share"),
+        "General" to listOf("Mod Settings", "ScreenshotTweaks", "Borderless Fullscreen", "AutoSprint", "HideRecipeBook", "Keep Connection", "Texture Pack Fix", "Config Share", "Hotbar Keybinds"),
         "Visuals" to listOf("Fullbright", "Saturation", "Clean View", "Render Optimizer", "Zoom", "Custom Sky", "Crosshair", "Hiders", "Vanilla Textures", "Old Stars",
-            "Custom Tooltips", "Scrollable Tooltips", "Tooltip Dates", "Item Info Tooltip", "Item Rarity", "Enchant Colors"),
+            "Custom Tooltips", "Scrollable Tooltips", "Tooltip Dates", "Item Info Tooltip", "Item Rarity", "Enchant Colors", "Perspective"),
         "Cheats" to listOf("EntityESP", "BlockESP", "Freecam", "Secret Hitboxes", "Auto Fusion", "Auto Terminals", "FishingHelper", "Beach Ball Helper", "LassoHelper", "PangolinCatcher", "CoralotHelper", "TropicalFishHelper",
             "Slayer Helper", "FarmHelper", "Anvil Helper", "TinyDancerHelper", "Auto Experiments", "Beacon Solver", "Dojo Helper"),
         "Skyblock" to listOf("Auction Price Input", "SearchOverlay", "Item Value", "Item Cooldowns", "Chat Channel HUD", "Deployable Timers", "Ragnarock Timer", "WarpShortcuts",
@@ -23,8 +23,8 @@ object ModuleGroups {
         "Hunting" to listOf("Critter Safari", "FloorDrops"),
         "Chat" to listOf("Chat Features", "Chat Ping", "ChatFilter", "Party Commands", "Chat Prefix"),
         "Cosmetic" to listOf("Cosmetics", "Cosmetic Blocks", "Custom Nametag", "Player Scale", "Hide Armor", "Falling Petals"),
-        "Misc" to listOf("Music", "Time HUD", "Armor HUD", "Compact Scoreboard", "Compact Tab", "Mute Sounds", "Action Bar HUD", "Ping / FPS"),
-        "Dev" to listOf("Advanced Mode", "Debug Panel"),
+        "Misc" to listOf("Music", "Time HUD", "Armor HUD", "Compact Scoreboard", "Scoreboard Toggle", "Compact Tab", "Tab List Toggle", "Mute Sounds", "Action Bar HUD", "Ping / FPS"),
+        "Dev" to listOf("Advanced Mode", "Debug Panel", "Copy Item Data", "Copy Entity Data", "Dumpers"),
     )
 
     private val panelOf: Map<String, String> = panels.flatMap { (panel, names) -> names.map { it to panel } }.toMap()

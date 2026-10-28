@@ -38,6 +38,7 @@ object Keys {
     const val UP = 82
     const val KP_ENTER = 88
     const val LEFT_SHIFT = 225
+    const val LEFT_ALT = 226
     const val RIGHT_SHIFT = 229
 
     const val MOUSE_LEFT = InputConstants.MOUSE_BUTTON_LEFT
