@@ -9,6 +9,7 @@ import ced.cedclient.state.CosmeticOverride;
 import ced.cedclient.state.CosmeticsSync;
 import ced.cedclient.accessor.CedClientPlayerRenderStateAccessor;
 import ced.cedclient.mixin.accessor.LivingEntityRendererAccessor;
+import ced.cedclient.render.ChinaHatLayer;
 import ced.cedclient.render.HaloLayer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -33,6 +34,7 @@ public abstract class PlayerRendererMixin {
     @Inject(method = "<init>", at = @At("TAIL"))
     private void cedclient$addHaloLayer(CallbackInfo ci) {
         ((LivingEntityRendererAccessor) this).cedclient$addLayer(new HaloLayer((AvatarRenderer) (Object) this));
+        ((LivingEntityRendererAccessor) this).cedclient$addLayer(new ChinaHatLayer((AvatarRenderer) (Object) this));
     }
 
     @Inject(
