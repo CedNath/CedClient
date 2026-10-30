@@ -42,7 +42,7 @@ object CritterSafari : Module(
     "Critter Safari",
     Category.Skyblock,
     "Critter Safari run tracker: species caught by you and your party, per biome, what's still missing.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val showWhere = DropdownSetting("Show HUD", listOf("In Safari", "Safari + Entrance", "Everywhere"), "Safari + Entrance")
     private val showMissing = BooleanSetting("Missing Species HUD", true, "Lists what's left in the biome you're in.")

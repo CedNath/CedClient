@@ -1,7 +1,6 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
-import ced.cedclient.achievements.Achievements
 import ced.cedclient.render.bufferSource
 import ced.cedclient.render.draw
 import ced.cedclient.render.polyline
@@ -141,7 +140,6 @@ object NecronDrop : Module(
             lastMoveTick = phaseTicks
             if (hypot(dx, dz) >= LOCK_DIST) {
                 locked = true
-                Achievements.bump("necron_drops")
                 if (popup.value) when (overLava(spot)) {
                     true -> Alerts.title("Necron Drop", "Above Lava!", "", 0xFF5555, true, 0.6f)
                     false -> Alerts.title("Necron Drop", "Above Platform", "", 0x55FF55, true, 1.4f)

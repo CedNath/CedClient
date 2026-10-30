@@ -3,6 +3,7 @@ package ced.cedclient.features.impl.render
 import ced.cedclient.config.CedPaths
 import ced.cedclient.utils.Debug
 import com.mojang.renderpearl.api.buffers.GpuBuffer
+import com.mojang.renderpearl.api.commands.RenderPass
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.BufferBuilder
@@ -84,26 +85,26 @@ object SkyBox {
         }
     }
 
-    /** Draws the cube [name] with the camera's current view; does nothing when the picture can't be loaded. */
-    fun render(name: String) {
-        if (failed == name) return
-        if (loaded != name) load(name)
+    /** Loads [name] if it isn't yet. Not from the render hook: the sky is drawn inside an open render pass, and uploading a texture there throws. */
+    fun ensureLoaded(name: String) {
+        if (failed == name || loaded == name) return
+        load(name)
+    }
+
+    /** Draws the cube [name] into the sky's open [pass]; does nothing until it has been loaded (see [ensureLoaded]). */
+    fun render(pass: RenderPass, name: String) {
+        if (loaded != name) return
         val tex = texture ?: return
         val buf = buffer ?: return
         val quads = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS)
         val indices = quads.getBuffer(36)
-        val target = Minecraft.getInstance().gameRenderer.mainRenderTarget()
         val transform = RenderSystem.getDynamicUniforms().writeTransform(RenderSystem.getModelViewMatrixCopy())
-        RenderSystem.getDevice().createCommandEncoder()
-            .createRenderPass(Supplier { "CedClient skybox" }, target.colorTextureView!!, Optional.empty(), target.depthTextureView, OptionalDouble.empty())
-            .use { pass ->
-                pass.setPipeline(RenderSystem.getCompiledPipeline(RenderPipelines.END_SKY))
-                RenderSystem.bindDefaultUniforms(pass)
-                pass.setUniform("DynamicTransforms", transform)
-                pass.setUniform("Sampler0", tex.textureView, tex.sampler)
-                pass.setVertexBuffer(0, buf.slice())
-                pass.setIndexBuffer(indices, quads.type())
-                pass.drawIndexed(36, 1, 0, 0, 0)
-            }
+        pass.setPipeline(RenderSystem.getCompiledPipeline(RenderPipelines.END_SKY))
+        RenderSystem.bindDefaultUniforms(pass)
+        pass.setUniform("DynamicTransforms", transform)
+        pass.setUniform("Sampler0", tex.textureView, tex.sampler)
+        pass.setVertexBuffer(0, buf.slice())
+        pass.setIndexBuffer(indices, quads.type())
+        pass.drawIndexed(36, 1, 0, 0, 0)
     }
 }

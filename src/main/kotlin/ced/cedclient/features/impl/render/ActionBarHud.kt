@@ -22,7 +22,7 @@ object ActionBarHud : Module(
     "Action Bar HUD",
     Category.HUD,
     "Client notices in a small line above the action bar (Hypixel can't overwrite them), and a movable held item name.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val mc get() = Minecraft.getInstance()
 

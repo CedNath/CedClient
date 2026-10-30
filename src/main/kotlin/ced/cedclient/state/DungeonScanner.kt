@@ -78,9 +78,15 @@ object DungeonScanner {
                 if (top == 0) continue // wall, or not loaded yet: keep what was seen before
                 val spot = if (top !in DOOR_HEIGHTS) Spot.SEPARATOR else {
                     val state = level.getBlockState(pos.set(x, 69, z))
+                    // I Hate Doors swaps the door for glass on screen; it remembers what the door was.
+//#if CHEAT
+                    val original = ced.cedclient.features.impl.funqol.IHateDoors.originalOf(x, z, state)
+//#else
+//$                    val original: net.minecraft.world.level.block.Block? = null
+//#endif
                     when {
-                        state.`is`(Blocks.COAL_BLOCK) -> Spot.WITHER
-                        state.`is`(Blocks.DYED_TERRACOTTA.red()) -> Spot.BLOOD
+                        state.`is`(Blocks.COAL_BLOCK) || original == Blocks.COAL_BLOCK -> Spot.WITHER
+                        state.`is`(Blocks.DYED_TERRACOTTA.red()) || original == Blocks.DYED_TERRACOTTA.red() -> Spot.BLOOD
                         state.`is`(Blocks.INFESTED_CHISELED_STONE_BRICKS) -> Spot.ENTRANCE
                         else -> Spot.NORMAL
                     }

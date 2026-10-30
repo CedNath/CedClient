@@ -78,7 +78,7 @@ class TextureListPopup : Popup("Choose Textures", WIDTH, HEIGHT) {
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (input.mouseClicked(mouseX, mouseY, click)) return true
-        if (click.button() != 0 || mouseY !in listTop..(listTop + listHeight)) return false
+        if (Keys.mouse(click) != 0 || mouseY !in listTop..(listTop + listHeight)) return false
         val (id, _) = shown().getOrNull(((mouseY - listTop - scroll) / rowH).toInt()) ?: return false
         VanillaTextures.toggleKeep(id)
         return true

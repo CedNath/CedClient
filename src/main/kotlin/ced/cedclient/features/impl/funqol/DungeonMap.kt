@@ -130,7 +130,7 @@ object DungeonMap : Module(
     private const val CHECK_H = 6f
     private const val NAME_SIZE = 5f
     /** Height of the two Run Info lines under the map. */
-    private const val INFO_H = 20f
+    private const val INFO_H = 14f
     private val CODES = Regex("§.")
     private val SECRETS = Regex("""(\d+)/(\d+) Secrets""")
     /** The world the blood door was opened in (Blood Route stops there). */
@@ -249,7 +249,10 @@ object DungeonMap : Module(
                 else DungeonScanner.room(i / 2, (j - 1) / 2) to DungeonScanner.room(i / 2, (j + 1) / 2)
             if (a != null && b != null && a.name != b.name) spot = if (a.type == "ENTRANCE" || b.type == "ENTRANCE") Spot.ENTRANCE else Spot.NORMAL
         }
-        if (all || spot == Spot.SEPARATOR || (START + 16 * i to START + 16 * j) in HotbarDungeonMap.discoveredDoors) return spot
+        val key = START + 16 * i to START + 16 * j
+        // The map shows wither (119) and blood (18) doors itself: trust it when the world scan saw a plain door there.
+        if (spot == Spot.NORMAL) when (HotbarDungeonMap.doorColors[key]) { 119 -> spot = Spot.WITHER; 18 -> spot = Spot.BLOOD }
+        if (all || spot == Spot.SEPARATOR || key in HotbarDungeonMap.discoveredDoors) return spot
         return null
     }
 
@@ -320,6 +323,9 @@ object DungeonMap : Module(
 
     private fun rect(x: Float, y: Float, w: Float, h: Float, color: Int) { sink += { NVGRenderer.rect(x, y, w, h, color) } }
     private fun text(text: String, x: Float, y: Float, size: Float, color: Int) { sink += { HudCard.text(text, x, y, size, color) } }
+
+    /** Centred on [cx] using the width measured when it is drawn: the Minecraft font snaps its glyph size to whole device pixels, so a width taken earlier (under another transform) put the text off-centre. */
+    private fun centered(text: String, cx: Float, y: Float, size: Float, color: Int) { sink += { HudCard.text(text, cx - HudCard.width(text, size) / 2, y, size, color) } }
 
     override fun renderInternal(g: GuiGraphicsExtractor) {
         val lay = layout()
@@ -534,11 +540,11 @@ object DungeonMap : Module(
                 else -> 0xFF9A9A9A.toInt()
             }
             for (line in lines) {
-                text(line, cx - HudCard.width(line, size) / 2, y, size, color)
+                centered(line, cx, y, size, color)
                 y += lineH
             }
             if (secretLine != null) {
-                text(secretLine, cx - HudCard.width(secretLine, secretSize) / 2, y, secretSize, if (done) (if (light) 0xFF007700.toInt() else 0xFF55FF55.toInt()) else (if (light) 0xFF222222.toInt() else 0xFFCCCCCC.toInt()))
+                centered(secretLine, cx, y, secretSize, if (done) (if (light) 0xFF007700.toInt() else 0xFF55FF55.toInt()) else (if (light) 0xFF222222.toInt() else 0xFFCCCCCC.toInt()))
                 y += secretH
             }
             if (check) { val checkY = y + CHECK_H / 2; val checkState = state!!; sink += { drawCheck(cx, checkY, checkState) } }
@@ -667,7 +673,7 @@ object DungeonMap : Module(
     /** Score estimate and secrets on the first line, crypts / deaths / bat / mimic / prince on the second. */
     private fun drawRunInfo() {
         val r = DungeonRunInfo
-        val size = 6f
+        val size = 4.2f
         val green = 0xFF55FF55.toInt()
         val red = 0xFFFF5555.toInt()
         val grey = 0xFFAAAAAA.toInt()
@@ -678,8 +684,8 @@ object DungeonMap : Module(
         val score = r.score
         val scoreColor = if (score >= 300) green else if (score >= 270) 0xFFFFFF55.toInt() else red
         val secretsColor = if (r.secretsPct >= r.requiredSecrets) green else -1
-        line(CARD + 1f, listOf("Score ~" to grey, "$score" to scoreColor, "   Secrets " to grey, "${r.secretsFound}" to secretsColor, "/${r.totalSecrets.takeIf { it > 0 } ?: "?"}" to grey))
-        line(CARD + 10f, listOf("Crypts " to grey, "${r.crypts}" to if (r.crypts >= 5) green else -1, "  Deaths " to grey, "${r.deaths}" to if (r.deaths == 0) green else red,
+        line(CARD + 1.5f, listOf("Score ~" to grey, "$score" to scoreColor, "   Secrets " to grey, "${r.secretsFound}" to secretsColor, "/${r.totalSecrets.takeIf { it > 0 } ?: "?"}" to grey))
+        line(CARD + 7.5f, listOf("Crypts " to grey, "${r.crypts}" to if (r.crypts >= 5) green else -1, "  Deaths " to grey, "${r.deaths}" to if (r.deaths == 0) green else red,
             "  Bats " to grey, "${r.batCount}" to if (r.bat) green else red, "  Mimic" to if (r.mimic) green else red, "  Prince" to if (r.prince) green else red))
     }
 

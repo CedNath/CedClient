@@ -47,7 +47,13 @@ class TextInputHandler(
     private var caretBlinkTime = System.currentTimeMillis()
     private var lastClickTime = 0L
     var isActive = false
-        private set
+        private set(value) {
+            field = value
+            if (value) activeHandlers.add(this) else activeHandlers.remove(this)
+            // SDL only delivers typed characters after startTextInput; vanilla's EditBox does this on focus.
+            val manager = net.minecraft.client.Minecraft.getInstance().textInputManager()
+            if (value) manager.startTextInput(this) else manager.stopTextInput(this)
+        }
     private var isDragging = false
     private var clickCount = 0
 
@@ -91,7 +97,7 @@ class TextInputHandler(
             deactivate()
             return false
         }
-        if (click.button() != 0) return false
+        if (Keys.mouse(click) != 0) return false
 
         isActive = true
         isDragging = true
@@ -392,4 +398,11 @@ class TextInputHandler(
 
     private fun textWidth(str: String): Float =
         NVGRenderer.textWidth(str, height - 2, NVGRenderer.defaultFont)
+
+    companion object {
+        private val activeHandlers: MutableSet<TextInputHandler> = java.util.Collections.newSetFromMap(java.util.WeakHashMap())
+
+        /** Minecraft 26.3 only sends typed characters to a screen that says [net.minecraft.client.gui.screens.Screen.isInputCaptured]. */
+        val anyActive: Boolean get() = activeHandlers.isNotEmpty()
+    }
 }

@@ -15,13 +15,14 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Cherry petals and colored leaves falling in a ring around you. Uses Minecraft's own cherry / tinted leaf
- * particles, so they look and tumble like the real thing.
+ * The game's own cherry blossom petals and tinted leaves falling from a ring around you. They are made straight in the
+ * particle engine, not through the level's addParticle: that path throws particles away under the Particles setting
+ * (Decreased / Minimal), which is why petals went missing for people who play with it lowered.
  */
 object FallingPetals : Module(
     "Falling Petals",
     Category.Cosmetic,
-    "Petals and leaves falling in a circle around you."
+    "Cherry petals and leaves falling in a circle around you."
 ) {
     private val kind = DropdownSetting("Kind", listOf("Both", "Petals", "Leaves"), "Both", "What falls.")
     private val amount = NumberSetting("Amount", 12.0, 1.0, 100.0, 1.0, "How many spawn per second.")
@@ -43,9 +44,8 @@ object FallingPetals : Module(
 
     private fun tick() {
         val mc = Minecraft.getInstance()
-        val level = mc.level ?: return
         val player = mc.player ?: return
-        if (!isEnabled || mc.isPaused) return
+        if (mc.level == null || !isEnabled || mc.isPaused) return
         carry += amount.value / 20.0
         while (carry >= 1.0) {
             carry -= 1.0
@@ -53,7 +53,7 @@ object FallingPetals : Module(
             val r = radius.value * (0.85 + Random.nextDouble() * 0.3)
             // A gentle push along the circle, so they drift around you as they fall.
             val orbit = 0.015
-            level.addParticle(
+            mc.particleEngine.createParticle(
                 options(),
                 player.x + cos(angle) * r, player.y + height.value * (0.7 + Random.nextDouble() * 0.3), player.z + sin(angle) * r,
                 -sin(angle) * orbit, 0.0, cos(angle) * orbit,

@@ -58,7 +58,7 @@ object VampireSlayer : Module(
     "Slayer Tracker",
     Category.Skyblock,
     "Slayer timers and stats for every slayer, and Vampire Slayer helpers (Steak, Twinclaws, Ichor, Springs, Effigies).",
-    defaultEnabled = true
+    defaultEnabled = false
 ), HudElement {
     private val hud = BooleanSetting("Slayer HUD", true, "Quest and boss timers, kill times, bosses per hour, RNG meter.")
     private val bossBox = BooleanSetting("Box Your Boss", true, "Vampire: boxes the Bloodfiend locked in as yours.")
@@ -307,15 +307,15 @@ object VampireSlayer : Module(
     private var impelTitleAt = 0L
 
     private fun title(text: String, sub: String) {
-        mc.gui.hud.setTimes(0, 10, 2)
-        mc.gui.hud.setTitle(Component.literal(text))
-        mc.gui.hud.setSubtitle(Component.literal(sub))
+        ced.cedclient.features.impl.misc.ClientTitles.setTimes(0, 10, 2)
+        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(text))
+        ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.literal(sub))
     }
 
     private fun alert(text: String, sub: String, pitch: Float) {
-        mc.gui.hud.setTimes(2, 30, 8)
-        mc.gui.hud.setTitle(Component.literal(text))
-        mc.gui.hud.setSubtitle(Component.literal(sub))
+        ced.cedclient.features.impl.misc.ClientTitles.setTimes(2, 30, 8)
+        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(text))
+        ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.literal(sub))
         ping(pitch)
     }
 

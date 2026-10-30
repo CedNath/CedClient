@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.RenderableSetting
 import ced.cedclient.ui.animations.ColorAnimation
@@ -37,7 +38,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
     private var pressedAt = 0L
     private fun pressed() = module.isAction && System.currentTimeMillis() - pressedAt < 150L
 
-    private val nameWidth = NVGRenderer.textWidth(module.name, 21f, NVGRenderer.defaultFont)
+    // Measured when drawn, not when built: the measure depends on the current NanoVG scale and on the chosen font.
+    private val nameWidth get() = NVGRenderer.textWidth(module.name, 21f, NVGRenderer.defaultFont)
     private val hoverHandler = HoverHandler(750)
     private val extendAnim = EaseInOutAnimation(250)
     private val switchAnim = EaseInOutAnimation(150)
@@ -87,13 +89,13 @@ class ModuleButton(val module: Module, val panel: Panel) {
 
     fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (hover.isHovered) {
-            if (click.button() == 0 && !module.alwaysEnabled) {
+            if (Keys.mouse(click) == 0 && !module.alwaysEnabled) {
                 colorAnim.start()
                 switchAnim.start()
                 if (module.isAction) pressedAt = System.currentTimeMillis()
                 module.toggle()
                 return true
-            } else if (click.button() == 1 || module.alwaysEnabled) {
+            } else if (Keys.mouse(click) == 1 || module.alwaysEnabled) {
                 if (ClickGUI.compact) {
                     if (representableSettings.isNotEmpty()) CompactLayout.selectModule(this)
                 } else if (module.settings.isNotEmpty()) {

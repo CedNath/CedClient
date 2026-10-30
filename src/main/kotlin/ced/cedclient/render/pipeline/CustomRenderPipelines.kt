@@ -1,5 +1,6 @@
 package ced.cedclient.render.pipeline
 
+import com.mojang.renderpearl.api.pipeline.BlendFunction
 import com.mojang.renderpearl.api.pipeline.ColorTargetState
 import com.mojang.renderpearl.api.pipeline.DepthStencilState
 import com.mojang.renderpearl.api.pipeline.RenderPipeline
@@ -13,6 +14,8 @@ import java.util.Optional
 object CustomRenderPipelines {
     val LINES_ESP: RenderPipeline = RenderPipelines.register(
         RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+            // LINES_SNIPPET has no colour target of its own (vanilla's LINES adds one); without it the pipeline has 0 targets and the pass 1.
+            .withColorTargetState(ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(Optional.empty())
             .withLocation("cedclient/lines_esp")
             .build()

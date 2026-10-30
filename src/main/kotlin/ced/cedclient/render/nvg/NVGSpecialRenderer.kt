@@ -107,6 +107,10 @@ class NVGSpecialRenderer(
         // rendered fine while text never did, across every test. Binding
         // the null sampler (id 0) here makes GL fall back to the ACTUAL
         // font atlas texture's own (correct) sampling parameters.
+        // Put it back afterwards: Minecraft doesn't rebind unit 0's sampler for every draw, so leaving it unbound makes
+        // later textures (item icons) sample with default, mipmap-requiring parameters and come out black.
+        GL13.glActiveTexture(GL13.GL_TEXTURE0)
+        val previousSampler = GL11.glGetInteger(GL33C.GL_SAMPLER_BINDING)
         GL33C.glBindSampler(0, 0)
 
         // NanoVG draws in framebuffer space
@@ -134,6 +138,12 @@ class NVGSpecialRenderer(
         }
         state.afterRender?.invoke()
 
+        GL33C.glBindSampler(0, previousSampler)
+        // NanoVG leaves its own program, buffers and texture bound; clear them through the manager so its caches match.
+        GlStateManager._glUseProgram(0)
+        GlStateManager._glBindVertexArray(0)
+        GlStateManager._glBindBuffer(GL33C.GL_ARRAY_BUFFER, 0)
+        GlStateManager._bindTexture(0)
 
         GlStateManager._disableDepthTest()
         GlStateManager._enableBlend(0)

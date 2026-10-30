@@ -17,6 +17,9 @@
   "entrypoints": {
     "client": [
       "ced.cedclient.CedClient"
+    ],
+    "modmenu": [
+      "ced.cedclient.CedModMenu"
     ]
   },
 

@@ -9,15 +9,15 @@ import ced.cedclient.utils.Colors
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import kotlin.math.exp
 
 /**
- * Theme > Menu Layout "Compact": one window made of a title, a search bar and three panels: a category list, the
- * modules of the chosen group as cards, and the settings of the module you right-clicked. ClickGUI owns the screen
- * (dim, popups, animation timing) and hands this its panels (used only as the source of modules and their groups).
+ * Theme > Menu Layout "Compact": one window in the middle of the screen. A title and the search box on top, a row of
+ * tabs (one per group of modules, wrapping onto more rows if there are many), then the modules of the chosen tab as a
+ * list of cards with the settings of the module you right-clicked beside it. ClickGUI owns the screen (dim, popups,
+ * animation timing) and hands this its panels (used only as the source of modules and their groups).
  *
- * Big categories split by their ModuleGroups headings into one entry each (Skyblock > Dungeons...); small ones
- * (see Panel.split) stay a single entry.
+ * Big categories split by their ModuleGroups headings into one tab each (Skyblock > Dungeons...); small ones
+ * (see Panel.split) stay a single tab.
  */
 class CompactLayout(
     private val panels: List<Panel>,
@@ -25,32 +25,25 @@ class CompactLayout(
     private val animated: (String, Float, Float, Float, Float, Float, () -> Unit) -> Unit,
 ) {
     private class Group(val panel: Int, val heading: String?, val name: String)
-    private class Row(val text: String, val group: Int, val offset: Float, val h: Float)
+    private class Tab(val group: Int, val x: Float, val y: Float, val w: Float)
 
     private val groups = panels.flatMapIndexed { i, p ->
         p.groupNames.map { Group(i, it, it ?: if (p.split) "Other" else p.panelSetting.category.displayName) }
     }
-    private val rows: List<Row> = buildList {
-        var off = 0f
-        panels.forEachIndexed { pi, p ->
-            if (p.split) { add(Row(p.panelSetting.category.displayName, -1, off, SECTION_H)); off += SECTION_H }
-            groups.forEachIndexed { gi, g -> if (g.panel == pi) { add(Row(g.name, gi, off, ROW_H)); off += ROW_H } }
-        }
-    }
-    private val rowsH = rows.lastOrNull()?.let { it.offset + it.h } ?: 0f
 
     private var selGroup = lastGroup.coerceIn(0, groups.size - 1)
     private var listChangedAt = 0L
-    private var hlY = -1f
-    private var lastCatDrawNs = 0L
-    private var catScroll = 0f
     private var modScroll = 0f
 
     // Where the window sits this frame; the click / scroll handlers use the same numbers.
     private var x0 = 0f
+    private var y0 = 0f
+    private var winH = 0f
+    private var tabsH = 0f
     private var bodyY = 0f
     private var bodyH = 0f
-    private val x1 get() = x0 + CAT_W + GAP
+    private val tabs = ArrayList<Tab>()
+    private val x1 get() = x0 + PAD
     private val x2 get() = x1 + MOD_W + GAP
 
     init { selectedModule = null }
@@ -71,7 +64,7 @@ class CompactLayout(
     }
 
     fun draw(cw: Float, ch: Float, elapsed: Float, style: String, mx: Float, my: Float) {
-        // A search jumps to the first category that has a match.
+        // A search jumps to the first tab that has a match.
         val query = SearchBar.currentSearch
         if (query.isNotEmpty() && !panels[groups[selGroup].panel].hasMatch(query)) {
             val i = groups.indexOfFirst { panels[it.panel].hasMatch(query) }
@@ -79,16 +72,30 @@ class CompactLayout(
         }
 
         val speed = Theme.animationSpeed.value.toFloat()
-        val now = System.nanoTime()
-        x0 = ((cw - TOTAL_W) / 2f).coerceAtLeast(8f)
-        bodyY = TOP + HEAD_H + GAP
-        bodyH = (ch - bodyY - 50f).coerceIn(240f, 820f)
+        winH = (ch - 90f).coerceIn(380f, 680f)
+        x0 = ((cw - WIN_W) / 2f).coerceAtLeast(8f)
+        y0 = ((ch - winH) / 2f).coerceAtLeast(8f)
+        layoutTabs()
+        bodyY = y0 + HEAD_H + tabsH
+        bodyH = y0 + winH - PAD - bodyY
 
-        animated(style, elapsed, x0, TOP, TOTAL_W, HEAD_H) { drawHeader(mx, my) }
-        animated(style, elapsed - 2 * STAGGER, x0, bodyY, CAT_W, bodyH) { drawCategories(mx, my, speed) }
-        // Only opening the menu plays the open animation; changing group or module fades / slides the content instead.
-        animated(style, elapsed - 3 * STAGGER, x1, bodyY, MOD_W, bodyH) { drawModules(speed) }
-        animated(style, elapsed - 4 * STAGGER, x2, bodyY, SET_W, bodyH) { drawSettings(speed) }
+        animated(style, elapsed, x0, y0, WIN_W, winH) { drawWindow(mx, my, speed) }
+    }
+
+    /** Tabs in reading order, wrapping to a new row when one would run past the window's edge. */
+    private fun layoutTabs() {
+        tabs.clear()
+        val left = x0 + PAD
+        val right = x0 + WIN_W - PAD
+        var tx = left
+        var ty = y0 + HEAD_H
+        groups.forEachIndexed { i, g ->
+            val w = NVGRenderer.textWidth(g.name, TAB_TEXT, NVGRenderer.defaultFont) + 2 * TAB_PAD
+            if (tx + w > right && tx > left) { tx = left; ty += TAB_H + TAB_GAP }
+            tabs += Tab(i, tx, ty, w)
+            tx += w + TAB_GAP
+        }
+        tabsH = ty + TAB_H + PAD - (y0 + HEAD_H)
     }
 
     private fun frame(x: Float, y: Float, w: Float, h: Float) {
@@ -136,17 +143,38 @@ class CompactLayout(
         NVGRenderer.text(text, cx - w / 2f, y, size, color, NVGRenderer.defaultFont)
     }
 
-    /** One bar across the top: the name on the left (with an accent underline), the search, then a hint. */
+    private fun drawWindow(mx: Float, my: Float, speed: Float) {
+        frame(x0, y0, WIN_W, winH)
+        drawHeader(mx, my)
+        drawTabs(mx, my)
+        drawModules(speed)
+        drawSettings(speed)
+    }
+
+    /** The name on the left (with an accent underline) and the search box on the right. */
     private fun drawHeader(mx: Float, my: Float) {
-        frame(x0, TOP, TOTAL_W, HEAD_H)
-        // Each part sits centred over the column below it, with a divider on the column gaps.
-        NVGRenderer.rect(x1 - GAP / 2f - 0.75f, TOP + 10f, 1.5f, HEAD_H - 20f, EDGE.rgba)
-        NVGRenderer.rect(x2 - GAP / 2f - 0.75f, TOP + 10f, 1.5f, HEAD_H - 20f, EDGE.rgba)
         val nameW = NVGRenderer.textWidth("CedClient", 27f, NVGRenderer.defaultFont)
-        NVGRenderer.text("CedClient", x0 + CAT_W / 2f - nameW / 2f, TOP + HEAD_H / 2f - 15f, 27f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
-        NVGRenderer.rect(x0 + CAT_W / 2f - nameW / 2f, TOP + HEAD_H - 11f, nameW, 3f, ClickGUI.clickGUIColor.rgba, 2f)
-        SearchBar.draw(x1 + (MOD_W - 350f) / 2f, TOP + (HEAD_H - 40f) / 2f, mx, my)
-        centered("Right-click for settings", x2 + SET_W / 2f, TOP + HEAD_H / 2f - 8f, 16f, MUTED.rgba)
+        val nx = x0 + PAD + 8f
+        NVGRenderer.text("CedClient", nx, y0 + HEAD_H / 2f - 15f, 27f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.rect(nx, y0 + HEAD_H - 9f, nameW, 3f, ClickGUI.clickGUIColor.rgba, 2f)
+        SearchBar.draw(x0 + WIN_W - PAD - 350f, y0 + (HEAD_H - 40f) / 2f, mx, my)
+    }
+
+    private fun drawTabs(mx: Float, my: Float) {
+        val accent = ClickGUI.clickGUIColor
+        for (t in tabs) {
+            val selected = t.group == selGroup
+            val hovered = mx in t.x..(t.x + t.w) && my in t.y..(t.y + TAB_H)
+            when {
+                selected -> NVGRenderer.rect(t.x, t.y, t.w, TAB_H, accent.rgba, 8f)
+                hovered -> NVGRenderer.rect(t.x, t.y, t.w, TAB_H, tint(CARD_HOVER), 8f)
+                else -> NVGRenderer.rect(t.x, t.y, t.w, TAB_H, tint(CARD), 8f)
+            }
+            NVGRenderer.text(
+                groups[t.group].name, t.x + TAB_PAD, t.y + TAB_H / 2f - TAB_TEXT / 2f, TAB_TEXT,
+                if (selected) Colors.WHITE.rgba else TEXT.rgba, NVGRenderer.defaultFont
+            )
+        }
     }
 
     /** Runs [draw] fading in (and sliding [dx], [dy] px into place) over SWITCH_MS from [sinceNs]; 0 = already settled. */
@@ -164,42 +192,11 @@ class CompactLayout(
         NVGRenderer.pop()
     }
 
-    private fun drawCategories(mx: Float, my: Float, speed: Float) {
-        frame(x0, bodyY, CAT_W, bodyH)
-        val vpY = bodyY + PAD
-        val vpH = bodyH - 2 * PAD
-        catScroll = catScroll.coerceIn((vpH - rowsH).coerceAtMost(0f), 0f)
-
-        // The highlight glides to the chosen group instead of jumping.
-        val now = System.nanoTime()
-        val dt = if (lastCatDrawNs == 0L) 0f else ((now - lastCatDrawNs) / 1_000_000f).coerceAtMost(100f)
-        lastCatDrawNs = now
-        val target = rows.first { it.group == selGroup }.offset
-        hlY = if (hlY < 0f) target else hlY + (target - hlY) * (1f - exp(-dt * speed / 70f))
-
-        NVGRenderer.pushScissor(x0, vpY, CAT_W, vpH)
-        NVGRenderer.rect(x0 + PAD, vpY + catScroll + hlY + 2f, CAT_W - 2 * PAD, ROW_H - 4f, ClickGUI.clickGUIColor.withAlpha(0.28f).rgba, 6f)
-        NVGRenderer.rect(x0 + PAD, vpY + catScroll + hlY + 8f, 4f, ROW_H - 16f, ClickGUI.clickGUIColor.rgba, 2f)
-        for (row in rows) {
-            val y = vpY + catScroll + row.offset
-            if (row.group < 0) {
-                NVGRenderer.text(row.text.uppercase(), x0 + PAD + 14f, y + row.h / 2f - 7f, 14f, Colors.WHITE.withAlpha(0.55f).rgba, NVGRenderer.defaultFont)
-                continue
-            }
-            val rx = x0 + PAD
-            val rw = CAT_W - 2 * PAD
-            val selected = row.group == selGroup
-            val hovered = mx in rx..(rx + rw) && my in maxOf(y, vpY)..minOf(y + row.h, vpY + vpH)
-            if (!selected && hovered) NVGRenderer.rect(rx, y + 2f, rw, row.h - 4f, tint(CARD), 6f)
-            // Long names ("Window & Connection") shrink to fit the row instead of running off its edge.
-            val size = (21f * (rw - 32f) / NVGRenderer.textWidth(row.text, 21f, NVGRenderer.defaultFont)).coerceIn(14f, 21f)
-            NVGRenderer.text(row.text, rx + 16f, y + row.h / 2f - size / 2f, size, if (selected) Colors.WHITE.rgba else TEXT.rgba, NVGRenderer.defaultFont)
-        }
-        NVGRenderer.popScissor()
-    }
+    /** A recessed backdrop for the module list and the settings, so the cards on it stand out. */
+    private fun well(x: Float, w: Float) = NVGRenderer.rect(x, bodyY, w, bodyH, Colors.BLACK.withAlpha(0.20f).rgba, 8f)
 
     private fun drawModules(speed: Float) {
-        frame(x1, bodyY, MOD_W, bodyH)
+        well(x1, MOD_W)
         val list = shown()
         fadeIn(listChangedAt, speed, 0f, 6f) {
             NVGRenderer.text(groups[selGroup].name, x1 + PAD + 8f, bodyY + 11f, 20f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
@@ -224,7 +221,7 @@ class CompactLayout(
     }
 
     private fun drawSettings(speed: Float) {
-        frame(x2, bodyY, SET_W, bodyH)
+        well(x2, SET_W)
         val btn = selectedModule
         if (btn == null) {
             centered("Right-click a module", x2 + SET_W / 2f, bodyY + bodyH / 2f - 22f, 18f, MUTED.rgba)
@@ -244,24 +241,20 @@ class CompactLayout(
         }
     }
 
-    private fun groupAt(mx: Float, my: Float): Int? {
-        val vpY = bodyY + PAD
-        if (mx !in x0..(x0 + CAT_W) || my !in vpY..(vpY + bodyH - 2 * PAD)) return null
-        return rows.firstOrNull { it.group >= 0 && my >= vpY + catScroll + it.offset && my < vpY + catScroll + it.offset + it.h }?.group
-    }
+    private fun tabAt(mx: Float, my: Float): Int? =
+        tabs.firstOrNull { mx in it.x..(it.x + it.w) && my in it.y..(it.y + TAB_H) }?.group
 
     private fun inModules(mx: Float, my: Float) = mx in x1..(x1 + MOD_W) && my in (bodyY + LIST_HEAD)..(bodyY + bodyH - PAD)
     private fun inSettings(mx: Float, my: Float) = mx in x2..(x2 + SET_W) && my in (bodyY + SET_HEAD)..(bodyY + bodyH - PAD)
 
     fun mouseClicked(mx: Float, my: Float, click: MouseButtonEvent) {
-        groupAt(mx, my)?.let { selectGroup(it); return }
+        tabAt(mx, my)?.let { selectGroup(it); return }
         if (inModules(mx, my)) shown().asReversed().any { it.mouseClicked(mx, my, click) }
         else if (inSettings(mx, my)) selectedModule?.clickSettings(mx, my, click)
     }
 
     fun mouseScrolled(mx: Float, my: Float, amount: Int) {
         when {
-            mx in x0..(x0 + CAT_W) && my in bodyY..(bodyY + bodyH) -> catScroll += amount
             mx in x1..(x1 + MOD_W) && my in bodyY..(bodyY + bodyH) -> modScroll += amount * 2
             mx in x2..(x2 + SET_W) && my in bodyY..(bodyY + bodyH) -> settingsScroll += amount
         }
@@ -297,22 +290,22 @@ class CompactLayout(
         val TEXT = Color(214, 214, 228)
         val PILL_OFF = Color(44, 44, 60)
 
-        private const val CAT_W = 230f
+        // The settings cards are a fixed width (ModuleButton), so the settings column is too.
         private const val MOD_W = 380f
         private const val SET_W = 356f
         private const val GAP = 12f
-        private const val TOTAL_W = CAT_W + MOD_W + SET_W + 2 * GAP
-        private const val TOP = 50f
-        private const val HEAD_H = 56f
         private const val PAD = 10f
-        private const val SECTION_H = 30f
-        private const val ROW_H = 42f
+        private const val WIN_W = PAD + MOD_W + GAP + SET_W + PAD
+        private const val HEAD_H = 56f
+        private const val TAB_H = 32f
+        private const val TAB_GAP = 6f
+        private const val TAB_PAD = 14f
+        private const val TAB_TEXT = 17f
         private const val LIST_HEAD = 42f
         private const val SET_HEAD = 42f
         private const val CARD_H = 54f
         private const val CARD_GAP = 8f
-        private const val STAGGER = 45f
-        /** How long a group / module change takes to fade and slide in (ms at Animation Speed 1). */
+        /** How long a tab or module change takes to fade and slide in (ms at Animation Speed 1). */
         private const val SWITCH_MS = 240f
 
         private var lastGroup = 0

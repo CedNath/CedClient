@@ -30,7 +30,7 @@ public abstract class RunProfitMixin {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void ced$runProfitClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (RunProfit.INSTANCE.onClick(self, event.x(), event.y(), event.button())) cir.setReturnValue(true);
+        if (RunProfit.INSTANCE.onClick(self, event.x(), event.y(), ced.cedclient.utils.Keys.mouse(event))) cir.setReturnValue(true);
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)

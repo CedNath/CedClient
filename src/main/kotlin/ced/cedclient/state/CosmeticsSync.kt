@@ -30,7 +30,13 @@ data class CosmeticOverride(
     val haloAnim: Int = 0,
     val haloParticles: Int = 0,
     /** 0xRRGGBB for the SkyBlock level prefix ("[300]") in this IGN's name, null = keep the server's color. */
-    val levelColor: List<Int>? = null
+    val levelColor: List<Int>? = null,
+    /** A China Hat on this IGN, given from the site (see ChinaHatLayer). */
+    val chinaHat: Boolean = false,
+    /** 0xRRGGBB for that hat, null = rainbow. */
+    val chinaColor: Int? = null,
+    /** True = the woven straw style instead of the rainbow/colored cone. */
+    val chinaStraw: Boolean = false
 )
 
 /** Site names for the halo flags; bit i = entry i. */
@@ -170,8 +176,7 @@ object CosmeticsSync {
         thread.start()
     }
 
-    fun getOverride(ign: String): CosmeticOverride? =
-        ced.cedclient.achievements.RewardCosmetics.overlay(ign, overridesMap[ign.lowercase()])
+    fun getOverride(ign: String): CosmeticOverride? = overridesMap[ign.lowercase()]
 
     /** All IGNs that currently have a tag pushed for them (scale-only entries excluded). */
     fun allTags(): Map<String, String> =
@@ -377,7 +382,11 @@ object CosmeticsSync {
                         ?.takeIf { it.size in 1..6 && it.all { h -> haloPattern.matches(h) } }
                         ?.map { it.substring(1).toInt(16) },
                     haloAnim = flags(obj.get("haloAnim"), HALO_ANIMS),
-                    haloParticles = flags(obj.get("haloParticles"), HALO_PARTICLES)
+                    haloParticles = flags(obj.get("haloParticles"), HALO_PARTICLES),
+                    chinaHat = obj.get("chinaHat")?.takeIf { it.isJsonPrimitive }?.asBoolean == true,
+                    chinaColor = obj.get("chinaColor")?.takeIf { it.isJsonPrimitive }?.asString
+                        ?.takeIf { haloPattern.matches(it) }?.substring(1)?.toInt(16),
+                    chinaStraw = obj.get("chinaStyle")?.takeIf { it.isJsonPrimitive }?.asString == "straw"
                 )
             } catch (t: Throwable) {
                 // One malformed entry shouldn't throw away everyone else's.
@@ -424,6 +433,9 @@ object CosmeticsSync {
                 if (override.halo != null) entry.addProperty("halo", "#%06x".format(override.halo))
                 if (override.haloAnim != 0) entry.addProperty("haloAnim", HALO_ANIMS.filterIndexed { i, _ -> override.haloAnim shr i and 1 == 1 }.joinToString(","))
                 if (override.haloParticles != 0) entry.addProperty("haloParticles", HALO_PARTICLES.filterIndexed { i, _ -> override.haloParticles shr i and 1 == 1 }.joinToString(","))
+                if (override.chinaHat) entry.addProperty("chinaHat", true)
+                if (override.chinaColor != null) entry.addProperty("chinaColor", "#%06x".format(override.chinaColor))
+                if (override.chinaStraw) entry.addProperty("chinaStyle", "straw")
                 obj.add(ign, entry)
             }
             cacheFile.writeText(gson.toJson(obj))

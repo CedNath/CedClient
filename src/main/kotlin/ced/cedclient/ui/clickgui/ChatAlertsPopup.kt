@@ -155,7 +155,7 @@ class ChatAlertsPopup : Popup("Chat Alerts", WIDTH, HEIGHT) {
     }
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
-        if (click.button() != 0) return false
+        if (Keys.mouse(click) != 0) return false
 
         if (isAreaHovered(addButtonX, inputY, addButtonWidth, INPUT_HEIGHT, mouseX, mouseY)) {
             submitNewEntry()

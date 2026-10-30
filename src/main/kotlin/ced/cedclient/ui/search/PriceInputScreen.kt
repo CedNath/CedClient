@@ -153,6 +153,8 @@ class PriceInputScreen(
         return super.charTyped(characterEvent)
     }
 
+    override fun isInputCaptured(): Boolean = ced.cedclient.utils.ui.TextInputHandler.anyActive
+
     override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
         if (mouseButtonEvent.button() == Keys.MOUSE_LEFT && overToggle(cedMouseX / scale, cedMouseY / scale)) {
             undercut = !undercut

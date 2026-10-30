@@ -25,14 +25,14 @@ object RevenantSlayer : Module(
     "Revenant Horror",
     Category.Skyblock,
     "Revenant Horror (zombie slayer). Nothing slayer-specific yet: its timers, stats and alerts are in Slayer Tracker.",
-    defaultEnabled = true
+    defaultEnabled = false
 )
 
 object TarantulaSlayer : Module(
     "Tarantula Broodfather",
     Category.Skyblock,
     "Tarantula Broodfather (spider slayer). Needs Slayer Tracker on.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     val hatchlings = BooleanSetting("Hatchlings Alert", true, "Title when you have to kill the hatchlings first.")
 
@@ -43,14 +43,14 @@ object SvenSlayer : Module(
     "Sven Packmaster",
     Category.Skyblock,
     "Sven Packmaster (wolf slayer). Nothing slayer-specific yet: its timers, stats and alerts are in Slayer Tracker.",
-    defaultEnabled = true
+    defaultEnabled = false
 )
 
 object VoidgloomSlayer : Module(
     "Voidgloom Seraph",
     Category.Skyblock,
     "Voidgloom Seraph (enderman slayer): beacons, laser phase and Nukekubi skulls. Needs Slayer Tracker on.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     val beaconAlert = BooleanSetting("Beacons", true, "Title + boxes for the beacons the boss throws and places.")
     val beaconColor = ColorSetting("Beacon Color", Color(255, 0, 0)).withDependency { beaconAlert.value }
@@ -67,7 +67,7 @@ object InfernoSlayer : Module(
     "Inferno Demonlord",
     Category.Skyblock,
     "Inferno Demonlord (blaze slayer): attunement, fire pits and the fire pillar. Needs Slayer Tracker on.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     val attunementAlert = BooleanSetting("Attunement", true, "Title with the dagger attunement to use when it changes.")
     val firePits = BooleanSetting("Fire Pits", true, "Title when the boss drops under a third of its HP.")
@@ -80,7 +80,7 @@ object RiftstalkerSlayer : Module(
     "Riftstalker Bloodfiend",
     Category.Skyblock,
     "Riftstalker Bloodfiend (vampire slayer): Steak Stake, Twinclaws, Blood Ichor, Killer Springs and the Château effigies. Needs Slayer Tracker on.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     val steakAlert = BooleanSetting("Steak Alert", true, "Title + sound when your boss is at 20% HP or less (Steak Stake works).")
     val steakColor = ColorSetting("Steak Color", Color(255, 85, 85))

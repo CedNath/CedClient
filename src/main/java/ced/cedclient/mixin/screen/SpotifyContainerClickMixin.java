@@ -14,6 +14,6 @@ public abstract class SpotifyContainerClickMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void ced$spotifyClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        if (event.button() == 0 && Spotify.onContainerClick(event.x(), event.y())) cir.setReturnValue(true);
+        if (ced.cedclient.utils.Keys.mouse(event) == 0 && Spotify.onContainerClick(event.x(), event.y())) cir.setReturnValue(true);
     }
 }

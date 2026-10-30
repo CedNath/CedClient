@@ -105,9 +105,9 @@ internal object CritterAlerts {
             recent[key] = now
         }
         val mc = Minecraft.getInstance()
-        mc.gui.hud.setTimes(5, 50, 15)
-        mc.gui.hud.setTitle(Component.literal(title).withColor(color and 0xFFFFFF))
-        mc.gui.hud.setSubtitle(Component.literal(subtitle))
+        ced.cedclient.features.impl.misc.ClientTitles.setTimes(5, 50, 15)
+        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(title).withColor(color and 0xFFFFFF))
+        ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.literal(subtitle))
         mc.player?.sendSystemMessage(ChatPrefix.msgFor("Critter Safari", "§e$title" + if (subtitle.isEmpty()) "" else " §7- §f$subtitle"))
         if (CritterSafari.alertSound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
         ced.cedclient.utils.Debug.line("Critter Safari", "alert: $title $subtitle")

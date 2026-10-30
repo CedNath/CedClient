@@ -335,7 +335,7 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
     override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
         val mx = mouseButtonEvent.x().toInt()
         val my = mouseButtonEvent.y().toInt()
-        val button = mouseButtonEvent.button()
+        val button = Keys.mouse(mouseButtonEvent)
 
         // Side panel takes priority
         if (mx in panelX..(panelX + panelWidth) && my in panelY..(panelY + panelHeight)) {

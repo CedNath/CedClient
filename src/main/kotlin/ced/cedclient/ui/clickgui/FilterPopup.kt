@@ -355,7 +355,7 @@ abstract class FilterPopup(
             val name = entries().getOrNull(((mouseY - listY - scrollOffset) / ROW_HEIGHT).toInt())
             val style = name?.let { rowStyle(it, it in activeSet()) }
             if (name != null && style != null) {
-                when (click.button()) {
+                when (Keys.mouse(click)) {
                     0 -> if (colorEntry == name) closeColorEditor() else openColorEditor(name, style)
                     1 -> {
                         style.color = null
@@ -368,7 +368,7 @@ abstract class FilterPopup(
         }
 
 //#endif
-        if (click.button() != 0) return false
+        if (Keys.mouse(click) != 0) return false
 
         if (isAreaHovered(blockedTabX, tabY, tabWidth, TAB_HEIGHT, mouseX, mouseY)) {
             mode = FilterMode.BLOCKED

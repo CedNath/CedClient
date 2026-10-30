@@ -27,7 +27,7 @@ object Zoom : Module(
     "Zoom",
     Category.Render,
     description = "Hold the zoom key to zoom in, scroll while zooming to zoom further.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     /** Hold to zoom (polled in CedClient). */
     val zoomKey = KeybindSetting("Zoom Key", Keys.C, "Hold to zoom.")

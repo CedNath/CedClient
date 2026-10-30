@@ -210,9 +210,15 @@ object DoorESP : Module(
         val pos = BlockPos.MutableBlockPos()
         val found = DOOR_SPOTS.mapNotNull { (x, z) ->
             val state = level.getBlockState(pos.set(x, 69, z))
+            // I Hate Doors swaps the door for glass on screen; it remembers what the door was.
+//#if CHEAT
+            val original = IHateDoors.originalOf(x, z, state)
+//#else
+//$            val original: net.minecraft.world.level.block.Block? = null
+//#endif
             when {
-                state.`is`(Blocks.DYED_TERRACOTTA.red()) -> if (bloodDoor.value) Door(x, z, Kind.BLOOD) else null
-                state.`is`(Blocks.COAL_BLOCK) -> if (witherDoors.value) Door(x, z, Kind.WITHER) else null
+                state.`is`(Blocks.DYED_TERRACOTTA.red()) || original == Blocks.DYED_TERRACOTTA.red() -> if (bloodDoor.value) Door(x, z, Kind.BLOOD) else null
+                state.`is`(Blocks.COAL_BLOCK) || original == Blocks.COAL_BLOCK -> if (witherDoors.value) Door(x, z, Kind.WITHER) else null
                 else -> null
             }
         }

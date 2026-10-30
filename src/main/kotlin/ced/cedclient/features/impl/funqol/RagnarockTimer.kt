@@ -160,10 +160,10 @@ object RagnarockTimer : Module(
 
     private fun notify(enabled: Boolean, title: String, color: Int, pitch: Float) {
         if (!enabled || mc.player == null) return
-        mc.gui.hud.setTimes(5, 30, 10)
-        mc.gui.hud.setTitle(Component.literal(title).withColor(color))
+        ced.cedclient.features.impl.misc.ClientTitles.setTimes(5, 30, 10)
+        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(title).withColor(color))
         ced.cedclient.utils.Debug.line("Ragnarock Timer", "alert: $title")
-        mc.gui.hud.setSubtitle(Component.empty())
+        ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.empty())
         if (sound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
     }
 

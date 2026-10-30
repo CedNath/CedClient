@@ -16,6 +16,10 @@ object ModuleManager {
 
     fun register(module: Module) {
         modules += module
+        ced.cedclient.features.impl.misc.ClientTitles.attach(module)
+//#if CHEAT
+        ced.cedclient.features.impl.render.Box3D.attach(module)
+//#endif
     }
 
     fun getModule(name: String): Module? {

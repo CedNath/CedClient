@@ -49,6 +49,7 @@ dependencies {
     implementation(include("org.lwjgl:lwjgl-nanovg:3.4.1")!!)
     for (os in listOf("windows", "linux", "macos")) runtimeOnly(include("org.lwjgl:lwjgl-nanovg:3.4.1:natives-$os")!!)
     localRuntime("maven.modrinth:dev-auth-neo:1.1.0")
+    compileOnly("com.terraformersmc:modmenu:21.0.0")
 }
 
 // ---- Cheat / Legit builds (same idea as NoammAddons) ----

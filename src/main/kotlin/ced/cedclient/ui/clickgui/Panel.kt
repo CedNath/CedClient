@@ -1,5 +1,7 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.ui.clickGuiScale
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.ModuleGroups
 import ced.cedclient.render.nvg.NVGRenderer
@@ -43,7 +45,8 @@ class Panel(val panelSetting: PanelSetting) {
 
     private fun visible(b: ModuleButton) = b.module.name.contains(SearchBar.currentSearch, true)
 
-    private val textWidth = NVGRenderer.textWidth(category.displayName, 25f, NVGRenderer.defaultFont)
+    // Measured when drawn, not when built: the measure depends on the current NanoVG scale and on the chosen font.
+    private val textWidth get() = NVGRenderer.textWidth(category.displayName, 25f, NVGRenderer.defaultFont)
     /** Height drawn last frame; ClickGUI scales / rotates the open animation around it. */
     var previousHeight = 0f
         private set
@@ -114,13 +117,28 @@ class Panel(val panelSetting: PanelSetting) {
             )
         }
         if (scrollOffset != 0f) NVGRenderer.popScissor()
+        if (panelSetting.extended) drawScrollbar()
+    }
+
+    /** Thin thumb on the right edge when the panel runs past the bottom of the screen. */
+    private fun drawScrollbar() {
+        val top = panelSetting.y + HEIGHT
+        val screenH = NVGRenderer.canvasHeight / clickGuiScale - top
+        val total = previousHeight - scrollOffset - HEIGHT
+        if (screenH <= 0f || total <= screenH) return
+        // The panel shrinks as it scrolls, so the track is the part of it actually drawn.
+        val viewH = minOf(screenH, previousHeight - HEIGHT)
+        val maxScroll = (total + HEIGHT - 72f).coerceAtLeast(1f)
+        val thumbH = (viewH * screenH / total).coerceIn(24f, viewH)
+        val thumbY = top + (viewH - thumbH) * (-scrollOffset / maxScroll).coerceIn(0f, 1f)
+        NVGRenderer.rect(panelSetting.x + WIDTH - 6f, thumbY, 3f, thumbH, ClickGUI.clickGUIColor.withAlpha(0.85f).rgba, 1.5f)
     }
 
     /** Small sub-heading row ("Dungeons", "Hunting"...) in the accent colour; returns its height. */
     private fun drawHeading(text: String, x: Float, y: Float): Float {
         NVGRenderer.rect(x, y, WIDTH, HEADING_HEIGHT, Colors.gray26.rgba)
         val w = NVGRenderer.textWidth(text, 15f, NVGRenderer.defaultFont)
-        NVGRenderer.text(text, x + WIDTH / 2f - w / 2f, y + HEADING_HEIGHT / 2f - 7.5f, 15f, ClickGUI.clickGUIColor.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(text, x + WIDTH / 2f - w / 2f, y + HEADING_HEIGHT / 2f - 7.5f, 15f, Colors.WHITE.withAlpha(0.6f).rgba, NVGRenderer.defaultFont)
         NVGRenderer.rect(x + 12f, y + HEADING_HEIGHT - 1f, WIDTH - 24f, 1f, ClickGUI.clickGUIColor.withAlpha(0.35f).rgba)
         return HEADING_HEIGHT
     }
@@ -133,12 +151,12 @@ class Panel(val panelSetting: PanelSetting) {
 
     fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (isAreaHovered(panelSetting.x, panelSetting.y, WIDTH, HEIGHT, true)) {
-            if (click.button() == 0) {
+            if (Keys.mouse(click) == 0) {
                 deltaX = (panelSetting.x - mouseX)
                 deltaY = (panelSetting.y - mouseY)
                 dragging = true
                 return true
-            } else if (click.button() == 1) {
+            } else if (Keys.mouse(click) == 1) {
                 panelSetting.extended = !panelSetting.extended
                 return true
             }

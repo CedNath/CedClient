@@ -20,9 +20,8 @@ import net.minecraft.network.chat.Component
  */
 class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
-    init { ced.cedclient.achievements.Achievements.bump("hud_edits") }
-
-    private val elements: List<HudElement> = HudElement.all
+    // Panels of disabled modules stay out of the editor (an element that is not a module has no switch, so it stays).
+    private val elements: List<HudElement> = HudElement.all.filter { it.hudActive && (it as? ced.cedclient.features.Module)?.isEnabled != false }
     private var dragging: HudElement? = null
     private var selected: HudElement? = null
     private var dragOffsetX = 0
@@ -185,7 +184,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
         val hits = hitsAt(mx, my)
         // Right click on stacked panels selects the next one underneath (wraps around).
-        val hit = if (event.button() == 1 && hits.size > 1) {
+        val hit = if (Keys.mouse(event) == 1 && hits.size > 1) {
             val cur = hits.indexOf(selected)
             hits[(cur + 1) % hits.size].also { selected = it; return true }
         } else hits.firstOrNull()

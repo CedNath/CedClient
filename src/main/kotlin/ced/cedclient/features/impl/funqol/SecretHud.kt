@@ -24,7 +24,7 @@ object SecretHud : Module(
     "Secret HUD",
     Category.Skyblock,
     "Shows how many secrets are done in the room you are in.",
-    defaultEnabled = true
+    defaultEnabled = false
 ), HudElement {
     private val format = DropdownSetting("Format", listOf("Secrets: 3/7", "3/7 Secrets", "3/7", "3 / 7 (4 left)"), "Secrets: 3/7", "How the count is written.")
     private val showRoom = BooleanSetting("Show Room Name", true, "Room name above the count.")

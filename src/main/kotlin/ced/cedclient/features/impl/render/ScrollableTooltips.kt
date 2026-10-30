@@ -20,7 +20,7 @@ object ScrollableTooltips : Module(
     "Scrollable Tooltips",
     Category.Render,
     "Scroll wheel moves tooltips up / down, Ctrl + scroll moves them left / right",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val speed = NumberSetting("Scroll Speed", 12.0, 4.0, 40.0, 2.0, "Pixels per wheel step")
     private val fitToScreen = BooleanSetting("Fit To Screen", false, "Tooltips taller than the screen shrink to fit (down to half size)")

@@ -56,7 +56,7 @@ object ChatFeatures : Module(
     "Chat Features",
     Category.Misc,
     "Longer chat history that survives restarts, timestamps, click to copy / reply.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val maxLines = NumberSetting("Max Chat Lines", 10000.0, 1000.0, 30000.0, 1000.0, "Vanilla keeps 100.")
     private val keepOnDisconnect = BooleanSetting("Keep Chat On Disconnect", true)

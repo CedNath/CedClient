@@ -55,7 +55,14 @@ object ConfigManager {
 
     private fun writeRoot(root: JsonObject) {
         if (!configDir.exists()) configDir.mkdirs()
-        configFile.writeText(gson.toJson(root))
+        // Temp file then move: a crash mid-write used to leave a cut-off config that then failed to parse.
+        val tmp = File(configDir, "config.json.tmp")
+        tmp.writeText(gson.toJson(root))
+        try {
+            java.nio.file.Files.move(tmp.toPath(), configFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+        } catch (e: java.nio.file.AtomicMoveNotSupportedException) {
+            java.nio.file.Files.move(tmp.toPath(), configFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 
     // -------------------------
@@ -103,35 +110,49 @@ object ConfigManager {
     private fun applyModulesJson(modulesJson: JsonObject) {
         for ((name, element) in modulesJson.entrySet()) {
             val module = ModuleManager.getModule(savedName(name, modulesJson)) ?: continue
-            val moduleData = element.asJsonObject
+            // One module's onEnable throwing (e.g. something that needs the world) must not stop the modules after it
+            // from being restored: they would stay off and the next save would write that over the real config.
+            try {
+                val moduleData = element.asJsonObject
 
-            if (name !in mergedIn) {
-                module.setEnabled(moduleData.get("enabled")?.asBoolean ?: false)
-                module.expanded = moduleData.get("expanded")?.asBoolean ?: false
-            }
-
-            val settingsJson = moduleData.get("settings")?.asJsonObject ?: continue
-            for (setting in module.settings.values) {
-                if (setting !is Saving) continue
-                val raw = settingsJson.get(setting.name) ?: continue
-                try {
-                    setting.read(raw, gson)
-                } catch (t: Throwable) {
-                    // one bad/renamed setting shouldn't take the rest of the config down with it
-                    t.printStackTrace()
+                if (name !in mergedIn) {
+                    module.expanded = moduleData.get("expanded")?.asBoolean ?: false
+                    module.setEnabled(moduleData.get("enabled")?.asBoolean ?: false)
                 }
+
+                val settingsJson = moduleData.get("settings")?.asJsonObject ?: continue
+                for (setting in module.settings.values) {
+                    if (setting !is Saving) continue
+                    val raw = settingsJson.get(setting.name) ?: continue
+                    try {
+                        setting.read(raw, gson)
+                    } catch (t: Throwable) {
+                        // one bad/renamed setting shouldn't take the rest of the config down with it
+                        t.printStackTrace()
+                    }
+                }
+            } catch (t: Throwable) {
+                println("Warning: could not restore ${module.name}: ${t.message}")
+                t.printStackTrace()
             }
         }
     }
 
-    fun loadModulesOnly() {
-        val modulesJson = readRoot()?.get("modules")?.asJsonObject ?: return
+    /** False until the saved config has been replayed; saving before that would write the defaults over it. */
+    private var loadedOnce = false
 
-        suppressAutoSave = true
+    fun loadModulesOnly() {
         try {
-            applyModulesJson(modulesJson)
+            val modulesJson = readRoot()?.get("modules")?.asJsonObject ?: return
+
+            suppressAutoSave = true
+            try {
+                applyModulesJson(modulesJson)
+            } finally {
+                suppressAutoSave = false
+            }
         } finally {
-            suppressAutoSave = false
+            loadedOnce = true
         }
     }
 
@@ -140,7 +161,7 @@ object ConfigManager {
     // anywhere (e.g. a keybind) without needing a List<PanelSetting>, which
     // only exists while the ClickGUI screen is open.
     fun saveModulesOnly() {
-        if (suppressAutoSave) return
+        if (suppressAutoSave || !loadedOnce) return
 
         val root = readRoot() ?: JsonObject()
         root.add("modules", buildModulesJson())
@@ -164,6 +185,7 @@ object ConfigManager {
     }
 
     fun save(panels: List<PanelSetting>) {
+        if (!loadedOnce) return
         val root = JsonObject()
         root.add("modules", buildModulesJson())
 
@@ -196,7 +218,7 @@ object ConfigManager {
             // Old layout (pre HUD/Cosmetic/Skyblock split): its Render/Misc positions would overlap the new
             // panels, so start from the defaults instead.
             val panelsJson = root?.get("panels")?.asJsonObject
-                ?.takeUnless { saved -> saved.keySet().any { it in legacyPanels } }
+                ?.takeUnless { saved -> saved.keySet().any { it in legacyPanels } || !saved.has("Movement") }
             for ((index, panel) in panels.withIndex()) {
                 val entry = panelsJson?.get(panel.category.name)?.asJsonObject
                 val x = entry?.get("x")?.asFloat

@@ -538,8 +538,8 @@ object CoralotHelper : Module(
         }
 
         if (showTitle.value) {
-            mc.gui.hud.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
-            mc.gui.hud.setTimes(5, 40, 10)
+            ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(titleText.replace('&', '\u00A7')))
+            ced.cedclient.features.impl.misc.ClientTitles.setTimes(5, 40, 10)
         }
 
         reset()

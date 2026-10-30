@@ -11,6 +11,7 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
+import ced.cedclient.features.settings.Setting
 import ced.cedclient.features.settings.Setting.Companion.withDependency
 import ced.cedclient.render.FilledBox
 import ced.cedclient.render.LineBox
@@ -29,42 +30,69 @@ import net.minecraft.world.phys.AABB
 import kotlin.math.sin
 
 /**
- * The shared look of the boxes drawn by the dungeon ESPs below (Wither ESP, Terminal ESP, Teammate ESP, F4 Features):
- * outline, filled or both, with an opacity and a see-through switch. Unique: a Pulse option that breathes the fill, and
- * a Distance Fade that dims far boxes so a crowded room stays readable.
+ * Draws the boxes of the dungeon ESPs and solvers. Every module that draws boxes has its own box style settings (outline /
+ * filled / both, opacity, see through walls, pulse, distance fade): [attach] adds them when the module registers, and [draw]
+ * finds the calling module from the stack (or takes it as [owner]) to read that module's style.
  */
-object Box3D : Module(
-    "Box3D",
-    Category.Visuals,
-    "Outline / fill style shared by the dungeon ESP modules (Wither, Terminal, Teammate, F4)."
-) {
-    private val mode = DropdownSetting("Mode", listOf("Outline", "Filled", "Both"), "Both", "What a box looks like.")
-    private val fillOpacity = NumberSetting("Fill Opacity %", 35.0, 5.0, 100.0, 5.0, "How solid the fill is.").withDependency { mode.value != "Outline" }
-    private val phase = BooleanSetting("See Through Walls", true, "Draw the boxes through walls.")
-    private val pulse = BooleanSetting("Pulse", false, "The fill breathes slowly.")
-    private val fade = BooleanSetting("Distance Fade", true, "Boxes further than 40 blocks fade out.")
+object Box3D {
+    private const val PKG = "ced.cedclient.features.impl.funqol."
+    private val OWNERS = setOf(
+        "BlazeSolver", "BloodCamp", "SpringBoots", "I4Helper", "M7Relics", "LividSolver", "GateHighlight", "TrevorHelper",
+        "WitherDragons", "WitherESP", "TerminalESP", "TeammateESP", "F4Features", "PuzzleSolvers"
+    )
+    /** The puzzle solvers aren't modules: their boxes use the Puzzle Solvers module's style. */
+    private val SOLVERS = listOf("BoulderSolver", "CreeperBeamSolver", "QuizSolver", "TeleportMazeSolver", "ThreeWeirdosSolver", "TicTacToeSolver")
 
-    init { addSettings(mode, fillOpacity, phase, pulse, fade) }
+    class Style {
+        val mode = DropdownSetting("Box Mode", listOf("Outline", "Filled", "Both"), "Both", "What a box looks like.")
+        val fillOpacity = NumberSetting("Box Fill Opacity %", 35.0, 5.0, 100.0, 5.0, "How solid the fill is.").withDependency { mode.value != "Outline" }
+        val phase = BooleanSetting("Boxes Through Walls", true, "Draw the boxes through walls.")
+        val pulse = BooleanSetting("Box Pulse", false, "The fill breathes slowly.")
+        val fade = BooleanSetting("Box Distance Fade", true, "Boxes further than 40 blocks fade out.")
+        val all = arrayOf<Setting<*>>(mode, fillOpacity, phase, pulse, fade)
+    }
 
-    /** The look is applied even while this module is off (its settings are still read), so the ESPs never depend on it being toggled. */
-    fun draw(context: LevelRenderContext, boxes: List<Pair<AABB, Color>>) {
+    private val styles = HashMap<String, Style>()
+    private val fallback = Style()
+
+    /** ModuleManager.register: gives a module that draws boxes its box style settings. */
+    @JvmStatic
+    fun attach(module: Module) {
+        if (module.javaClass.simpleName !in OWNERS) return
+        val style = Style()
+        styles[module.javaClass.name] = style
+        module.addSettings(*style.all)
+    }
+
+    private fun styleOf(owner: Module?): Style {
+        if (owner != null) styles[owner.javaClass.name]?.let { return it }
+        val frames = StackWalker.getInstance().walk { f -> f.map { it.className }.toList() }
+        for (cls in frames) {
+            if (SOLVERS.any { cls == PKG + it || cls.startsWith(PKG + it + "$") }) return styles[PKG + "PuzzleSolvers"] ?: fallback
+            for ((name, style) in styles) if (cls == name || cls.startsWith("$name$")) return style
+        }
+        return fallback
+    }
+
+    fun draw(context: LevelRenderContext, boxes: List<Pair<AABB, Color>>, owner: Module? = null) {
         if (boxes.isEmpty()) return
+        val st = styleOf(owner)
         val cam = context.gameRenderer().mainCamera().position()
         val poseStack = context.poseStack()
         val bufferSource = context.bufferSource()
-        val breathe = if (pulse.value) 0.65f + 0.35f * sin(System.currentTimeMillis() / 400.0).toFloat() else 1f
+        val breathe = if (st.pulse.value) 0.65f + 0.35f * sin(System.currentTimeMillis() / 400.0).toFloat() else 1f
         val shown = boxes.map { (box, c) ->
             val dist = box.center.distanceTo(cam)
-            val fadeK = if (fade.value) (1.0 - ((dist - 40.0) / 40.0).coerceIn(0.0, 1.0)).toFloat() else 1f
+            val fadeK = if (st.fade.value) (1.0 - ((dist - 40.0) / 40.0).coerceIn(0.0, 1.0)).toFloat() else 1f
             Triple(box.move(-cam.x, -cam.y, -cam.z), c, fadeK)
         }.filter { it.third > 0.02f }
-        if (mode.value != "Outline") {
-            val fill = bufferSource.getBuffer(if (phase.value) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED)
-            for ((box, c, k) in shown) FilledBox.draw(poseStack, fill, box, c.redFloat, c.greenFloat, c.blueFloat, fillOpacity.value.toFloat() / 100f * breathe * k)
+        if (st.mode.value != "Outline") {
+            val fill = bufferSource.getBuffer(if (st.phase.value) CustomRenderType.FILLED_ESP else CustomRenderType.FILLED)
+            for ((box, c, k) in shown) FilledBox.draw(poseStack, fill, box, c.redFloat, c.greenFloat, c.blueFloat, st.fillOpacity.value.toFloat() / 100f * breathe * k)
             bufferSource.endBatch()
         }
-        if (mode.value != "Filled") {
-            val buffer = bufferSource.getBuffer(if (phase.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
+        if (st.mode.value != "Filled") {
+            val buffer = bufferSource.getBuffer(if (st.phase.value) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
             for ((box, c, k) in shown) LineBox.draw(poseStack, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, c.alphaFloat * k)
             bufferSource.endBatch()
         }
@@ -81,7 +109,7 @@ object Box3D : Module(
 private fun espFrame(module: Module, collect: () -> List<Pair<AABB, Color>>) {
     LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
         if (!module.isEnabled || Minecraft.getInstance().level == null) return@CollectSubmits
-        Box3D.draw(context, collect())
+        Box3D.draw(context, collect(), module)
     })
 }
 

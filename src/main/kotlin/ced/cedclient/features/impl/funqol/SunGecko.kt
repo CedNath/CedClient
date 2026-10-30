@@ -44,7 +44,7 @@ object SunGecko : Module(
     "Sun Gecko",
     Category.Skyblock,
     "Sun Gecko run timer + PB per modifier set, boss HUD, Gecko box, Hazard Zone / Spirit Beam alerts.",
-    defaultEnabled = true
+    defaultEnabled = false
 ), HudElement {
     private val hud = BooleanSetting("HUD", true, "Timer, PB, modifiers, Gecko HP, last ability.")
     private val box = BooleanSetting("Box Sun Gecko", true)
@@ -159,9 +159,9 @@ object SunGecko : Module(
     }
 
     private fun alert(text: String, pitch: Float) {
-        mc.gui.hud.setTimes(2, 30, 8)
-        mc.gui.hud.setTitle(Component.literal(text))
-        mc.gui.hud.setSubtitle(Component.empty())
+        ced.cedclient.features.impl.misc.ClientTitles.setTimes(2, 30, 8)
+        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(text))
+        ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.empty())
         mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
         ced.cedclient.utils.Debug.line("Sun Gecko", "alert: $text")
     }

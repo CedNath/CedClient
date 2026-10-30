@@ -95,8 +95,8 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
 
     private fun draw(cw: Float, ch: Float) {
         hits.clear()
-        val w = 680f
-        val h = minOf(520f, ch - 20f)
+        val w = minOf(900f, cw - 20f)
+        val h = minOf(760f, ch - 20f)
         val x = (cw - w) / 2f
         val y = (ch - h) / 2f
         NVGRenderer.dropShadow(x, y, w, h, 10f, 3f, 5f)
@@ -137,7 +137,7 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
         val top = cy + 28f
         viewH = y + h - top - 24f
         val rows = shown()
-        val rowH = 14f
+        val rowH = 18f
         contentH = rows.size * rowH
         scroll = scroll.coerceIn(-maxOf(0f, contentH - viewH), 0f)
         if (rows.isEmpty()) {
@@ -150,11 +150,11 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
         for (i in first until last) {
             val line = rows[i]
             val ry = top + scroll + i * rowH
-            NVGRenderer.text(clock.format(Instant.ofEpochMilli(line.time)), x + 16f, ry, 10f, 0xFF777777.toInt(), font)
+            NVGRenderer.text(clock.format(Instant.ofEpochMilli(line.time)), x + 16f, ry, 12f, 0xFF9A9A9A.toInt(), font)
             val tagText = "[${line.tag}]"
-            NVGRenderer.text(tagText, x + 78f, ry, 10f, tagColor(line.tag), font)
-            val mx = x + 78f + NVGRenderer.textWidth(tagText, 10f, font) + 6f
-            NVGRenderer.text(fit(line.msg, 10f, x + w - 16f - mx), mx, ry, 10f, 0xFFDDDDDD.toInt(), font)
+            NVGRenderer.text(tagText, x + 92f, ry, 12f, tagColor(line.tag), font)
+            val mx = x + 92f + NVGRenderer.textWidth(tagText, 12f, font) + 8f
+            NVGRenderer.text(fit(line.msg, 12f, x + w - 16f - mx), mx, ry, 12f, 0xFFFFFFFF.toInt(), font)
         }
         NVGRenderer.popScissor()
         val footer = if (status.isNotEmpty()) status else "${rows.size} lines" + (tag?.let { " in $it" } ?: "") + " - newest first, scroll for more"
@@ -185,6 +185,8 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
         Minecraft.getInstance().keyboardHandler.clipboard = report(lines)
         return "Copied ${lines.size} lines."
     }
+
+    override fun isInputCaptured(): Boolean = ced.cedclient.utils.ui.TextInputHandler.anyActive
 
     override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
         val mx = mouseX / clickGuiScale

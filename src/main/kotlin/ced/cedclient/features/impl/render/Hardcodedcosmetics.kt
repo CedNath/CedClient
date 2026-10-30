@@ -28,12 +28,13 @@ object HardcodedCosmetics : Module(
     /** Emote sound volume, used instead of the Master slider. Set with /emotevolume, so hidden from the ClickGUI. */
     val emoteVolume = NumberSetting("Emote Volume", 0.1, 0.0, 1.0, 0.01, "Set with /emotevolume <0-100>.").apply { hide() }
 
+    val chinaHats = BooleanSetting("China Hats", true, "Show the China Hat on players who were given one on the site (other CedClient users see yours the same way).")
     val haloParticles = BooleanSetting("Halo Particles", true, "Show the particles players picked for their halo on the site.")
 
     init {
         // Vine boom + its volume are deliberately not registered: hidden from the ClickGUI and not saved, so they
         // always run at their defaults (on, full volume).
-        addSettings(chatEmotes, haloParticles, emoteVolume)
+        addSettings(chatEmotes, haloParticles, chinaHats, emoteVolume)
         ChatEmotes // load the emote table
         ClientTickEvents.END_CLIENT_TICK.register { tickHaloParticles(it) }
     }

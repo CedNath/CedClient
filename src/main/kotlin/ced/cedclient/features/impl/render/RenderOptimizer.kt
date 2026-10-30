@@ -6,6 +6,7 @@ import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.clickgui.SettingsPopup
+import ced.cedclient.utils.Debug
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.fog.FogData
 import net.minecraft.client.renderer.fog.environment.AtmosphericFogEnvironment
@@ -53,13 +54,14 @@ object RenderOptimizer : Module(
     private val noNausea = BooleanSetting("No Nausea Overlay", false, "Wobble overlay from nausea.")
     private val noWeather = BooleanSetting("No Weather", true, "Hide rain and snow (and their splash particles / sounds).")
     private val noBlockBreaking = BooleanSetting("No Block Breaking Particles", true, "Hide the particles from breaking and mining blocks, cosmetic blocks included.")
+    private val cleanLoading = BooleanSetting("Clean Loading Screen", true, "No \"Loading terrain\" screen when joining or changing world: the world shows as it loads in.")
     private val noExplosions = BooleanSetting("No Explosion Particles", true, "Hide explosion particles, like your Hyperion's Wither Impact.")
 
     private val fogSettings = listOf(
         noAtmosphericFog, noRenderDistanceFog, noWaterFog, noLavaFog, noSnowFog, noBlindnessFog, noDarknessFog,
     )
     private val overlaySettings = listOf(
-        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions, noBlockBreaking,
+        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions, noBlockBreaking, cleanLoading,
     )
 
     private val settingsAction = ActionSetting("Open Settings", "All Render Optimizer toggles in one window.") {
@@ -126,6 +128,10 @@ object RenderOptimizer : Module(
     @JvmStatic fun hideNausea() = on(noNausea)
     @JvmStatic fun hideWeather() = on(noWeather)
     @JvmStatic fun hideBlockBreaking() = on(noBlockBreaking)
+    @JvmStatic fun cleanLoadingScreen() = on(cleanLoading)
+
+    /** ClientLoadingScreenMixin: debug line when the loading screen was skipped. */
+    @JvmStatic fun loadingScreenSkipped() = Debug.line(name, "loading screen skipped")
 
     /** ParticlePacketMixin: server-sent explosion and block-crack particles. */
     @JvmStatic

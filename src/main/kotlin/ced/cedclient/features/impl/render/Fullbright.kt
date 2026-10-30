@@ -28,7 +28,7 @@ object Fullbright : Module(
     "Fullbright",
     Category.Render,
     "Adjustable fullbright with a brightness slider, minimum light level and smooth fade",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val brightness = NumberSetting("Brightness %", 100.0, 0.0, 100.0, 5.0)
     private val minLight = NumberSetting("Minimum Light Level", 15.0, 0.0, 15.0, 1.0)

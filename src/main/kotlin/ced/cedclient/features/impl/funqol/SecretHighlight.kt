@@ -39,7 +39,7 @@ object SecretHighlight : Module(
     "Secret Clicked",
     Category.Skyblock,
     "Boxes the secrets you click, pick up or kill in dungeons for a moment.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val color = ColorSetting("Box Color", Color(80, 255, 120), "Color of the box.")
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Filled Outline")
@@ -99,9 +99,9 @@ object SecretHighlight : Module(
 
         on<ChatMessageEvent> {
             if (!lockedTitle.value || !active() || !it.unformattedText.trim().equals("That chest is locked!", true)) return@on
-            mc.gui.hud.setTimes(3, (lockedSeconds.value * 20).toInt(), 10)
-            mc.gui.hud.setTitle(Component.literal(lockedText.value).withColor(lockedColor.value.rgba and 0xFFFFFF))
-            mc.gui.hud.setSubtitle(Component.empty())
+            ced.cedclient.features.impl.misc.ClientTitles.setTimes(3, (lockedSeconds.value * 20).toInt(), 10)
+            ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(lockedText.value).withColor(lockedColor.value.rgba and 0xFFFFFF))
+            ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.empty())
         }
 
         UseBlockCallback.EVENT.register(UseBlockCallback { _, level, _, hit ->

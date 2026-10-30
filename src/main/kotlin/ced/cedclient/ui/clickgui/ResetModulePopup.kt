@@ -61,7 +61,7 @@ class ResetModulePopup : Popup("Reset a Module", WIDTH, HEIGHT) {
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (input.mouseClicked(mouseX, mouseY, click)) return true
-        if (click.button() != 0 || mouseY !in listTop..(listTop + listHeight)) return false
+        if (Keys.mouse(click) != 0 || mouseY !in listTop..(listTop + listHeight)) return false
         val m = modules.getOrNull(((mouseY - listTop - scroll) / rowH).toInt()) ?: return false
         if (!isArmed(m)) {
             armed = m

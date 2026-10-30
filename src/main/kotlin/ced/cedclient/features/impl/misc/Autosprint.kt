@@ -13,7 +13,7 @@ object AutoSprint : Module(
     "AutoSprint",
     Category.Misc,
     "Automatically sprints for you",
-            defaultEnabled = true
+            defaultEnabled = false
 ) {
     private val mc: Minecraft = Minecraft.getInstance()
 

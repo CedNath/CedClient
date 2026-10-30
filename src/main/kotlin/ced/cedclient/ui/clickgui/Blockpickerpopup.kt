@@ -181,7 +181,7 @@ class BlockPickerPopup(
     private fun buttonWidth() =(width - 24f - BUTTON_GAP * (buttons.size - 1)) / buttons.size
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
-        if (click.button() != 0) return false
+        if (Keys.mouse(click) != 0) return false
 
         if (buttons.isNotEmpty()) {
             val bw = buttonWidth()

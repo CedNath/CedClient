@@ -43,8 +43,6 @@ import ced.cedclient.utils.ui.mouseY as cedMouseY
  */
 class ClickGUI : Screen(Component.literal("Click GUI")) {
 
-    init { ced.cedclient.achievements.Achievements.bump("gui_opens") }
-
     private val panelSettings: List<PanelSetting> =
         Category.entries.filter { ced.cedclient.features.ModuleManager.modulesByCategory.containsKey(it) }.map { PanelSetting(it) }.also { ConfigManager.loadPanels(it) }
 
@@ -52,6 +50,9 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     /** When this screen opened / the current popup appeared (System.nanoTime), for the open animations. */
     private var openedAt = System.nanoTime()
+
+    // Classic layout: the search box is ready to type into as soon as the GUI opens.
+    init { if (!compact) SearchBar.focus() }
     private var popupOpenedAt = 0L
 
     private var activePopup: Popup? = null
@@ -115,17 +116,6 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             val dim = easeOutCubic(elapsed / DIM_FADE_MS)
             NVGRenderer.rect(0f, 0f, canvasWidth, canvasHeight, Colors.BLACK.withAlpha(BACKGROUND_DIM * dim).rgba)
 
-            // Bottom-center, a fixed 50px gap above the screen edge.
-            NVGRenderer.push()
-            NVGRenderer.globalAlpha(dim)
-            if (!compact) SearchBar.draw(
-                canvasWidth / 2f - 175f,
-                canvasHeight - 90f,
-                scaledMouseX,
-                scaledMouseY
-            )
-            NVGRenderer.pop()
-
             // Opening: each panel animates in (Theme > Open Animation), left to right, slightly after the one before it.
             val draggedPanel = panels.firstOrNull { it.dragging }
             val openStyle = Theme.openAnimation.value
@@ -138,6 +128,17 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             }
 
             draggedPanel?.draw(scaledMouseX, scaledMouseY)
+
+            // Over the panels (they run off the bottom of the screen), bottom-center, a fixed 50px gap above the screen edge.
+            NVGRenderer.push()
+            NVGRenderer.globalAlpha(dim)
+            if (!compact) SearchBar.draw(
+                canvasWidth / 2f - 175f,
+                canvasHeight - 90f,
+                scaledMouseX,
+                scaledMouseY
+            )
+            NVGRenderer.pop()
 
             activePopup?.let { popup ->
                 popup.x = (canvasWidth - popup.width) / 2f
@@ -206,6 +207,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
+    override fun isInputCaptured(): Boolean = ced.cedclient.utils.ui.TextInputHandler.anyActive
+
     override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
         // Screen doesn't expose bare mouseX/mouseY fields in this API -- cedMouseX/cedMouseY
         // (ced.cedclient.utils.ui.mouseX/mouseY) is the live-mouse-position source the rest of
@@ -222,7 +225,9 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             return true
         }
 
-        SearchBar.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)
+        // A click on the search box is the box's alone: it must not also toggle the module drawn behind it.
+        // Compact draws the box in its header, so it needs the click too (else it can never be focused and typed into).
+        if (SearchBar.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)) return true
         if (compact) {
             compactLayout.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)
             return true

@@ -45,6 +45,14 @@ object Keys {
     const val MOUSE_MIDDLE = InputConstants.MOUSE_BUTTON_MIDDLE
     const val MOUSE_RIGHT = InputConstants.MOUSE_BUTTON_RIGHT
 
+    /** The old 0 based button (left = 0, right = 1, middle = 2, as in GLFW) most click handlers, and the container click packet, still use. */
+    @JvmStatic fun mouse(event: net.minecraft.client.input.MouseButtonEvent): Int = when (val b = event.button()) {
+        MOUSE_LEFT -> 0
+        MOUSE_RIGHT -> 1
+        MOUSE_MIDDLE -> 2
+        else -> b - 1
+    }
+
     /** Scancode of the number row key for [n] (0..9). */
     fun digit(n: Int): Int = if (n == 0) 39 else 29 + n
 

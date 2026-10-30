@@ -32,6 +32,9 @@ object HotbarDungeonMap {
     /** World (x, z) of every door the map shows. */
     val discoveredDoors = HashSet<Pair<Int, Int>>()
 
+    /** Map colour of each door the map shows right now (wither 119, blood 18; a door that was opened turns normal). */
+    val doorColors = HashMap<Pair<Int, Int>, Int>()
+
     enum class RoomState { UNEXPLORED, OPENED, CLEARED, GREEN, FAILED }
 
     /** Room tiles (i, j) on the 6x6 grid (i along x) the map shows anything on, with what the map says about them. */
@@ -58,6 +61,7 @@ object HotbarDungeonMap {
     fun reset() {
         calibrated = false
         discoveredDoors.clear()
+        doorColors.clear()
         roomStates.clear()
         markers = emptyList()
         version++
@@ -103,7 +107,11 @@ object HotbarDungeonMap {
             val center = colors[mapZ * 128 + mapX].toInt()
             // Sideways from the passage: a door is narrow (empty there), a room joining two tiles is not.
             val side = colors.getOrNull(if (j % 2 == 1) mapZ * 128 + mapX - 4 else (mapZ - 4) * 128 + mapX)?.toInt() ?: 0
-            if (center in DOOR_COLORS && side == 0 && discoveredDoors.add((START + 16 * i) to (START + 16 * j))) version++
+            if (center in DOOR_COLORS && side == 0) {
+                val key = (START + 16 * i) to (START + 16 * j)
+                if (discoveredDoors.add(key)) version++
+                if (doorColors.put(key, center) != center) version++
+            }
         }
     }
 

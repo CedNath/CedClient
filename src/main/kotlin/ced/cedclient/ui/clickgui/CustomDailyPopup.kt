@@ -62,7 +62,7 @@ class CustomDailyPopup : Popup("Custom Daily Tasks", WIDTH, HEIGHT) {
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         if (input.mouseClicked(mouseX, mouseY, click)) return true
-        if (click.button() != 0) return false
+        if (Keys.mouse(click) != 0) return false
         if (isAreaHovered(x + 12f + inputW + 8f, inputY, addW, 24f, mouseX, mouseY)) { submit(); return true }
         if (mouseY !in listTop..(listTop + listHeight)) return false
         val (name, done) = DailyReset.manualTasks().getOrNull(((mouseY - listTop - scroll) / rowH).toInt()) ?: return false

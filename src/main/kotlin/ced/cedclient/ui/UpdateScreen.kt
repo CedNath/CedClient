@@ -1,5 +1,6 @@
 package ced.cedclient.ui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.state.UpdateChecker
@@ -196,7 +197,7 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
     }
 
     override fun mouseClicked(event: MouseButtonEvent, focused: Boolean): Boolean {
-        if (event.button() != 0) return super.mouseClicked(event, focused)
+        if (Keys.mouse(event) != 0) return super.mouseClicked(event, focused)
         val x = mouseX / clickGuiScale
         val y = mouseY / clickGuiScale
         for (b in buttons) {

@@ -408,7 +408,7 @@ private class TerminalSimScreen private constructor(
         // Solver on: its panel (via the mixin) works out the click and calls hostClick.
         if (TerminalSolver.handles(this)) return super.mouseClicked(event, doubleClick)
         val slot = slotAt(event.x(), event.y()) ?: return true
-        hostClick(slot, event.button())
+        hostClick(slot, Keys.mouse(event))
         return true
     }
 

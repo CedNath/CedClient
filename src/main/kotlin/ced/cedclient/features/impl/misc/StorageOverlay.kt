@@ -216,7 +216,7 @@ object StorageOverlay : Module(
         }
 
         override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
-            if (event.button() == 0) {
+            if (Keys.mouse(event) == 0) {
                 val hit = titleHits.firstOrNull { event.y() >= it.first && event.y() < it.second && event.y() >= 26 }?.third
                 val kind = hit?.key?.substringBefore(':')
                 val n = hit?.key?.substringAfter(':')

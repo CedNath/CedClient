@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.render.geometry
 import ced.cedclient.features.Category
 import ced.cedclient.render.bufferSource
 import ced.cedclient.render.draw
@@ -152,16 +153,15 @@ object EtherwarpOverlay : Module(
                     (base.blue + (far.blue - base.blue) * k).toInt()
                 )
                 val box = net.minecraft.world.phys.AABB(t.pos).inflate(0.002).move(-cam.x, -cam.y, -cam.z)
-                val buffers = context.bufferSource()
                 if (style.value != "Outline") {
-                    val fill = buffers.getBuffer(if (phase.value) ced.cedclient.render.pipeline.CustomRenderType.FILLED_ESP else ced.cedclient.render.pipeline.CustomRenderType.FILLED)
-                    ced.cedclient.render.FilledBox.draw(context.poseStack(), fill, box, c.redFloat, c.greenFloat, c.blueFloat, fillOpacity.value.toFloat() / 100f)
-                    buffers.endBatch()
+                    context.geometry(if (phase.value) ced.cedclient.render.pipeline.CustomRenderType.FILLED_ESP else ced.cedclient.render.pipeline.CustomRenderType.FILLED) { pose, fill ->
+                        ced.cedclient.render.FilledBox.draw(pose, fill, box, c.redFloat, c.greenFloat, c.blueFloat, fillOpacity.value.toFloat() / 100f)
+                    }
                 }
                 if (style.value != "Filled") {
-                    val buffer = buffers.getBuffer(if (phase.value) ced.cedclient.render.pipeline.CustomRenderType.LINES_ESP else ced.cedclient.render.pipeline.CustomRenderType.LINES_DEPTH)
-                    ced.cedclient.render.LineBox.draw(context.poseStack(), buffer, box, c.redFloat, c.greenFloat, c.blueFloat, 1f)
-                    buffers.endBatch()
+                    context.geometry(if (phase.value) ced.cedclient.render.pipeline.CustomRenderType.LINES_ESP else ced.cedclient.render.pipeline.CustomRenderType.LINES_DEPTH) { pose, buffer ->
+                        ced.cedclient.render.LineBox.draw(pose, buffer, box, c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                    }
                 }
             }
         )

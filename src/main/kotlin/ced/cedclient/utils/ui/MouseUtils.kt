@@ -1,5 +1,7 @@
 package ced.cedclient.utils.ui
 
+import ced.cedclient.features.impl.misc.Theme
+import ced.cedclient.ui.clickgui.ClickGUI
 import net.minecraft.client.Minecraft
 
 inline val mouseX: Float
@@ -15,8 +17,16 @@ inline val mouseY: Float
  */
 val clickGuiScale: Float
     get() {
-        val width = Minecraft.getInstance().window.width
-        return if (width <= 0) 1.15f else 1.15f * minOf(1f, width / 2560f)
+        val mc = Minecraft.getInstance()
+        // The classic layout is a row of panels, so it runs smaller (Odin-sized) than the compact window.
+        val inGui = mc.gui.screen() is ClickGUI
+        val base = when {
+            inGui && !ClickGUI.compact -> 0.86f
+            inGui -> 1.15f * (Theme.menuSize.value.toFloat() / 100f) // Theme > Menu Size
+            else -> 1.15f
+        }
+        val width = mc.window.width
+        return if (width <= 0) base else base * minOf(1f, width / 2560f)
     }
 
 fun isAreaHovered(x: Float, y: Float, w: Float, h: Float, scaled: Boolean = false): Boolean =

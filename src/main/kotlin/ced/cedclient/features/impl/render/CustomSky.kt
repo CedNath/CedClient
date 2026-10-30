@@ -46,6 +46,10 @@ object CustomSky : Module(
 
     private var lastLogged = Long.MIN_VALUE
 
+    init {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register { skyboxName()?.let { SkyBox.ensureLoaded(it) } }
+    }
+
     /** The overworld clock's tick count to show, or null to leave the real one. */
     @JvmStatic
     fun overrideTicks(definition: Holder<WorldClock>): Long? {

@@ -38,9 +38,9 @@ internal object Alerts {
 
     fun title(tag: String, title: String, subtitle: String, color: Int, sound: Boolean, pitch: Float) {
         if (mc.player == null) return
-        mc.gui.hud.setTimes(5, 40, 10)
-        mc.gui.hud.setTitle(Component.literal(title).withColor(color))
-        mc.gui.hud.setSubtitle(Component.literal(subtitle))
+        ced.cedclient.features.impl.misc.ClientTitles.setTimes(5, 40, 10)
+        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(title).withColor(color))
+        ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.literal(subtitle))
         Debug.line(tag, "alert: $title $subtitle")
         if (sound) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), pitch, 1f))
     }
@@ -63,7 +63,7 @@ abstract class RowHud(name: String, description: String, private val key: String
 
     override fun renderInternal(g: GuiGraphicsExtractor) = draw(g, rows() ?: preview())
 
-    private val outline = BooleanSetting("Text Outline", true, "A black outline around the text so it reads on any background.")
+    private val outline = BooleanSetting("Text Outline", false, "A black outline around the text so it reads on any background.")
     init { addSettings(outline) }
 
     private fun text(t: String, x: Float, y: Float, size: Float, color: Int, s: Float) {
@@ -140,7 +140,9 @@ object PingFpsHud : RowHud("Ping / FPS", "HUD with your ping, FPS, server TPS an
     private fun ping(): Int {
         val live = PingTracker.latest()
         if (live > 0) return live
-        return runCatching { mc.currentServer?.ping?.toInt() ?: -1 }.getOrDefault(-1)
+        runCatching { mc.currentServer?.ping?.toInt() ?: -1 }.getOrDefault(-1).let { if (it > 0) return it }
+        // Last resort: the tab list's latency for yourself (stuck near 1 ms on Hypixel, so only if nothing better).
+        return runCatching { mc.player?.let { mc.connection?.getPlayerInfo(it.uuid)?.latency } ?: -1 }.getOrDefault(-1)
     }
 
     private fun pingColor(p: Int) = (if (p < 100) okColor else if (p > 200) badColor else midColor).value.rgba
@@ -170,6 +172,10 @@ object PingFpsHud : RowHud("Ping / FPS", "HUD with your ping, FPS, server TPS an
     init {
         addSettings(showPing, showFps, showTps, showTime, use24Hour, showSeconds, okColor, midColor, badColor)
         loadPosition()
+        // The ping is measured by probing the server; that only ran while Compact Tab was on.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register { client ->
+            if (isEnabled && showPing.value) PingTracker.tick(client)
+        }
     }
 }
 

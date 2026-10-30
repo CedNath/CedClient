@@ -158,7 +158,6 @@ class CedClient : ClientModInitializer {
         IslandState.init()
         PlayerChatManager.init()
         PartyApi.init()
-        ced.cedclient.achievements.Achievements.init()
 
         ClientTickEvents.END_CLIENT_TICK.register {
             InventoryButtonManager.ensureLoaded()
@@ -212,6 +211,8 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.misc.ScoreboardToggle)
         ModuleManager.register(ced.cedclient.features.impl.misc.TabListToggle)
         ModuleManager.register(ced.cedclient.features.impl.render.Perspective)
+        ModuleManager.register(ced.cedclient.features.impl.render.TitleBackground)
+        ModuleManager.register(ced.cedclient.features.impl.render.SwordBlocking)
         ModuleManager.register(ced.cedclient.features.impl.misc.HotbarKeybinds)
         ModuleManager.register(ced.cedclient.features.impl.misc.CopyItemData)
         ModuleManager.register(ced.cedclient.features.impl.misc.CopyEntityData)
@@ -264,7 +265,6 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.MaskTimers)
         ModuleManager.register(ced.cedclient.features.impl.funqol.BlessingDisplay)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ScoreCalculator)
-        ModuleManager.register(ced.cedclient.features.impl.misc.AchievementsModule)
         ModuleManager.register(ced.cedclient.features.impl.funqol.TickTimers)
         ModuleManager.register(ced.cedclient.features.impl.funqol.WarpCooldown)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RoomAlerts)
@@ -304,6 +304,7 @@ class CedClient : ClientModInitializer {
         // Misc: movement / navigation, inventory, chat, screenshots, then client settings
         ModuleManager.register(AutoSprint)
         ModuleManager.register(WarpShortcuts)
+        ModuleManager.register(ced.cedclient.features.impl.misc.CommandKeybinds)
         ModuleManager.register(InventoryButtons)
         ModuleManager.register(HideRecipeBook)
         ModuleManager.register(ChatFilter)
@@ -338,7 +339,6 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.SlayerCheats)
             ModuleManager.register(ced.cedclient.features.impl.funqol.FarmHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.DojoHelper)
-            ModuleManager.register(ced.cedclient.features.impl.render.Box3D)
             ModuleManager.register(ced.cedclient.features.impl.render.WitherESP)
             ModuleManager.register(ced.cedclient.features.impl.render.TerminalESP)
             ModuleManager.register(ced.cedclient.features.impl.render.TeammateESP)
@@ -408,11 +408,6 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "farmhelper")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.FarmHelper.render(graphics, tickCounter)
-        }
-        hudLast(
-            Identifier.fromNamespaceAndPath("cedclient", "blood_camp")
-        ) { graphics, tickCounter ->
-            ced.cedclient.features.impl.funqol.BloodCamp.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "spring_boots")
@@ -541,9 +536,24 @@ class CedClient : ClientModInitializer {
             ced.cedclient.features.impl.funqol.BlessingDisplay.render(graphics, tickCounter)
         }
         hudLast(
-            Identifier.fromNamespaceAndPath("cedclient", "tick_timers")
+            Identifier.fromNamespaceAndPath("cedclient", "tick_maxor")
         ) { graphics, tickCounter ->
-            ced.cedclient.features.impl.funqol.TickTimers.render(graphics, tickCounter)
+            ced.cedclient.features.impl.funqol.MaxorPanel.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "tick_goldor")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.GoldorPanel.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "tick_py")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.StormPyPanel.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "tick_pad")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.StormPadPanel.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "warp_cooldown")

@@ -79,7 +79,7 @@ object DoorFix : Module(
     "Door Fix",
     Category.Dungeons,
     "Fixes how the F7 section 3 iron doors look.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val doorState: BlockState = Blocks.IRON_DOOR.defaultBlockState()
         .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)
@@ -139,6 +139,13 @@ object IHateDoors : Module(
         .filter { (i, j) -> (i % 2 == 1) != (j % 2 == 1) }
         .map { (i, j) -> -185 + 16 * i to -185 + 16 * j }
 
+    /** Door spot (x, z) -> the door block it was before and the glass put there, so Door Highlight still finds the door. */
+    private val replaced = java.util.concurrent.ConcurrentHashMap<Pair<Int, Int>, Pair<net.minecraft.world.level.block.Block, BlockState>>()
+
+    /** The block a door at (x, z) was before this module turned it into [current] glass, or null if it isn't one of ours. */
+    fun originalOf(x: Int, z: Int, current: BlockState): net.minecraft.world.level.block.Block? =
+        replaced[x to z]?.takeIf { it.second == current }?.first
+
     private fun stateFor(source: net.minecraft.world.level.block.Block): BlockState? = when (source) {
         Blocks.INFESTED_CHISELED_STONE_BRICKS -> if (entrance.value) glass[colors.indexOf(entranceColor.value).coerceAtLeast(0)] else null
         Blocks.COAL_BLOCK -> if (wither.value) glass[colors.indexOf(witherColor.value).coerceAtLeast(0)] else null
@@ -155,6 +162,7 @@ object IHateDoors : Module(
             for ((x, z) in spots) {
                 val source = level.getBlockState(pos.set(x, 69, z)).block
                 val replacement = stateFor(source) ?: continue
+                replaced[x to z] = source to replacement
                 for (xx in x - 1..x + 1) for (zz in z - 1..z + 1) for (y in 69..72) {
                     pos.set(xx, y, zz)
                     if (level.getBlockState(pos).block == source) level.setBlock(pos.immutable(), replacement, 2)

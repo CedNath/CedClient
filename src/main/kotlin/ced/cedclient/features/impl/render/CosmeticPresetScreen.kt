@@ -591,11 +591,13 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
 
     private val activeInput get() = if (mode == Mode.BROWSE) newInput else importInput
 
+    override fun isInputCaptured(): Boolean = ced.cedclient.utils.ui.TextInputHandler.anyActive
+
     override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
         val mx = cedMouseX / clickGuiScale
         val my = cedMouseY / clickGuiScale
         if (activeInput.mouseClicked(mx, my, mouseButtonEvent)) return true
-        val button = mouseButtonEvent.button()
+        val button = Keys.mouse(mouseButtonEvent)
         if (button != 0 && button != 1) return true
         val hit = hits.lastOrNull { hovered(it.x, it.y, it.w, it.h, mx, my) }
         if (hit != null) {

@@ -27,7 +27,7 @@ public abstract class TerminalSolverMixin {
     private void ced$terminalClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
         if (!TerminalSolver.INSTANCE.handles(self)) return;
-        TerminalSolver.INSTANCE.mouseClicked(self, event.x(), event.y(), event.button());
+        TerminalSolver.INSTANCE.mouseClicked(self, event.x(), event.y(), ced.cedclient.utils.Keys.mouse(event));
         cir.setReturnValue(true);
     }
 

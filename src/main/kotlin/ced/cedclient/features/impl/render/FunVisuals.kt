@@ -2,6 +2,7 @@ package ced.cedclient.features.impl.render
 
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.TextSetting
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
@@ -14,12 +15,14 @@ object ChinaHat : Module(
     "China Hat", Category.Cosmetic,
     "A rotating rainbow cone hat on your own head. Only you see it."
 ) {
+    private val style = DropdownSetting("Style", listOf("Rainbow", "Straw"), "Rainbow", "Straw: a woven conical straw hat with a ribbon, like the classic Asian farmer's hat.")
     private val radius = NumberSetting("Radius", 0.6, 0.3, 1.0, 0.05)
     private val height = NumberSetting("Height", 0.3, 0.1, 0.6, 0.05)
     private val speed = NumberSetting("Rainbow Speed", 0.3, 0.0, 2.0, 0.05)
 
-    init { addSettings(radius, height, speed) }
+    init { addSettings(style, radius, height, speed) }
 
+    @JvmStatic fun straw(): Boolean = style.value == "Straw"
     @JvmStatic fun radius(): Float = radius.value.toFloat()
     @JvmStatic fun height(): Float = height.value.toFloat()
     @JvmStatic fun speed(): Float = speed.value.toFloat()

@@ -280,6 +280,8 @@ class SearchOverlayScreen(
         return super.charTyped(characterEvent)
     }
 
+    override fun isInputCaptured(): Boolean = ced.cedclient.utils.ui.TextInputHandler.anyActive
+
     override fun mouseClicked(mouseButtonEvent: MouseButtonEvent, bl: Boolean): Boolean {
         val mx = cedMouseX / scale
         val my = cedMouseY / scale

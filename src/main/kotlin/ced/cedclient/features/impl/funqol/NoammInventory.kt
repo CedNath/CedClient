@@ -285,7 +285,7 @@ object SlotBinding : Module("Slot Binding", Category.Skyblock, "Link inventory s
                 false
             }
             ScreenMouseEvents.allowMouseClick(screen).register { s, event ->
-                if (!isEnabled || event.button() != 0 || !(keyDown(Keys.LEFT_SHIFT) || keyDown(Keys.RIGHT_SHIFT))) return@register true
+                if (!isEnabled || Keys.mouse(event) != 0 || !(keyDown(Keys.LEFT_SHIFT) || keyDown(Keys.RIGHT_SHIFT))) return@register true
                 val slot = hovered(s) ?: return@register true
                 if (slot.container !is Inventory) return@register true
                 val (main, hot) = swapFor(slot) ?: return@register true

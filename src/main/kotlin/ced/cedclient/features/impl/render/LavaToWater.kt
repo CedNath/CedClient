@@ -41,7 +41,7 @@ object LavaToWater : Module(
     override fun onDisable() = refresh()
 
     /** Rebuild the chunk meshes so the new fluid look shows up (the mixin only changes what the model set returns). */
-    private fun refresh() { Minecraft.getInstance().levelExtractor.allChanged() }
+    private fun refresh() { Minecraft.getInstance().levelExtractor?.allChanged() } // null while the game is still starting (saved config replay)
 
     private fun isLava(fluid: Fluid) = fluid === Fluids.LAVA || fluid === Fluids.FLOWING_LAVA
 

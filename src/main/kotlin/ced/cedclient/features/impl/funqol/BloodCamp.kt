@@ -7,6 +7,8 @@ import ced.cedclient.render.draw
 import ced.cedclient.render.polyline
 import ced.cedclient.events.core.on
 import ced.cedclient.features.impl.render.Box3D
+import ced.cedclient.features.Category
+import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.NumberSetting
@@ -30,20 +32,19 @@ import kotlin.math.ceil
 
 /**
  * The blood room: the blood mobs fly in on straight lines from where they spawn. While the Watcher is near, each mob's flight
- * line gives its landing spot (16.1 blocks for the first wave, 11.9 after), a box is drawn there with a countdown, and the
- * "Move" HUD counts the ticks until the mobs can be killed after the blood door opens.
- * Unique: a box turns orange for the last second, the label also shows how many mobs are tracked, and the kill title and move
- * counter can be turned off separately.
+ * line gives its landing spot (16.1 blocks from where it spawned for the first wave, 11.9 after, the way NoammAddons works it
+ * out), a box is drawn there with a countdown, and a "Kill Mobs" title fires 20 seconds (400 ticks) after the blood door opens.
+ * Unique: a box turns orange for the last second, the label also shows how many mobs are tracked, and the kill title can be
+ * turned off.
  */
-object BloodCamp : RowHud("Blood Camp", "Blood room: where the blood mobs land, with a countdown, and a move timer.", "blood_camp", 3, 100) {
+object BloodCamp : Module("Blood Camp", Category.Skyblock, "Blood room: where the blood mobs land, with a countdown, and a title when to kill them.") {
     private val helper = BooleanSetting("Blood Camp Helper", true, "Landing box, line and countdown for each blood mob.")
     private val decimals = NumberSetting("Decimal Places", 1.0, 0.0, 2.0, 1.0, "Decimals of the countdown.").withDependency { helper.value }
     private val timerColor = ColorSetting("Timer Color", Color(255, 255, 255), "Countdown text.")
     private val boxColor = ColorSetting("Box Color", Color(255, 0, 255), "Landing box.")
     private val soonColor = ColorSetting("Last Second Color", Color(255, 170, 0), "The box in the last second.")
     private val lineColor = ColorSetting("Line Color", Color(0, 255, 255), "Line from the mob to its landing spot.")
-    private val moveTimer = BooleanSetting("Move Timer", true, "A counter until the blood mobs are ready to be killed.")
-    private val killTitle = BooleanSetting("Kill Title", false, "A title when the blood mobs are ready (not always exact).")
+    private val killTitle = BooleanSetting("Kill Title", true, "A \"Kill Mobs\" title 20 seconds after the blood door opens.")
 
     private class Mob(var start: Vec3, val startedTick: Long, val first: Boolean) { var end: Vec3? = null }
 
@@ -51,7 +52,6 @@ object BloodCamp : RowHud("Blood Camp", "Blood room: where the blood mobs land, 
     private var watcher: Zombie? = null
     private var firstSpawns = true
     private var tick = 0L
-    private var moveEnd = 0L
     private var killAt = 0L
     private var world: Any? = null
 
@@ -64,37 +64,26 @@ object BloodCamp : RowHud("Blood Camp", "Blood room: where the blood mobs land, 
         }.getOrDefault(emptySet<String>() to emptySet())
     }
 
-    private val MOVE_TICKS = intArrayOf(480, 600, 500, 500, 500, 470, 470, 420)
+    private const val FLIGHT_TICKS = 38
+
+    private const val KILL_TICKS = 400L // 20 seconds
 
     private fun num(v: Double, places: Int) = if (places > 0) "%.${places}f".format(java.util.Locale.ROOT, v) else ceil(v).toInt().toString()
 
-    override fun rows(): List<Triple<String, String, Int>>? {
-        if (!isEnabled || !moveTimer.value || moveEnd <= tick) return null
-        return listOf(Triple("Move", num((moveEnd - tick) / 20.0, 2), 0xFFFF5555.toInt()))
-    }
-
-    override fun preview() = listOf(Triple("Move", "21.00", 0xFFFF5555.toInt()))
-
     init {
-        addSettings(helper, decimals, timerColor, boxColor, soonColor, lineColor, moveTimer, killTitle)
-        loadPosition()
+        addSettings(helper, decimals, timerColor, boxColor, soonColor, lineColor, killTitle)
 
         on<ChatMessageEvent> {
             if (!isEnabled || DungeonState.inBoss) return@on
             when (it.unformattedText.trim()) {
                 "[BOSS] The Watcher: Let's see how you can handle this." -> firstSpawns = false
-                "The BLOOD DOOR has been opened!" -> {
-                    val floor = DungeonState.floor?.drop(1)?.toIntOrNull() ?: 0
-                    val ticks = MOVE_TICKS.getOrElse(floor) { 480 }
-                    if (moveTimer.value) moveEnd = tick + ticks
-                    if (killTitle.value) killAt = tick + ticks
-                }
+                "The BLOOD DOOR has been opened!" -> if (killTitle.value) killAt = tick + KILL_TICKS
             }
         }
 
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             tick++
-            if (mc.level !== world) { world = mc.level; mobs.clear(); watcher = null; firstSpawns = true; moveEnd = 0; killAt = 0 }
+            if (mc.level !== world) { world = mc.level; mobs.clear(); watcher = null; firstSpawns = true; killAt = 0 }
             if (killAt != 0L && tick >= killAt) { killAt = 0; Alerts.title("Blood Camp", "Kill Mobs", "", 0xFF5555, true, 1.3f) }
             val level = mc.level ?: return@register
             if (!isEnabled || !helper.value || !DungeonState.inDungeon || DungeonState.inBoss) return@register
@@ -110,6 +99,7 @@ object BloodCamp : RowHud("Blood Camp", "Blood room: where the blood mobs land, 
                 val mob = mobs.getOrPut(stand) { Mob(pos, tick, firstSpawns) }
                 val flight = pos.subtract(mob.start)
                 if (flight.lengthSqr() < 1.0E-4) continue
+                // NoammAddons' way: the landing is a fixed distance from where the mob started, along its flight line.
                 mob.end = mob.start.add(flight.normalize().scale(if (mob.first) 16.1 else 11.9))
             }
         }
@@ -123,9 +113,9 @@ object BloodCamp : RowHud("Blood Camp", "Blood room: where the blood mobs land, 
             val lines = ArrayList<List<Vec3>>()
             for ((stand, mob) in mobs) {
                 val end = mob.end ?: continue
-                val left = ((if (mob.first) 40 else 0) + 38 - (tick - mob.startedTick)) / 20.0
-                boxes += AABB(end.x - 0.5, end.y - 0.5, end.z - 0.5, end.x + 0.5, end.y + 0.5, end.z + 0.5) to (if (left < 1.0) soonColor.value else boxColor.value)
-                labels += end.add(0.0, 2.0, 0.0) to (num(left.coerceAtLeast(0.0), decimals.value.toInt()) + "s")
+                val left = ((if (mob.first) 40 else 0) + FLIGHT_TICKS - stand.tickCount) / 20.0 // tickCount = ticks since it spawned, not since we noticed it
+                boxes += AABB(end.x - 0.5, end.y + 1.5, end.z - 0.5, end.x + 0.5, end.y + 2.5, end.z + 0.5) to (if (left < 1.0) soonColor.value else boxColor.value)
+                labels += end.add(0.0, 3.0, 0.0) to (num(left.coerceAtLeast(0.0), decimals.value.toInt()) + "s")
                 lines += listOf(stand.position().add(0.0, 2.0, 0.0).subtract(cam), end.add(0.0, 2.0, 0.0).subtract(cam))
             }
             Box3D.draw(context, boxes)

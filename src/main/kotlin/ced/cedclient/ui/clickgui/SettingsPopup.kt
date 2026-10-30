@@ -1,5 +1,6 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.utils.Keys
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.RenderableSetting
 import ced.cedclient.render.nvg.NVGRenderer
@@ -85,7 +86,7 @@ class SettingsPopup(
     private fun buttonWidth() = (width - 2 * PAD - BUTTON_GAP * (actions.size - 1)) / actions.size
 
     override fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
-        if (actions.isNotEmpty() && click.button() == 0) {
+        if (actions.isNotEmpty() && Keys.mouse(click) == 0) {
             val bw = buttonWidth()
             actions.forEachIndexed { i, action ->
                 if (isAreaHovered(x + PAD + i * (bw + BUTTON_GAP), actionsY, bw, BUTTON_HEIGHT, mouseX, mouseY)) {

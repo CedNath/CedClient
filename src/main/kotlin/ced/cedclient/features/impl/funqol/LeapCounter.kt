@@ -113,8 +113,8 @@ object LeapCounter : Module(
                     spot.doneAt = now
                     ced.cedclient.utils.Debug.line("Leap Counter", "all leaped at this spot")
                     if (alertComplete.value) {
-                        mc.gui.hud.setTitle(Component.literal(completeText.value.replace('&', '§')))
-                        mc.gui.hud.setTimes(5, 40, 10)
+                        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(completeText.value.replace('&', '§')))
+                        ced.cedclient.features.impl.misc.ClientTitles.setTimes(5, 40, 10)
                         if (alertSound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1f, 1f))
                     }
                 }

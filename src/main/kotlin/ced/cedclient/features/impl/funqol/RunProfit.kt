@@ -63,6 +63,7 @@ object RunProfit : Module(
     private val keyCost = BooleanSetting("Count Chest Keys", true, "A Dungeon Chest Key used on a chest is part of its cost.")
     private val croesus = BooleanSetting("Croesus Profit", true, "Shows each chest's profit on the Croesus chest list.")
     private val croesusBest = BooleanSetting("Highlight Best Chest", true, "Marks the most profitable chest gold.")
+    private val hideOpened = BooleanSetting("Hide Opened Chests", false, "No profit on a Croesus chest that was already opened.")
     private val fancy = BooleanSetting("Fancy Menu", false, "Replaces the reward chest screen with a clean item list and an Open button.")
     private val historyButton = ActionSetting("Loot History", "Every logged chest (same as /cc loot).") {
         (mc.gui.screen() as? ClickGUI)?.openPopup(RunLootPopup())
@@ -296,6 +297,7 @@ object RunProfit : Module(
             val lore = stack.loreLines
             val contents = lore.indexOf("Contents").takeIf { it >= 0 } ?: return@mapNotNull null
             if ("Cost" !in lore) return@mapNotNull null
+            if (hideOpened.value && lore.any { it.contains("already opened", ignoreCase = true) }) return@mapNotNull null
             var value = 0.0
             for (line in lore.drop(contents + 1)) {
                 if (line.isBlank()) break
@@ -337,8 +339,19 @@ object RunProfit : Module(
     private const val RED = 0xFFFF5555.toInt()
     private const val GRAY = 0xFFBBBBBB.toInt()
 
-    fun handles(screen: AbstractContainerScreen<*>) =
-        isEnabled && fancy.value && screen is ContainerScreen && title(screen) in REWARD_TITLES
+    private var loggedScreen: Any? = null
+
+    fun handles(screen: AbstractContainerScreen<*>): Boolean {
+        if (!isEnabled) return false
+        val name = screen.title.string.replace(Regex("§."), "").trim()
+        val reward = REWARD_TITLES.any { it.equals(name, ignoreCase = true) }
+        val on = fancy.value && screen is ContainerScreen && reward
+        if (reward && loggedScreen !== screen) {
+            loggedScreen = screen
+            ced.cedclient.utils.Debug.line("Run Profit", "reward screen \"$name\" (${screen.javaClass.simpleName}), fancy menu ${if (fancy.value) "on" else "OFF (turn on Fancy Menu in Run Profit)"} -> ${if (on) "drawing" else "vanilla"}")
+        }
+        return on
+    }
 
     private fun panel(screen: AbstractContainerScreen<*>, rows: Int): FloatArray {
         val h = 44f + rows.coerceAtLeast(1) * ROW + 66f
@@ -474,7 +487,7 @@ object RunProfit : Module(
     override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 
     init {
-        addSettings(hud, kuudra, priceSide, essence, keyCost, croesus, croesusBest, fancy, historyButton)
+        addSettings(hud, kuudra, priceSide, essence, keyCost, croesus, croesusBest, hideOpened, fancy, historyButton)
         LowestBin.start()
         Thread(::loadNames, "CedClient-RunProfit-Names").apply { isDaemon = true }.start()
         runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {

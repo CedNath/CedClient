@@ -20,11 +20,11 @@ object SearchBar {
         private set(value) {
             if (value == field || value.length > 16) return
             field = value
-            searchWidth = NVGRenderer.textWidth(value, 20f, NVGRenderer.defaultFont)
         }
 
-    private var placeHolderWidth = NVGRenderer.textWidth("Search here...", 20f, NVGRenderer.defaultFont)
-    private var searchWidth = NVGRenderer.textWidth(currentSearch, 20f, NVGRenderer.defaultFont)
+    // Measured when drawn, not when typed: the measure depends on the current NanoVG scale and on the chosen font.
+    private val placeHolderWidth get() = NVGRenderer.textWidth("Search here...", 20f, NVGRenderer.defaultFont)
+    private val searchWidth get() = NVGRenderer.textWidth(currentSearch, 20f, NVGRenderer.defaultFont)
 
     private val textInputHandler = TextInputHandler(
         textProvider = { currentSearch },
@@ -59,6 +59,9 @@ object SearchBar {
     fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         return textInputHandler.mouseClicked(mouseX, mouseY, click)
     }
+
+    /** Starts typing into the box without a click. */
+    fun focus() = textInputHandler.focus()
 
     fun mouseReleased() {
         textInputHandler.mouseReleased()

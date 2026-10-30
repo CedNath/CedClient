@@ -39,17 +39,22 @@ object Theme : Module(
     val guiAccent = ColorSetting("GUI Accent", Color(0x69, 0x00, 0x00), "Enabled modules, popups and other ClickGUI highlights.").apply { oldDefault = 0x6E32C8 }
     val hudAccent = ColorSetting("HUD Accent", Color(0xE0, 0x30, 0x30), "Badges, dividers and outlines on the HUD panels.").apply { oldDefault = 0xFF8080 }
 
-    val hudStyle = DropdownSetting("HUD Style", ced.cedclient.features.impl.render.HudStyle.names, "Classic", "Look of the HUD cards: Classic, Glass, Accent Top, Rail or Flat. Each HUD can override it from the HUD editor (/cc hud).")
+    val hudStyle = DropdownSetting("HUD Style", ced.cedclient.features.impl.render.HudStyle.names, "Rail", "Look of the HUD cards: Classic, Glass, Accent Top, Rail or Flat. Each HUD can override it from the HUD editor (/cc hud).")
     val fixedHudSize = BooleanSetting("Fixed HUD Size", true, "HUD cards keep the widest size they've had, so they don't jump around as numbers change. Starts over after 30 s without the HUD showing, or when you rescale it.")
     val roundedHud = BooleanSetting("Rounded HUD Corners", true, "Round the corners of HUD cards. Off gives square corners.")
     val menuLayout = DropdownSetting(
         "Menu Layout",
         listOf("Compact", "Classic"),
-        "Compact",
+        "Classic",
         "Compact: a category list, the module list and the module's settings as three panels. Classic: one panel per category."
     )
+//#if CHEAT
+    val separateCheats = BooleanSetting("Separate Cheats Panel", false, "Moves the cheat modules (ESP, triggerbots, auto helpers ...) out of their panels into one Cheats panel. Takes effect the next time the menu opens.")
+//#endif
     val menuStyle = DropdownSetting("Menu Style", listOf("Solid", "Glass", "Tinted Glass", "Neon", "Gradient", "Minimal"), "Solid", "Look of the Compact menu. Glass and Tinted Glass are frosted over a blurred game; Neon has a glowing accent outline; Gradient fades the accent in from the top; Minimal is a faint wash with a hairline.").withDependency { menuLayout.value == "Compact" }
     val menuOpacity = NumberSetting("Menu Opacity", 100.0, 30.0, 100.0, 5.0, "How solid the Compact menu panels are, in percent. Lower is more see-through.").withDependency { menuLayout.value == "Compact" && menuStyle.value != "Glass" && menuStyle.value != "Tinted Glass" }
+    val uiFont = DropdownSetting("Font", listOf("Inter", "Minecraft"), "Minecraft", "Text font of the menus and the HUD cards. Minecraft is the game's own pixel font, taken from your install.")
+    val menuSize = NumberSetting("Menu Size", 135.0, 70.0, 200.0, 5.0, "How big the Compact menu is, in percent.").withDependency { menuLayout.value == "Compact" }
     val openAnimation = DropdownSetting(
         "Open Animation",
         listOf(
@@ -98,9 +103,14 @@ object Theme : Module(
     }
 
     init {
-        addSettings(guiAccent, hudAccent, hudStyle, fixedHudSize, roundedHud, menuLayout, menuStyle, menuOpacity, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetPanels, resetModule, resetEverything)
+        addSettings(guiAccent, hudAccent, hudStyle, fixedHudSize, roundedHud, uiFont, menuLayout, menuStyle, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetPanels, resetModule, resetEverything)
+//#if CHEAT
+        addSettings(separateCheats)
+        separateCheats.section = "Menu"
+//#endif
         listOf(guiAccent, hudAccent).forEach { it.section = "Colors" }
-        listOf(menuLayout, menuStyle, menuOpacity, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed).forEach { it.section = "Menu" }
+        listOf(menuLayout, menuStyle, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed).forEach { it.section = "Menu" }
+        uiFont.section = "Text"
         hudOutlines.section = "HUD"
         listOf(resetColors, resetPanels, resetModule, resetEverything).forEach { it.section = "Reset" }
         // Animation tuning only shows with Advanced Mode on.

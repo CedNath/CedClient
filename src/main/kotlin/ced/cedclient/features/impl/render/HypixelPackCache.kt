@@ -15,7 +15,6 @@ import java.nio.file.StandardCopyOption
 import java.util.Optional
 import java.util.UUID
 import java.util.function.Consumer
-import kotlin.concurrent.thread
 
 /**
  * Vanilla Textures "Keep Hypixel Pack Loaded": Hypixel's SkyBlock pack is copied to config/cedclient the first time
@@ -81,11 +80,16 @@ object HypixelPackCache {
         val downloaded = packs.firstOrNull { it.id() == pendingId }?.path() ?: return
         pendingId = null
         val savedKey = pendingKey
-        thread(name = "CedClient HypixelPackCache", isDaemon = true) {
-            runCatching {
-                Files.copy(downloaded, newPack, StandardCopyOption.REPLACE_EXISTING)
-                Files.writeString(newKey, savedKey)
-            }.onFailure { it.printStackTrace() }
+        // Copied right here, not on another thread: by the time a thread got to it the download had already been moved
+        // away by the reload ("NoSuchFileException"), so the pack was never kept and loaded from scratch every time.
+        runCatching {
+            Files.createDirectories(newPack.parent) // the cache folder does not exist on a fresh install ("NoSuchFileException a -> b")
+            Files.copy(downloaded, newPack, StandardCopyOption.REPLACE_EXISTING)
+            Files.writeString(newKey, savedKey)
+            ced.cedclient.utils.Debug.line("Vanilla Textures", "saved the Hypixel pack (${Files.size(newPack) / 1024} KB), used from the next start")
+        }.onFailure {
+            ced.cedclient.utils.Debug.line("Vanilla Textures", "could not save the Hypixel pack: ${it.message}")
+            it.printStackTrace()
         }
     }
 }

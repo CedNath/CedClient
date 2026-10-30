@@ -13,6 +13,7 @@ import org.lwjgl.nanovg.NanoSVG.*
 import org.lwjgl.nanovg.NanoVG.*
 import org.lwjgl.nanovg.NanoVGGL3.*
 import org.lwjgl.opengl.GL33C
+import org.lwjgl.stb.STBImage.stbi_image_free
 import org.lwjgl.stb.STBImage.stbi_load_from_memory
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.lwjgl.system.MemoryUtil.memFree
@@ -330,7 +331,93 @@ object NVGRenderer {
         return round(size * s).coerceAtLeast(1f) / s
     }
 
+    // ---------------- MINECRAFT FONT ----------------
+
+    /**
+     * Theme > Font "Minecraft": the game's own pixel font, drawn glyph by glyph from the running install's
+     * textures/font/ascii.png (read at runtime, nothing of it is copied into this jar). The sheet is 16 x 16 cells; the
+     * glyph for character c (32..126) is cell (c shr 4, c and 15), and its width is the last column with any pixel.
+     */
+    private class GlyphSheet(val image: Int, val advance: IntArray, val width: IntArray)
+
+    private val glyphSheet: GlyphSheet? by lazy { runCatching { loadGlyphSheet() }.onFailure { it.printStackTrace() }.getOrNull() }
+
+    private fun loadGlyphSheet(): GlyphSheet {
+        val bytes = Minecraft.getInstance().resourceManager.getResource(Identifier.parse("minecraft:textures/font/ascii.png")).get().open().use { it.readBytes() }
+        val src = memAlloc(bytes.size)
+        src.put(bytes).flip()
+        val w = IntArray(1); val h = IntArray(1); val c = IntArray(1)
+        val pixels = stbi_load_from_memory(src, w, h, c, 4) ?: throw NullPointerException("Failed to decode ascii.png")
+        memFree(src)
+        try {
+            val size = w[0]
+            val cell = size / 16
+            val width = IntArray(256)
+            val advance = IntArray(256)
+            for (code in 0 until 256) {
+                val col = code and 15
+                val row = code shr 4
+                var last = -1
+                for (py in 0 until cell) for (px in 0 until cell) {
+                    val alpha = pixels.get(((row * cell + py) * size + col * cell + px) * 4 + 3).toInt() and 0xFF
+                    if (alpha != 0 && px > last) last = px
+                }
+                // widths in the font's own 8 px units (an HD sheet has more pixels per unit)
+                width[code] = if (last < 0) 0 else ((last + 1) * 8 + cell - 1) / cell
+                advance[code] = if (code == 32) 4 else width[code] + 1
+            }
+            return GlyphSheet(nvgCreateImageRGBA(vg, size, size, NVG_IMAGE_NEAREST, pixels), advance, width)
+        } finally {
+            stbi_image_free(pixels)
+        }
+    }
+
+    private fun minecraftFontOn(font: Font) =
+        font === defaultFont && ced.cedclient.features.impl.misc.Theme.uiFont.value == "Minecraft" && glyphSheet != null
+
+    /** Size of one font pixel in the current space, a whole number of device pixels (text [size] 9 = 1 font pixel per 1 unit). */
+    private fun glyphPx(size: Float): Float {
+        nvgCurrentTransform(vg, xform)
+        val s = sqrt(xform[0] * xform[0] + xform[1] * xform[1]) * devicePixelRatio()
+        if (s <= 0f) return size / 9f
+        return round(size * s / 9f).coerceAtLeast(1f) / s
+    }
+
+    private fun glyphCode(ch: Char) = if (ch.code in 32..126) ch.code else '?'.code
+
+    private fun minecraftWidth(text: String, size: Float): Float {
+        val sheet = glyphSheet ?: return 0f
+        var units = 0
+        for (ch in text) units += sheet.advance[glyphCode(ch)]
+        if (text.isNotEmpty()) units -= 1 // no spacing after the last glyph
+        return units * glyphPx(size)
+    }
+
+    private fun minecraftText(text: String, x: Float, y: Float, size: Float, color: Int) {
+        val sheet = glyphSheet ?: return
+        val p = glyphPx(size)
+        // Capitals are 7 font pixels high: centre them where the TTF's capitals sit, so the layouts made for it still line up.
+        snap(x, y + size * 0.605f - 3.5f * p)
+        val top = snapY
+        var cx = snapX
+        color(color)
+        for (ch in text) {
+            val code = glyphCode(ch)
+            val gw = sheet.width[code]
+            if (gw > 0) {
+                nvgImagePattern(vg, cx - (code and 15) * 8f * p, top - (code shr 4) * 8f * p, 128f * p, 128f * p, 0f, sheet.image, 1f, nvgPaint)
+                nvgPaint.innerColor(nvgColor) // the pattern is white; this tints it
+                nvgBeginPath(vg)
+                nvgRect(vg, cx, top, gw * p, 8f * p)
+                nvgFillPaint(vg, nvgPaint)
+                nvgFill(vg)
+            }
+            cx += sheet.advance[code] * p
+        }
+    }
+
     fun text(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {
+        if (minecraftFontOn(font)) { minecraftText(text, x, y, size, color); return }
         nvgFontSize(vg, fontSize(size))
         nvgFontFaceId(vg, getFontID(font))
         color(color)
@@ -340,6 +427,13 @@ object NVGRenderer {
     }
 
     fun textShadow(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {
+        if (minecraftFontOn(font)) {
+            val p = glyphPx(size)
+            // like the game's own shadow: one font pixel down and right, a quarter as bright
+            minecraftText(text, x + p, y + p, size, (color and 0xFF000000.toInt()) or ((color and 0x00FCFCFC) shr 2))
+            minecraftText(text, x, y, size, color)
+            return
+        }
         nvgFontFaceId(vg, getFontID(font))
         nvgFontSize(vg, fontSize(size))
         color(-16777216)
@@ -354,6 +448,7 @@ object NVGRenderer {
     }
 
     fun textWidth(text: String, size: Float, font: Font): Float {
+        if (minecraftFontOn(font)) return minecraftWidth(text, size)
         nvgFontSize(vg, fontSize(size))
         nvgFontFaceId(vg, getFontID(font))
         return nvgTextBounds(vg, 0f, 0f, text, fontBounds)

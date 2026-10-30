@@ -30,7 +30,7 @@ object ModHider : Module(
     "Mod Hider",
     Category.Misc,
     "Stops servers from detecting your mods through translation keys in signs and anvil renames.",
-    defaultEnabled = true
+    defaultEnabled = false
 ) {
     private val mc get() = Minecraft.getInstance()
     private val serverLanguages = IdentityHashMap<ClientPacketListener?, Language?>()

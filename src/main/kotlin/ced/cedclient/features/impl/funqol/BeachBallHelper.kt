@@ -460,9 +460,9 @@ object BeachBallHelper : Module(
         Debug.line("BeachBall", "Ball ended ($reason): $combo bounces, $balls balls, avg ${"%.1f".format(avg)}; " +
             "last seen ${"%.2f".format(lastOff)}m off you, ${"%.2f".format(lastDy)}m above bounce height")
         if (popup.value) {
-            mc.gui.hud.setTitle(Component.literal("§aBall #$balls: $combo bounces"))
-            mc.gui.hud.setSubtitle(Component.literal("§7Avg §e${"%.1f".format(avg)}§7 bounces per ball"))
-            mc.gui.hud.setTimes(5, 50, 10)
+            ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal("§aBall #$balls: $combo bounces"))
+            ced.cedclient.features.impl.misc.ClientTitles.setSubtitle(Component.literal("§7Avg §e${"%.1f".format(avg)}§7 bounces per ball"))
+            ced.cedclient.features.impl.misc.ClientTitles.setTimes(5, 50, 10)
         }
         release()
         reset()

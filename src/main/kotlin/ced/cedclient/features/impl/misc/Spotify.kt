@@ -283,7 +283,7 @@ object Spotify : Module(
         // Chat clicks come through ChatScreenMenuMixin; inventories through the screen's own click event (false = swallow the click).
         ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
             if (screen is AbstractContainerScreen<*>) ScreenMouseEvents.allowMouseClick(screen).register { _, event ->
-                !(clickInventory.value && onChatClick(event.x(), event.y(), event.button()))
+                !(clickInventory.value && onChatClick(event.x(), event.y(), Keys.mouse(event)))
             }
         }
 
