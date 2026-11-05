@@ -13,6 +13,8 @@ import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.RenderableSetting
+import ced.cedclient.features.settings.Setting.Companion.withDependency
+import ced.cedclient.features.settings.TextSetting
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.clickgui.SettingsPopup
 import ced.cedclient.utils.Color
@@ -58,6 +60,11 @@ object DungeonSplits : Module(
         "Recent Runs: each split's median over your last $HISTORY_SIZE clears on that floor (how your party usually plays). PB: your PB run's splits."
     )
     private val terminalSplits = BooleanSetting("Terminal Splits", true, "F7 / M7: time each terminal section (1st-4th) during the Terminals split.")
+    private val currentSplitHud = BooleanSetting("Current Split Timer", false, "A separate, movable HUD with just the running split and its time (position in the HUD editor).")
+    private val curFormat = DropdownSetting("Timer Format", listOf("Seconds", "Ticks"), "Seconds", "The Current Split Timer in seconds or in server ticks.").withDependency { currentSplitHud.value }
+    private val curName = BooleanSetting("Show Split Name", true, "The split's name in front of the time (\"Blood Open: \").").withDependency { currentSplitHud.value }
+    private val curSuffix = BooleanSetting("Show Suffix", true, "Text after the number (the unit by default).").withDependency { currentSplitHud.value }
+    private val curSuffixText = TextSetting("Suffix", "", "The text after the number. Empty = the unit (s or t).").withDependency { currentSplitHud.value && curSuffix.value }
     private val chatSummary = BooleanSetting("Chat Summary", true, "Post the run's splits (and a new PB) to chat when it ends.")
     private val lingerSeconds = NumberSetting("Show After Run", 10.0, 0.0, 60.0, 1.0, "Seconds the splits stay up after the run ends (hidden right away once you leave the dungeon).")
     private val resetPbs = ActionSetting("Reset All PBs", "Forget every saved personal best and the recent-run history.") {
@@ -225,6 +232,7 @@ object DungeonSplits : Module(
         /** Split durations of the last [HISTORY_SIZE] clears per floor, oldest first (for Est. Total). */
         var history: MutableMap<String, MutableList<Map<String, Long>>> = mutableMapOf(),
         var x: Int = 1103, var y: Int = 2, var scale: Float = 1f,
+        var cx: Int = 560, var cy: Int = 30, var cscale: Float = 1f,
     )
 
     private var data = SaveData()
@@ -251,7 +259,7 @@ object DungeonSplits : Module(
     private fun nowTick() = TpsTracker.serverTicks - runStartTick
 
     init {
-        addSettings(showDeltas, secondColumn, estimateFrom, chatSummary, lingerSeconds, customizeHud, resetPbs)
+        addSettings(showDeltas, secondColumn, estimateFrom, currentSplitHud, curFormat, curName, curSuffix, curSuffixText, chatSummary, lingerSeconds, customizeHud, resetPbs)
         addSettings(*popupOnly.toTypedArray())
         popupOnly.forEach { it.inPopup = true }
         load()
@@ -406,6 +414,7 @@ object DungeonSplits : Module(
 
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
         if (!isEnabled || runStart == 0L || segs.isEmpty()) return
+        if (currentSplitHud.value && finishedAt == 0L) CurrentSplit.renderInternal(g)
         if (finishedAt != 0L && (!DungeonState.inDungeon || System.currentTimeMillis() - finishedAt > lingerSeconds.value * 1000)) return
         renderInternal(g)
     }
@@ -479,6 +488,46 @@ object DungeonSplits : Module(
         }
         if (LeapMenu.defer(full)) return
         NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = full)
+    }
+
+    /** The separate "Current Split Timer" panel: the running split's name and time. Shows a sample in the HUD editor. */
+    object CurrentSplit : HudElement {
+        override val label = "Current Split"
+        override val hudActive get() = isEnabled && currentSplitHud.value
+        override var panelX: Int
+            get() = data.cx
+            set(v) { data.cx = v }
+        override var panelY: Int
+            get() = data.cy
+            set(v) { data.cy = v }
+        override var panelScale: Float
+            get() = data.cscale
+            set(v) { data.cscale = v }
+        override var lastWidth: Int = 80
+            private set
+        override var lastHeight: Int = 9
+            private set
+
+        override fun renderInternal(g: GuiGraphicsExtractor) {
+            val seg = segs.getOrNull(current)?.takeIf { runStart != 0L && finishedAt == 0L && it.running }
+            val ticks = curFormat.value == "Ticks"
+            val number = if (ticks) "${seg?.ticks(nowTick())?.coerceAtLeast(0L) ?: 0L}"
+            else "%.${places}f".format(java.util.Locale.ROOT, truncated(seg?.time(now()) ?: 0L) / 1000.0)
+            val suffix = if (!curSuffix.value) "" else curSuffixText.value.ifEmpty { if (ticks) "t" else "s" }
+            val text = (if (curName.value) "${seg?.def?.name ?: "Blood Open"}: " else "") + number + suffix
+            val font = mc.font
+            lastWidth = font.width(text)
+            lastHeight = font.lineHeight
+            g.pose().pushMatrix()
+            g.pose().translate(panelX.toFloat(), panelY.toFloat())
+            g.pose().scale(panelScale, panelScale)
+            g.text(font, text, 0, 0, if (seg != null) nameColor(seg.def.color) else GREY)
+            g.pose().popMatrix()
+        }
+
+        override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(MIN_SCALE, MAX_SCALE) }
+        override fun save() = persist()
+        override fun resetPosition() { data.cx = 560; data.cy = 30; data.cscale = 1f }
     }
 
     private val tickMode get() = secondColumn.value == "Tick Time"

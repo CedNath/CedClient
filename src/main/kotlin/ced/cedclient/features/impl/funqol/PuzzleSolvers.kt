@@ -14,6 +14,7 @@ import ced.cedclient.features.impl.render.Box3D
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.HeaderSetting
+import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.Setting
 import ced.cedclient.features.settings.Setting.Companion.withDependency
 import ced.cedclient.render.LineBox
@@ -179,9 +180,11 @@ internal object PuzzleDraw {
     fun line(context: LevelRenderContext, points: List<Vec3>, color: Color, phase: Boolean = true) {
         if (points.size < 2) return
         val cam = context.gameRenderer().mainCamera().position()
-        val buffer = context.bufferSource().getBuffer(if (phase) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
+        // One batch for both calls: bufferSource() makes a new DeferredBatch each time, so a second call would flush nothing.
+        val batch = context.bufferSource()
+        val buffer = batch.getBuffer(if (phase) CustomRenderType.LINES_ESP else CustomRenderType.LINES_DEPTH)
         LineBox.polyline(context.poseStack(), buffer, points.map { it.subtract(cam) }, color.redFloat, color.greenFloat, color.blueFloat, color.alphaFloat)
-        context.bufferSource().endBatch()
+        batch.endBatch()
     }
 
     /** A line from your crosshair to [to]. */
@@ -682,7 +685,7 @@ internal object TicTacToeSolver : PuzzleModule("Tic Tac Toe Solver", "Tic Tac To
 /** Water Board: the gates and the wool pattern pick a stored solution; shows which lever to pull next and when. */
 internal object WaterBoardSolver : PuzzleModule("Water Board Solver", "Water Board puzzle: the next lever to pull, with timers.", "Water Board") {
     private val clickColor = ColorSetting("Water Click Color", Color(0, 255, 0), "Line to the next lever.")
-    private val nextColor = ColorSetting("Next Click Color", Color(255, 255, 0), "Line from the next lever to the one after.")
+    private val nextColor = ColorSetting("Next Click Color", Color(255, 255, 0), "Line between the levers still to pull, in order.")
 
     private val solutions by lazy { puzzleData("waterSolutions.json", object : TypeToken<Map<String, Map<String, Map<String, List<Double>>>>>() {}) }
 
@@ -744,9 +747,10 @@ internal object WaterBoardSolver : PuzzleModule("Water Board Solver", "Water Boa
         val clicks = plan.flatMap { (lever, times) -> times.drop(lever.clicks).map { lever to it } }
             .sortedBy { (lever, time) -> time + if (lever == Lever.WATER) 0.01 else 0.0 }
         val next = clicks.firstOrNull()?.first ?: return
+        // Lines only: a tracer to the next lever, then a line from each lever still to pull to the one after it.
+        val order = clicks.map { it.first }.distinct().take(3)
         PuzzleDraw.tracer(context, Vec3.atCenterOf(leverPos(room, next)), clickColor.value)
-        val second = clicks.getOrNull(1)?.first
-        if (second != null && second != next) PuzzleDraw.line(context, listOf(Vec3.atCenterOf(leverPos(room, next)), Vec3.atCenterOf(leverPos(room, second))), nextColor.value)
+        for (i in 1 until order.size) PuzzleDraw.line(context, listOf(Vec3.atCenterOf(leverPos(room, order[i - 1])), Vec3.atCenterOf(leverPos(room, order[i]))), nextColor.value)
 
         for ((lever, times) in plan) times.drop(lever.clicks).forEachIndexed { i, seconds ->
             val ticks = (seconds * 20).toInt()

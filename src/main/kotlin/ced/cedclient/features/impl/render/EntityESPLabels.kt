@@ -25,6 +25,7 @@ object EntityESPLabels {
         val nx: Float, val ny: Float, val depth: Float,
         val name: String, val nameColor: Int,
         val health: Float, val maxHealth: Float, val distance: Double,
+        val scale: Float, val healthBar: Boolean,
     )
 
     @Volatile
@@ -35,15 +36,16 @@ object EntityESPLabels {
 
     /** World render pass: project every scanned entity. */
     fun capture(camera: CameraRenderState) {
-        if (!EntityESP.isEnabled || !EntityESP.labelsEnabled) {
+        val active = EntityESP.modules.filter { it.isEnabled && it.labelsEnabled }
+        if (active.isEmpty()) {
             labels = emptyList()
             return
         }
         val partial = Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(false)
         viewProj.set(camera.projectionMatrix).mul(camera.viewRotationMatrix)
         val cam = camera.pos
-        val out = ArrayList<Label>(EntityESP.scannedEntities.size)
-        for (scanned in EntityESP.scannedEntities) {
+        val out = ArrayList<Label>()
+        for (module in active) for (scanned in module.scannedEntities) {
             val e = scanned.entity
             if (e.isRemoved || !scanned.style.label) continue
             val p = e.getPosition(partial)
@@ -57,6 +59,7 @@ object EntityESPLabels {
                 nx * 0.5f + 0.5f, 0.5f - ny * 0.5f, clip.w,
                 scanned.name, scanned.style.color?.rgba ?: nameColor(scanned.category),
                 e.health, e.maxHealth, scanned.distance,
+                module.labelScale, module.labelHealthBar,
             )
         }
         out.sortByDescending { it.depth } // far first, so near cards end up on top
@@ -66,7 +69,7 @@ object EntityESPLabels {
     /** HUD pass. */
     fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
         val list = labels
-        if (list.isEmpty() || !EntityESP.isEnabled || !EntityESP.labelsEnabled) return
+        if (list.isEmpty() || !EntityESP.isEnabled) return
         val guiW = g.guiWidth().toFloat()
         val guiH = g.guiHeight().toFloat()
         NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = {
@@ -79,12 +82,12 @@ object EntityESPLabels {
 
     private fun drawLabel(l: Label, cx: Float, bottomY: Float) {
         val font = NVGRenderer.defaultFont
-        val s = EntityESP.labelScale
+        val s = l.scale
         val size = 8f * s
         val padX = 4f * s
         val padY = 2.5f * s
         val gap = 4f * s
-        val showBar = EntityESP.labelHealthBar && l.maxHealth > 0f
+        val showBar = l.healthBar && l.maxHealth > 0f
         val barH = if (showBar) 1.5f * s else 0f
 
         val pct = if (l.maxHealth > 0f) (l.health / l.maxHealth).coerceIn(0f, 1f) else 0f

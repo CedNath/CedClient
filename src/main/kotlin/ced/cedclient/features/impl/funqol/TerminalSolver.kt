@@ -39,7 +39,8 @@ object TerminalSolver : Module(
 ) {
     // ---- general
     private val firstDelay = NumberSetting("First Click Delay", 350.0, 150.0, 1000.0, 10.0, "Milliseconds after a terminal opens before a click is accepted.")
-    private val clickDelay = NumberSetting("Click Delay", 100.0, 0.0, 500.0, 10.0, "Milliseconds between clicks (Correct All The Panes only).")
+    private val clickDelay = NumberSetting("Click Delay", 100.0, 0.0, 500.0, 10.0, "Milliseconds between clicks (not Rubix / Melody, which wait for the server).")
+    private val waitServer = BooleanSetting("Wait For Server Answer", false, "Only click the next tile once the server has answered the last click (slower, but never ahead of the terminal).")
     private val resync = NumberSetting("Resync Timeout", 800.0, 0.0, 2000.0, 50.0, "Forget clicks the server never answered after this long. 0: off.")
     private val allowDrop = BooleanSetting("Allow Drop Key", true, "The drop key clicks the tile under the mouse (left; right with Ctrl).")
     private val keyLeft = KeybindSetting("Left Click Key", Keys.UNKNOWN, "Left clicks the tile under the mouse.")
@@ -129,7 +130,7 @@ object TerminalSolver : Module(
 
     init {
         val list = mutableListOf<ced.cedclient.features.settings.Setting<*>>(
-            HeaderSetting("Terminals"), firstDelay, clickDelay, resync, allowDrop, keyLeft, keyRight, clickSound,
+            HeaderSetting("Terminals"), firstDelay, clickDelay, waitServer, resync, allowDrop, keyLeft, keyRight, clickSound,
             onNumbers, onPanes, onRubix, onName, onColors, onMelody,
             HeaderSetting("Rubix / Melody"), rubixLeft, melodyPrevent, melodyKeys, *melodyBinds.toTypedArray(),
             HeaderSetting("Panel"), scale, roundness, borderWidth, padding, slotGap, melodyGap, screenDim, offsetX, offsetY, bgColor, borderColor,
@@ -158,6 +159,12 @@ object TerminalSolver : Module(
     fun handles(screen: AbstractContainerScreen<*>): Boolean = isEnabled && screen is ContainerScreen && kind(screen) != null
 
     private fun containerSlots(screen: AbstractContainerScreen<*>) = screen.menu.slots.size - 36
+
+    /** Melody lanes: the rows 1.. that have a button in column 7 (the window can be taller than the lanes). */
+    private fun melodyLanes(screen: AbstractContainerScreen<*>): Int {
+        val rows = containerSlots(screen) / 9
+        return (1..rows - 2).lastOrNull { !filler(screen.menu.slots[it * 9 + 7].item) } ?: (rows - 2).coerceIn(1, 3)
+    }
 
     private fun filler(stack: ItemStack) = stack.isEmpty || stack.`is`(Items.STAINED_GLASS_PANE.black())
 
@@ -238,7 +245,7 @@ object TerminalSolver : Module(
                     val color = if (c == current) (if (aligned) cMelodyCorrect else cMelodyWrong) else if (c == correct) cMelodyFill else cMelodyOther
                     out += Tile(row * 9 + c, 0, color.value.rgba, clickable = false)
                 }
-                for (r in 1..rows - 2) {
+                for (r in 1..melodyLanes(screen)) {
                     if (r != row) out += Tile(r * 9 + 7, 0, cMelodyOther.value.rgba, clickable = false)
                     else out += Tile(r * 9 + 7, 0, (if (aligned) cMelodyCorrect else cMelodyOther).value.rgba, clickable = aligned || !melodyPrevent.value)
                 }
@@ -263,6 +270,7 @@ object TerminalSolver : Module(
         when (kind) {
             Kind.PANES -> { colStart = 2; cols = 5 }
             Kind.RUBIX -> { colStart = 3; cols = 3; rowCount = 3 }
+            Kind.MELODY -> rowCount = melodyLanes(screen)
             else -> {}
         }
         val sc = (scale.value * maxOf(1.0, 4.0 / mc.window.guiScale)).toFloat()
@@ -298,7 +306,8 @@ object TerminalSolver : Module(
         val g = geo(screen, kind)
 //#if CHEAT
         val now = System.currentTimeMillis()
-        if (dragClick.value && mc.mouseHandler.isLeftPressed() && now - lastClick >= dragDelay.value) {
+        // MouseHandler.isLeftPressed() only follows the button while no screen is open, so the held state is tracked here.
+        if (dragClick.value && leftDown && now - lastClick >= dragDelay.value) {
             slotAt(g, mouseX.toDouble(), mouseY.toDouble())?.let { tryClick(screen, kind, it, 0) }
         }
         AutoTerminals.tick(screen, kind.title, tiles.filter { it.clickable }.map { it.slot })
@@ -331,9 +340,15 @@ object TerminalSolver : Module(
         }
     }
 
+    /** Left button held on the terminal: set by a click, cleared by [mouseReleased] (the mixin swallows both). */
+    private var leftDown = false
+
+    fun mouseReleased(button: Int) { if (button == 0) leftDown = false }
+
     fun mouseClicked(screen: AbstractContainerScreen<*>, mx: Double, my: Double, button: Int) {
         val kind = kind(screen) ?: return
         sync(screen)
+        if (button == 0) leftDown = true
         slotAt(geo(screen, kind), mx, my)?.let { tryClick(screen, kind, it, button) }
     }
 
@@ -391,7 +406,9 @@ object TerminalSolver : Module(
         val tile = solve(screen, kind).firstOrNull { it.slot == slot && it.clickable } ?: return false
         val anyButton = button < 0 || (kind == Kind.RUBIX && rubixLeft.value) || kind == Kind.MELODY
         if (!anyButton && button != tile.button) return false
-        if (if (kind == Kind.PANES) now - lastClick < clickDelay.value else pending) return false
+        // Like Noamm, the next tile is clickable at once: the clicked ones are already hidden and the solution re-solved without them,
+        // so only the Click Delay spaces the clicks. Rubix and Melody depend on the server's answer, and "Wait For Server Answer" restores the old way.
+        if (if (kind == Kind.RUBIX || kind == Kind.MELODY || waitServer.value) pending else now - lastClick < clickDelay.value) return false
         lastClick = now
         pending = true
         sigAtClick = sig

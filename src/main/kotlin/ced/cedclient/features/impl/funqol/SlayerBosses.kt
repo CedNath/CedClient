@@ -24,6 +24,7 @@ internal object SlayerBosses {
     private val OWNER = Regex("""Spawned by: (\w{1,16})""")
     private val CODES = Regex("§.")
     private val HP = Regex("""([\d.,]+)([kMB]?)❤""")
+    private val CUR = Regex("""([\d.,]+)([kMB]?)$""")
     private val ATTUNEMENT = Regex("""\b(ASHEN|SPIRIT|CRYSTAL|AURIC)\b""")
     private val HITS = Regex("""Hits?:?\s*(\d+)|(\d+)\s+Hits?""")
     private val PILLAR = Regex("""^([\d.]+)s 8 hits$""")
@@ -67,10 +68,15 @@ internal object SlayerBosses {
         pillar = null; laser = null; laserTicks = 0; beacons = emptyList(); placed = emptyList(); skulls = emptyList(); firePitsWarned = false
     }
 
+    private fun amount(num: String, suffix: String): Double? =
+        num.replace(",", "").toDoubleOrNull()?.times(when (suffix) { "k" -> 1e3; "M" -> 1e6; "B" -> 1e9; else -> 1.0 })
+
+    /** The current HP from the tag: "12.5M❤", or the part before the slash in "4.2M/12.5M❤". */
     private fun parseHp(text: String): Double? {
         val m = HP.findAll(text).lastOrNull() ?: return null
-        val n = m.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
-        return n * when (m.groupValues[2]) { "k" -> 1e3; "M" -> 1e6; "B" -> 1e9; else -> 1.0 }
+        val before = text.substring(0, m.range.first).takeIf { it.endsWith("/") }?.dropLast(1)
+        CUR.find(before ?: "")?.let { c -> amount(c.groupValues[1], c.groupValues[2])?.let { return it } }
+        return amount(m.groupValues[1], m.groupValues[2])
     }
 
     /** Every "Spawned by: <name>" stand in sight with the name on it. Shared with VampireSlayer. */
@@ -122,7 +128,10 @@ internal object SlayerBosses {
         name = bossName(text)
         owner = spawnedBy.filter { abs(it.first.x - l.x) < 1.5 && abs(it.first.z - l.z) < 1.5 && abs(it.first.y - l.y) < 3.0 }
             .minByOrNull { it.first.distanceToSqr(l) }?.second
-        parseHp(text)?.let { hp = it; maxHp = maxOf(maxHp, it) }
+        parseHp(text)?.let {
+            if (it != hp) ced.cedclient.utils.Debug.line("Slayer", "boss hp $hp -> $it from tag \"$text\"")
+            hp = it; maxHp = maxOf(maxHp, it)
+        }
         // The mob under the tag: the right kind of mob only (an Enderman for Voidgloom), so a nearby player or other mob can't be
         // boxed instead. While nothing fits close to the tag (laser phase lifts the boss away) it keeps the last one.
         val kind = bodyType(name)

@@ -17,6 +17,29 @@ import ced.cedclient.utils.Color
 import ced.cedclient.utils.skyblockId
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.world.level.block.BannerBlock
+import net.minecraft.world.level.block.BubbleColumnBlock
+import net.minecraft.world.level.block.ButtonBlock
+import net.minecraft.world.level.block.ComparatorBlock
+import net.minecraft.world.level.block.FlowerPotBlock
+import net.minecraft.world.level.block.LadderBlock
+import net.minecraft.world.level.block.LeverBlock
+import net.minecraft.world.level.block.NetherWartBlock
+import net.minecraft.world.level.block.PressurePlateBlock
+import net.minecraft.world.level.block.RedstoneTorchBlock
+import net.minecraft.world.level.block.RepeaterBlock
+import net.minecraft.world.level.block.SignBlock
+import net.minecraft.world.level.block.SkullBlock
+import net.minecraft.world.level.block.TripWireHookBlock
+import net.minecraft.world.level.block.WallBannerBlock
+import net.minecraft.world.level.block.WallSkullBlock
+import net.minecraft.world.level.block.WeightedPressurePlateBlock
+import net.minecraft.world.level.block.piston.PistonHeadBlock
+import net.minecraft.world.phys.shapes.CollisionContext
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.max
 
 /**
  * Chat and title alerts for the dungeon score: 270 (S) and 300 (S+) messages to the party, plus one-time messages when the
@@ -105,7 +128,7 @@ object EtherwarpOverlay : Module(
     Category.Dungeons,
     "Box on the block an etherwarp would land on while sneaking with an etherwarp item."
 ) {
-    private val range = NumberSetting("Range (blocks)", 61.0, 20.0, 100.0, 1.0, "How far the warp reaches (61 for a fully upgraded item).")
+    private val range = NumberSetting("Range (blocks)", 61.0, 20.0, 100.0, 1.0, "How far the warp reaches (57 base, more with Tuned Transmission / Etherwarp Merger).")
     private val showFail = BooleanSetting("Show Fail", true, "Draw a red box where the warp would fail.")
     private val alwaysShow = BooleanSetting("Always Show", false, "Also draw while standing (not only sneaking).")
     private val phase = BooleanSetting("See Through Walls", true, "Draw the box through walls.")
@@ -126,15 +149,11 @@ object EtherwarpOverlay : Module(
         val level = mc.level ?: return null
         val id = player.mainHandItem.skyblockId ?: return null
         if (id !in ITEMS) return null
-        if (!player.isShiftKeyDown && !alwaysShow.value) return null
-        val from = player.getEyePosition(1f)
-        val to = from.add(player.getViewVector(1f).scale(range.value))
-        val hit = level.clip(net.minecraft.world.level.ClipContext(from, to, net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, player))
-        if (hit.type != net.minecraft.world.phys.HitResult.Type.BLOCK) return null
-        val pos = hit.blockPos
-        val free = level.getBlockState(pos.above()).getCollisionShape(level, pos.above()).isEmpty &&
-            level.getBlockState(pos.above(2)).getCollisionShape(level, pos.above(2)).isEmpty
-        return Target(pos, free, from.distanceTo(hit.location))
+        if (!player.isCrouching && !alwaysShow.value) return null
+        // The ray and the block lists live in EtherwarpRules (ported from NoammAddons' EtherwarpHelper), shared with the Pathfinder.
+        val from = player.getPosition(1f).add(0.0, if (player.isCrouching) 1.62 - 0.35 else 1.62, 0.0)
+        val hit = ced.cedclient.pathing.EtherwarpRules.cast(level, from, player.getViewVector(1f), range.value) ?: return null
+        return Target(hit.pos, hit.ok, hit.distance)
     }
 
     init {

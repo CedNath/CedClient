@@ -36,6 +36,18 @@ object HudStore {
     @Synchronized
     fun get(key: String): String? = huds.get(key)?.let { if (it is JsonPrimitive && it.isString) it.asString else it.toString() }
 
+    /** A copy of every saved HUD, for the share code. */
+    @Synchronized
+    fun snapshot(): JsonObject = huds.deepCopy()
+
+    /** The share code's HUDs replace the saved ones. */
+    @Synchronized
+    fun replaceAll(all: JsonObject) {
+        huds.entrySet().map { it.key }.forEach { huds.remove(it) }
+        all.entrySet().forEach { huds.add(it.key, it.value) }
+        save()
+    }
+
     @Synchronized
     fun put(key: String, text: String) {
         val value = runCatching { JsonParser.parseString(text) }.getOrNull() ?: JsonPrimitive(text)

@@ -76,6 +76,7 @@ object DungeonMap : Module(
     private val showSecrets get() = labelMode.value.endsWith("Secrets")
     private val checkmarks = BooleanSetting("Checkmarks", true, "Cleared (white), all secrets (green) and failed (red) rooms, from the dungeon map.")
     private val runInfo = BooleanSetting("Run Info", true, "Two lines under the map: estimated score, secrets, crypts, deaths, bat / mimic / prince (also from other mods' chat lines).")
+    private val forcePaul = BooleanSetting("Force Paul Perk", false, "Counts Paul's EZPZ perk (+10 score) in the estimate even if the election lookup doesn't see it. Normally it is detected from Hypixel's election data (mayor or minister).")
     private val clearSummary = BooleanSetting("Clear Summary", true, "When the run ends, prints in chat who cleared which rooms (solo / stacked, hover for the names) and who died.")
     private val playerMarker = BooleanSetting("Player Marker", true, "Show where you are and which way you face.")
     private val playerNames = DropdownSetting("Player Names", listOf("While Holding Leap", "Always", "Never"), "While Holding Leap", "Names under the player markers.")
@@ -146,12 +147,12 @@ object DungeonMap : Module(
     init {
 //#if CHEAT
         addPopupSettings(
-            listOf("Rooms" to listOf(labelMode, labelSize, checkmarks, runInfo, clearSummary, showUndiscovered, mimicRoom, mimicEsp), "Players" to listOf(playerMarker, teammates, playerNames, markerStyle, bloodRoute)),
+            listOf("Rooms" to listOf(labelMode, labelSize, checkmarks, runInfo, forcePaul, clearSummary, showUndiscovered, mimicRoom, mimicEsp), "Players" to listOf(playerMarker, teammates, playerNames, markerStyle, bloodRoute)),
             listOf("Card" to listOf(background, backgroundColor, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor), "Player Colours" to playerColors),
         )
 //#else
 //$        addPopupSettings(
-//$            listOf("Rooms" to listOf(labelMode, labelSize, checkmarks, runInfo, clearSummary), "Players" to listOf(playerMarker, teammates, playerNames, markerStyle)),
+//$            listOf("Rooms" to listOf(labelMode, labelSize, checkmarks, runInfo, forcePaul, clearSummary), "Players" to listOf(playerMarker, teammates, playerNames, markerStyle)),
 //$            listOf("Card" to listOf(background, backgroundColor, backgroundOpacity, border), "Colours" to listOf(normalColor, puzzleColor, trapColor, minibossColor, bloodColor, entranceColor, fairyColor, unopenedColor, witherDoorColor), "Player Colours" to playerColors),
 //$        )
 //#endif
@@ -165,11 +166,16 @@ object DungeonMap : Module(
             val player = mc.player ?: return@register
             // A new run is a new world: the last run's secret counts must not show.
             if (secretsLevel !== level) { secretsLevel = level; secretsFound.clear(); secretsVersion++ }
+            // The run ends in the boss room, where the map below stops: the clear breakdown still has to see the end of the run.
+            if (isEnabled && clearSummary.value && DungeonState.active && DungeonState.inBoss) {
+                safely("Dungeon Map") { ced.cedclient.state.DungeonClears.update(level, player) }
+            }
             if (!isEnabled || !DungeonState.active || DungeonState.inBoss) return@register
             // The map (checkmarks, player icons) every tick; the world scan every 10.
             safely("Dungeon Map") {
             HotbarDungeonMap.update(level, player)
             if (clearSummary.value) ced.cedclient.state.DungeonClears.update(level, player)
+            DungeonRunInfo.forcePaul = forcePaul.value
             DungeonRunInfo.update()
             if (scanDelay-- > 0) return@register
             scanDelay = 10

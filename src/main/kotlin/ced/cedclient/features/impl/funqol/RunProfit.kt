@@ -63,7 +63,7 @@ object RunProfit : Module(
     private val keyCost = BooleanSetting("Count Chest Keys", true, "A Dungeon Chest Key used on a chest is part of its cost.")
     private val croesus = BooleanSetting("Croesus Profit", true, "Shows each chest's profit on the Croesus chest list.")
     private val croesusBest = BooleanSetting("Highlight Best Chest", true, "Marks the most profitable chest gold.")
-    private val hideOpened = BooleanSetting("Hide Opened Chests", false, "No profit on a Croesus chest that was already opened.")
+    private val hideOpened = BooleanSetting("Hide Opened Chests", false, "Croesus runs whose chest you already opened are hidden from the run list (Fancy Menu or vanilla), and an opened chest shows no profit.")
     private val fancy = BooleanSetting("Fancy Menu", false, "Replaces the reward chest screen with a clean item list and an Open button.")
     private val historyButton = ActionSetting("Loot History", "Every logged chest (same as /cc loot).") {
         (mc.gui.screen() as? ClickGUI)?.openPopup(RunLootPopup())
@@ -157,6 +157,7 @@ object RunProfit : Module(
     private val ESSENCE = Regex("""^(\w+) Essence x(\d+)$""")
     private val COINS = Regex("""([\d,]+(?:\.\d+)?)\s*Coins""")
     private val ENCHANT = Regex("""^(.+) ([IVXLC]+)$""")
+    private val BOOK = Regex("""^Enchanted Book \((.+) ([IVXLC]+)\)$""")
 
     /** Display name (colour codes off) -> NEU internal name, for Croesus lore lines. Filled in the background. */
     @Volatile
@@ -209,7 +210,14 @@ object RunProfit : Module(
                 (LowestBin.ofId("ULTIMATE_$base;$level") ?: LowestBin.ofId("$base;$level"))?.let { return it to false }
             }
         }
-        return names[line]?.let(LowestBin::ofId)?.let { it to false }
+        BOOK.matchEntire(line)?.let { m ->
+            val level = roman(m.groupValues[2])
+            val base = m.groupValues[1].uppercase().replace(' ', '_').replace('-', '_')
+            if (level != null) (LowestBin.ofId("ULTIMATE_$base;$level") ?: LowestBin.ofId("$base;$level"))?.let { return it to false }
+        }
+        // No NEU repo / unknown display name: "Second Master Star" -> SECOND_MASTER_STAR.
+        val id = names[line] ?: line.uppercase().replace(' ', '_').replace("'", "").replace('-', '_')
+        return LowestBin.ofId(id)?.let { it to false }
     }
 
     // ---------------------------------------------------------------- reward chest
@@ -271,7 +279,11 @@ object RunProfit : Module(
     /** Mixin: a click on the screen. True = swallow it (Fancy Menu), else the chest button's click is logged and goes on. */
     fun onClick(screen: AbstractContainerScreen<*>, mx: Double, my: Double, button: Int): Boolean {
         if (!isEnabled) return false
-        if (handles(screen)) return fancyClick(screen, mx, my, button)
+        if (handles(screen)) return when {
+            isRunList(screen) -> runsClick(screen, mx, my, button)
+            isChestPicker(screen) -> pickerClick(screen, mx, my, button)
+            else -> fancyClick(screen, mx, my, button)
+        }
         if (button != 0 || openStack(screen) == null) return false
         val hovered = (screen as AbstractContainerScreenAccessor).`ced$getHoveredSlot`() ?: return false
         if (screen.menu.slots.indexOf(hovered) == OPEN_SLOT) record(screen)
@@ -280,7 +292,7 @@ object RunProfit : Module(
 
     // ---------------------------------------------------------------- croesus overlay
 
-    private class View(val slot: Int, val profit: Double)
+    private class View(val slot: Int, val profit: Double, val name: String = "", val value: Double = 0.0, val cost: Double = 0.0, val stack: ItemStack = ItemStack.EMPTY)
 
     private var viewId = -1
     private var viewAt = 0L
@@ -303,13 +315,25 @@ object RunProfit : Module(
                 if (line.isBlank()) break
                 lineValue(line)?.let { (v, isEssence) -> if (essence.value || !isEssence) value += v }
             }
-            View(i, value - costOf(lore))
+            val cost = costOf(lore)
+            View(i, value - cost, stack.cleanName, value, cost, stack)
         }
         return views
     }
 
     /** Mixin: right after the slots are drawn, so tooltips stay on top. */
     fun drawOverlays(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor) {
+        // Vanilla run list: a run whose chest was opened is covered up (the Fancy Menu leaves it out instead).
+        if (isEnabled && hideOpened.value && screen === mc.gui.screen() && screen is ContainerScreen && isRunList(screen)) {
+            val acc = screen as AbstractContainerScreenAccessor
+            for (i in 0 until chestSlots(screen)) {
+                val stack = screen.menu.slots[i].item.takeIf { !it.isEmpty } ?: continue
+                if (stack.loreLines.none { it.startsWith("Opened Chest:") }) continue
+                val x = acc.`ced$getLeftPos`() + screen.menu.slots[i].x
+                val y = acc.`ced$getTopPos`() + screen.menu.slots[i].y
+                g.fill(x, y, x + 16, y + 16, 0xFF1B1B1B.toInt())
+            }
+        }
         if (!isEnabled || !croesus.value || screen !== mc.gui.screen() || screen !is ContainerScreen) return
         contextFromTitle(screen)
         val chests = croesusChests(screen)
@@ -340,12 +364,14 @@ object RunProfit : Module(
     private const val GRAY = 0xFFBBBBBB.toInt()
 
     private var loggedScreen: Any? = null
+    /** Built once: [handles] runs for every container screen on every frame and mouse event. */
+    private val CODE_RE = Regex("§.")
 
     fun handles(screen: AbstractContainerScreen<*>): Boolean {
         if (!isEnabled) return false
-        val name = screen.title.string.replace(Regex("§."), "").trim()
+        val name = screen.title.string.replace(CODE_RE, "").trim()
         val reward = REWARD_TITLES.any { it.equals(name, ignoreCase = true) }
-        val on = fancy.value && screen is ContainerScreen && reward
+        val on = fancy.value && screen is ContainerScreen && (reward || name.equals("Croesus", ignoreCase = true) || CROESUS_FLOOR.matches(name))
         if (reward && loggedScreen !== screen) {
             loggedScreen = screen
             ced.cedclient.utils.Debug.line("Run Profit", "reward screen \"$name\" (${screen.javaClass.simpleName}), fancy menu ${if (fancy.value) "on" else "OFF (turn on Fancy Menu in Run Profit)"} -> ${if (on) "drawing" else "vanilla"}")
@@ -359,7 +385,9 @@ object RunProfit : Module(
     }
 
     fun render(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        if (isRunList(screen)) { renderRuns(screen, g, mouseX, mouseY); return }
         contextFromTitle(screen)
+        if (isChestPicker(screen)) { renderPicker(screen, g, mouseX, mouseY); return }
         val reward = parseReward(screen)
         val (x, y, h) = panel(screen, reward.items.size).let { Triple(it[0], it[1], it[2]) }
         val value = reward.items.sumOf { if (essence.value || !it.essence) it.value else 0.0 }
@@ -403,6 +431,153 @@ object RunProfit : Module(
         val player = mc.player ?: return true
         mc.gameMode?.handleContainerInput(screen.menu.containerId, OPEN_SLOT, 0, ContainerInput.PICKUP, player)
         ced.cedclient.utils.Debug.line("Run Profit", "opened the reward chest")
+        return true
+    }
+
+    // ---------------------------------------------------------------- croesus chest picker (Fancy Menu)
+
+    private const val PKW = 320f
+    private const val PKROW = 26f
+
+    private fun isChestPicker(screen: AbstractContainerScreen<*>) = CROESUS_FLOOR.matches(title(screen))
+
+    private fun pickerPanel(screen: AbstractContainerScreen<*>, n: Int): FloatArray {
+        val h = 44f + n.coerceAtLeast(1) * PKROW + 16f
+        return floatArrayOf((screen.width - PKW) / 2f, (screen.height - h) / 2f, h)
+    }
+
+    private fun renderPicker(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        val chests = croesusChests(screen)
+        val (x, y, h) = pickerPanel(screen, chests.size).let { Triple(it[0], it[1], it[2]) }
+        val best = if (croesusBest.value) chests.maxByOrNull { it.profit } else null
+        HudCard.draw(g, 0, 0) {
+            NVGRenderer.rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat(), 0x88000000.toInt())
+            NVGRenderer.rect(x, y, PKW, h, HudCard.BACKGROUND, 8f)
+            NVGRenderer.hollowRect(x, y, PKW, h, 1f, Theme.hudBorderRgba, 8f)
+            HudCard.text(title(screen), x + 14f, y + 12f, 14f, -1)
+            if (chests.isEmpty()) HudCard.text("Loading...", x + 14f, y + 44f, 11f, GRAY)
+            chests.forEachIndexed { i, c ->
+                val ry = y + 40f + i * PKROW
+                val hover = mouseX >= x + 8f && mouseX <= x + PKW - 8f && mouseY >= ry && mouseY <= ry + PKROW - 3f
+                if (c === best) NVGRenderer.rect(x + 8f, ry, PKW - 16f, PKROW - 3f, 0x44FFD700, 5f)
+                else if (hover) NVGRenderer.rect(x + 8f, ry, PKW - 16f, PKROW - 3f, 0x30FFFFFF, 5f)
+                HudCard.text(c.name, x + 36f, ry + 3f, 11f, -1)
+                HudCard.text("Value ${short(c.value)}   Cost ${short(c.cost)}", x + 36f, ry + 14f, 9f, GRAY)
+                val p = signed(c.profit)
+                HudCard.text(p, x + PKW - 16f - HudCard.width(p, 13f), ry + 5f, 13f, if (c.profit >= 0) GREEN else RED)
+            }
+        }
+        // Item icons are vanilla sprites: a stratum above the NanoVG panel so they land on top of it.
+        g.nextStratum()
+        chests.forEachIndexed { i, c -> g.item(c.stack, (x + 14f).toInt(), (y + 43f + i * PKROW).toInt()) }
+    }
+
+    private fun pickerClick(screen: AbstractContainerScreen<*>, mx: Double, my: Double, button: Int): Boolean {
+        if (button != 0) return true
+        val chests = croesusChests(screen)
+        val (x, y, _) = pickerPanel(screen, chests.size).let { Triple(it[0], it[1], it[2]) }
+        val hit = chests.filterIndexed { i, _ ->
+            val ry = y + 40f + i * PKROW
+            mx >= x + 8f && mx <= x + PKW - 8f && my >= ry && my <= ry + PKROW - 3f
+        }.firstOrNull() ?: return true
+        val player = mc.player ?: return true
+        mc.gameMode?.handleContainerInput(screen.menu.containerId, hit.slot, 0, ContainerInput.PICKUP, player)
+        ced.cedclient.utils.Debug.line("Run Profit", "Croesus chest picker: clicked slot ${hit.slot}")
+        return true
+    }
+
+    // ---------------------------------------------------------------- croesus run list (Fancy Menu)
+
+    private class Run(val slot: Int, val stack: ItemStack, val floor: String, val ago: String, val opened: String?, val expires: String)
+
+    private const val CW = 300f
+    private const val RROW = 20f
+    private const val PER_COL = 10
+
+    private fun isRunList(screen: AbstractContainerScreen<*>) = title(screen).equals("Croesus", ignoreCase = true)
+
+    /** Each run button of the Croesus list ("Click to view chests!" in its lore); runs with an opened chest are left out with Hide Opened Chests. */
+    private fun croesusRuns(screen: AbstractContainerScreen<*>): List<Run> = (0 until chestSlots(screen)).mapNotNull { i ->
+        val stack = screen.menu.slots[i].item.takeIf { !it.isEmpty } ?: return@mapNotNull null
+        val lore = stack.loreLines
+        if (lore.none { it.contains("Click to view chests", ignoreCase = true) }) return@mapNotNull null
+        val opened = lore.firstOrNull { it.startsWith("Opened Chest:") }?.substringAfter(':')?.trim()
+        if (opened != null && hideOpened.value) return@mapNotNull null
+        val floor = (if (stack.cleanName.contains("Master", ignoreCase = true)) "Master " else "") + (lore.firstOrNull { it.isNotBlank() } ?: stack.cleanName)
+        Run(
+            i, stack, floor,
+            lore.firstOrNull { it.startsWith("Completed:") }?.substringAfter(':')?.trim().orEmpty(),
+            opened,
+            lore.firstOrNull { it.startsWith("Chests expire in") }?.substringAfter("in ")?.trim('!', ' ').orEmpty(),
+        )
+    }.take(PER_COL * 3)
+
+    private fun navSlot(screen: AbstractContainerScreen<*>, word: String) = (0 until chestSlots(screen)).firstOrNull {
+        val n = screen.menu.slots[it].item.takeIf { s -> !s.isEmpty }?.cleanName ?: return@firstOrNull false
+        n.contains("Page", ignoreCase = true) && n.contains(word, ignoreCase = true)
+    }
+
+    /** x, y, width, height of the run card. */
+    private fun runPanel(screen: AbstractContainerScreen<*>, n: Int): FloatArray {
+        val cols = ((n + PER_COL - 1) / PER_COL).coerceIn(1, 3)
+        val w = cols * CW + 28f
+        val h = 44f + minOf(n, PER_COL).coerceAtLeast(1) * RROW + 44f
+        return floatArrayOf((screen.width - w) / 2f, (screen.height - h) / 2f, w, h)
+    }
+
+    private fun renderRuns(screen: AbstractContainerScreen<*>, g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        val runs = croesusRuns(screen)
+        val (x, y, w, h) = runPanel(screen, runs.size).let { listOf(it[0], it[1], it[2], it[3]) }
+        val prev = navSlot(screen, "Previous")
+        val next = navSlot(screen, "Next")
+        val btnY = y + h - 34f
+        HudCard.draw(g, 0, 0) {
+            NVGRenderer.rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat(), 0x88000000.toInt())
+            NVGRenderer.rect(x, y, w, h, HudCard.BACKGROUND, 8f)
+            NVGRenderer.hollowRect(x, y, w, h, 1f, Theme.hudBorderRgba, 8f)
+            HudCard.text("Croesus", x + 14f, y + 12f, 14f, -1)
+            val count = "${runs.size} run${if (runs.size == 1) "" else "s"}"
+            HudCard.text(count, x + w - 14f - HudCard.width(count, 11f), y + 14f, 11f, GRAY)
+            if (runs.isEmpty()) HudCard.text(if (hideOpened.value) "No unopened runs on this page." else "Loading...", x + 14f, y + 44f, 11f, GRAY)
+            runs.forEachIndexed { i, r ->
+                val rx = x + 14f + (i / PER_COL) * CW
+                val ry = y + 42f + (i % PER_COL) * RROW
+                if (mouseX >= rx && mouseX <= rx + CW - 8f && mouseY >= ry && mouseY <= ry + RROW - 2f) NVGRenderer.rect(rx - 2f, ry - 1f, CW - 6f, RROW, 0x40FFFFFF, 4f)
+                HudCard.text(r.floor, rx + 22f, ry + 3f, 11f, -1)
+                val status = if (r.opened != null) "Opened: ${r.opened}" else "Unopened"
+                HudCard.text(status, rx + CW - 8f - HudCard.width(status, 11f), ry + 3f, 11f, if (r.opened != null) 0xFF777777.toInt() else GREEN)
+                if (r.ago.isNotEmpty()) HudCard.text(r.ago, rx + 22f + 96f, ry + 3f, 10f, GRAY)
+            }
+            for ((slot, label, bx) in listOf(Triple(prev, "Previous Page", x + 16f), Triple(next, "Next Page", x + w - 16f - 110f))) {
+                if (slot == null) continue
+                val hover = mouseX >= bx && mouseX <= bx + 110f && mouseY >= btnY && mouseY <= btnY + 22f
+                NVGRenderer.rect(bx, btnY, 110f, 22f, if (hover) 0xF0303040.toInt() else 0xFF222230.toInt(), 6f)
+                NVGRenderer.hollowRect(bx, btnY, 110f, 22f, 1f, Theme.hudBorderRgba, 6f)
+                HudCard.text(label, bx + 55f - HudCard.width(label, 11f) / 2f, btnY + 5f, 11f, -1)
+            }
+        }
+        // Item icons are vanilla sprites: a stratum above the NanoVG panel so they land on top of it.
+        g.nextStratum()
+        runs.forEachIndexed { i, r -> g.item(r.stack, (x + 14f + (i / PER_COL) * CW).toInt(), (y + 41f + (i % PER_COL) * RROW).toInt()) }
+    }
+
+    private fun runsClick(screen: AbstractContainerScreen<*>, mx: Double, my: Double, button: Int): Boolean {
+        if (button != 0) return true
+        val runs = croesusRuns(screen)
+        val (x, y, w, h) = runPanel(screen, runs.size).let { listOf(it[0], it[1], it[2], it[3]) }
+        val btnY = y + h - 34f
+        val target = when {
+            my in btnY.toDouble()..(btnY + 22f).toDouble() && mx in (x + 16f).toDouble()..(x + 126f).toDouble() -> navSlot(screen, "Previous")
+            my in btnY.toDouble()..(btnY + 22f).toDouble() && mx in (x + w - 126f).toDouble()..(x + w - 16f).toDouble() -> navSlot(screen, "Next")
+            else -> runs.filterIndexed { i, _ ->
+                val rx = x + 14f + (i / PER_COL) * CW
+                val ry = y + 42f + (i % PER_COL) * RROW
+                mx in rx.toDouble()..(rx + CW - 8f).toDouble() && my in ry.toDouble()..(ry + RROW - 2f).toDouble()
+            }.firstOrNull()?.slot
+        } ?: return true
+        val player = mc.player ?: return true
+        mc.gameMode?.handleContainerInput(screen.menu.containerId, target, 0, ContainerInput.PICKUP, player)
+        ced.cedclient.utils.Debug.line("Run Profit", "Croesus run list: clicked slot $target")
         return true
     }
 

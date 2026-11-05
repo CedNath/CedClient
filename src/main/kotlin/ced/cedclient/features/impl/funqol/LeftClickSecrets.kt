@@ -6,7 +6,10 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.state.DungeonScanner
 import ced.cedclient.state.DungeonState
+import ced.cedclient.utils.safely
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.core.BlockPos
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.level.block.Blocks
@@ -22,9 +25,29 @@ object LeftClickSecrets : Module(
 ) {
     private val waterBoard = BooleanSetting("Water Board", false, "Also turns left-clicked levers into clicks in the Water Board room (off: you can still hit them to mine).")
 
-    init { addSettings(waterBoard) }
+    private val closeAnyClick = BooleanSetting("Close On Any Click", false, "Also closes secret chests opened by a normal right-click (off: only chests opened by a left-click close).")
+
+    init {
+        addSettings(waterBoard, closeAnyClick)
+        ClientTickEvents.END_CLIENT_TICK.register { safely("Left Click Secrets") { closeChest() } }
+    }
 
     private var lastHeld: BlockPos? = null
+    private var lastChestClick = 0L
+
+    /** Closes the chest GUI a secret click just opened (always for left-click, any click with the option). */
+    private fun closeChest() {
+        val mc = Minecraft.getInstance()
+        if (!isEnabled || !DungeonState.inDungeon || DungeonState.inBoss) return
+        if (mc.gui.screen() !is ContainerScreen) return
+        val level = mc.level ?: return
+        val pos = (mc.hitResult as? BlockHitResult)?.takeIf { it.type == HitResult.Type.BLOCK }?.blockPos ?: return
+        if (!level.getBlockState(pos).`is`(Blocks.CHEST) && !level.getBlockState(pos).`is`(Blocks.TRAPPED_CHEST)) return
+        val fromLeftClick = System.currentTimeMillis() - lastChestClick < 1000
+        if (!fromLeftClick && !closeAnyClick.value) return
+        mc.player?.closeContainer()
+        lastChestClick = 0L
+    }
 
     /** Called from Minecraft.startAttack (every left click, before mining starts). True = click handled, cancel the attack. */
     @JvmStatic
@@ -48,6 +71,7 @@ object LeftClickSecrets : Module(
         val mc = Minecraft.getInstance()
         val gm = mc.gameMode ?: return
         val lp = mc.player ?: return
+        lastChestClick = System.currentTimeMillis()
         gm.useItemOn(lp, InteractionHand.MAIN_HAND, hit)
         lp.swingMainHand(attack = true)
     }

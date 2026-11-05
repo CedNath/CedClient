@@ -6,6 +6,7 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import java.util.Optional
@@ -24,7 +25,7 @@ object HudCard {
     /** [behindLeap]: while the Leap Menu is open the panel is drawn inside its pass, under its dim backdrop and boxes. */
     fun draw(g: GuiGraphicsExtractor, x: Int, y: Int, behindLeap: Boolean = false, content: () -> Unit) {
         // Which HUD this is, so card() can use its style (panels are told apart by their spot).
-        val label = HudElement.all.firstOrNull { it.panelX == x && it.panelY == y }?.label
+        val label = labelAt(x, y)
         val full = {
             currentLabel = label
             val ratio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
@@ -37,6 +38,20 @@ object HudCard {
     }
 
     private var currentLabel: String? = null
+
+    /**
+     * Which HUD sits at (x, y). HudElement.all builds a new list of every panel on each call and every card asks once per frame,
+     * so the answer is kept for a second (positions only change while you drag a panel in the editor).
+     */
+    private val labelCache = HashMap<Long, String>()
+    private var labelCacheAt = 0L
+
+    private fun labelAt(x: Int, y: Int): String? {
+        val now = System.currentTimeMillis()
+        if (now - labelCacheAt > 1000) { labelCache.clear(); labelCacheAt = now }
+        val key = (x.toLong() shl 32) or (y.toLong() and 0xFFFFFFFFL)
+        return labelCache.getOrPut(key) { HudElement.all.firstOrNull { it.panelX == x && it.panelY == y }?.label ?: "" }.ifEmpty { null }
+    }
 
     private class Bg(val on: BooleanSetting?, val opacity: NumberSetting)
     private val bgSettings = HashMap<String, Bg>()
@@ -105,7 +120,25 @@ object HudCard {
         }
     }
 
-    fun width(text: String, size: Float) = NVGRenderer.textWidth(text, size, font)
+    /**
+     * Measured in the space [draw] draws in (canvas scaled to GUI units). Callers measure before [draw] runs, where the
+     * pixel-snapped glyph size differs, so the columns came out too narrow and the text overlapped.
+     */
+    fun width(text: String, size: Float): Float {
+        // Inside a frame the current transform is the caller's own (HUD content, ClickGUI, editors): measure in it as before.
+        if (NVGRenderer.drawing) return NVGRenderer.textWidth(text, size, font)
+        // Not canvasWidth: outside a frame that is whatever the last NanoVG pass (a screen, a tooltip) left behind.
+        // The HUD pass is the whole framebuffer, so the ratio draw() will use is framebuffer / pixel ratio / GUI width.
+        val window = Minecraft.getInstance().window
+        val gui = window.guiScaledWidth.toFloat()
+        val ratio = if (gui > 0f) window.width / NVGRenderer.devicePixelRatio() / gui else 1f
+        NVGRenderer.push()
+        try {
+            NVGRenderer.resetTransform()
+            NVGRenderer.scale(ratio, ratio)
+            return NVGRenderer.textWidth(text, size, font)
+        } finally { NVGRenderer.pop() }
+    }
 
     fun text(text: String, x: Float, y: Float, size: Float, color: Int) = NVGRenderer.text(text, x, y, size, color, font)
 

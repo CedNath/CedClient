@@ -300,6 +300,8 @@ object SlotBinding : Module("Slot Binding", Category.Skyblock, "Link inventory s
                 if (!isEnabled) return@register
                 val acc = s as AbstractContainerScreenAccessor
                 val cs = s as AbstractContainerScreen<*>
+                // Only on the player's own inventory screen: not over a terminal, Croesus or any other menu.
+                if (cs !is net.minecraft.client.gui.screens.inventory.InventoryScreen) return@register
                 fun px(slot: Slot) = acc.`ced$getLeftPos`() + slot.x
                 fun py(slot: Slot) = acc.`ced$getTopPos`() + slot.y
                 val hov = hovered(s)?.takeIf { it.container is Inventory }?.containerSlot
@@ -354,6 +356,7 @@ private class MenuKeys(
                 if (slot == null || slot.item.isEmpty) return@register false
                 if (!canEquip(slot)) return@register false
                 lastClick = now
+                PetDisplay.noteEquip(slot.item) // a loadout's pet, read before Close After Use shuts the menu
                 val player = mc.player ?: return@register false
                 mc.gameMode?.handleContainerInput(cs.menu.containerId, slots[idx], 0, ContainerInput.PICKUP, player)
                 Debug.line(tag, "equip ${idx + 1} (menu slot ${slots[idx]})")

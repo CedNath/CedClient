@@ -75,9 +75,9 @@ data class ScannedBlock(
  * that needs the chunk-cache rewrite mentioned above, not just this.
  */
 object BlockESP : Module(
-    "BlockESP",
+    "Block ESP",
     Category.Cheats,
-    "Highlights selected block types within range"
+    "Boxes round blocks you pick, through walls"
 ) {
     private val mc = Minecraft.getInstance()
 

@@ -249,10 +249,17 @@ object ConfigManager {
     // -------------------------
 
     private const val CODE_PREFIX = "CC1:"
+    private const val HUDS_KEY = "__huds"
+
+    /** True when the last imported code carried HUD positions (they apply after a restart). */
+    var importedHuds = false
+        private set
 
     /** Every module's on / off and settings as one pasteable line: "CC1:" + base64(gzip(json)). Panel layout is not in it. */
-    fun exportCode(): String {
-        val raw = gson.toJson(buildModulesJson()).toByteArray(Charsets.UTF_8)
+    fun exportCode(withHuds: Boolean = true): String {
+        val modules = buildModulesJson()
+        if (withHuds) modules.add(HUDS_KEY, HudStore.snapshot())
+        val raw = gson.toJson(modules).toByteArray(Charsets.UTF_8)
         val out = java.io.ByteArrayOutputStream()
         java.util.zip.GZIPOutputStream(out).use { it.write(raw) }
         return CODE_PREFIX + java.util.Base64.getEncoder().encodeToString(out.toByteArray())
@@ -266,6 +273,10 @@ object ConfigManager {
             val bytes = java.util.Base64.getDecoder().decode(text.removePrefix(CODE_PREFIX))
             val json = java.util.zip.GZIPInputStream(bytes.inputStream()).use { it.readBytes() }.toString(Charsets.UTF_8)
             val modules = JsonParser.parseString(json).asJsonObject
+            // The HUD positions ride along under their own key; a code from before that has none and leaves the HUDs alone.
+            val huds = modules.remove(HUDS_KEY)?.takeIf { it.isJsonObject }?.asJsonObject
+            importedHuds = huds != null
+            huds?.let { HudStore.replaceAll(it) }
             suppressAutoSave = true
             try {
                 applyModulesJson(modules)

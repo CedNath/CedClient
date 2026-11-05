@@ -32,6 +32,13 @@ object DevAccess {
     val isDev get() = self in DEV
     val isFriend get() = self in FRIENDS
 
+    /** Dev + abhu + cleeve only (Morph). Keep in step with MORPH_ALLOWED in the site's worker.js. */
+    private val CLOSE = DEV + setOf(
+        UUID.fromString("4e9324f4-782d-4708-a349-4818e2d6ea77"), // abhu
+        UUID.fromString("b719162a-bd30-467d-8034-e480d440b007"), // cleeve
+    )
+    val isCloseFriend get() = self in CLOSE
+
     /** "/cc dev ...": only registered for the dev. Quick looks at what the mod reads from the game. */
     fun commandTree(): LiteralArgumentBuilder<FabricClientCommandSource> = ClientCommands.literal("dev")
         .requires { isDev }

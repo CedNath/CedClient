@@ -87,6 +87,7 @@ object TickTimers : Module(
     val suffixText = TextSetting("Suffix", "", "The text after the number. Empty = the unit (t or s).").withDependency { showSuffix.value }
     val pingFix = BooleanSetting("Ping Compensation", false, "Subtract half your ping (in ticks) so the number matches the server a little better.")
     val outline = BooleanSetting("Text Outline", false, "A black outline around the text so it reads on any background.")
+    val background = BooleanSetting("Background", false, "The dark card behind each counter. Off: just the text.")
     val high = ColorSetting("High Color", Color(85, 255, 85), "More than two thirds left.")
     val mid = ColorSetting("Mid Color", Color(255, 170, 0), "Between a third and two thirds left.")
     val low = ColorSetting("Low Color", Color(255, 85, 85), "Less than a third left.")
@@ -100,7 +101,7 @@ object TickTimers : Module(
     init {
         FightTicks.init()
         addSettings(showMaxor, showGoldor, showPy, showPad, format, showPrefix, maxorPrefix, goldorPrefix, pyPrefix, padPrefix,
-            showSuffix, suffixText, pingFix, outline, high, mid, low)
+            showSuffix, suffixText, pingFix, outline, background, high, mid, low)
     }
 }
 
@@ -174,7 +175,7 @@ abstract class TickPanel(
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
         HudCard.draw(g, panelX, panelY) {
-            HudCard.card(width, height, s)
+            if (TickTimers.background.value) HudCard.card(width, height, s)
             text(line.first, pad, pad, size, line.third, s)
             text(line.second, width - pad - HudCard.width(line.second, size), pad, size, line.third, s)
         }
@@ -247,6 +248,7 @@ object RoomAlerts : Module(
     private val showTime = BooleanSetting("Show Time In Room", true, "Put the time spent in the room in the cleared title.")
     private val sound = BooleanSetting("Sound", true, "A pling with each title.")
     private val gapSeconds = NumberSetting("Gap (s)", 3.0, 0.5, 10.0, 0.5, "At least this long between two titles.")
+    private val minTime = NumberSetting("Min Time In Room (s)", 2.0, 0.0, 10.0, 0.5, "The cleared title needs this much time spent in the room. Rooms a teammate cleared (a rush through them) flip to cleared as you walk in and are skipped.")
 
     private val SECRETS = Regex("""(\d+)/(\d+) Secrets""")
     private const val START = -185
@@ -257,24 +259,29 @@ object RoomAlerts : Module(
      * One stay in a room. Walking back in within [REENTER_MS] (standing on a room edge, a lag spike moving you across it)
      * continues the same visit, so the time keeps counting and nothing is announced twice.
      */
-    private class Visit(val enteredAt: Long, var lastSeen: Long) {
+    private class Visit(var lastSeen: Long) {
+        /** Time actually spent inside the room, over every stay and every tile of it (leaving and coming back does not reset it). */
+        var inside = 0L
         /** The map showed this room not cleared while you were in it: only then does it turning cleared mean you did it. */
         var sawUncleared = false
     }
-    private val visits = HashMap<Pair<Int, Int>, Visit>()
+    /** Keyed by room (its name, so every tile of a big room is one entry), else by tile. */
+    private val visits = HashMap<Any, Visit>()
+    private var lastTickAt = 0L
     // Each room gets each title at most once per run, whatever the tile or the action bar does.
     private val secretsAlerted = HashSet<Pair<Int, Int>>()
-    private val clearedAlerted = HashSet<Pair<Int, Int>>()
+    private val clearedAlerted = HashSet<Any>()
+    private val partialSeen = HashSet<Pair<Int, Int>>()
     private const val REENTER_MS = 4000L
 
     private fun gap() = System.currentTimeMillis() - lastAlert > gapSeconds.value * 1000
 
     private fun reset() {
-        visits.clear(); secretsAlerted.clear(); clearedAlerted.clear(); lastTile = null
+        visits.clear(); secretsAlerted.clear(); clearedAlerted.clear(); partialSeen.clear(); lastTile = null
     }
 
     init {
-        addSettings(cleared, secrets, showTime, sound, gapSeconds)
+        addSettings(cleared, secrets, showTime, sound, gapSeconds, minTime)
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
             if (!isEnabled || !overlay || !secrets.value || !DungeonState.inDungeon) return@register
             val m = SECRETS.find(message.string.replace(Regex("§."), "")) ?: return@register
@@ -282,7 +289,11 @@ object RoomAlerts : Module(
             val total = m.groupValues[2].toInt()
             // The bar repeats this line all the time and flickers around lag spikes: once per room is all you get.
             val tile = lastTile ?: return@register
-            if (total > 0 && done == total && tile !in secretsAlerted && gap()) {
+            // Entering a room (or stepping to another tile of a big room), the bar still shows the last room's count, e.g. 4/4:
+            // only a tile whose count was seen unfinished can alert, and an alert uses up every such mark.
+            if (done < total) { partialSeen += tile; return@register }
+            if (total > 0 && tile in partialSeen && tile !in secretsAlerted && gap()) {
+                partialSeen.clear()
                 secretsAlerted += tile
                 lastAlert = System.currentTimeMillis()
                 Alerts.title("Room Alerts", "Secrets Done", "$done/$total", 0x55FF55, sound.value, 1.2f)
@@ -294,14 +305,15 @@ object RoomAlerts : Module(
             val player = mc.player ?: return@register
             val now = System.currentTimeMillis()
             val tile = Math.floorDiv(player.x.toInt() - START + 16, 32) to Math.floorDiv(player.z.toInt() - START + 16, 32)
-            if (tile != lastTile) {
-                lastTile = tile
-                // Coming straight back keeps the old visit (and its clock); a real return later starts a fresh one.
-                val old = visits[tile]
-                if (old == null || now - old.lastSeen > REENTER_MS) visits[tile] = Visit(now, now)
-            }
-            val visit = visits[tile] ?: return@register
+            val dt = (now - lastTickAt).coerceIn(0L, 1000L) // a pause or a lag spike does not count as time in the room
+            lastTickAt = now
+            lastTile = tile
+            val key: Any = ced.cedclient.state.DungeonScanner.room(tile.first, tile.second)?.name ?: tile
+            val visit = visits.getOrPut(key) { Visit(now) }
+            // Back after a real absence: the room may have been cleared meanwhile, so it has to be seen unfinished again; the time stays.
+            if (now - visit.lastSeen > REENTER_MS) visit.sawUncleared = false
             visit.lastSeen = now
+            visit.inside += dt
             if (!cleared.value) return@register // the tile above is still tracked: the secrets title needs it
             val state =HotbarDungeonMap.roomStates[tile] ?: return@register // the map hasn't shown this room yet
             if (state != RoomState.CLEARED && state != RoomState.GREEN) {
@@ -310,11 +322,14 @@ object RoomAlerts : Module(
                 return@register
             }
             // A room that was already cleared when you walked in (by you earlier, or by a teammate) doesn't get a title.
-            if (!visit.sawUncleared || tile in clearedAlerted) return@register
-            clearedAlerted += tile
+            if (!visit.sawUncleared || key in clearedAlerted) return@register
+            clearedAlerted += key
+            // A room a teammate cleared often still shows as open on your map until you step in, then flips to cleared at once (a blood
+            // rush runs through those): only real time in the room counts as you clearing it, and the room is used up either way.
+            if (visit.inside < minTime.value * 1000) return@register
             if (gap()) {
                 lastAlert = now
-                val time = if (showTime.value) "%.1fs in room".format(java.util.Locale.ROOT, (now - visit.enteredAt) / 1000.0) else ""
+                val time = if (showTime.value) "%.1fs in room".format(java.util.Locale.ROOT, visit.inside / 1000.0) else ""
                 Alerts.title("Room Alerts", "Cleared", time, 0x55FFFF, sound.value, 1.0f)
             }
         }

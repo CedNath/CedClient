@@ -51,7 +51,8 @@ object NVGRenderer {
     private val images = HashMap<Image, NVGImage>()
 
     private var scissor: Scissor? = null
-    private var drawing: Boolean = false
+    var drawing: Boolean = false
+        private set
     private var vg = -1L
 
     init {
@@ -113,6 +114,8 @@ object NVGRenderer {
     fun pop() = nvgRestore(vg)
 
     fun scale(x: Float, y: Float) = nvgScale(vg, x, y)
+
+    fun resetTransform() = nvgResetTransform(vg)
 
     fun translate(x: Float, y: Float) = nvgTranslate(vg, x, y)
 

@@ -52,7 +52,7 @@ object GateHighlight : Module(
             }
         }
         LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
-            if (!isEnabled || !DungeonState.inDungeon || DungeonState.floor?.endsWith("7") != true) return@CollectSubmits
+            if (!isEnabled || !DungeonState.inDungeon || DungeonState.floor?.endsWith("7") != true || DungeonState.f7Phase != 3) return@CollectSubmits
             val mc = Minecraft.getInstance()
             val level = mc.level ?: return@CollectSubmits
             val warn = System.currentTimeMillis() < warnUntil

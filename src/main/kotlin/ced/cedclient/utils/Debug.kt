@@ -10,12 +10,18 @@ object Debug {
     private val buffer = ArrayDeque<Line>()
 
     /** Always recorded (cheap, capped) so the debug panel has history even if nobody turned console debug on. */
+    /** Sees every line as it is recorded (a module that keeps its own, uncapped log, e.g. the Blaze macro's export). */
+    @JvmField
+    var tap: ((Line) -> Unit)? = null
+
     @JvmStatic
     fun line(tag: String, msg: String) {
+        val l = Line(System.currentTimeMillis(), tag, msg)
         synchronized(buffer) {
-            buffer.addLast(Line(System.currentTimeMillis(), tag, msg))
+            buffer.addLast(l)
             if (buffer.size > MAX_LINES) buffer.removeFirst()
         }
+        tap?.invoke(l)
         if (enabled) println("[$tag] $msg")
     }
 

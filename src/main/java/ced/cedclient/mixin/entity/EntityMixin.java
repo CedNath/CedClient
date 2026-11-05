@@ -19,6 +19,12 @@ public abstract class EntityMixin {
     private void cedclient$onGetTeamColor(CallbackInfoReturnable<Integer> cir) {
         Entity self = (Entity)(Object)this;
 
+        Integer glow = ced.cedclient.render.EntityGlow.colorOf(self);
+        if (glow != null) {
+            cir.setReturnValue(glow);
+            return;
+        }
+
         Integer color = Highlight.getTeammateColor(self);
         if (color != null) {
             cir.setReturnValue(color);

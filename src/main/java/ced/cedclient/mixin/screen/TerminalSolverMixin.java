@@ -39,7 +39,9 @@ public abstract class TerminalSolverMixin {
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void ced$terminalRelease(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (TerminalSolver.INSTANCE.handles((AbstractContainerScreen<?>) (Object) this)) cir.setReturnValue(true);
+        if (!TerminalSolver.INSTANCE.handles((AbstractContainerScreen<?>) (Object) this)) return;
+        TerminalSolver.INSTANCE.mouseReleased(ced.cedclient.utils.Keys.mouse(event));
+        cir.setReturnValue(true);
     }
 
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)

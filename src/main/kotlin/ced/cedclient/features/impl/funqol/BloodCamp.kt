@@ -46,7 +46,10 @@ object BloodCamp : Module("Blood Camp", Category.Skyblock, "Blood room: where th
     private val lineColor = ColorSetting("Line Color", Color(0, 255, 255), "Line from the mob to its landing spot.")
     private val killTitle = BooleanSetting("Kill Title", true, "A \"Kill Mobs\" title 20 seconds after the blood door opens.")
 
-    private class Mob(var start: Vec3, val startedTick: Long, val first: Boolean) { var end: Vec3? = null }
+    private class Mob(var start: Vec3, val startedTick: Long, val first: Boolean) { var end: Vec3? = null; var last: Vec3 = start }
+
+    /** Where each stand was when first seen (before it moved), so a mob only starts at its first real step, like NoammAddons' first move packet. */
+    private val spawnPos = HashMap<ArmorStand, Vec3>()
 
     private val mobs = HashMap<ArmorStand, Mob>()
     private var watcher: Zombie? = null
@@ -91,12 +94,27 @@ object BloodCamp : Module("Blood Camp", Category.Skyblock, "Blood room: where th
             val w = watcher?.takeIf { !it.isRemoved } ?: level.entitiesForRendering().filterIsInstance<Zombie>()
                 .firstOrNull { it.getItemBySlot(EquipmentSlot.HEAD).getSkullTexture() in watcherTex }.also { watcher = it }
             if (w == null) return@register
-            mobs.keys.removeIf { it.isRemoved }
+            // A stand that is gone has landed: what it really did is logged, to check the 38 / 78 tick flight and the 16.1 / 11.9 block
+            // distance against the real thing (the Debug panel / log line "Blood Camp: landed").
+            val landed = mobs.keys.filter { it.isRemoved }
+            for (stand in landed) mobs.remove(stand)?.let { m ->
+                val real = tick - m.startedTick
+                val wave = if (m.first) 78 else 38
+                val dist = Math.sqrt(m.last.subtract(m.start).horizontalDistanceSqr())
+                ced.cedclient.utils.Debug.line(name, "landed: ${real} ticks after its first step (predicted $wave, ${real - wave} off), ${"%.1f".format(java.util.Locale.ROOT, dist)} blocks travelled (predicted ${if (m.first) 16.1 else 11.9})")
+            }
+            spawnPos.keys.removeIf { it.isRemoved }
             for (stand in level.entitiesForRendering().filterIsInstance<ArmorStand>()) {
                 if (stand.distanceToSqr(w) > 400) continue
                 if (stand.getItemBySlot(EquipmentSlot.HEAD).getSkullTexture() !in mobTex) continue
                 val pos = stand.position()
-                val mob = mobs.getOrPut(stand) { Mob(pos, tick, firstSpawns) }
+                val mob = mobs[stand] ?: run {
+                    val from = spawnPos.getOrPut(stand) { pos }
+                    // Not moved yet: nothing to time (its first step starts the flight).
+                    if (pos.subtract(from).horizontalDistanceSqr() < 1.0E-4) return@run null
+                    Mob(pos, tick, firstSpawns).also { mobs[stand] = it }
+                } ?: continue
+                mob.last = pos
                 val flight = pos.subtract(mob.start)
                 if (flight.lengthSqr() < 1.0E-4) continue
                 // NoammAddons' way: the landing is a fixed distance from where the mob started, along its flight line.
@@ -113,7 +131,7 @@ object BloodCamp : Module("Blood Camp", Category.Skyblock, "Blood room: where th
             val lines = ArrayList<List<Vec3>>()
             for ((stand, mob) in mobs) {
                 val end = mob.end ?: continue
-                val left = ((if (mob.first) 40 else 0) + FLIGHT_TICKS - stand.tickCount) / 20.0 // tickCount = ticks since it spawned, not since we noticed it
+                val left = ((if (mob.first) 40 else 0) + FLIGHT_TICKS - (tick - mob.startedTick)) / 20.0 // ticks since its first step, like NoammAddons
                 boxes += AABB(end.x - 0.5, end.y + 1.5, end.z - 0.5, end.x + 0.5, end.y + 2.5, end.z + 0.5) to (if (left < 1.0) soonColor.value else boxColor.value)
                 labels += end.add(0.0, 3.0, 0.0) to (num(left.coerceAtLeast(0.0), decimals.value.toInt()) + "s")
                 lines += listOf(stand.position().add(0.0, 2.0, 0.0).subtract(cam), end.add(0.0, 2.0, 0.0).subtract(cam))

@@ -113,8 +113,6 @@ object LeapCounter : Module(
                     spot.doneAt = now
                     ced.cedclient.utils.Debug.line("Leap Counter", "all leaped at this spot")
                     if (alertComplete.value) {
-                        ced.cedclient.features.impl.misc.ClientTitles.setTitle(Component.literal(completeText.value.replace('&', '§')))
-                        ced.cedclient.features.impl.misc.ClientTitles.setTimes(5, 40, 10)
                         if (alertSound.value) mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1f, 1f))
                     }
                 }
@@ -141,7 +139,9 @@ object LeapCounter : Module(
         val size = 10f * s
         val pad = 6f * s
         // Text pieces: the {count} token in the count color, everything else in the text color.
-        val parts = Regex("""\{count}|\{max}|\{spot}""").let { re ->
+        // Just done: the complete text takes the counter's place for a moment (the counter is its own HUD, so no second panel).
+        val justDone = alertComplete.value && spot != null && spot.doneAt != 0L && System.currentTimeMillis() - spot.doneAt < 2500
+        val parts = if (justDone) listOf(completeText.value.replace(Regex("[&§][0-9a-fk-or]"), "") to doneColor.value.rgba) else Regex("""\{count}|\{max}|\{spot}""").let { re ->
             val out = ArrayList<Pair<String, Int>>()
             var at = 0
             for (m in re.findAll(format.value)) {

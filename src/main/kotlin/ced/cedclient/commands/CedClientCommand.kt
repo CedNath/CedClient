@@ -106,6 +106,9 @@ object CedClientCommand {
             .then(ced.cedclient.features.impl.funqol.RunProfit.commandTree())
             .then(ced.cedclient.features.impl.misc.Spotify.commandTree())
             .then(ced.cedclient.features.impl.render.Waypoints.commandTree())
+//#if CHEAT
+            .then(ced.cedclient.features.impl.funqol.Pathfinding.commandTree())
+//#endif
             .then(ced.cedclient.features.impl.funqol.ProtectItem.commandTree())
             .then(ced.cedclient.features.impl.funqol.TerminalSimulator.commandTree())
             .then(ced.cedclient.features.impl.misc.MuteSounds.commandTree())

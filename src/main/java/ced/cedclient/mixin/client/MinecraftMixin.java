@@ -31,6 +31,12 @@ public class MinecraftMixin {
         EventBus.INSTANCE.post(TickEvent.End.INSTANCE);
     }
 
+    // Outline glow for entities a module asked for (F4 Features): vanilla only glows what the server flagged.
+    @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
+    private void cedclient$forceGlow(net.minecraft.world.entity.Entity entity, CallbackInfoReturnable<Boolean> cir) {
+        if (ced.cedclient.render.EntityGlow.colorOf(entity) != null) cir.setReturnValue(true);
+    }
+
     @Inject(method = "setScreenAndShow", at = @At("HEAD"))
     private void cedclient$resetMouseState2(Screen screen, CallbackInfo ci) {
         CedMouseState.INSTANCE.reset();

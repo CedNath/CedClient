@@ -184,6 +184,30 @@ class NVGSpecialRenderer(
 
     companion object {
 
+        /**
+         * Full-canvas draws made while no screen is open (the HUD cards, a dozen or more a frame) each cost a whole picture-in-picture
+         * pass: a framebuffer bind, a viewport, a NanoVG frame and a blit. The spark profile had them at about a sixth of the frame, nearly
+         * all of it in glBindFramebuffer. They are queued here and drawn in ONE pass by [flush], last in the HUD.
+         */
+        private val queued = ArrayList<() -> Unit>()
+        private var flushing = false
+
+        /** Draws everything [draw] queued this frame in a single NanoVG pass, each piece with its own saved / restored state. */
+        fun flush(context: GuiGraphicsExtractor) {
+            if (queued.isEmpty()) return
+            val all = ArrayList(queued)
+            queued.clear()
+            flushing = true
+            try {
+                draw(context, 0, 0, context.guiWidth(), context.guiHeight(), {
+                    for (piece in all) {
+                        NVGRenderer.push()
+                        try { piece() } finally { NVGRenderer.pop() }
+                    }
+                })
+            } finally { flushing = false }
+        }
+
         fun draw(
             context: GuiGraphicsExtractor,
             x: Int,
@@ -194,6 +218,12 @@ class NVGSpecialRenderer(
             afterRender: (() -> Unit)? = null,
             tooltip: Boolean = false
         ) {
+            if (!flushing && !tooltip && afterRender == null && x == 0 && y == 0 && width == context.guiWidth() && height == context.guiHeight() &&
+                net.minecraft.client.Minecraft.getInstance().gui.screen() == null
+            ) {
+                queued += renderContent
+                return
+            }
             val scissor = context.scissorStack.peek()
             var pose = Matrix3x2f(context.pose())
             var x = x

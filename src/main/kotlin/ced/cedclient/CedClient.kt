@@ -152,6 +152,7 @@ class CedClient : ClientModInitializer {
     private fun registerAlwaysOnState() {
         DungeonState.init()
         CosmeticsSync.init()
+        ced.cedclient.state.MorphSync.init()
         UpdateChecker.start()
         Sidebar.init()
         ChatFeatures.start()
@@ -210,6 +211,8 @@ class CedClient : ClientModInitializer {
         // After Compact Scoreboard: its HUD wrapper has to be the outer one to hide that panel too.
         ModuleManager.register(ced.cedclient.features.impl.misc.ScoreboardToggle)
         ModuleManager.register(ced.cedclient.features.impl.misc.TabListToggle)
+        ModuleManager.register(ced.cedclient.features.impl.misc.CursorTweaks)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.DungeonWaypoints)
         ModuleManager.register(ced.cedclient.features.impl.render.Perspective)
         ModuleManager.register(ced.cedclient.features.impl.render.TitleBackground)
         ModuleManager.register(ced.cedclient.features.impl.render.SwordBlocking)
@@ -223,6 +226,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.misc.SmoothChat)
         ModuleManager.register(ced.cedclient.features.impl.misc.StorageOverlay)
         ModuleManager.register(ced.cedclient.features.impl.render.ChinaHat)
+        ModuleManager.register(ced.cedclient.features.impl.render.CustomCape)
         ModuleManager.register(ced.cedclient.features.impl.render.ADHD)
         ModuleManager.register(ced.cedclient.features.impl.misc.ScreenshotPreview)
         ModuleManager.register(ced.cedclient.features.impl.misc.FreezeCapture)
@@ -294,7 +298,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.SecretHighlight)
         ModuleManager.register(ced.cedclient.features.impl.funqol.LeftClickSecrets)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SecretHud)
-        ModuleManager.register(ced.cedclient.features.impl.funqol.SimonSaysLines)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.SimonSaysSolver)
         ModuleManager.register(ced.cedclient.features.impl.funqol.DungeonBreakerSound)
         ModuleManager.register(ced.cedclient.features.impl.funqol.ExplosiveShotDamage)
         ModuleManager.register(SearchOverlay)
@@ -323,11 +327,18 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(DoorESP)
         ModuleManager.register(ced.cedclient.features.impl.misc.ChatPrefixSettings)
+        // Close friends only (DevAccess.isCloseFriend): not registered for anyone else. Other people's morphs show for everyone.
+        if (ced.cedclient.utils.DevAccess.isCloseFriend) ModuleManager.register(ced.cedclient.features.impl.render.Morph)
 
 //#if CHEAT
         // Cheats: ESP, camera, then the auto-catch / auto-play helpers (left out of the Legit build)
-        if (ced.cedclient.utils.DevAccess.isFriend) ModuleManager.register(EntityESP)
+        if (ced.cedclient.utils.DevAccess.isFriend) {
+            ModuleManager.register(ced.cedclient.features.impl.render.PlayerESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.MobESP)
+            ModuleManager.register(ced.cedclient.features.impl.render.ItemESP)
+        }
         ModuleManager.register(BlockESP)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.Pathfinding)
         ModuleManager.register(Freecam)
         ModuleManager.register(SecretHitboxes)
         ModuleManager.register(LassoHelper)
@@ -337,6 +348,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(CoralotHelper)
             ModuleManager.register(TropicalFishHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.SlayerCheats)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.BlazeSlayerMacro)
             ModuleManager.register(ced.cedclient.features.impl.funqol.FarmHelper)
             ModuleManager.register(ced.cedclient.features.impl.funqol.DojoHelper)
             ModuleManager.register(ced.cedclient.features.impl.render.WitherESP)
@@ -418,6 +430,12 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "wither_dragons")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.WitherDragons.render(graphics, tickCounter)
+        }
+        // Friends-only like the module itself.
+        if (ced.cedclient.utils.DevAccess.isFriend) hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "blaze_slayer_macro")
+        ) { graphics, _ ->
+            ced.cedclient.features.impl.funqol.BlazeSlayerMacro.renderHud(graphics)
         }
 //#endif
         hudLast(
@@ -510,6 +528,13 @@ class CedClient : ClientModInitializer {
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.RunProfit.render(graphics, tickCounter)
         }
+//#if CHEAT
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "spirit_bear")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.render.F4Features.render(graphics, tickCounter)
+        }
+//#endif
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "deployable_timers")
         ) { graphics, tickCounter ->
@@ -599,6 +624,10 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "daily_reset")
         ) { graphics, tickCounter ->
             DailyReset.render(graphics, tickCounter)
+        }
+        // Last: draws what the HUD cards queued, in one NanoVG pass (see NVGSpecialRenderer.flush).
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("cedclient", "nvg_flush")) { graphics, _ ->
+            ced.cedclient.render.nvg.NVGSpecialRenderer.flush(graphics)
         }
     }
 

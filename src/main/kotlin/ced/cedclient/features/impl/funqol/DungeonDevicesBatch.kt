@@ -49,7 +49,8 @@ object ArrowAlign : Module(
     private val colorStyle = DropdownSetting("Color Style", listOf("Dynamic", "Custom"), "Dynamic", "Dynamic: colours the number by the clicks needed.")
     private val textColor = ColorSetting("Text Color", Color(255, 255, 255), "Number colour for the Custom style.")
     private val blockWrong = BooleanSetting("Block Wrong Clicks", true, "Cancel clicks on a frame that needs none (sneak to override).")
-    private val showTotal = BooleanSetting("Show Total", true, "The clicks left over the middle of the grid, with the layout number.")
+    private val invertSneak = BooleanSetting("Invert Sneak", false, "Blocking is off while you stand and on while you sneak.")
+    private val showTotal =BooleanSetting("Show Total", true, "The clicks left over the middle of the grid, with the layout number.")
 
     private val corner = BlockPos(-2, 120, 75)
     private val grid = AABB(-2.0, 120.0, 75.0, -1.0, 125.0, 80.0)
@@ -81,11 +82,28 @@ object ArrowAlign : Module(
         return remaining[(pos.y - corner.y) + (pos.z - corner.z) * 5] ?: 0
     }
 
-    private fun clicks(current: Int, target: Int) = if (target == -1) 0 else (8 - current + target) % 8
+    private fun noteClick(index: Int) {
+        clickedAt[index] = System.currentTimeMillis()
+        rotations[index] = (rotations[index] + 1) % 8
+        val target = layouts.getOrNull(layout - 1)?.get(index)
+        if (target != null && clicks(rotations[index], target) == 0) remaining.remove(index)
+    }
+
+    /**
+     * The Arrow Align Triggerbot clicks through MultiPlayerGameMode, which skips UseEntityCallback (only the real mouse click
+     * fires it), so it reports its click here: the frame counts as turned at once and the bot stops when it is right.
+     */
+    fun clicked(frame: ItemFrame) {
+        val pos = frame.blockPosition()
+        val index = (pos.y - corner.y) + (pos.z - corner.z) * 5
+        if (pos.x == corner.x && index in 0..24 && rotations[index] != -1) noteClick(index)
+    }
+
+    private fun clicks(current: Int, target: Int) =if (target == -1) 0 else (8 - current + target) % 8
     private fun reset() { rotations.fill(-1); remaining.clear(); clickedAt.clear(); layout = -1 }
 
     init {
-        addSettings(colorStyle, textColor, blockWrong, showTotal)
+        addSettings(colorStyle, textColor, blockWrong, invertSneak, showTotal)
 
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             val level = mc.level
@@ -118,21 +136,19 @@ object ArrowAlign : Module(
             if (pos.x != corner.x) return@UseEntityCallback InteractionResult.PASS
             val index = (pos.y - corner.y) + (pos.z - corner.z) * 5
             if (index !in 0..24 || rotations[index] == -1) return@UseEntityCallback InteractionResult.PASS
-            if (blockWrong.value && !player.isCrouching && layout != -1 && !remaining.containsKey(index)) return@UseEntityCallback InteractionResult.FAIL
-            clickedAt[index] = System.currentTimeMillis()
-            rotations[index] = (rotations[index] + 1) % 8
-            val target = layouts.getOrNull(layout - 1)?.get(index)
-            if (target != null && clicks(rotations[index], target) == 0) remaining.remove(index)
+            if (blockWrong.value && player.isCrouching == invertSneak.value && layout != -1 && !remaining.containsKey(index)) return@UseEntityCallback InteractionResult.FAIL
+            noteClick(index)
             InteractionResult.PASS
         })
 
         LevelRenderEvents.COLLECT_SUBMITS.register(LevelRenderEvents.CollectSubmits { context ->
             if (!active() || remaining.isEmpty()) return@CollectSubmits
             for ((index, count) in remaining) {
+                // The middle of the frame's block, so the number sits on its arrow.
                 val at = Vec3(corner.x + 0.5, corner.y + (index % 5) + 0.5, corner.z + (index / 5) + 0.5)
                 val rgb = if (colorStyle.value == "Dynamic") when { count < 3 -> 0x55FF55; count < 5 -> 0xFFAA00; else -> 0xFF5555 }
                 else textColor.value.rgba and 0xFFFFFF
-                WorldText.draw(context, at.add(0.0, 0.55, 0.5), Component.literal("$count").withColor(rgb))
+                WorldText.draw(context, at.add(0.0, -0.1, 0.0), Component.literal("$count").withColor(rgb))
             }
             if (showTotal.value) WorldText.draw(
                 context, Vec3(corner.x + 0.5, corner.y + 5.4, corner.z + 2.5),

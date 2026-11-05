@@ -55,13 +55,14 @@ object RenderOptimizer : Module(
     private val noWeather = BooleanSetting("No Weather", true, "Hide rain and snow (and their splash particles / sounds).")
     private val noBlockBreaking = BooleanSetting("No Block Breaking Particles", true, "Hide the particles from breaking and mining blocks, cosmetic blocks included.")
     private val cleanLoading = BooleanSetting("Clean Loading Screen", true, "No \"Loading terrain\" screen when joining or changing world: the world shows as it loads in.")
+    private val noFallingBlocks = BooleanSetting("No Falling Blocks", true, "Hide falling blocks (sand, gravel, anvils, the blocks that fall in dungeon rooms).")
     private val noExplosions = BooleanSetting("No Explosion Particles", true, "Hide explosion particles, like your Hyperion's Wither Impact.")
 
     private val fogSettings = listOf(
         noAtmosphericFog, noRenderDistanceFog, noWaterFog, noLavaFog, noSnowFog, noBlindnessFog, noDarknessFog,
     )
     private val overlaySettings = listOf(
-        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions, noBlockBreaking, cleanLoading,
+        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions, noFallingBlocks, noBlockBreaking, cleanLoading,
     )
 
     private val settingsAction = ActionSetting("Open Settings", "All Render Optimizer toggles in one window.") {
@@ -128,6 +129,8 @@ object RenderOptimizer : Module(
     @JvmStatic fun hideNausea() = on(noNausea)
     @JvmStatic fun hideWeather() = on(noWeather)
     @JvmStatic fun hideBlockBreaking() = on(noBlockBreaking)
+    /** EntityRenderDispatcherMixin (shouldRender): falling block entities are not drawn. */
+    @JvmStatic fun hideFallingBlock(entity: net.minecraft.world.entity.Entity) = on(noFallingBlocks) && entity is net.minecraft.world.entity.item.FallingBlockEntity
     @JvmStatic fun cleanLoadingScreen() = on(cleanLoading)
 
     /** ClientLoadingScreenMixin: debug line when the loading screen was skipped. */

@@ -718,9 +718,10 @@ object SlayerCheats : Module(
         if (now - lastAction < swapDelay.value) return
         val target = (mc.hitResult as? EntityHitResult)?.entity ?: return
         // The shield is on one of the name tags stacked over the boss.
-        val shield = mc.level?.entitiesForRendering()
-            ?.filter { it is ArmorStand && it.hasCustomName() && it.distanceTo(target) < 5f }
-            ?.firstNotNullOfOrNull { SHIELD.find(it.customName!!.string)?.groupValues?.get(1) } ?: return
+        val tags = mc.level?.entitiesForRendering()?.filter { it is ArmorStand && it.hasCustomName() && it.distanceTo(target) < 5f } ?: return
+        // Only your own boss: its stack has "<your name>'s SLAYER BOSS" (another player's boss in sight is left alone).
+        if (tags.none { val t = it.customName!!.string; t.contains("SLAYER BOSS") && t.contains(mc.user.name, ignoreCase = true) }) return
+        val shield = tags.firstNotNullOfOrNull { SHIELD.find(it.customName!!.string)?.groupValues?.get(1) } ?: return
         val dagger = Dagger.entries.firstOrNull { shield in it.attunements } ?: return
         val held = player.mainHandItem
         if (daggerOf(held) != dagger) {

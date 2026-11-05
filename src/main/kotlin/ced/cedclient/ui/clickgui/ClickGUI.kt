@@ -74,7 +74,11 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         if (lowest >= highest) return
         val move = dx.coerceIn(lowest.coerceAtMost(0f), highest.coerceAtLeast(0f))
         panelSettings.forEach { it.x += move }
+        scrolled += move
     }
+
+    /** How far the panels are scrolled from where they are saved; undone on close so the GUI does not reopen scrolled. */
+    private var scrolled = 0f
 
     /** Opens [popup] as a modal on top of this ClickGUI, replacing whichever popup (if any) is already open. */
     fun openPopup(popup: Popup) {
@@ -431,6 +435,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             }
         }
 
+        if (scrolled != 0f) { panelSettings.forEach { it.x -= scrolled }; scrolled = 0f }
         ConfigManager.save(panelSettings)
         ChatPing.saveAlerts()
         super.onClose()

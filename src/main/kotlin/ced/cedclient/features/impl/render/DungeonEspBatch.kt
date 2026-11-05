@@ -21,9 +21,18 @@ import ced.cedclient.state.DungeonTeam
 import ced.cedclient.utils.Color
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
+import ced.cedclient.events.core.TickEvent
+import ced.cedclient.events.core.on
+import ced.cedclient.render.EntityGlow
+import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.core.BlockPos
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.entity.monster.Ghast
+import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.entity.boss.wither.WitherBoss
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.AABB
@@ -203,19 +212,90 @@ object TeammateESP : Module("Teammate ESP", Category.Dungeons, "Boxes your dunge
 }
 
 /**
- * Floor 4 extras: boxes Thorn and the Spirit Bear (found by their name tags). Unique: one box colour per target and a
- * one-time chat line when the Spirit Bear shows up.
+ * Floor 4 extras, like NoammAddons' F4 Features: outline glow on Thorn (the Ghast), the Spirit Bear and the Spirit Bows
+ * lying around, plus a Spirit Bear spawn tracker HUD (how many of the arena's blocks are lit, and the 3.4 s countdown
+ * once the last one is). Unique: "Style" can also draw the old boxes, and a chat line when the bear shows up.
  */
-object F4Features : Module("F4 Features", Category.Dungeons, "Boxes Thorn and the Spirit Bear on floor 4.") {
-    private val thorn = BooleanSetting("Box Thorn", true, "Box Thorn's name tag position.")
-    private val bear = BooleanSetting("Box Spirit Bear", true, "Box the Spirit Bear.")
-    private val thornColor = ColorSetting("Thorn Color", Color(255, 170, 0), "Thorn's box.").withDependency { thorn.value }
-    private val bearColor = ColorSetting("Bear Color", Color(85, 255, 255), "Spirit Bear's box.").withDependency { bear.value }
+object F4Features : Module("F4 Features", Category.Dungeons, "Glow on Thorn, the Spirit Bear and Spirit Bows, plus a Spirit Bear spawn tracker."), HudElement {
+    private val style = DropdownSetting("Style", listOf("Glow", "Box", "Both"), "Glow", "How Thorn and the Spirit Bear are marked (Spirit Bows always glow).")
+    private val thorn = BooleanSetting("ESP Thorn", true, "Highlight Thorn.")
+    private val bear = BooleanSetting("ESP Spirit Bear", true, "Highlight the Spirit Bear.")
+    private val bow = BooleanSetting("ESP Spirit Bow", true, "Highlight the Spirit Bow.")
+    private val bearHud = BooleanSetting("Spirit Bear HUD", true, "Shows the lit spawn blocks and the spawn countdown.")
+    private val thornColor = ColorSetting("Thorn Color", Color(255, 0, 0), "Thorn's highlight.").withDependency { thorn.value }
+    private val bearColor = ColorSetting("Bear Color", Color(255, 0, 255), "Spirit Bear's highlight.").withDependency { bear.value }
+    private val bowColor = ColorSetting("Bow Color", Color(0, 255, 255), "Spirit Bow's highlight.").withDependency { bow.value }
     private val announce = BooleanSetting("Announce Bear", true, "A chat line the first time the bear shows up.")
     private var announced = false
 
+    // The Spirit Bear spawns once the blocks of a ring around the arena turn from coal to sea lanterns; the last one
+    // (7, 77, 34) starts a 68 tick countdown. Positions as NoammAddons has them.
+    private const val SPAWN_TICKS = 68
+    private val LAST = BlockPos(7, 77, 34)
+    private val F4_BLOCKS = listOf(
+        BlockPos(-3, 77, 33), BlockPos(-9, 77, 31), BlockPos(-16, 77, 26), BlockPos(-20, 77, 20), BlockPos(-23, 77, 13),
+        BlockPos(-24, 77, 6), BlockPos(-24, 77, 0), BlockPos(-22, 77, -7), BlockPos(-18, 77, -13), BlockPos(-12, 77, -19),
+        BlockPos(-5, 77, -22), BlockPos(1, 77, -24), BlockPos(8, 77, -24), BlockPos(14, 77, -23), BlockPos(21, 77, -19),
+        BlockPos(27, 77, -14), BlockPos(31, 77, -8), BlockPos(33, 77, -1), BlockPos(34, 77, 5), BlockPos(33, 77, 12),
+        BlockPos(31, 77, 19), BlockPos(27, 77, 25), BlockPos(20, 77, 30), BlockPos(14, 77, 33), LAST
+    )
+    private val M4_BLOCKS = listOf(
+        BlockPos(-2, 77, 33), BlockPos(-7, 77, 32), BlockPos(-13, 77, 28), BlockPos(-17, 77, 24), BlockPos(-21, 77, 18),
+        BlockPos(-23, 77, 13), BlockPos(-24, 77, 7), BlockPos(-24, 77, 2), BlockPos(-23, 77, -4), BlockPos(-21, 77, -9),
+        BlockPos(-17, 77, -14), BlockPos(-12, 77, -19), BlockPos(-6, 77, -22), BlockPos(-1, 77, -23), BlockPos(5, 77, -24),
+        BlockPos(10, 77, -24), BlockPos(16, 77, -22), BlockPos(21, 77, -19), BlockPos(27, 77, -15), BlockPos(30, 77, -10),
+        BlockPos(32, 77, -5), BlockPos(34, 77, 1), BlockPos(34, 77, 7), BlockPos(33, 77, 12), BlockPos(31, 77, 18),
+        BlockPos(28, 77, 23), BlockPos(23, 77, 28), BlockPos(18, 77, 31), BlockPos(12, 77, 33), LAST
+    )
+
+    private val lit = HashMap<BlockPos, Boolean>()
+    private var count = 0
+    private var ticks = 0L
+    private var spawnAt = 0L
+
+    private fun inBossRoom() = DungeonState.inDungeon && DungeonState.inBoss && DungeonState.floor in setOf("F4", "M4")
+    private fun rgb(c: Color) = (c.red shl 16) or (c.green shl 8) or c.blue
+    private val useGlow get() = style.value != "Box"
+    private val useBox get() = style.value != "Glow"
+
+    private fun glowColor(e: Entity): Int? {
+        if (!isEnabled || !inBossRoom()) return null
+        return when {
+            useGlow && thorn.value && e is Ghast -> rgb(thornColor.value)
+            useGlow && bear.value && e is Player && e.gameProfile.name().startsWith("spirit bear", true) -> rgb(bearColor.value)
+            bow.value && e is ArmorStand && e.getItemBySlot(EquipmentSlot.MAINHAND).hoverName.string == "Bow" -> rgb(bowColor.value)
+            else -> null
+        }
+    }
+
+    private fun resetTracker() { lit.clear(); count = 0; spawnAt = 0L }
+
+    /** Polls the ring blocks once a tick (no block-update hook needed): coal -> sea lantern counts one up, the reverse one down. */
+    private fun track() {
+        ticks++
+        val level = Minecraft.getInstance().level
+        if (level == null || !isEnabled || !bearHud.value || !inBossRoom()) { resetTracker(); return }
+        val blocks = if (DungeonState.floor == "M4") M4_BLOCKS else F4_BLOCKS
+        for (pos in blocks) {
+            val block = level.getBlockState(pos).block
+            val now = block == Blocks.SEA_LANTERN
+            val before = lit.put(pos, now)
+            if (before == null || before == now || (block != Blocks.SEA_LANTERN && block != Blocks.COAL_BLOCK)) continue
+            if (now) {
+                if (pos == LAST) spawnAt = ticks + SPAWN_TICKS
+                count = (count + 1).coerceAtMost(blocks.size)
+            } else {
+                if (pos == LAST) spawnAt = 0L
+                count = (count - 1).coerceAtLeast(0)
+            }
+            ced.cedclient.utils.Debug.line("F4 Features", "spirit bear block ${pos.x},${pos.y},${pos.z} -> $count/${blocks.size}")
+        }
+    }
+
     init {
-        addSettings(thorn, bear, thornColor, bearColor, announce)
+        addSettings(style, thorn, bear, bow, bearHud, thornColor, bearColor, bowColor, announce)
+        EntityGlow.register(::glowColor)
+        on<TickEvent.End> { track() }
         espFrame(this) {
             val mc = Minecraft.getInstance()
             val level = mc.level ?: return@espFrame emptyList()
@@ -223,9 +303,9 @@ object F4Features : Module("F4 Features", Category.Dungeons, "Boxes Thorn and th
             val out = ArrayList<Pair<AABB, Color>>()
             for (s in level.entitiesForRendering()) {
                 val name = (s as? ArmorStand)?.customName?.string ?: continue
-                if (thorn.value && name.contains("Thorn", true)) out += AABB(s.x - 0.5, s.y - 1.8, s.z - 0.5, s.x + 0.5, s.y + 0.2, s.z + 0.5) to thornColor.value
-                if (bear.value && name.contains("Spirit Bear", true)) {
-                    out += AABB(s.x - 0.8, s.y - 1.6, s.z - 0.8, s.x + 0.8, s.y + 0.4, s.z + 0.8) to bearColor.value
+                if (useBox && thorn.value && name.contains("Thorn", true)) out += AABB(s.x - 0.5, s.y - 1.8, s.z - 0.5, s.x + 0.5, s.y + 0.2, s.z + 0.5) to thornColor.value
+                if (name.contains("Spirit Bear", true)) {
+                    if (useBox && bear.value) out += AABB(s.x - 0.8, s.y - 1.6, s.z - 0.8, s.x + 0.8, s.y + 0.4, s.z + 0.8) to bearColor.value
                     if (announce.value && !announced) {
                         announced = true
                         mc.player?.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b[CC] §fSpirit Bear is up"))
@@ -233,6 +313,66 @@ object F4Features : Module("F4 Features", Category.Dungeons, "Boxes Thorn and th
                 }
             }
             out
+        }
+    }
+
+    // ---------------------------------------------------------------- HUD
+
+    fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
+        if (!isEnabled || !bearHud.value || Minecraft.getInstance().gui.hud.isHidden || !inBossRoom()) return
+        renderInternal(g)
+    }
+
+    override fun renderInternal(g: GuiGraphicsExtractor) {
+        val total = if (DungeonState.floor == "M4") M4_BLOCKS.size else F4_BLOCKS.size
+        val left = ((spawnAt - ticks) / 20.0).takeIf { spawnAt > ticks }
+        val rows = listOf("Blocks" to "$count/$total", "Spawn" to (left?.let { "%.1fs".format(java.util.Locale.ROOT, it) } ?: "-"))
+        val s = panelScale
+        val size = 10f * s
+        val lineH = 12f * s
+        val pad = 6f * s
+        val gap = 10f * s
+        val leftW = rows.maxOf { HudCard.width(it.first, size) }
+        val rightW = rows.maxOf { HudCard.width(it.second, size) }
+        val width = HudCard.steady("Spirit Bear", leftW + gap + rightW + pad * 2, s)
+        val height = rows.size * lineH + pad * 2 - (lineH - size)
+        lastWidth = (width / s).toInt()
+        lastHeight = (height / s).toInt()
+        HudCard.draw(g, panelX, panelY) {
+            HudCard.card(width, height, s)
+            rows.forEachIndexed { i, (name, value) ->
+                val y = pad + i * lineH
+                HudCard.text(name, pad, y, size, 0xFFBBBBBB.toInt())
+                HudCard.text(value, width - pad - HudCard.width(value, size), y, size, if (i == 1 && left != null) 0xFFFFAA00.toInt() else -1)
+            }
+        }
+    }
+
+    override val label = "Spirit Bear"
+    private const val DEFAULT_X = 3
+    private const val DEFAULT_Y = 160
+    override var panelX = DEFAULT_X
+    override var panelY = DEFAULT_Y
+    override var panelScale = 1f
+    override var lastWidth = 0
+        private set
+    override var lastHeight = 0
+        private set
+
+    private data class HudPosition(val x: Int, val y: Int, val scale: Float)
+    private val gson = com.google.gson.Gson()
+    private val hudFile by lazy { ced.cedclient.config.CedPaths.hud("spirit_bear") }
+
+    override fun save() {
+        runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }
+    }
+
+    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = 1f }
+    override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
+
+    init {
+        runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {
+            panelX = it.x; panelY = it.y; panelScale = it.scale.coerceIn(0.4f, 3f)
         }
     }
 }

@@ -109,6 +109,7 @@ object ArrowAlignTriggerbot : Module(
             if (now - lastClick < clickDelay.value || ArrowAlign.clicksNeeded(frame) <= 0) return@register
             lastClick = now
             mc.gameMode?.interact(player, frame, hit, InteractionHand.MAIN_HAND)
+            ArrowAlign.clicked(frame)
             Debug.line(name, "clicked frame at ${frame.blockPosition()}")
         }
     }
@@ -121,6 +122,7 @@ object LightsDeviceTriggerbot : Module(
 ) {
     private val clickDelay = NumberSetting("Click Delay (ms)", 150.0, 50.0, 1000.0, 10.0)
     private var lastClick = 0L
+    private var lastLever: net.minecraft.core.BlockPos? = null
 
     init {
         addSettings(clickDelay)
@@ -134,6 +136,9 @@ object LightsDeviceTriggerbot : Module(
             if (state.block != Blocks.LEVER || state.getValue(BlockStateProperties.POWERED)) return@register
             val now = System.currentTimeMillis()
             if (now - lastClick < clickDelay.value) return@register
+            // The server's answer takes a moment: a lever just flipped still reads "off" until it arrives, so never click it twice.
+            if (hit.blockPos == lastLever && now - lastClick < 1200) return@register
+            lastLever = hit.blockPos
             lastClick = now
             mc.gameMode?.useItemOn(player, InteractionHand.MAIN_HAND, hit)
             Debug.line(name, "flipped lever at ${hit.blockPos}")

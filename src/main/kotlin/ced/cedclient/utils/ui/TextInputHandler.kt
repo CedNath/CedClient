@@ -321,8 +321,9 @@ class TextInputHandler(
     }
 
     private fun hasSelection(): Boolean = selection != caret
-    private fun selectionStart(): Int = min(caret, selection)
-    private fun selectionEnd(): Int = max(caret, selection)
+    // clamp: text can change externally (provider) while caret/selection are stale
+    private fun selectionStart(): Int = min(caret, selection).coerceIn(0, text.length)
+    private fun selectionEnd(): Int = max(caret, selection).coerceIn(0, text.length)
     private fun selectedText(): String = text.substring(selectionStart(), selectionEnd())
 
     private fun selectWord() {

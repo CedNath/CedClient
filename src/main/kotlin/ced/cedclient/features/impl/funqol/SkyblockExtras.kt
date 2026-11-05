@@ -264,6 +264,9 @@ object PetDisplay : RowHud("Pet Display", "HUD with the pet you have out: name i
     private var chatPet: String? = null
     private var tabSeen = 0L
     private var loadoutUntil = 0L
+    private var lastLoadoutSig = ""
+    private var loadoutName: String? = null
+    private val PET_LINE = Regex("""^Pet: \[Lvl (\d+)] (.+?)(?: ✦)?$""")
 
     private class Found(val name: String, val level: String, val rgb: Int?)
     private var found: Found? = null
@@ -292,22 +295,48 @@ object PetDisplay : RowHud("Pet Display", "HUD with the pet you have out: name i
     private fun readLoadoutMenu() {
         if (System.currentTimeMillis() > loadoutUntil) return
         val screen = net.minecraft.client.Minecraft.getInstance().gui.screen() as? net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*> ?: return
-        if (!screen.title.string.endsWith(") Loadouts") || screen.menu.slots.size <= 21) return
-        val stack = screen.menu.getSlot(21).item
-        if (stack.isEmpty) return
-        val m = Regex("""\[Lvl (\d+)] (.+?)(?: ✦)?$""").find(stack.hoverName.string.replace("⭐", "").trim()) ?: return
-        var rgb: Int? = null
-        stack.hoverName.visit({ style, text ->
-            if (text.isNotBlank() && text.trim() != "✦" && !text.startsWith("[")) style.color?.let { rgb = it.value }
-            java.util.Optional.empty<Unit>()
-        }, net.minecraft.network.chat.Style.EMPTY)
-        found = Found(m.groupValues[2], m.groupValues[1], rgb)
+        val want = loadoutName ?: return
+        if (!screen.title.string.endsWith(") Loadouts")) return
+        // Each loadout is an item whose lore has "Pet: [Lvl 100] Black Cat": find the equipped one by its name ("You equipped 3!").
+        for (i in 0 until (screen.menu.slots.size - 36).coerceAtLeast(0)) {
+            val s = screen.menu.getSlot(i).item.takeIf { !it.isEmpty } ?: continue
+            if (s.hoverName.string.trim() != want) continue
+            val pet = petOf(s) ?: continue
+            found = pet
+            if (lastLoadoutSig != pet.name) { lastLoadoutSig = pet.name; Debug.line("Pet Display", "loadout $want: pet ${pet.name} Lvl ${pet.level}") }
+            return
+        }
+    }
+
+    /** The "Pet: [Lvl 100] Black Cat" line of a loadout item's lore, with the name's rarity colour. */
+    private fun petOf(stack: net.minecraft.world.item.ItemStack): Found? {
+        for (line in stack.get(net.minecraft.core.component.DataComponents.LORE)?.lines() ?: return null) {
+            val m = PET_LINE.find(line.string.trim()) ?: continue
+            var rgb: Int? = null
+            line.visit({ style, text ->
+                if (text.isNotBlank() && text.trim() != "✦" && !text.startsWith("Pet:") && !text.startsWith("[")) style.color?.let { rgb = it.value }
+                java.util.Optional.empty<Unit>()
+            }, net.minecraft.network.chat.Style.EMPTY)
+            return Found(m.groupValues[2], m.groupValues[1], rgb)
+        }
+        return null
+    }
+
+    /** Set by a click on a loadout (Loadout Keybinds, even when it closes the menu at once): the pet is read from the item clicked. */
+    private var loadoutFound: Found? = null
+
+    fun noteEquip(stack: net.minecraft.world.item.ItemStack) {
+        if (!isEnabled) return
+        val pet = petOf(stack) ?: return
+        loadoutFound = pet
+        chatPet = null
+        Debug.line("Pet Display", "equipped loadout with pet ${pet.name} Lvl ${pet.level}")
     }
 
     override fun rows(): List<Triple<String, String, Int>>? {
         scan()
         readLoadoutMenu()
-        val f = found
+        val f = loadoutFound ?: found
         val name = f?.name ?: chatPet
         if (name == null) return if (hideWhenNone.value) null else listOf(Triple("No pet", "", color.value.rgba))
         val c = if (rarityColor.value && f?.rgb != null) 0xFF000000.toInt() or f.rgb else color.value.rgba
@@ -320,13 +349,25 @@ object PetDisplay : RowHud("Pet Display", "HUD with the pet you have out: name i
     init {
         addSettings(showLevel, rarityColor, color, hideWhenNone)
         loadPosition()
+        // Like Noamm: a left click on a loadout reads its "Pet:" line at once, so the pet is right even if the menu closes.
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
+            if (screen !is net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>) return@register
+            net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.allowMouseClick(screen).register { s, event ->
+                val cs = s as net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<*>
+                if (isEnabled && cs.title.string.endsWith(") Loadouts") && ced.cedclient.utils.Keys.mouse(event) == 0) {
+                    (cs as ced.cedclient.mixin.accessor.AbstractContainerScreenAccessor).`ced$getHoveredSlot`()?.let { noteEquip(it.item) }
+                }
+                true
+            }
+        }
         on<ChatMessageEvent> {
             if (!isEnabled) return@on
             val text = it.unformattedText
             // Chat is newer than the tab widget (which lags), so a chat pet change drops the stale tab reading until the tab changes again.
-            SUMMON.find(text)?.let { m -> chatPet = m.groupValues[1]; found = null; Debug.line("Pet Display", "summoned $chatPet") }
+            if (SUMMON.containsMatchIn(text) || AUTOPET.containsMatchIn(text) || DESPAWN.containsMatchIn(text)) loadoutFound = null
+            SUMMON.find(text)?.let { m -> chatPet = m.groupValues[1]; found = null;Debug.line("Pet Display", "summoned $chatPet") }
             AUTOPET.find(text)?.let { m -> chatPet = m.groupValues[2]; found = Found(m.groupValues[2], m.groupValues[1], null); Debug.line("Pet Display", "autopet $chatPet") }
-            LOADOUT.find(text.trim())?.let { chatPet = null; loadoutUntil = System.currentTimeMillis() + 3000; Debug.line("Pet Display", "loadout ${it.groupValues[1]}") }
+            LOADOUT.find(text.trim())?.let { chatPet = null; loadoutName = it.groupValues[1].trim();loadoutUntil = System.currentTimeMillis() + 3000; Debug.line("Pet Display", "loadout ${it.groupValues[1]}") }
             DESPAWN.find(text)?.let { chatPet = null; found = null; Debug.line("Pet Display", "despawned") }
         }
     }

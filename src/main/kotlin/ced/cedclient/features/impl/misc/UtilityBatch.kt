@@ -5,7 +5,9 @@ import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.impl.funqol.hovered
+import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.DropdownSetting
+import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.mixin.accessor.GuiAccessor
 import ced.cedclient.mixin.accessor.PlayerTabOverlayAccessor
@@ -279,4 +281,30 @@ object Dumpers : Module(
         val lines = (mcNow().gui.hud.chat as ChatHistoryAccess).`cedclient$allMessages`().asReversed().map { it.content().string }
         return lines.takeIf { it.isNotEmpty() }?.joinToString("\n")
     }
+}
+
+// ------------------------------------------------------------------------------------------------ Cursor Tweaks
+
+object CursorTweaks : Module(
+    "Cursor Tweaks", Category.Misc,
+    "Keep the cursor where it was when a GUI opens; put it back in the middle for terminals."
+) {
+    private val noReset = BooleanSetting("No Cursor Reset", true, "Prevents the cursor from being reset to the middle of the screen when opening a GUI.")
+    private val timeout = NumberSetting("Unhook Timeout (ms)", 150.0, 0.0, 1000.0, 10.0, "Only keeps the cursor when the GUI opens this soon after the last one closed (terminals back to back). Later than that, the cursor resets to the middle as usual. 0 = always keep.")
+    private val forceReset = BooleanSetting("Force Cursor Reset", true, "Opening a terminal always puts the cursor in the middle of the screen. On Linux (Xwayland) the game sometimes leaves it where it was; this moves it again. Terminals (and /termsim) only, no other menu.")
+
+    init {
+        addSettings(noReset, timeout, forceReset)
+        ScreenEvents.AFTER_INIT.register { client, screen, _, _ ->
+            if (!isEnabled || !forceReset.value || screen !is AbstractContainerScreen<*>) return@register
+            if (!ced.cedclient.features.impl.funqol.TerminalSolver.handles(screen) && screen !is ced.cedclient.features.impl.funqol.TerminalHost) return@register
+            val w = client.window
+            org.lwjgl.sdl.SDLMouse.SDL_WarpMouseInWindow(w.handle(), w.screenWidth / 2f, w.screenHeight / 2f)
+            Debug.line(name, "terminal opened, cursor put back in the middle")
+        }
+    }
+
+    /** MouseHandlerReleaseMixin: true while the cursor should keep its place instead of jumping to the middle. */
+    @JvmStatic
+    fun keepCursor(sinceGrab: Long) = isEnabled && noReset.value && (timeout.value <= 0.0 || sinceGrab <= timeout.value)
 }

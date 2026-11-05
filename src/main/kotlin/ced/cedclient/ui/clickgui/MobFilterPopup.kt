@@ -1,12 +1,12 @@
 //#if CHEAT
 package ced.cedclient.ui.clickgui
 
-import ced.cedclient.features.impl.render.EntityESP
+import ced.cedclient.features.impl.render.MobESP
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.entity.MobCategory
 
 /**
- * Opened by EntityESP's "Select Mobs" ActionSetting. Lists every hostile/
+ * Opened by Mob ESP's "Select Mobs" ActionSetting. Lists every hostile/
  * passive mob type in the game (from the entity type registry, so it always
  * matches whatever Minecraft version this is built against), alphabetically
  * ordered -- not just whatever happens to be scanned nearby right now.
@@ -17,14 +17,14 @@ import net.minecraft.world.entity.MobCategory
  */
 class MobFilterPopup : FilterPopup(
     title = "Select Mobs",
-    blockedNames = { EntityESP.blockedNames },
-    onlyNames = { EntityESP.onlyNames },
-    addBlocked = EntityESP::blockName,
-    removeBlocked = EntityESP::unblockName,
-    addOnly = EntityESP::onlyName,
-    removeOnly = EntityESP::unOnlyName,
-    styleOf = EntityESP::styleOf,
-    onStyleChanged = EntityESP::saveFilters,
+    blockedNames = { MobESP.blockedNames },
+    onlyNames = { MobESP.onlyNames },
+    addBlocked = MobESP::blockName,
+    removeBlocked = MobESP::unblockName,
+    addOnly = MobESP::onlyName,
+    removeOnly = MobESP::unOnlyName,
+    styleOf = MobESP::styleOf,
+    onStyleChanged = MobESP::saveFilters,
 ) {
     override fun candidateNames(): List<String> =
         BuiltInRegistries.ENTITY_TYPE

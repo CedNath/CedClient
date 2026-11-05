@@ -100,8 +100,11 @@ object F7Titles : Module(
         "[BOSS] Storm: Ouch, that hurt!" to Triple(0x55FFFF, "Storm Crushed!", 1.2f),
         "[BOSS] Storm: I should have known that I stood no chance." to Triple(0x55FFFF, "Storm Dead!", 1.4f),
         "The Core entrance is opening!" to Triple(0xAAAAAA, "Goldor Dead!", 1.4f),
-        "[BOSS] Necron: ARGH!" to Triple(0xFF5555, "Necron Dead!!", 1.6f),
     )
+    private val ARGH = Regex("""^\[BOSS] Necron: ARGH!(?: \(x(\d+)\))?$""")
+    /** Necron says ARGH! twice: the first ends the phase before, only the second means he is dead. */
+    private var arghs = 0
+    private var arghLevel: Any? = null
     private const val GATE_SOON = "The gate will open in 5 seconds!"
     private const val GATE_GONE = "The gate has been destroyed!"
 
@@ -110,6 +113,15 @@ object F7Titles : Module(
         on<ChatMessageEvent> {
             if (!isEnabled || !DungeonState.inDungeon) return@on
             val text = it.unformattedText.trim()
+            val level = Minecraft.getInstance().level
+            if (level !== arghLevel) { arghLevel = level; arghs = 0 }
+            ARGH.find(text)?.let { m ->
+                val before = arghs
+                // A compacted "(x2)" line counts as that many ARGH!s at once.
+                arghs = m.groupValues[1].toIntOrNull()?.takeIf { n -> n > 1 } ?: (arghs + 1)
+                if (bossTitles.value && before < 2 && arghs >= 2) Alerts.title("F7 Titles", "Necron Dead!!", "", 0xFF5555, sound.value, 1.6f)
+                return@on
+            }
             if (bossTitles.value) BOSS[text]?.let { (color, title, pitch) -> Alerts.title("F7 Titles", title, "", color, sound.value, pitch); return@on }
             if (gateTitles.value) {
                 if (text == GATE_SOON) { Alerts.title("F7 Titles", "GATE!", "opens in 5 seconds", 0xFF5555, sound.value, 1.0f); return@on }

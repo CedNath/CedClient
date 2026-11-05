@@ -42,6 +42,7 @@ object AutoTerminals : Module(
     private val rng = Random()
     private var lastClick = 0L
     private var lastSlot = -1
+    private var lastId = -1
     private var wait = 0L
 
     init {
@@ -94,6 +95,8 @@ object AutoTerminals : Module(
         val now = System.currentTimeMillis()
         // Melody Skip clicks waiting for their tick; dropped when the terminal changed (Noamm checks the window id the same way).
         val id = TerminalSolver.containerId(screen)
+        // A new terminal: the button last clicked in the old one must not block the first click here.
+        if (id != lastId) { lastId = id; lastSlot = -1 }
         queue.removeAll { it.id != id }
         queue.filter { it.at <= now }.forEach { TerminalSolver.autoForce(screen, it.slot); queue.remove(it) }
         if (slots.isEmpty() || !on(kind)) return

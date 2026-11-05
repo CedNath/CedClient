@@ -50,6 +50,8 @@ public abstract class PlayerRendererMixin {
         CedClientPlayerRenderStateAccessor accessor =
                 (CedClientPlayerRenderStateAccessor) state;
 
+        ced.cedclient.features.impl.render.CustomCape.apply(entity, state);
+
         CosmeticOverride override = null;
 
         if (HardcodedCosmetics.INSTANCE.isEnabled()

@@ -82,6 +82,7 @@ object DungeonRunInfo {
     /** Re-reads the tab list (when it changed) and the sidebar; call from a tick. */
     fun update() {
         resetIfNewWorld()
+        MayorState.ensureFresh()
         // The sidebar's numbers move at most once a second: read it every 10 ticks.
         if (sidebarTick++ % 10 == 0) {
             val lines = Sidebar.lines
@@ -127,21 +128,26 @@ object DungeonRunInfo {
             }
         }
 
+    /** Set by the Dungeon Map's "Force Paul Perk" setting: counts the +10 even when the election lookup says no. */
+    var forcePaul = false
+    /** Paul's EZPZ perk (+10 score) is active: Hypixel's election data, or forced. */
+    val paul get() = forcePaul || MayorState.ezpz
+
     val score: Int
         get() {
             val total = if (clearedPct > 0 && completedRooms > 0) Math.floor(completedRooms / (clearedPct / 100.0) + 0.4) else 0.0
             // The boss room and the blood room count as done rooms the tab list doesn't include yet.
             val done = completedRooms + (if (!bloodDone) 1 else 0) + (if (!DungeonState.inBoss) 1 else 0)
             val ratio = if (total > 0) (done / total).coerceIn(0.0, 1.0) else clearedPct / 100.0
-            return score(ratio, secretsPct, requiredSecrets, openPuzzles, deaths, crypts, mimic, prince, bat, speedScore())
+            return score(ratio, secretsPct, requiredSecrets, openPuzzles, deaths, crypts, mimic, prince, bat, speedScore(), paul)
         }
 
     /** Same maths as NoammAddons' ScoreTracker: [ratio] = completed rooms / total rooms. */
-    fun score(ratio: Double, secrets: Double, required: Int, puzzles: Int, deaths: Int, crypts: Int, mimic: Boolean, prince: Boolean, bat: Boolean = false, speed: Int = 100): Int {
+    fun score(ratio: Double, secrets: Double, required: Int, puzzles: Int, deaths: Int, crypts: Int, mimic: Boolean, prince: Boolean, bat: Boolean = false, speed: Int = 100, paul: Boolean = false): Int {
         val skill = (20 + Math.floor(ratio * 80).toInt() - 10 * puzzles - maxOf(0, 2 * deaths - 1)).coerceIn(20, 100)
         val explore = Math.floor(ratio * 60).toInt() + Math.floor(secrets / required * 40).coerceIn(0.0, 40.0).toInt()
         val bonus = minOf(5, crypts) + (if (mimic) 2 else 0) + (if (prince) 1 else 0) + (if (bat) 1 else 0)
-        return skill + explore + speed + bonus
+        return skill + explore + speed + bonus + (if (paul) 10 else 0)
     }
 
     private val TIME_LIMITS = mapOf(

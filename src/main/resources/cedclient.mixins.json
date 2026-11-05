@@ -31,6 +31,7 @@
     "render.PostPassSaturationMixin",
     "render.QuadParticleGroupMixin",
     "render.EntityRenderDispatcherMixin",
+    "render.MorphSubmitMixin",
 
     "network.MultiPlayerGameModeMixin",
     "network.PlayerTabOverlayMixin",
@@ -85,6 +86,7 @@
     "scoreboard.PlayerTeamMixin",
 
     "input.MouseScrollMixin",
+    "input.MouseHandlerReleaseMixin",
 
     "accessor.AbstractContainerScreenAccessor",
     "accessor.GuiAccessor",
