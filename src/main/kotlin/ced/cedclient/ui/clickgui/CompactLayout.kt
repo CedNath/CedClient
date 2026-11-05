@@ -11,9 +11,10 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 
 /**
- * Theme > Menu Layout "Compact": one window in the middle of the screen. A title and the search box on top, a row of
- * tabs (one per group of modules, wrapping onto more rows if there are many), then the modules of the chosen tab as a
- * list of cards with the settings of the module you right-clicked beside it. ClickGUI owns the screen (dim, popups,
+ * Theme > Menu Layout "Compact": one window in the middle of the screen. A title and the search box on top, a rail of
+ * categories down the left (one per group of modules; long names wrap to two lines and the rail scrolls), then the
+ * modules of the chosen one as a list of cards with that module's settings beside it (the first module's are open
+ * until you right-click another). ClickGUI owns the screen (dim, popups,
  * animation timing) and hands this its panels (used only as the source of modules and their groups).
  *
  * Big categories split by their ModuleGroups headings into one tab each (Skyblock > Dungeons...); small ones
@@ -25,7 +26,7 @@ class CompactLayout(
     private val animated: (String, Float, Float, Float, Float, Float, () -> Unit) -> Unit,
 ) {
     private class Group(val panel: Int, val heading: String?, val name: String)
-    private class Tab(val group: Int, val x: Float, val y: Float, val w: Float)
+    private class Tab(val group: Int, val x: Float, val y: Float, val w: Float, val h: Float)
 
     private val groups = panels.flatMapIndexed { i, p ->
         p.groupNames.map { Group(i, it, it ?: if (p.split) "Other" else p.panelSetting.category.displayName) }
@@ -39,14 +40,49 @@ class CompactLayout(
     private var x0 = 0f
     private var y0 = 0f
     private var winH = 0f
-    private var tabsH = 0f
     private var bodyY = 0f
     private var bodyH = 0f
     private val tabs = ArrayList<Tab>()
-    private val x1 get() = x0 + PAD
+    private var railScroll = 0f
+    private val railLines = HashMap<String, List<String>>()
+    private val x1 get() = x0 + PAD + RAIL_W + GAP
     private val x2 get() = x1 + MOD_W + GAP
 
-    init { selectedModule = null }
+    init { selectedModule = null; autoSelect() }
+
+    /** Opens the first module's settings, so the right panel is never an empty hint. */
+    private fun autoSelect() {
+        val first = shown().firstOrNull() ?: return
+        first.extended = true
+        selectedModule = first
+        selectedAt = System.nanoTime()
+        settingsScroll = 0f
+    }
+
+    private fun ellipsize(text: String, maxW: Float): String {
+        val font = NVGRenderer.defaultFont
+        if (NVGRenderer.textWidth(text, TAB_TEXT, font) <= maxW) return text
+        var s = text
+        while (s.isNotEmpty() && NVGRenderer.textWidth("$s...", TAB_TEXT, font) > maxW) s = s.dropLast(1)
+        return "$s..."
+    }
+
+    /** A category name in at most two lines that fit the rail (the second gets "..." if it still runs long). */
+    private fun railLinesOf(name: String): List<String> = railLines.getOrPut(name) {
+        val maxW = RAIL_W - 2 * TAB_PAD
+        val font = NVGRenderer.defaultFont
+        if (NVGRenderer.textWidth(name, TAB_TEXT, font) <= maxW) return@getOrPut listOf(name)
+        val words = name.split(' ')
+        var first = ""
+        var i = 0
+        while (i < words.size) {
+            val next = if (first.isEmpty()) words[i] else "$first ${words[i]}"
+            if (NVGRenderer.textWidth(next, TAB_TEXT, font) > maxW) break
+            first = next
+            i++
+        }
+        if (first.isEmpty()) listOf(ellipsize(name, maxW)) else listOf(first, ellipsize(words.drop(i).joinToString(" "), maxW))
+    }
 
     private fun shown(): List<ModuleButton> {
         val g = groups[selGroup]
@@ -61,6 +97,7 @@ class CompactLayout(
         modScroll = 0f
         selectedModule?.extended = false
         selectedModule = null
+        autoSelect()
     }
 
     fun draw(cw: Float, ch: Float, elapsed: Float, style: String, mx: Float, my: Float) {
@@ -75,27 +112,24 @@ class CompactLayout(
         winH = (ch - 90f).coerceIn(380f, 680f)
         x0 = ((cw - WIN_W) / 2f).coerceAtLeast(8f)
         y0 = ((ch - winH) / 2f).coerceAtLeast(8f)
-        layoutTabs()
-        bodyY = y0 + HEAD_H + tabsH
+        bodyY = y0 + HEAD_H
         bodyH = y0 + winH - PAD - bodyY
+        layoutTabs()
 
         animated(style, elapsed, x0, y0, WIN_W, winH) { drawWindow(mx, my, speed) }
     }
 
-    /** Tabs in reading order, wrapping to a new row when one would run past the window's edge. */
+    /** The categories as one column down the left (long names wrap to two lines); it scrolls when there are more than fit. */
     private fun layoutTabs() {
         tabs.clear()
-        val left = x0 + PAD
-        val right = x0 + WIN_W - PAD
-        var tx = left
-        var ty = y0 + HEAD_H
-        groups.forEachIndexed { i, g ->
-            val w = NVGRenderer.textWidth(g.name, TAB_TEXT, NVGRenderer.defaultFont) + 2 * TAB_PAD
-            if (tx + w > right && tx > left) { tx = left; ty += TAB_H + TAB_GAP }
-            tabs += Tab(i, tx, ty, w)
-            tx += w + TAB_GAP
+        val heights = groups.map { if (railLinesOf(it.name).size > 1) TAB_H2 else TAB_H }
+        val contentH = heights.sum() + TAB_GAP * (heights.size - 1).coerceAtLeast(0)
+        railScroll = railScroll.coerceIn((bodyH - contentH).coerceAtMost(0f), 0f)
+        var ty = bodyY + railScroll
+        heights.forEachIndexed { i, h ->
+            tabs += Tab(i, x0 + PAD, ty, RAIL_W, h)
+            ty += h + TAB_GAP
         }
-        tabsH = ty + TAB_H + PAD - (y0 + HEAD_H)
     }
 
     private fun frame(x: Float, y: Float, w: Float, h: Float) {
@@ -162,19 +196,26 @@ class CompactLayout(
 
     private fun drawTabs(mx: Float, my: Float) {
         val accent = ClickGUI.clickGUIColor
+        val inRail = my in bodyY..(bodyY + bodyH)
+        NVGRenderer.pushScissor(x0 + PAD, bodyY, RAIL_W, bodyH)
         for (t in tabs) {
             val selected = t.group == selGroup
-            val hovered = mx in t.x..(t.x + t.w) && my in t.y..(t.y + TAB_H)
+            val hovered = inRail && mx in t.x..(t.x + t.w) && my in t.y..(t.y + t.h)
             when {
-                selected -> NVGRenderer.rect(t.x, t.y, t.w, TAB_H, accent.rgba, 8f)
-                hovered -> NVGRenderer.rect(t.x, t.y, t.w, TAB_H, tint(CARD_HOVER), 8f)
-                else -> NVGRenderer.rect(t.x, t.y, t.w, TAB_H, tint(CARD), 8f)
+                selected -> NVGRenderer.rect(t.x, t.y, t.w, t.h, accent.rgba, 8f)
+                hovered -> NVGRenderer.rect(t.x, t.y, t.w, t.h, tint(CARD_HOVER), 8f)
+                else -> NVGRenderer.rect(t.x, t.y, t.w, t.h, tint(CARD), 8f)
             }
-            NVGRenderer.text(
-                groups[t.group].name, t.x + TAB_PAD, t.y + TAB_H / 2f - TAB_TEXT / 2f, TAB_TEXT,
-                if (selected) Colors.WHITE.rgba else TEXT.rgba, NVGRenderer.defaultFont
-            )
+            val lines = railLinesOf(groups[t.group].name)
+            val textH = lines.size * TAB_TEXT + (lines.size - 1) * 2f
+            lines.forEachIndexed { li, line ->
+                NVGRenderer.text(
+                    line, t.x + TAB_PAD, t.y + (t.h - textH) / 2f + li * (TAB_TEXT + 2f), TAB_TEXT,
+                    if (selected) Colors.WHITE.rgba else TEXT.rgba, NVGRenderer.defaultFont
+                )
+            }
         }
+        NVGRenderer.popScissor()
     }
 
     /** Runs [draw] fading in (and sliding [dx], [dy] px into place) over SWITCH_MS from [sinceNs]; 0 = already settled. */
@@ -199,10 +240,9 @@ class CompactLayout(
         well(x1, MOD_W)
         val list = shown()
         fadeIn(listChangedAt, speed, 0f, 6f) {
-            NVGRenderer.text(groups[selGroup].name, x1 + PAD + 8f, bodyY + 11f, 20f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
-            val count = "${list.size} modules"
-            val cw = NVGRenderer.textWidth(count, 15f, NVGRenderer.defaultFont)
-            NVGRenderer.text(count, x1 + MOD_W - PAD - 8f - cw, bodyY + 14f, 15f, MUTED.rgba, NVGRenderer.defaultFont)
+            // The rail already names the category; here just how many modules (or matches) it holds.
+            val count = if (SearchBar.currentSearch.isNotEmpty()) "${list.size} matches" else "${list.size} modules"
+            NVGRenderer.text(count, x1 + PAD + 8f, bodyY + 13f, 16f, MUTED.rgba, NVGRenderer.defaultFont)
         }
 
         val vpY = bodyY + LIST_HEAD
@@ -242,7 +282,8 @@ class CompactLayout(
     }
 
     private fun tabAt(mx: Float, my: Float): Int? =
-        tabs.firstOrNull { mx in it.x..(it.x + it.w) && my in it.y..(it.y + TAB_H) }?.group
+        if (my !in bodyY..(bodyY + bodyH)) null
+        else tabs.firstOrNull { mx in it.x..(it.x + it.w) && my in it.y..(it.y + it.h) }?.group
 
     private fun inModules(mx: Float, my: Float) = mx in x1..(x1 + MOD_W) && my in (bodyY + LIST_HEAD)..(bodyY + bodyH - PAD)
     private fun inSettings(mx: Float, my: Float) = mx in x2..(x2 + SET_W) && my in (bodyY + SET_HEAD)..(bodyY + bodyH - PAD)
@@ -255,6 +296,7 @@ class CompactLayout(
 
     fun mouseScrolled(mx: Float, my: Float, amount: Int) {
         when {
+            mx in (x0 + PAD)..(x0 + PAD + RAIL_W) && my in bodyY..(bodyY + bodyH) -> railScroll += amount * 2
             mx in x1..(x1 + MOD_W) && my in bodyY..(bodyY + bodyH) -> modScroll += amount * 2
             mx in x2..(x2 + SET_W) && my in bodyY..(bodyY + bodyH) -> settingsScroll += amount
         }
@@ -295,12 +337,15 @@ class CompactLayout(
         private const val SET_W = 356f
         private const val GAP = 12f
         private const val PAD = 10f
-        private const val WIN_W = PAD + MOD_W + GAP + SET_W + PAD
+        /** The category rail down the left (tabs used to wrap across the top and ate the module list's height). */
+        private const val RAIL_W = 170f
+        private const val WIN_W = PAD + RAIL_W + GAP + MOD_W + GAP + SET_W + PAD
         private const val HEAD_H = 56f
-        private const val TAB_H = 32f
-        private const val TAB_GAP = 6f
-        private const val TAB_PAD = 14f
-        private const val TAB_TEXT = 17f
+        private const val TAB_H = 34f
+        private const val TAB_H2 = 50f
+        private const val TAB_GAP = 4f
+        private const val TAB_PAD = 10f
+        private const val TAB_TEXT = 15f
         private const val LIST_HEAD = 42f
         private const val SET_HEAD = 42f
         private const val CARD_H = 54f
