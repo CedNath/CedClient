@@ -64,6 +64,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
     fun getPanels(): List<PanelSetting> = panelSettings
 
     private var canvasW = 0f
+    private var canvasH = 0f
 
     /** Slides every panel by [dx] px, keeping the first one's left edge and the last one's right edge reachable (no-op when they all fit). */
     private fun scrollPanels(dx: Float) {
@@ -79,6 +80,32 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     /** How far the panels are scrolled from where they are saved; undone on close so the GUI does not reopen scrolled. */
     private var scrolled = 0f
+
+    // Sideways overflow: the panels are one long row, so say so and make the rest one click away.
+    private fun canScrollLeft() = (panelSettings.firstOrNull()?.x ?: 15f) < 14f
+    private fun canScrollRight() = panelSettings.lastOrNull()?.let { it.x + Panel.WIDTH > canvasW - 14f } ?: false
+    private fun arrowY() = (canvasH - ARROW_H) / 2f
+    private fun overLeftArrow(mx: Float, my: Float) = canScrollLeft() && mx in 4f..(4f + ARROW_W) && my in arrowY()..(arrowY() + ARROW_H)
+    private fun overRightArrow(mx: Float, my: Float) = canScrollRight() && mx in (canvasW - 4f - ARROW_W)..(canvasW - 4f) && my in arrowY()..(arrowY() + ARROW_H)
+
+    private fun drawScrollHints(mx: Float, my: Float) {
+        val left = canScrollLeft()
+        val right = canScrollRight()
+        if (!left && !right) return
+        fun arrow(x: Float, hovered: Boolean, label: String) {
+            val y = arrowY()
+            NVGRenderer.rect(x, y, ARROW_W, ARROW_H, Colors.BLACK.withAlpha(if (hovered) 0.78f else 0.38f).rgba, 8f)
+            if (hovered) NVGRenderer.hollowRect(x, y, ARROW_W, ARROW_H, 1.5f, clickGUIColor.rgba, 8f)
+            val w = NVGRenderer.textWidth(label, 28f, NVGRenderer.defaultFont)
+            NVGRenderer.text(label, x + (ARROW_W - w) / 2f, y + ARROW_H / 2f - 14f, 28f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        }
+        if (left) arrow(4f, overLeftArrow(mx, my), "<")
+        if (right) arrow(canvasW - 4f - ARROW_W, overRightArrow(mx, my), ">")
+        val hint = "Shift + scroll or the arrows: more panels"
+        val w = NVGRenderer.textWidth(hint, 19f, NVGRenderer.defaultFont)
+        NVGRenderer.rect(canvasW - w - 36f, canvasH - 52f, w + 24f, 34f, Colors.BLACK.withAlpha(0.62f).rgba, 6f)
+        NVGRenderer.text(hint, canvasW - w - 24f, canvasH - 45f, 19f, Colors.WHITE.withAlpha(0.9f).rgba, NVGRenderer.defaultFont)
+    }
 
     /** Opens [popup] as a modal on top of this ClickGUI, replacing whichever popup (if any) is already open. */
     fun openPopup(popup: Popup) {
@@ -113,6 +140,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             val canvasWidth = NVGRenderer.canvasWidth / clickGuiScale
             canvasW = canvasWidth
             val canvasHeight = NVGRenderer.canvasHeight / clickGuiScale
+            canvasH = canvasHeight
 
             // Our own background dim instead of vanilla's menu blur (see extractBackground).
             // Theme > Animation Speed scales every open / popup timing.
@@ -142,6 +170,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
                 scaledMouseX,
                 scaledMouseY
             )
+            if (!compact) drawScrollHints(scaledMouseX, scaledMouseY)
             NVGRenderer.pop()
 
             activePopup?.let { popup ->
@@ -232,6 +261,10 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         // A click on the search box is the box's alone: it must not also toggle the module drawn behind it.
         // Compact draws the box in its header, so it needs the click too (else it can never be focused and typed into).
         if (SearchBar.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)) return true
+        if (!compact) {
+            if (overLeftArrow(scaledMouseX, scaledMouseY)) { scrollPanels(ARROW_STEP); return true }
+            if (overRightArrow(scaledMouseX, scaledMouseY)) { scrollPanels(-ARROW_STEP); return true }
+        }
         if (compact) {
             compactLayout.mouseClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)
             return true
@@ -459,6 +492,10 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         private const val PANEL_ANIM_MS = 260f
         private const val PANEL_STAGGER_MS = 45f
         private const val PANEL_SLIDE = 24f
+        /** Classic layout's sideways scroll arrows: size, and how far one click moves the row. */
+        private const val ARROW_W = 22f
+        private const val ARROW_H = 72f
+        private const val ARROW_STEP = 350f
         private const val POPUP_ANIM_MS = 150f
         /** Far enough in the past that every panel (and the dim) has finished animating. */
         private const val PANELS_DONE_NANOS = 2_000_000_000L

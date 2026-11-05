@@ -19,6 +19,11 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import kotlin.math.floor
 
+private val camelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
+
+/** A module name for display: CamelCase names without spaces ("StarredMobHighlight") get spaces; names that have them are left alone. */
+fun prettyModuleName(name: String): String = if (' ' in name) name else name.replace(camelBoundary, " ")
+
 /**
  * Renders one module's row inside a Panel, and (when right-clicked expanded)
  * its settings stack below it. Ported from Odin's clickgui/settings/ModuleButton.kt.
@@ -38,8 +43,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
     private var pressedAt = 0L
     private fun pressed() = module.isAction && System.currentTimeMillis() - pressedAt < 150L
 
-    // Measured when drawn, not when built: the measure depends on the current NanoVG scale and on the chosen font.
-    private val nameWidth get() = NVGRenderer.textWidth(module.name, 21f, NVGRenderer.defaultFont)
+    /** What the menu shows: "FarmHelper" reads "Farm Helper". Display only; saved configs and search still use [Module.name]. */
+    private val shownName = prettyModuleName(module.name)
     private val hoverHandler = HoverHandler(750)
     private val extendAnim = EaseInOutAnimation(250)
     private val switchAnim = EaseInOutAnimation(150)
@@ -60,8 +65,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
             NVGRenderer.rect(x, y, Panel.WIDTH, Panel.HEIGHT, color.rgba)
         }
         NVGRenderer.text(
-            module.name,
-            x + Panel.WIDTH / 2 - nameWidth / 2,
+            shownName,
+            x + 16f, // left-aligned, like the panel title above it
             y + Panel.HEIGHT / 2 - 10.5f,
             21f,
             Colors.WHITE.rgba,
@@ -145,7 +150,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
         // The module whose settings are open gets an accent bar on its left edge.
         if (extended) NVGRenderer.rect(x, y + 10f, 4f, h - 20f, ClickGUI.clickGUIColor.rgba, 2f)
         val on = module.enabled || pressed()
-        NVGRenderer.text(module.name, x + 20f, y + h / 2f - 10.5f, 21f, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(shownName, x + 20f, y + h / 2f - 10.5f, 21f, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, NVGRenderer.defaultFont)
 
         val track = colorAnim.get(ClickGUI.clickGUIColor, CompactLayout.PILL_OFF, on).rgba
         if (module.isAction) {

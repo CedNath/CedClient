@@ -45,8 +45,6 @@ class Panel(val panelSetting: PanelSetting) {
 
     private fun visible(b: ModuleButton) = b.module.name.contains(SearchBar.currentSearch, true)
 
-    // Measured when drawn, not when built: the measure depends on the current NanoVG scale and on the chosen font.
-    private val textWidth get() = NVGRenderer.textWidth(category.displayName, 25f, NVGRenderer.defaultFont)
     /** Height drawn last frame; ClickGUI scales / rotates the open animation around it. */
     var previousHeight = 0f
         private set
@@ -73,14 +71,26 @@ class Panel(val panelSetting: PanelSetting) {
         )
 
         NVGRenderer.drawHalfRoundedRect(panelSetting.x, panelSetting.y, WIDTH, HEIGHT, Colors.gray26.rgba, 5f, true)
+        // Left-aligned title, the module count on the right, and a short accent bar: reads as a heading, not as another row.
+        val (title, titleSize) = fittedTitle()
         NVGRenderer.text(
-            category.displayName,
-            panelSetting.x + WIDTH / 2f - textWidth / 2,
-            panelSetting.y + HEIGHT / 2f - 12.5f,
-            25f,
+            title,
+            panelSetting.x + 16f,
+            panelSetting.y + HEIGHT / 2f - titleSize * 0.56f,
+            titleSize,
             Colors.WHITE.rgba,
             NVGRenderer.defaultFont
         )
+        val count = moduleButtons.size.toString()
+        NVGRenderer.text(
+            count,
+            panelSetting.x + WIDTH - 16f - NVGRenderer.textWidth(count, 17f, NVGRenderer.defaultFont),
+            panelSetting.y + HEIGHT / 2f - 10f,
+            17f,
+            Colors.WHITE.withAlpha(0.5f).rgba,
+            NVGRenderer.defaultFont
+        )
+        NVGRenderer.rect(panelSetting.x + 16f, panelSetting.y + HEIGHT - 8f, 30f, 3f, ClickGUI.clickGUIColor.rgba, 1.5f)
 
         if (scrollOffset != 0f) NVGRenderer.pushScissor(
             panelSetting.x,
@@ -120,6 +130,20 @@ class Panel(val panelSetting: PanelSetting) {
         if (panelSetting.extended) drawScrollbar()
     }
 
+    /**
+     * The category name and the size to draw it at: 25, stepping down to 19 for a long name, then cut with "..." if it still
+     * would touch the module count on the right.
+     */
+    private fun fittedTitle(): Pair<String, Float> {
+        val font = NVGRenderer.defaultFont
+        val maxW = WIDTH - 32f - NVGRenderer.textWidth(moduleButtons.size.toString(), 17f, font) - 12f
+        val name = category.displayName
+        for (size in listOf(25f, 22f, 19f)) if (NVGRenderer.textWidth(name, size, font) <= maxW) return name to size
+        var s = name
+        while (s.isNotEmpty() && NVGRenderer.textWidth("$s...", 19f, font) > maxW) s = s.dropLast(1)
+        return "$s..." to 19f
+    }
+
     /** Thin thumb on the right edge when the panel runs past the bottom of the screen. */
     private fun drawScrollbar() {
         val top = panelSetting.y + HEIGHT
@@ -137,8 +161,7 @@ class Panel(val panelSetting: PanelSetting) {
     /** Small sub-heading row ("Dungeons", "Hunting"...) in the accent colour; returns its height. */
     private fun drawHeading(text: String, x: Float, y: Float): Float {
         NVGRenderer.rect(x, y, WIDTH, HEADING_HEIGHT, Colors.gray26.rgba)
-        val w = NVGRenderer.textWidth(text, 15f, NVGRenderer.defaultFont)
-        NVGRenderer.text(text, x + WIDTH / 2f - w / 2f, y + HEADING_HEIGHT / 2f - 7.5f, 15f, Colors.WHITE.withAlpha(0.6f).rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(text, x + 16f, y + HEADING_HEIGHT / 2f - 7.5f, 15f, Colors.WHITE.withAlpha(0.6f).rgba, NVGRenderer.defaultFont)
         NVGRenderer.rect(x + 12f, y + HEADING_HEIGHT - 1f, WIDTH - 24f, 1f, ClickGUI.clickGUIColor.withAlpha(0.35f).rgba)
         return HEADING_HEIGHT
     }
