@@ -140,7 +140,55 @@ object HudCard {
         } finally { NVGRenderer.pop() }
     }
 
-    fun text(text: String, x: Float, y: Float, size: Float, color: Int) = NVGRenderer.text(text, x, y, size, color, font)
+    /**
+     * HUD text. Colours too dark to read on a game scene (Hypixel's dark red and dark purple) are lifted by [legible], and
+     * a HUD with its Background off gets a soft drop shadow so it also reads on bright scenes. Pure black is left alone:
+     * HUDs draw it on purpose as an outline or shadow.
+     */
+    fun text(text: String, x: Float, y: Float, size: Float, color: Int) {
+        val deliberateBlack = luminance(color and 0xFFFFFF) < 0.002
+        if (!deliberateBlack && bgSettings[currentLabel]?.on?.value == false) {
+            val shadow = withAlpha(0xFF000000.toInt(), 0.7f * ((color ushr 24) / 255f))
+            NVGRenderer.text(text, x + size * 0.08f, y + size * 0.08f, size, shadow, font)
+        }
+        NVGRenderer.text(text, x, y, size, if (deliberateBlack) color else legible(color), font)
+    }
+
+    private fun linear(channel: Int): Double {
+        val v = channel / 255.0
+        return if (v <= 0.03928) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4)
+    }
+
+    private fun luminance(rgb: Int) = 0.2126 * linear((rgb shr 16) and 255) + 0.7152 * linear((rgb shr 8) and 255) + 0.0722 * linear(rgb and 255)
+
+    /** Below this a colour is under 4.5:1 against black, so it vanishes on a dark scene. */
+    private const val MIN_LUMINANCE = 0.2
+
+    private fun towardWhite(rgb: Int, t: Double): Int {
+        fun channel(shift: Int): Int { val c = (rgb shr shift) and 255; return (c + (255 - c) * t).toInt().coerceIn(0, 255) }
+        return (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+    }
+
+    /** [argb] lifted toward white just far enough to read on a dark scene; light colours and its alpha stay as they are. */
+    fun legible(argb: Int): Int {
+        val rgb = argb and 0xFFFFFF
+        if (luminance(rgb) >= MIN_LUMINANCE) return argb
+        var t = 0.0
+        var lifted = rgb
+        while (t < 1.0 && luminance(lifted) < MIN_LUMINANCE) { t += 0.05; lifted = towardWhite(rgb, t) }
+        return (argb and 0xFF000000.toInt()) or lifted
+    }
+
+    /** [component] with every colour lifted by [legible], for text drawn straight with Minecraft's font. */
+    fun legibleComponent(component: Component): Component {
+        val out = Component.empty()
+        component.visit({ style, segment ->
+            val rgb = style.color?.value
+            out.append(Component.literal(segment).withStyle(if (rgb != null) style.withColor(legible(rgb)) else style))
+            Optional.empty<Unit>()
+        }, net.minecraft.network.chat.Style.EMPTY)
+        return out
+    }
 
     /** Width of [component] drawn with [componentText]. */
     fun width(component: Component, size: Float): Float {

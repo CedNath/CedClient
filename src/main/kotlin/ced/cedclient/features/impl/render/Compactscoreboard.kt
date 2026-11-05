@@ -165,7 +165,7 @@ object CompactScoreboard : Module(
                 y += BLANK_H
                 continue
             }
-            g.text(tr, l.text, PAD_X, y, NAME)
+            g.text(tr, HudCard.legibleComponent(l.text), PAD_X, y, NAME)
             if (l.score.isNotEmpty()) {
                 g.text(tr, l.score, panelW - PAD_X - tr.width(l.score), y, SCORE)
             }

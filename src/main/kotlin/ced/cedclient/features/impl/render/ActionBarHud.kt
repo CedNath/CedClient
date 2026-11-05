@@ -68,8 +68,9 @@ object ActionBarHud : Module(
         override fun save() = savePositions()
 
         /** Draws [text] centred in the panel: on Compact Scoreboard's rounded dark panel when [compact], else chat-style backdrop. */
-        protected fun drawText(g: GuiGraphicsExtractor, text: Component, color: Int, compact: Boolean = false) {
+        protected fun drawText(g: GuiGraphicsExtractor, source: Component, color: Int, compact: Boolean = false) {
             val font = Minecraft.getInstance().font
+            val text = HudCard.legibleComponent(source) // dark reds and purples would vanish on a dark scene
             val w = font.width(text)
             val x = (WIDTH - w) / 2
             g.pose().pushMatrix()
