@@ -32,13 +32,13 @@ class KeybindSetting(
     override fun render(x: Float, y: Float, mouseX: Float, mouseY: Float): Float {
         val height = super.render(x, y, mouseX, mouseY)
 
-        NVGRenderer.text(name, x + 6f, y + height / 2f - 6f, 12f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(name, x + 6f, y + height / 2f - 9f, 18f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
 
         val label = if (listening) "..." else keyName()
         val labelColor = if (listening) Colors.MINECRAFT_GOLD.rgba else Colors.MINECRAFT_GRAY.rgba
         NVGRenderer.text(
-            label, x + width - 6f - NVGRenderer.textWidth(label, 12f, NVGRenderer.defaultFont),
-            y + height / 2f - 6f, 12f, labelColor, NVGRenderer.defaultFont
+            label, x + width - 6f - NVGRenderer.textWidth(label, 18f, NVGRenderer.defaultFont),
+            y + height / 2f - 9f, 18f, labelColor, NVGRenderer.defaultFont
         )
 
         return height

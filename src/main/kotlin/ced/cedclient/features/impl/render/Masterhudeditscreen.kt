@@ -1,5 +1,6 @@
 package ced.cedclient.features.impl.render
 
+import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Keys
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -22,6 +23,9 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     // Panels of disabled modules stay out of the editor (an element that is not a module has no switch, so it stays).
     private val elements: List<HudElement> = HudElement.all.filter { it.hudActive && (it as? ced.cedclient.features.Module)?.isEnabled != false }
+    // Timing of the first frame, logged once to the Debug log (the editor freezes for a moment when it opens).
+    private val created = System.nanoTime()
+    private var firstFrameLogged = false
     private var dragging: HudElement? = null
     private var selected: HudElement? = null
     private var dragOffsetX = 0
@@ -77,7 +81,10 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         val hovered = if (open) null else elementAt(mouseX, mouseY)
         val sel = selected?.takeIf { it in shown }
         // The selected panel is drawn last (on top); the rest are dimmed while one is selected.
-        for (element in shown.sortedBy { it === sel }) {
+        val firstFrame = !firstFrameLogged
+        val frameStart = System.nanoTime()
+        val costs = if (firstFrame) ArrayList<Pair<String, Long>>() else null
+        fun decorate(element: HudElement) {
             val sw = (element.lastWidth * element.panelScale).toInt()
             val sh = (element.lastHeight * element.panelScale).toInt()
             val color = when {
@@ -85,12 +92,39 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
                 element === hovered -> 0xCCFFFFFF.toInt()
                 else -> 0x55FFFFFF
             }
-            element.renderInternal(context)
             if (sel != null && element !== sel) context.fill(element.panelX - 2, element.panelY - 2, element.panelX + sw + 2, element.panelY + sh + 2, 0xB0000000.toInt())
             context.outline(element.panelX - 2, element.panelY - 2, sw + 4, sh + 4, color)
             if (element === hovered && element !== selected) {
                 context.text(this.font, element.label, element.panelX - 2, element.panelY - 12, 0xFFFFFFFF.toInt())
             }
+        }
+        // Every preview used to be its own full-screen NanoVG pass (a framebuffer bind + blit each, 40 of them: the freeze
+        // when the editor opens). The unselected ones are now queued into ONE pass; their dimming and outlines go on a
+        // layer above, and the selected panel on top of that.
+        val others = shown.filter { it !== sel }
+        context.nextStratum()
+        NVGSpecialRenderer.batching = true
+        try {
+            for (element in others) {
+                val t = System.nanoTime()
+                element.renderInternal(context)
+                costs?.add(element.label to System.nanoTime() - t)
+            }
+        } finally { NVGSpecialRenderer.batching = false }
+        NVGSpecialRenderer.flush(context)
+        context.nextStratum()
+        for (element in others) decorate(element)
+        if (sel != null) {
+            context.nextStratum()
+            val t = System.nanoTime()
+            sel.renderInternal(context)
+            costs?.add(sel.label to System.nanoTime() - t)
+            decorate(sel)
+        }
+        if (costs != null) {
+            firstFrameLogged = true
+            val worst = costs.sortedByDescending { it.second }.take(5).joinToString { "${it.first} ${it.second / 1_000_000}ms" }
+            ced.cedclient.utils.Debug.line("HUD Editor", "opened: constructor ${(frameStart - created) / 1_000_000}ms, first frame ${(System.nanoTime() - frameStart) / 1_000_000}ms for ${costs.size} HUDs; slowest: $worst")
         }
         selected?.takeIf { it in shown }?.let { drawToolbar(context, it, mouseX, mouseY) }
         drawPill(context, mouseX, mouseY)
@@ -107,7 +141,9 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         x += button(context, x, y, "-", mx, my) { e.adjustScale(-0.1f); e.save(); HudElement.layoutEdited() } + 2
         x += button(context, x, y, "+", mx, my) { e.adjustScale(0.1f); e.save(); HudElement.layoutEdited() } + 2
         x += button(context, x, y, "Reset", mx, my) { e.resetPosition(); e.save(); HudElement.layoutEdited() } + 2
-        button(context, x, y, "Style: " + if (HudStyle.hasOverride(e.label)) style else "Auto ($style)", mx, my, HudStyle.hasOverride(e.label)) { HudStyle.cycle(e.label) }
+        x += button(context, x, y, "Style: " + if (HudStyle.hasOverride(e.label)) style else "Auto ($style)", mx, my, HudStyle.hasOverride(e.label)) { HudStyle.cycle(e.label) } + 2
+        HudCard.backgroundToggle(e)?.let { b -> x += button(context, x, y, "BG", mx, my, b.value) { b.value = !b.value } + 2 }
+        HudCard.outlineToggle(e).let { o -> button(context, x, y, "Outline", mx, my, o.value) { o.value = !o.value } }
     }
 
     private fun drawPill(context: GuiGraphicsExtractor, mx: Int, my: Int) {

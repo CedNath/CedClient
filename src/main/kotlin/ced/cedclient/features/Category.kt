@@ -9,6 +9,9 @@ package ced.cedclient.features
 enum class Category(val displayName: String) {
     General("General"),
     Dungeons("Dungeons"),
+//#if CHEAT
+    Cheats("Cheats"),
+//#endif
     Combat("Slayer & Combat"),
     Farming("Farming & Garden"),
     Fishing("Fishing"),
@@ -22,9 +25,6 @@ enum class Category(val displayName: String) {
     Cosmetic("Cosmetics & Appearance"),
     Movement("Movement & Navigation"),
     Sound("Sound & Audio"),
-//#if CHEAT
-    Cheats("Cheats"),
-//#endif
     Skyblock("Skyblock"),
     Mining("Mining"),
     Rift("Rift"),

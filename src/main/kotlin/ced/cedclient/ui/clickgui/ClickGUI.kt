@@ -63,6 +63,12 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
     /** Live panel layout state, exposed for ResetPanels to mutate while this screen is open. */
     fun getPanels(): List<PanelSetting> = panelSettings
 
+    /** Panels back to their default spots. The sideways scroll is forgotten too, or onClose would subtract it from the defaults and save them shifted. */
+    fun resetPanelPositions() {
+        scrolled = 0f
+        ConfigManager.resetPanelsToDefaults(panelSettings)
+    }
+
     private var canvasW = 0f
     private var canvasH = 0f
 
@@ -165,7 +171,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
             NVGRenderer.push()
             NVGRenderer.globalAlpha(dim)
             if (!compact) SearchBar.draw(
-                canvasWidth / 2f - 175f,
+                canvasWidth / 2f - SearchBar.TOTAL_WIDTH / 2f,
                 canvasHeight - 90f,
                 scaledMouseX,
                 scaledMouseY

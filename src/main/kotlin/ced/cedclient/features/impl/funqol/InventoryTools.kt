@@ -296,29 +296,30 @@ object SlotBinding : Module("Slot Binding", Category.Skyblock, "Link inventory s
                 Debug.line("Slot Binding", "swap main=$main hotbar=$hot")
                 false
             }
-            ScreenEvents.afterExtract(screen).register { s, g, mx, my, _ ->
-                if (!isEnabled) return@register
-                val acc = s as AbstractContainerScreenAccessor
-                val cs = s as AbstractContainerScreen<*>
-                // Only on the player's own inventory screen: not over a terminal, Croesus or any other menu.
-                if (cs !is net.minecraft.client.gui.screens.inventory.InventoryScreen) return@register
-                fun px(slot: Slot) = acc.`ced$getLeftPos`() + slot.x
-                fun py(slot: Slot) = acc.`ced$getTopPos`() + slot.y
-                val hov = hovered(s)?.takeIf { it.container is Inventory }?.containerSlot
-                if (showBound.value) for ((main, hot) in bindings) {
-                    if (hoverOnly.value && hov != main && hov != hot) continue
-                    val a = menuSlot(cs, main) ?: continue
-                    val b = menuSlot(cs, hot) ?: continue
-                    if (drawLine.value) line(g, px(a) + 8, py(a) + 8, px(b) + 8, py(b) + 8, lineColor.value.rgba)
-                    if (drawBorder.value) { border(g, px(a), py(a), borderColor.value.rgba); border(g, px(b), py(b), borderColor.value.rgba) }
-                }
-                // a pending link follows the cursor
-                pending?.let { p -> menuSlot(cs, p)?.let { slot ->
-                    line(g, px(slot) + 8, py(slot) + 8, mx, my, lineColor.value.rgba)
-                    border(g, px(slot), py(slot), borderColor.value.rgba)
-                } }
-            }
         }
+    }
+
+    /** The links and the pending line. Called from SlotBindingMixin right after the slots (extractContents), so the hovered item's tooltip draws over them. */
+    fun drawOverlays(cs: AbstractContainerScreen<*>, g: GuiGraphicsExtractor, mx: Int, my: Int) {
+        if (!isEnabled) return
+        val acc = cs as AbstractContainerScreenAccessor
+        // Only on the player's own inventory screen: not over a terminal, Croesus or any other menu.
+        if (cs !is net.minecraft.client.gui.screens.inventory.InventoryScreen) return
+        fun px(slot: Slot) = acc.`ced$getLeftPos`() + slot.x
+        fun py(slot: Slot) = acc.`ced$getTopPos`() + slot.y
+        val hov = hovered(cs)?.takeIf { it.container is Inventory }?.containerSlot
+        if (showBound.value) for ((main, hot) in bindings) {
+            if (hoverOnly.value && hov != main && hov != hot) continue
+            val a = menuSlot(cs, main) ?: continue
+            val b = menuSlot(cs, hot) ?: continue
+            if (drawLine.value) line(g, px(a) + 8, py(a) + 8, px(b) + 8, py(b) + 8, lineColor.value.rgba)
+            if (drawBorder.value) { border(g, px(a), py(a), borderColor.value.rgba); border(g, px(b), py(b), borderColor.value.rgba) }
+        }
+        // a pending link follows the cursor
+        pending?.let { p -> menuSlot(cs, p)?.let { slot ->
+            line(g, px(slot) + 8, py(slot) + 8, mx, my, lineColor.value.rgba)
+            border(g, px(slot), py(slot), borderColor.value.rgba)
+        } }
     }
 }
 

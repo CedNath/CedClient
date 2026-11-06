@@ -4,6 +4,7 @@ import ced.cedclient.utils.ui.clickGuiScale
 import ced.cedclient.utils.Keys
 import ced.cedclient.features.ModuleManager
 import ced.cedclient.features.ModuleGroups
+import ced.cedclient.features.Module
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Colors
 import ced.cedclient.utils.Color.Companion.withAlpha
@@ -27,7 +28,12 @@ class Panel(val panelSetting: PanelSetting) {
     private val category = panelSetting.category
 
     // Modules in heading order (ModuleGroups); headings[i] is the heading of moduleButtons[i].
-    private val arranged = ModuleGroups.arrange(category, ModuleManager.modulesByCategory[category] ?: listOf())
+    // Like Odin: within each heading group the longest names come first.
+    private val arranged = ModuleGroups.arrange(category, ModuleManager.modulesByCategory[category] ?: listOf()).let { all ->
+        val order = all.map { it.first }.distinct()
+        all.sortedWith(compareBy<Pair<String?, Module>> { order.indexOf(it.first) }
+            .thenByDescending { prettyModuleName(it.second.name).length }) // length, not pixels: the font isn't measurable this early
+    }
     val moduleButtons = arranged.map { ModuleButton(it.second, this@Panel) }
     private val headings = arranged.map { it.first }
 

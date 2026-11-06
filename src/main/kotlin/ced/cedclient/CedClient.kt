@@ -193,6 +193,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(Fullbright)
         ModuleManager.register(Saturation)
         ModuleManager.register(CleanView)
+        ModuleManager.register(ced.cedclient.features.impl.render.NoGlow)
         ModuleManager.register(RenderOptimizer)
         ModuleManager.register(VanillaTextures)
         ModuleManager.register(ced.cedclient.features.impl.render.CustomTooltips)
@@ -294,6 +295,7 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(ced.cedclient.features.impl.funqol.RiftstalkerSlayer)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SunGecko)
         ModuleManager.register(ced.cedclient.features.impl.funqol.RoomTimes)
+        ModuleManager.register(ced.cedclient.features.impl.funqol.KeyAlerts)
         ModuleManager.register(ced.cedclient.features.impl.funqol.LeapCounter)
         ModuleManager.register(ced.cedclient.features.impl.funqol.SecretHighlight)
         ModuleManager.register(ced.cedclient.features.impl.funqol.LeftClickSecrets)
@@ -327,8 +329,6 @@ class CedClient : ClientModInitializer {
         ModuleManager.register(AdvancedMode)
         ModuleManager.register(DoorESP)
         ModuleManager.register(ced.cedclient.features.impl.misc.ChatPrefixSettings)
-        // Close friends only (DevAccess.isCloseFriend): not registered for anyone else. Other people's morphs show for everyone.
-        if (ced.cedclient.utils.DevAccess.isCloseFriend) ModuleManager.register(ced.cedclient.features.impl.render.Morph)
 
 //#if CHEAT
         // Cheats: ESP, camera, then the auto-catch / auto-play helpers (left out of the Legit build)
@@ -462,6 +462,11 @@ class CedClient : ClientModInitializer {
             Identifier.fromNamespaceAndPath("cedclient", "leap_counter")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.LeapCounter.render(graphics, tickCounter)
+        }
+        hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "score_calculator")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.ScoreCalculator.render(graphics, tickCounter)
         }
         hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "dungeon_splits")

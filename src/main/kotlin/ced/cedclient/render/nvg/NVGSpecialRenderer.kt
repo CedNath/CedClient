@@ -192,6 +192,9 @@ class NVGSpecialRenderer(
         private val queued = ArrayList<() -> Unit>()
         private var flushing = false
 
+        /** A screen that draws many HUD cards itself (the HUD editor) sets this to queue them too, then calls [flush] once. */
+        @JvmField var batching = false
+
         /** Draws everything [draw] queued this frame in a single NanoVG pass, each piece with its own saved / restored state. */
         fun flush(context: GuiGraphicsExtractor) {
             if (queued.isEmpty()) return
@@ -219,7 +222,7 @@ class NVGSpecialRenderer(
             tooltip: Boolean = false
         ) {
             if (!flushing && !tooltip && afterRender == null && x == 0 && y == 0 && width == context.guiWidth() && height == context.guiHeight() &&
-                net.minecraft.client.Minecraft.getInstance().gui.screen() == null
+                (batching || net.minecraft.client.Minecraft.getInstance().gui.screen() == null)
             ) {
                 queued += renderContent
                 return

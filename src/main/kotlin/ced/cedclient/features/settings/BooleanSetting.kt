@@ -24,11 +24,11 @@ class BooleanSetting(
     override fun render(x: Float, y: Float, mouseX: Float, mouseY: Float): Float {
         val height = super.render(x, y, mouseX, mouseY)
 
-        NVGRenderer.text(name, x + 6f, y + height / 2f - 7f, 14f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(name, x + 6f, y + height / 2f - 9f, 18f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
 
         // Slide switch: grey with the knob left = off, green with the knob right = on.
-        val trackW = 30f
-        val trackH = 16f
+        val trackW = 42f
+        val trackH = 24f
         val trackX = x + width - trackW - 6f
         val trackY = y + height / 2f - trackH / 2f
         val t = toggleAnim.get(0f, 1f, !value)

@@ -6,6 +6,10 @@ import ced.cedclient.render.bufferSource
 import ced.cedclient.render.draw
 import ced.cedclient.render.polyline
 import ced.cedclient.features.Module
+import ced.cedclient.features.impl.render.HudCard
+import ced.cedclient.features.impl.render.HudElement
+import net.minecraft.client.DeltaTracker
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.features.settings.NumberSetting
@@ -42,37 +46,34 @@ import kotlin.math.floor
 import kotlin.math.max
 
 /**
- * Chat and title alerts for the dungeon score: 270 (S) and 300 (S+) messages to the party, plus one-time messages when the
- * mimic, the prince or the bat is killed. Unique: a boss-start summary (the score you walk in with and how far off 300 it
- * is), a configurable "almost" warning a few points before each target, and the sound pitch rises with the target.
+ * The dungeon score as a HUD: always shown during the clear (and in the boss room if "Show In Boss" is on), coloured by
+ * the 270 (S) / 300 (S+) targets. Also party messages at 270 and 300 and when the mimic, the prince or a bat is killed.
  */
 object ScoreCalculator : Module(
     "Score Calculator",
     Category.Dungeons,
-    "Party messages and titles at 270 / 300 score, and when the mimic, prince or bat is killed."
-) {
+    "A score HUD for the dungeon (clear, optionally boss), plus party messages at 270 / 300 and when the mimic, prince or bat is killed."
+), HudElement {
+    private val showInBoss = BooleanSetting("Show In Boss", false, "Keep the score HUD up in the boss room too (it is always shown during the clear).")
+    private val forcePaul = BooleanSetting("Force Paul Perk", false, "Counts Paul's EZPZ perk (+10 score) even if the election lookup doesn't see it. Normally it is detected from Hypixel's election data (mayor or minister).")
+    private val background = BooleanSetting("Background", false, "Draw the HUD card behind the text.")
     private val msg270 = BooleanSetting("270 Message", true, "A party message at 270 score.")
     private val text270 = TextSetting("270 Text", "270", "What to send at 270.", 100).withDependency { msg270.value }
-    private val title270 = BooleanSetting("270 Title", false, "A title at 270 score.")
     private val msg300 = BooleanSetting("300 Message", true, "A party message at 300 score.")
     private val text300 = TextSetting("300 Text", "300", "What to send at 300.", 100).withDependency { msg300.value }
-    private val title300 = BooleanSetting("300 Title", true, "A title at 300 score.")
-    private val almost = NumberSetting("Almost Warning (points)", 0.0, 0.0, 20.0, 1.0, "A quiet title this many points before a target (0 = off).")
     private val mimicMsg = BooleanSetting("Mimic Message", true, "A party message when the mimic is killed.")
     private val princeMsg = BooleanSetting("Prince Message", true, "A party message when the prince is killed.")
     private val batMsg = BooleanSetting("Bat Message", true, "A party message when a bat is killed.")
-    private val bossSummary = BooleanSetting("Boss Start Summary", true, "When the boss room starts: your score and how far it is from 300.")
-    private val color = ColorSetting("Title Color", Color(255, 215, 0), "Colour of the titles.")
 
     private var sent270 = false
     private var sent300 = false
-    private var warned270 = false
-    private var warned300 = false
     private var sentMimic = false
     private var sentPrince = false
     private var sentBat = false
-    private var summarised = false
     private var world: Any? = null
+
+    /** The run's score; Force Paul adds the +10 only when the election lookup hasn't already counted it. */
+    private val score get() = DungeonRunInfo.score + if (forcePaul.value && !DungeonRunInfo.paul) 10 else 0
 
     private fun say(text: String) {
         if (text.isBlank()) return
@@ -80,40 +81,89 @@ object ScoreCalculator : Module(
     }
 
     private fun reset() {
-        sent270 = false; sent300 = false; warned270 = false; warned300 = false
-        sentMimic = false; sentPrince = false; sentBat = false; summarised = false
+        sent270 = false; sent300 = false
+        sentMimic = false; sentPrince = false; sentBat = false
     }
 
     init {
-        addSettings(msg270, text270, title270, msg300, text300, title300, almost, mimicMsg, princeMsg, batMsg, bossSummary, color)
+        addSettings(showInBoss, forcePaul, background, msg270, text270, msg300, text300, mimicMsg, princeMsg, batMsg)
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             if (mc.level !== world) { world = mc.level; reset() }
             if (!isEnabled || !DungeonState.inDungeon) return@register
-            val score = DungeonRunInfo.score
-            val tint = color.value.rgba and 0xFFFFFF
-            val warn = almost.value.toInt()
-            if (warn > 0 && !warned270 && score in (270 - warn) until 270) { warned270 = true; Alerts.title("Score", "Almost 270", "$score", tint, false, 0.9f) }
-            if (warn > 0 && !warned300 && score in (300 - warn) until 300) { warned300 = true; Alerts.title("Score", "Almost 300", "$score", tint, false, 1.1f) }
+            // The Dungeon Map refreshes the run info during the clear; in the boss room (or with the map off) this does.
+            if (DungeonState.inBoss || !DungeonMap.isEnabled) DungeonRunInfo.update()
+            val score = score
             if (!sent270 && score >= 270) {
                 sent270 = true
+                ced.cedclient.utils.Debug.line(name, "270 reached (score $score, paul ${DungeonRunInfo.paul || forcePaul.value})")
                 if (msg270.value) say(text270.value)
-                if (title270.value) Alerts.title("Score", "270 Score", "S", tint, true, 1.0f)
             }
             if (!sent300 && score >= 300) {
                 sent300 = true
+                ced.cedclient.utils.Debug.line(name, "300 reached (score $score)")
                 if (msg300.value) say(text300.value)
-                if (title300.value) Alerts.title("Score", "300 Score", "S+", tint, true, 1.4f)
             }
             if (!sentMimic && DungeonRunInfo.mimic) { sentMimic = true; if (mimicMsg.value) say("Mimic dead!") }
             if (!sentPrince && DungeonRunInfo.prince) { sentPrince = true; if (princeMsg.value) say("Prince dead!") }
             if (!sentBat && DungeonRunInfo.bat) { sentBat = true; if (batMsg.value) say("Bat dead!") }
-            if (bossSummary.value && !summarised && DungeonState.inBoss) {
-                summarised = true
-                val missing = (300 - score).coerceAtLeast(0)
-                Alerts.title("Score", "Score $score", if (missing == 0) "S+ reached" else "$missing to 300", tint, false, 1.0f)
-            }
         }
     }
+
+    fun render(g: GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: DeltaTracker) {
+        if (!isEnabled || Minecraft.getInstance().gui.hud.isHidden || !DungeonState.inDungeon) return
+        if (DungeonState.inBoss && !showInBoss.value) return
+        renderInternal(g)
+    }
+
+    override fun renderInternal(g: GuiGraphicsExtractor) {
+        // Outside a run (HUD editor preview) a sample score is drawn.
+        val live = DungeonState.inDungeon
+        val value = if (live) score else 287
+        val green = 0xFF55FF55.toInt(); val yellow = 0xFFFFFF55.toInt(); val red = 0xFFFF5555.toInt(); val grey = 0xFFAAAAAA.toInt()
+        val parts = listOf("Score " to grey, "$value" to if (value >= 300) green else if (value >= 270) yellow else red)
+        val s = panelScale
+        val size = 10f * s
+        val pad = 6f * s
+        val textW = parts.sumOf { HudCard.width(it.first, size).toDouble() }.toFloat()
+        val width = HudCard.steady("Score Calculator", textW + pad * 2, s)
+        val height = size + pad * 2
+        lastWidth = (width / s).toInt()
+        lastHeight = (height / s).toInt()
+        HudCard.draw(g, panelX, panelY) {
+            if (background.value) HudCard.card(width, height, s)
+            var x = pad
+            for ((str, c) in parts) { HudCard.text(str, x, pad, size, c); x += HudCard.width(str, size) }
+        }
+    }
+
+    override val label = "Score Calculator"
+    private const val DEFAULT_X = 560
+    private const val DEFAULT_Y = 60
+    private const val DEFAULT_SCALE = 1.8f
+    override var panelX = DEFAULT_X
+    override var panelY = DEFAULT_Y
+    override var panelScale = DEFAULT_SCALE
+    override var lastWidth = 0
+        private set
+    override var lastHeight = 0
+        private set
+
+    private data class HudPosition(val x: Int, val y: Int, val scale: Float)
+    private val gson = com.google.gson.Gson()
+    private val hudFile by lazy { ced.cedclient.config.CedPaths.hud("score_calculator") }
+
+    init {
+        runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let {
+            panelX = it.x; panelY = it.y; panelScale = it.scale.coerceIn(0.4f, 3f)
+        }
+    }
+
+    override fun save() {
+        runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) }
+    }
+
+    override fun resetPosition() { panelX = DEFAULT_X; panelY = DEFAULT_Y; panelScale = DEFAULT_SCALE }
+    override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
 }
 
 //#if CHEAT

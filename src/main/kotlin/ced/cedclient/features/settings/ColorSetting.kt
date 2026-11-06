@@ -84,18 +84,18 @@ class ColorSetting(
         val height = super.render(x, y, mouseX, mouseY)
 
         val font = NVGRenderer.defaultFont
-        NVGRenderer.text(name, x + 6f, y + Panel.HEIGHT / 2f - 7f, 14f, Colors.WHITE.rgba, font)
+        NVGRenderer.text(name, x + 6f, y + Panel.HEIGHT / 2f - 9f, 18f, Colors.WHITE.rgba, font)
 
         // Colour pill (checker under it so see-through colours read as such) + hex code beside it.
-        val pillW = 30f
-        val pillH = 16f
+        val pillW = 40f
+        val pillH = 24f
         val pillX = x + width - pillW - 8f
         val pillY = y + Panel.HEIGHT / 2f - pillH / 2f
         if (value.alphaFloat < 1f) drawChecker(pillX, pillY, pillW, pillH, pillH / 2f)
         NVGRenderer.rect(pillX, pillY, pillW, pillH, value.rgba, pillH / 2f)
         NVGRenderer.hollowRect(pillX, pillY, pillW, pillH, 1f, (if (isHovered || picking) Colors.WHITE else Colors.INPUT_BORDER).rgba, pillH / 2f)
         val hex = "#%06X".format(value.rgba and 0xFFFFFF)
-        NVGRenderer.text(hex, pillX - 8f - NVGRenderer.textWidth(hex, 12f, font), y + Panel.HEIGHT / 2f - 6f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
+        NVGRenderer.text(hex, pillX - 8f - NVGRenderer.textWidth(hex, 15f, font), y + Panel.HEIGHT / 2f - 7.5f, 15f, Colors.MINECRAFT_GRAY.rgba, font)
 
         if (picking) {
             // Rounded backing for the picker, like the menu's other boxes.

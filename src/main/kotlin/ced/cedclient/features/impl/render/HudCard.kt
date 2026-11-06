@@ -53,23 +53,59 @@ object HudCard {
         return labelCache.getOrPut(key) { HudElement.all.firstOrNull { it.panelX == x && it.panelY == y }?.label ?: "" }.ifEmpty { null }
     }
 
-    private class Bg(val on: BooleanSetting?, val opacity: NumberSetting)
+    private class Bg(val opacity: NumberSetting)
     private val bgSettings = HashMap<String, Bg>()
+    /** HUDs whose card is off until the HUD editor turns it on (modules that had no Background setting of their own). */
+    private val cardOffByDefault = HashSet<String>()
 
     /**
-     * Gives every HUD module a Background toggle (off by default) and a Background Opacity slider, unless it already
-     * has its own. Run once after the modules are registered and before the config loads, so the values are saved.
+     * Gives every HUD module a Background Opacity slider, unless it already has its own Background settings. The card
+     * itself and the Text Outline are chosen per HUD in the HUD editor (see [HudLook], [backgroundToggle], [outlineToggle]).
+     * Run once after the modules are registered and before the config loads, so the values are saved.
      */
     fun attachBackgroundSettings() {
         for (e in HudElement.all) {
             val m = e as? Module ?: continue
+            // Background / Text Outline are chosen in the HUD editor now, so the module's own toggles leave the menu (values still work and save).
+            m.settings.values.filter { it is BooleanSetting && (isBackgroundName(it.name) || it.name.contains("text outline", true)) }.forEach { it.hide() }
             if (e.label == "Chat Alerts") continue // text only, no card
             val own = m.settings.values.filter { it.name.contains("background", true) }
             if (own.any { it is NumberSetting } || own.any { it.name.contains("opacity", true) || it.name.contains("color", true) }) continue
-            val on = if (own.isEmpty()) BooleanSetting("Background", false, "The card behind the HUD.").also { m.registerSetting(it) } else null
-            val opacity = NumberSetting("Background Opacity", 100.0, 0.0, 100.0, 5.0, "How solid the card is (percent).").also { m.registerSetting(it) }
-            bgSettings[e.label] = Bg(on, opacity)
+            if (own.isEmpty()) cardOffByDefault += e.label
+            bgSettings[e.label] = Bg(NumberSetting("Background Opacity", 100.0, 0.0, 100.0, 5.0, "How solid the card is (percent).").also { m.registerSetting(it) })
         }
+    }
+
+    /** A card that stays off until the HUD editor turns it on (the alert cards). */
+    fun offByDefault(label: String) { cardOffByDefault += label }
+
+    /** "Background", "Show Background", "Alert Background" ... but not a colour or an opacity. */
+    private fun isBackgroundName(name: String) =
+        name.contains("background", true) && !name.contains("color", true) && !name.contains("opacity", true) && !name.contains("message", true)
+
+    /** Is [label]'s card drawn: the editor's choice, else on unless it is a module that never had a card of its own. */
+    private fun cardOn(label: String?): Boolean = HudLook.background(label) ?: (label !in cardOffByDefault)
+
+    /** A yes/no the HUD editor's toolbar flips: a module's own setting where it has one, else a per-HUD choice in [HudLook]. */
+    class Toggle(private val read: () -> Boolean, private val write: (Boolean) -> Unit) {
+        var value: Boolean
+            get() = read()
+            set(v) = write(v)
+    }
+
+    private fun ownSetting(e: HudElement, match: (String) -> Boolean): BooleanSetting? =
+        (e as? Module)?.settings?.values?.firstOrNull { it is BooleanSetting && match(it.name) } as? BooleanSetting
+
+    private fun settingToggle(s: BooleanSetting) = Toggle({ s.value }, { s.value = it; ced.cedclient.config.ConfigManager.saveModulesOnly() })
+
+    /** Text Outline of [e] for the editor toolbar. */
+    fun outlineToggle(e: HudElement): Toggle =
+        ownSetting(e) { it.contains("text outline", true) }?.let(::settingToggle) ?: Toggle({ HudLook.outline(e.label) }, { HudLook.setOutline(e.label, it) })
+
+    /** Background of [e] for the editor toolbar; null for a HUD that is text only. */
+    fun backgroundToggle(e: HudElement): Toggle? {
+        if (e.label == "Chat Alerts") return null
+        return ownSetting(e) { isBackgroundName(it) }?.let(::settingToggle) ?: Toggle({ cardOn(e.label) }, { HudLook.setBackground(e.label, it) })
     }
 
     /** 0..1 opacity chosen for [label]'s card (1 when it has no slider). */
@@ -94,7 +130,7 @@ object HudCard {
 
     /** The card behind a HUD, in that HUD's [HudStyle] (Classic is the original rounded card with an accent border). */
     fun card(width: Float, height: Float, scale: Float, alpha: Float = 1f, label: String? = currentLabel) {
-        if (bgSettings[label]?.on?.value == false) return
+        if (!cardOn(label)) return
         val alpha = alpha * opacityOf(label)
         val round = if (Theme.roundedHud.value) 1f else 0f
         val r = CORNER_RADIUS * scale * round
@@ -147,7 +183,12 @@ object HudCard {
      */
     fun text(text: String, x: Float, y: Float, size: Float, color: Int) {
         val deliberateBlack = luminance(color and 0xFFFFFF) < 0.002
-        if (!deliberateBlack && bgSettings[currentLabel]?.on?.value == false) {
+        if (!deliberateBlack && HudLook.outline(currentLabel)) {
+            val o = size * 0.07f
+            val black = withAlpha(0xFF000000.toInt(), (color ushr 24) / 255f)
+            for (dx in -1..1) for (dy in -1..1) if (dx != 0 || dy != 0) NVGRenderer.text(text, x + dx * o, y + dy * o, size, black, font)
+        }
+        if (!deliberateBlack && !cardOn(currentLabel)) {
             val shadow = withAlpha(0xFF000000.toInt(), 0.7f * ((color ushr 24) / 255f))
             NVGRenderer.text(text, x + size * 0.08f, y + size * 0.08f, size, shadow, font)
         }

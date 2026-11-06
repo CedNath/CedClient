@@ -23,7 +23,7 @@ object ClientTitles {
     private val USERS = setOf(
         "BeachBallHelper", "BloodCamp", "CoralotHelper", "CritterSafari", "F7Titles", "MaskTimers", "I4Helper", "LividSolver",
         "WarpCooldown", "RoomAlerts", "TrevorHelper", "NecronDrop", "SbKickTimer", "PangolinCatcher",
-        "RagnarockTimer", "ScoreCalculator", "SecretHighlight", "SunGecko", "VampireSlayer"
+        "RagnarockTimer", "KeyAlerts", "SecretHighlight", "SunGecko", "VampireSlayer"
     )
 
     /** What each card shows in the HUD editor until a real alert has been seen: title, subtitle (§ codes give the colour). */
@@ -43,7 +43,7 @@ object ClientTitles {
         "SbKickTimer" to ("§eKick timer" to "§7ready in 5s"),
         "PangolinCatcher" to ("§aPangolin!" to ""),
         "RagnarockTimer" to ("§aRagnarock ready" to ""),
-        "ScoreCalculator" to ("§e300 Score!" to ""),
+        "KeyAlerts" to ("§cBlood Key" to "§7CedNath"),
         "SecretHighlight" to ("§cSecret locked" to ""),
         "SunGecko" to ("§eSun Gecko spawned" to ""),
         "VampireSlayer" to ("§cMania!" to "§7boss is low"),
@@ -68,7 +68,7 @@ object ClientTitles {
     }
 
     /** One module's alert card. [module] is null for the catch-all card (a caller that is no module above). */
-    class Panel(private val module: Module?, private val toggle: BooleanSetting?, private val background: BooleanSetting?, fileKey: String, override val label: String, private val sampleMain: String, private val sampleSub: String, private val defX: Int, private val defY: Int) : HudElement {
+    class Panel(private val module: Module?, private val toggle: BooleanSetting?, fileKey: String, override val label: String, private val sampleMain: String, private val sampleSub: String, private val defX: Int, private val defY: Int) : HudElement {
         override var panelX = defX
         override var panelY = defY
         override var panelScale = 1f
@@ -127,13 +127,14 @@ object ClientTitles {
             lastWidth = (width / s).toInt()
             lastHeight = (height / s).toInt()
             HudCard.draw(g, panelX, panelY) {
-                if (background?.value == true) HudCard.card(width, height, s)
+                HudCard.card(width, height, s) // the card is the HUD editor's BG toggle (off until turned on)
                 var y = pad
                 for ((text, sz, color) in rows) { HudCard.text(text, (width - HudCard.width(text, sz)) / 2f, y, sz, color); y += sz + 3f * s }
             }
         }
 
         init {
+            HudCard.offByDefault(label)
             runCatching { gson.fromJson(file.readText(), Pos::class.java) }.getOrNull()?.let { panelX = it.x; panelY = it.y; panelScale = it.scale.coerceIn(0.4f, 3f) }
             HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("cedclient", "title_$fileKey")) { g, _ -> render(g) }
         }
@@ -141,7 +142,7 @@ object ClientTitles {
 
     private class Entry(val panel: Panel, val toggle: BooleanSetting)
     private val byClass = LinkedHashMap<String, Entry>()
-    private val other = Panel(null, null, null, "other", "Other Alerts", "§aExample alert", "§7with a subtitle", 330, 20)
+    private val other = Panel(null, null, "other", "Other Alerts", "§aExample alert", "§7with a subtitle", 330, 20)
 
     /** Every alert card, for the HUD editor and "Reset Everything". */
     val panels: List<HudElement> get() = byClass.values.map { it.panel } + other
@@ -151,11 +152,10 @@ object ClientTitles {
     fun attach(module: Module) {
         if (module.javaClass.simpleName !in USERS) return
         val toggle = BooleanSetting("Show Title", true, "Show this module's alerts in its own HUD card (move it in the HUD editor) instead of a title in the middle of the screen.")
-        val background = BooleanSetting("Alert Background", false, "The dark card behind this module's alert card. Off: just the text.")
-        module.addSettings(toggle, background)
+        module.addSettings(toggle)
         // Two columns, staggered, so the cards do not start on top of each other.
         val i = byClass.size
-        val panel = Panel(module, toggle, background, module.javaClass.simpleName.lowercase(), "${module.name} Alert", SAMPLES[module.javaClass.simpleName]?.first ?: "§a${module.name}", SAMPLES[module.javaClass.simpleName]?.second ?: "§7Example alert", 330 + (i / 10) * 170, 40 + (i % 10) * 34)
+        val panel = Panel(module, toggle, module.javaClass.simpleName.lowercase(), "${module.name} Alert", SAMPLES[module.javaClass.simpleName]?.first ?: "§a${module.name}", SAMPLES[module.javaClass.simpleName]?.second ?: "§7Example alert", 330 + (i / 10) * 170, 40 + (i % 10) * 34)
         byClass[module.javaClass.name] = Entry(panel, toggle)
     }
 

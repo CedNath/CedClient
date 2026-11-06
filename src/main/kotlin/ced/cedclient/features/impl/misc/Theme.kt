@@ -49,11 +49,11 @@ object Theme : Module(
         "Compact: a category list, the module list and the module's settings as three panels. Classic: one panel per category."
     )
 //#if CHEAT
-    val separateCheats = BooleanSetting("Separate Cheats Panel", false, "Moves the cheat modules (ESP, triggerbots, auto helpers ...) out of their panels into one Cheats panel. Takes effect the next time the menu opens.")
+    val separateCheats = BooleanSetting("Separate Cheats Panel", true, "Moves the cheat modules (ESP, triggerbots, auto helpers ...) out of their panels into one Cheats panel. Takes effect the next time the menu opens.")
 //#endif
     val menuStyle = DropdownSetting("Menu Style", listOf("Solid", "Glass", "Tinted Glass", "Neon", "Gradient", "Minimal"), "Solid", "Look of the Compact menu. Glass and Tinted Glass are frosted over a blurred game; Neon has a glowing accent outline; Gradient fades the accent in from the top; Minimal is a faint wash with a hairline.").withDependency { menuLayout.value == "Compact" }
     val menuOpacity = NumberSetting("Menu Opacity", 100.0, 30.0, 100.0, 5.0, "How solid the Compact menu panels are, in percent. Lower is more see-through.").withDependency { menuLayout.value == "Compact" && menuStyle.value != "Glass" && menuStyle.value != "Tinted Glass" }
-    val uiFont = DropdownSetting("Font", listOf("Inter", "Minecraft"), "Minecraft", "Text font of the menus and the HUD cards. Minecraft is the game's own pixel font, taken from your install.")
+    val uiFont = DropdownSetting("Font", listOf("Inter", "Minecraft"), "Inter", "Text font of the menus and the HUD cards. Minecraft is the game's own pixel font, taken from your install.")
     val menuSize = NumberSetting("Menu Size", 135.0, 70.0, 200.0, 5.0, "How big the Compact menu is, in percent.").withDependency { menuLayout.value == "Compact" }
     val openAnimation = DropdownSetting(
         "Open Animation",
@@ -96,7 +96,7 @@ object Theme : Module(
     }
 
     private val resetPanels = ActionSetting("Reset Panels", "Moves every ClickGUI panel back to its default position.") {
-        (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.let { ced.cedclient.config.ConfigManager.resetPanelsToDefaults(it.getPanels()) }
+        (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.resetPanelPositions()
     }
     private val resetModule = ActionSetting("Reset a Module", "Pick one module to put back to its defaults.") {
         (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.ResetModulePopup())
@@ -124,7 +124,7 @@ object Theme : Module(
         }
         HudElement.all.forEach { it.resetPosition(); it.save() }
         HudElement.layoutEdited()
-        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.let { ConfigManager.resetPanelsToDefaults(it.getPanels()) }
+        (Minecraft.getInstance().gui.screen() as? ClickGUI)?.resetPanelPositions()
         ConfigManager.saveModulesOnly()
         Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§fEverything reset to defaults"))
     }

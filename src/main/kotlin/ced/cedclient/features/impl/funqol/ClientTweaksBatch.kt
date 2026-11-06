@@ -153,6 +153,10 @@ object NoItemPlace : Module(
             val skull = skulls.value && stack.item == net.minecraft.world.item.Items.PLAYER_HEAD
             if (!listed && !skull) return@UseBlockCallback InteractionResult.PASS
             if (notice.value && told.add(id)) player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b[CC] §7No Item Place: $id will not be placed"))
+            // FAIL cancels the whole right-click, so the server never saw the "use item" and an ability item (Spirit Leap
+            // opening the Leap menu) did nothing. Send the use ourselves: nothing is placed, the ability still fires.
+            net.minecraft.client.Minecraft.getInstance().gameMode?.useItem(player, hand)
+            ced.cedclient.utils.Debug.line(name, "blocked placing $id, used it instead")
             InteractionResult.FAIL
         })
     }

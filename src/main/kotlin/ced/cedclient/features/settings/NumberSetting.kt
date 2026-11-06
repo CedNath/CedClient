@@ -67,12 +67,12 @@ class NumberSetting(
 
         if (dragging) applyFromMouseX(mouseX)
 
-        NVGRenderer.text(name, x + 6f, y + 4f, 14f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(name, x + 6f, y + 3f, 17f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
         val shown = format(value)
-        valueX = x + width - 6f - NVGRenderer.textWidth(shown, 14f, NVGRenderer.defaultFont)
+        valueX = x + width - 6f - NVGRenderer.textWidth(shown, 17f, NVGRenderer.defaultFont)
         if (input.isActive) {
             // A real text box over the value while typing: caret, selection, Ctrl+A / C / V / Z.
-            val boxW = maxOf(NVGRenderer.textWidth(editText, 14f, NVGRenderer.defaultFont) + 14f, 56f)
+            val boxW = maxOf(NVGRenderer.textWidth(editText, 17f, NVGRenderer.defaultFont) + 14f, 56f)
             val boxX = x + width - 4f - boxW
             NVGRenderer.rect(boxX, y + 2f, boxW, 18f, Colors.INPUT_BG.rgba, 4f)
             NVGRenderer.hollowRect(boxX, y + 2f, boxW, 18f, 1f, Colors.WHITE.rgba, 4f)
@@ -82,7 +82,7 @@ class NumberSetting(
             input.height = 16f
             input.draw(mouseX, mouseY)
         } else {
-            NVGRenderer.text(shown, valueX, y + 4f, 14f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont)
+            NVGRenderer.text(shown, valueX, y + 3f, 17f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont)
         }
 
         val barY = y + height - 6f

@@ -1,7 +1,11 @@
 package ced.cedclient.ui.clickgui
 
+import ced.cedclient.features.impl.render.MasterHudEditScreen
 import ced.cedclient.render.nvg.NVGRenderer
+import ced.cedclient.utils.Color.Companion.brighter
+import ced.cedclient.utils.Color.Companion.withAlpha
 import ced.cedclient.utils.Colors
+import net.minecraft.client.Minecraft
 import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
@@ -31,7 +35,24 @@ object SearchBar {
         textSetter = { currentSearch = it }
     )
 
+    private const val HUD_BTN_W = 56f
+
+    /** Width of the whole bar: the search box, a gap, then the HUD editor button. */
+    const val TOTAL_WIDTH = 350f + 6f + HUD_BTN_W
+
+    private var barX = 0f
+    private var barY = 0f
+
     fun draw(x: Float, y: Float, mouseX: Float, mouseY: Float) {
+        barX = x
+        barY = y
+        val bx = x + 356f
+        val hovered = mouseX in bx..(bx + HUD_BTN_W) && mouseY in y..(y + 40f)
+        NVGRenderer.rect(bx, y, HUD_BTN_W, 40f, (if (hovered) Colors.gray38.brighter(1.3f) else Colors.gray38).rgba, 9f)
+        NVGRenderer.hollowRect(bx, y, HUD_BTN_W, 40f, 3f, Colors.WHITE.withAlpha(if (hovered) 1f else 0.75f).rgba, 9f)
+        val label = "HUD"
+        NVGRenderer.text(label, bx + HUD_BTN_W / 2f - NVGRenderer.textWidth(label, 16f, NVGRenderer.defaultFont) / 2f, y + 12f, 16f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+
         NVGRenderer.dropShadow(x, y, 350f, 40f, 10f, 0.75f, 9f)
         NVGRenderer.rect(x, y, 350f, 40f, Colors.gray38.rgba, 9f)
         NVGRenderer.hollowRect(x, y, 350f, 40f, 3f, ClickGUI.clickGUIColor.rgba, 9f)
@@ -57,6 +78,21 @@ object SearchBar {
     }
 
     fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+        val bx = barX + 356f
+        if (click.button() == 0 && mouseX in bx..(bx + HUD_BTN_W) && mouseY in barY..(barY + 40f)) {
+            // Deferred out of the click event: switching screens inside it gets undone (same reason /cc hud waits a tick).
+            ced.cedclient.utils.Debug.line("HUD Button", "clicked, opening the HUD editor next tick")
+            val mc = Minecraft.getInstance()
+            mc.execute {
+                try {
+                    mc.gui.setScreen(MasterHudEditScreen())
+                    ced.cedclient.utils.Debug.line("HUD Button", "setScreen done, screen is now ${mc.gui.screen()?.javaClass?.simpleName}")
+                } catch (t: Throwable) {
+                    ced.cedclient.utils.Debug.line("HUD Button", "failed: $t")
+                }
+            }
+            return true
+        }
         return textInputHandler.mouseClicked(mouseX, mouseY, click)
     }
 

@@ -32,7 +32,7 @@ class ResetModulePopup : Popup("Reset a Module", WIDTH, HEIGHT) {
     private val inputY get() = y + 40f
     private val listTop get() = y + 76f
     private val listHeight get() = height - 86f
-    private val rowH = 26f
+    private val rowH = 32f
 
     private fun isArmed(m: Module) = armed == m && System.currentTimeMillis() - armedAt < 3000L
 
@@ -40,7 +40,7 @@ class ResetModulePopup : Popup("Reset a Module", WIDTH, HEIGHT) {
         val font = NVGRenderer.defaultFont
         NVGRenderer.rect(x + 12f, inputY, width - 24f, 24f, Colors.INPUT_BG.rgba, 4f)
         NVGRenderer.hollowRect(x + 12f, inputY, width - 24f, 24f, 1f, Colors.INPUT_BORDER.rgba, 4f)
-        if (search.isEmpty()) NVGRenderer.text("Search modules...", x + 18f, inputY + 5f, 14f, Colors.MINECRAFT_GRAY.rgba, font)
+        if (search.isEmpty()) NVGRenderer.text("Search modules...", x + 18f, inputY + 4f, 17f, Colors.MINECRAFT_GRAY.rgba, font)
         input.x = x + 12f; input.y = inputY + 1f; input.width = width - 24f; input.height = 22f
         input.draw(mouseX, mouseY)
         val modules = modules
@@ -52,9 +52,9 @@ class ResetModulePopup : Popup("Reset a Module", WIDTH, HEIGHT) {
             if (hovered) NVGRenderer.rect(x + 8f, rowY, width - 16f, rowH - 2f, Colors.gray38.rgba, 4f)
             val (text, color) = if (isArmed(m)) "Click again to reset ${m.name}" to Colors.MINECRAFT_RED.rgba
                 else m.name to Colors.WHITE.rgba
-            NVGRenderer.text(text, x + 16f, rowY + 5f, 15f, color, font)
+            NVGRenderer.text(text, x + 16f, rowY + 6f, 18f, color, font)
             val panel = m.category.displayName
-            NVGRenderer.text(panel, x + width - 16f - NVGRenderer.textWidth(panel, 13f, font), rowY + 6f, 13f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text(panel, x + width - 16f - NVGRenderer.textWidth(panel, 15f, font), rowY + 8f, 15f, Colors.MINECRAFT_GRAY.rgba, font)
         }
         NVGRenderer.popScissor()
     }

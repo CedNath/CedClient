@@ -22,7 +22,11 @@ import kotlin.math.floor
 private val camelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
 
 /** A module name for display: CamelCase names without spaces ("StarredMobHighlight") get spaces; names that have them are left alone. */
-fun prettyModuleName(name: String): String = if (' ' in name) name else name.replace(camelBoundary, " ")
+fun prettyModuleName(name: String): String = when {
+    name == "Mod Settings" -> "Click GUI" // display only: the saved config key stays "Mod Settings"
+    ' ' in name -> name
+    else -> name.replace(camelBoundary, " ")
+}
 
 /**
  * Renders one module's row inside a Panel, and (when right-clicked expanded)
@@ -66,7 +70,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
         }
         NVGRenderer.text(
             shownName,
-            x + 16f, // left-aligned, like the panel title above it
+            x + Panel.WIDTH / 2 - NVGRenderer.textWidth(shownName, 21f, NVGRenderer.defaultFont) / 2, // centered; measured now, the font can change
             y + Panel.HEIGHT / 2 - 10.5f,
             21f,
             Colors.WHITE.rgba,
@@ -81,8 +85,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
         if (extendAnim.isAnimating()) NVGRenderer.pushScissor(x, y, Panel.WIDTH, totalHeight)
 
         if (extendAnim.isAnimating() || extended) {
-            // Solid backing so the world behind the GUI doesn't show through the settings.
-            NVGRenderer.rect(x, y + Panel.HEIGHT, Panel.WIDTH, totalHeight - Panel.HEIGHT, Colors.SETTING_BG.rgba)
+            // See-through backing (like Odin): the module rows stay solid, so where the settings end is clear.
+            NVGRenderer.rect(x, y + Panel.HEIGHT, Panel.WIDTH, totalHeight - Panel.HEIGHT, Colors.SETTING_BG.withAlpha(0.3f).rgba)
             for (setting in representableSettings) {
                 if (setting.isVisible) drawY += setting.render(x, y + drawY, mouseX / clickGuiScale, mouseY / clickGuiScale)
             }
@@ -104,6 +108,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
                 if (ClickGUI.compact) {
                     if (representableSettings.isNotEmpty()) CompactLayout.selectModule(this)
                 } else if (module.settings.isNotEmpty()) {
+                    // Opening one closes the one that was open in this panel (only one settings menu at a time).
+                    if (!extended) panel.moduleButtons.forEach { if (it !== this && it.extended) { it.extendAnim.start(); it.extended = false } }
                     extendAnim.start()
                     extended = !extended
                 }
@@ -192,7 +198,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
             // from the card's edges so labels and switches don't touch the border.
             val h = setting.getHeight()
             val cardH = h + 2 * CARD_PAD_Y
-            NVGRenderer.rect(x, y + drawY, CARD_WIDTH, cardH, Colors.WHITE.withAlpha(0.06f).rgba, 6f)
+            NVGRenderer.rect(x, y + drawY, CARD_WIDTH, cardH, Colors.WHITE.withAlpha(0.10f).rgba, 6f)
             setting.render(x + CARD_PAD_X, y + drawY + CARD_PAD_Y, mouseX / clickGuiScale, mouseY / clickGuiScale)
             NVGRenderer.hollowRect(x, y + drawY, CARD_WIDTH, cardH, 1f, Colors.WHITE.withAlpha(0.28f).rgba, 6f)
             drawY += cardH + CARD_GAP

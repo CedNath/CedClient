@@ -1,9 +1,5 @@
 package ced.cedclient.state
 
-import ced.cedclient.utils.ChatPrefix
-import ced.cedclient.utils.DevAccess
-import ced.cedclient.utils.Debug
-import com.google.gson.Gson
 import com.google.gson.JsonParser
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
@@ -18,25 +14,21 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.security.MessageDigest
 import java.time.Duration
 import java.util.UUID
 
 /**
- * Morphs (close friends only to SET, everyone running the mod SEES them): a player renders as another mob.
+ * Morphs: a player renders as another mob. Morphs are SET on the CedClient site (invited buddies sign in with Discord and
+ * pick their mob there); the mod only reads them.
  *
- *  - [request] (the Morph module) proves who you are to the site with a Mojang session handshake (joinServer here, hasJoined on
- *    the Worker; the server id is a hash of the request, so a proof cannot be reused for another morph), then POST /morph.
- *    The Worker allows only the close-friend UUIDs and one change per 30 s per player; this class also stops at 30 s.
- *  - [init] polls GET /morphs every 45 s (304 when unchanged) into a { uuid -> entity type } map. Everything from the Worker
+ *  - [init] polls GET /morphs every 60 s (304 when unchanged) into a { uuid -> entity type } map. Everything from the Worker
  *    is untrusted: UUIDs must look like UUIDs and the type must be a living entity type in the registry.
  *  - [swap] (EntityRenderDispatcherMixin): the renderer is handed a client-only "proxy" entity of the morph type, copied from
  *    the player every frame, so the player looks like that mob. The proxy is never added to the level.
  */
 object MorphSync {
     private const val BASE = "https://cedclient.kasajonny420-dab.workers.dev"
-    private const val POLL_SECONDS = 45L
-    private const val COOLDOWN_MS = 30_000L
+    private const val POLL_SECONDS = 60L
     private val uuidHex = Regex("^[0-9a-f]{32}$")
 
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(8)).build()
@@ -46,10 +38,6 @@ object MorphSync {
     @Volatile private var morphs: Map<String, String> = emptyMap()
     @Volatile private var etag: String? = null
     @Volatile private var started = false
-    @Volatile private var lastChange = 0L
-    @Volatile private var busy = false
-    @Volatile private var pendingSet = false
-    @Volatile private var pendingId: String? = null
 
     private class Proxy(val typeId: String, val entity: LivingEntity, var lastTick: Int = -1)
     private val proxies = HashMap<UUID, Proxy>()
@@ -68,7 +56,6 @@ object MorphSync {
         t.start()
         // Drop proxies of players that left or lost their morph.
         ClientTickEvents.END_CLIENT_TICK.register {
-            if (pendingSet && !busy && System.currentTimeMillis() - lastChange >= COOLDOWN_MS) { pendingSet = false; dispatch(pendingId) }
             if (proxies.isEmpty()) return@register
             val level = mc.level
             proxies.entries.removeIf { (id, p) ->
@@ -94,7 +81,6 @@ object MorphSync {
             val id = normalize(v.asString) ?: continue
             if (type(id) != null) out[k] = id
         }
-        if (pendingSet) { val me = hex(mc.user.profileId); pendingId?.let { out[me] = it } ?: out.remove(me) } // your unsent pick stays on your screen
         morphs = out
         etag = r.headers().firstValue("ETag").orElse(null)
     }
@@ -115,108 +101,6 @@ object MorphSync {
         if (t == null || ident.path == "player") { badTypes += id; return null }
         return t
     }
-
-    /** Ids containing [text], for the "did you mean" list. */
-    fun suggest(text: String): List<String> {
-        val s = text.trim().lowercase().replace(' ', '_')
-        return BuiltInRegistries.ENTITY_TYPE.keySet().map { it.path }.filter { s in it }.sorted().take(10)
-    }
-
-    /** Your own current morph id (what you see on yourself), or null. */
-    fun current(): String? = morphs[hex(mc.user.profileId)]
-
-    /** Seconds until a change reaches the site again (0 = now). */
-    fun cooldownLeft(): Long = maxOf(0L, (COOLDOWN_MS - (System.currentTimeMillis() - lastChange) + 999) / 1000)
-
-    private val previews = HashMap<String, LivingEntity>()
-
-    /** A client-only entity of [id] for the picker's 3D preview (kept per world), or null if it cannot be made. */
-    fun previewEntity(id: String): LivingEntity? {
-        val level = mc.level ?: return null
-        previews[id]?.let { if (it.level() === level) return it }
-        val made = try { type(id)?.create(level, EntitySpawnReason.LOAD) as? LivingEntity } catch (_: Throwable) { null } ?: return null
-        made.id = 900_000 + (id.hashCode() and 0xFFFF) // other mods hash entities while rendering: an unassigned id throws
-        previews[id] = made
-        return made
-    }
-
-    // ---- sending
-
-    /** Sets (or with null clears) your own morph. Returns a message when it was refused right away, null when the request started. */
-    fun request(mob: String?): String? {
-        if (!DevAccess.isCloseFriend) return "not allowed"
-        val now = System.currentTimeMillis()
-        var id: String? = null
-        if (mob != null) {
-            id = normalize(mob) ?: return "that is not a mob name"
-            if (type(id) == null) return "no mob called \"$mob\"" + suggest(mob).takeIf { it.isNotEmpty() }?.let { ", maybe: " + it.joinToString(", ") }.orEmpty()
-        }
-        if (busy || now - lastChange < COOLDOWN_MS) {
-            // Cooldown: you can still try mobs, but only on your own screen. The latest choice is sent when the cooldown ends.
-            val me = hex(mc.user.profileId)
-            pendingSet = true; pendingId = id
-            morphs = if (id == null) morphs - me else morphs + (me to id)
-            val wait = maxOf(1L, (COOLDOWN_MS - (now - lastChange) + 999) / 1000)
-            chat("§7queued ${id?.removePrefix("minecraft:") ?: "no morph"}: others get your latest pick in about $wait s")
-            return null
-        }
-        dispatch(id)
-        return null
-    }
-
-    private fun chat(text: String) = mc.execute { mc.player?.sendSystemMessage(ChatPrefix.msgFor("Morph", text)) }
-
-    private fun dispatch(id: String?) {
-        val user = mc.user
-        val uuid = hex(user.profileId)
-        val name = user.name
-        val token = user.accessToken
-        busy = true; lastChange = System.currentTimeMillis()
-        val t = Thread({
-            var msg = "failed"
-            var ok = false
-            try {
-                val ts = System.currentTimeMillis()
-                val serverId = sha1("cedmorph|$uuid|${id ?: "-"}|$ts")
-                val gson = Gson()
-                val join = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/join"))
-                    .timeout(Duration.ofSeconds(8)).header("Content-Type", "application/json").header("User-Agent", "Minecraft")
-                    .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(mapOf("accessToken" to token, "selectedProfile" to uuid, "serverId" to serverId)))).build()
-                var jr = http.send(join, HttpResponse.BodyHandlers.discarding())
-                // Mojang's session server answers 5xx / 429 now and then: retry twice before giving up.
-                var tries = 0
-                while ((jr.statusCode() >= 500 || jr.statusCode() == 429) && tries++ < 2) {
-                    Thread.sleep(1500L * tries)
-                    jr = http.send(join, HttpResponse.BodyHandlers.discarding())
-                }
-                if (jr.statusCode() != 204) {
-                    msg = "Mojang session check refused (HTTP ${jr.statusCode()})"
-                    if (jr.statusCode() >= 500 || jr.statusCode() == 429) lastChange = 0L // Mojang side: no cooldown used
-                } else {
-                    val body = gson.toJson(mapOf("uuid" to uuid, "name" to name, "mob" to id, "ts" to ts))
-                    val r = http.send(HttpRequest.newBuilder(URI.create("$BASE/morph")).timeout(Duration.ofSeconds(10))
-                        .header("Content-Type", "application/json").header("User-Agent", "CedClient")
-                        .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString())
-                    when (r.statusCode()) {
-                        200 -> { ok = true; msg = if (id == null) "morph removed" else "you are now ${id.removePrefix("minecraft:")} (others see it within about a minute)"
-                            morphs = if (id == null) morphs - uuid else morphs + (uuid to id) }
-                        429 -> { msg = "the site says wait: ${r.body().take(60)}"; lastChange = System.currentTimeMillis() }
-                        403 -> msg = if (r.body().contains("not verified")) "the site could not verify you with Mojang (try again in a few seconds)" else "the site does not allow this account (${r.body().take(40)})"
-                        else -> msg = "site error HTTP ${r.statusCode()}"
-                    }
-                }
-            } catch (e: Throwable) {
-                msg = "could not reach the site (${e.javaClass.simpleName})"
-                lastChange = 0L // nothing was sent: no cooldown
-            } finally { busy = false }
-            Debug.line("Morph", "request ${id ?: "clear"}: ok=$ok $msg")
-            mc.execute { mc.player?.sendSystemMessage(ChatPrefix.msgFor("Morph", (if (ok) "§a" else "§c") + msg)) }
-        }, "cedclient-morph-send")
-        t.isDaemon = true
-        t.start()
-    }
-
-    private fun sha1(s: String) = MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 
     // ---- rendering
 

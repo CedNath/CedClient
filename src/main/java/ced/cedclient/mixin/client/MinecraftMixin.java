@@ -34,7 +34,8 @@ public class MinecraftMixin {
     // Outline glow for entities a module asked for (F4 Features): vanilla only glows what the server flagged.
     @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
     private void cedclient$forceGlow(net.minecraft.world.entity.Entity entity, CallbackInfoReturnable<Boolean> cir) {
-        if (ced.cedclient.render.EntityGlow.colorOf(entity) != null) cir.setReturnValue(true);
+        if (ced.cedclient.render.EntityGlow.colorOf(entity) != null) { cir.setReturnValue(true); return; }
+        if (ced.cedclient.features.impl.render.NoGlow.blocks(entity)) cir.setReturnValue(false);
     }
 
     @Inject(method = "setScreenAndShow", at = @At("HEAD"))

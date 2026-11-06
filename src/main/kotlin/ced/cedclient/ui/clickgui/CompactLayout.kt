@@ -191,7 +191,7 @@ class CompactLayout(
         val nx = x0 + PAD + 8f
         NVGRenderer.text("CedClient", nx, y0 + HEAD_H / 2f - 15f, 27f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
         NVGRenderer.rect(nx, y0 + HEAD_H - 9f, nameW, 3f, ClickGUI.clickGUIColor.rgba, 2f)
-        SearchBar.draw(x0 + WIN_W - PAD - 350f, y0 + (HEAD_H - 40f) / 2f, mx, my)
+        SearchBar.draw(x0 + WIN_W - PAD - SearchBar.TOTAL_WIDTH, y0 + (HEAD_H - 40f) / 2f, mx, my)
     }
 
     private fun drawTabs(mx: Float, my: Float) {
@@ -274,7 +274,7 @@ class CompactLayout(
         settingsScroll = settingsScroll.coerceIn((vpH - contentH).coerceAtMost(0f), 0f)
         // Picking a module slides its settings in from the right.
         fadeIn(selectedAt, speed, 16f, 0f) {
-            NVGRenderer.text(btn.module.name, x2 + PAD + 8f, bodyY + 11f, 20f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+            NVGRenderer.text(prettyModuleName(btn.module.name), x2 + PAD + 8f, bodyY + 11f, 20f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
             NVGRenderer.pushScissor(x2 + PAD, vpY, SET_W - 2 * PAD, vpH)
             btn.drawSettings(x2 + PAD, vpY + settingsScroll)
             NVGRenderer.popScissor()

@@ -218,7 +218,9 @@ object ConfigManager {
             // Old layout (pre HUD/Cosmetic/Skyblock split): its Render/Misc positions would overlap the new
             // panels, so start from the defaults instead.
             val panelsJson = root?.get("panels")?.asJsonObject
-                ?.takeUnless { saved -> saved.keySet().any { it in legacyPanels } || !saved.has("Movement") }
+                // A different panel set than last time (Separate Cheats Panel toggled, panel order changed): saved spots
+                // would leave a gap or overlap, so start from the defaults.
+                ?.takeUnless { saved -> saved.keySet().any { it in legacyPanels } || !saved.has("Movement") || saved.keySet() != panels.map { it.category.name }.toSet() }
             for ((index, panel) in panels.withIndex()) {
                 val entry = panelsJson?.get(panel.category.name)?.asJsonObject
                 val x = entry?.get("x")?.asFloat
@@ -236,6 +238,13 @@ object ConfigManager {
                 } else {
                     applyDefaultPosition(panel, index)
                 }
+            }
+            // An untouched row (350 px apart, one y) that does not start at the left edge is a saved sideways scroll,
+            // not a layout anyone made: an older bug saved panels shifted, so the menu opened scrolled to the right.
+            val first = panels.firstOrNull()
+            if (first != null && first.x != 15f && panels.indices.all { i -> panels[i].x == first.x + 350f * i && panels[i].y == first.y }) {
+                val back = 15f - first.x
+                panels.forEach { it.x += back }
             }
         } catch (t: Throwable) {
             // Catch any unexpected parsing/runtime errors and log them instead of crashing

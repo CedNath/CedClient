@@ -33,10 +33,10 @@ class DropdownSetting(
     override fun render(x: Float, y: Float, mouseX: Float, mouseY: Float): Float {
         val height = super.render(x, y, mouseX, mouseY)
 
-        NVGRenderer.text(name, x + 6f, y + Panel.HEIGHT / 2f - 7f, 14f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(name, x + 6f, y + Panel.HEIGHT / 2f - 9f, 18f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
         NVGRenderer.text(
-            value, x + width - 6f - NVGRenderer.textWidth(value, 14f, NVGRenderer.defaultFont),
-            y + Panel.HEIGHT / 2f - 7f, 14f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont
+            value, x + width - 6f - NVGRenderer.textWidth(value, 18f, NVGRenderer.defaultFont),
+            y + Panel.HEIGHT / 2f - 9f, 18f, Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont
         )
 
         if (expanded) {
@@ -49,7 +49,7 @@ class DropdownSetting(
                 val selected = option == value
                 NVGRenderer.hollowRect(bx, by, bw, bh, 1f, (if (selected) Colors.MINECRAFT_BLUE else Colors.INPUT_BORDER).rgba, 6f)
                 val textColor = if (selected) Colors.MINECRAFT_BLUE.rgba else Colors.WHITE.rgba
-                NVGRenderer.text(option, bx + 8f, rowY + optionHeight / 2f - 7f, 14f, textColor, NVGRenderer.defaultFont)
+                NVGRenderer.text(option, bx + 8f, rowY + optionHeight / 2f - 9f, 18f, textColor, NVGRenderer.defaultFont)
             }
         }
 
