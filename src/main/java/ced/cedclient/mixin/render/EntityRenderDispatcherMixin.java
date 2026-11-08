@@ -17,6 +17,7 @@ public class EntityRenderDispatcherMixin {
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
     private void cedclient$cleanView(Entity entity, Frustum culler, double camX, double camY, double camZ, float partialTick, CallbackInfoReturnable<Boolean> cir) {
         if (CleanView.hideEntity(entity, camX, camY, camZ) || StarredMobHighlight.hideNametag(entity) || ced.cedclient.features.impl.funqol.LeapMenu.hideEntity(entity)
-                || ced.cedclient.features.impl.render.Hiders.hidePlayer(entity) || ced.cedclient.features.impl.render.RenderOptimizer.hideFallingBlock(entity)) cir.setReturnValue(false);
+                || ced.cedclient.features.impl.render.Hiders.hidePlayer(entity) || ced.cedclient.features.impl.render.RenderOptimizer.hideFallingBlock(entity)
+                || ced.cedclient.features.impl.render.RenderOptimizer.hideDungeonDecoration(entity)) cir.setReturnValue(false);
     }
 }

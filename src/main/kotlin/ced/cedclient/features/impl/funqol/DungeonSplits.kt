@@ -449,8 +449,8 @@ object DungeonSplits : Module(
         val headerH = if (header != null) lineH + 3f * s else 0f
 
         val nameW = rows.maxOfOrNull { HudCard.width(it.name, size) + if (it.indent) 8f * s else 0f } ?: 0f
-        val timeW = rows.maxOfOrNull { HudCard.width(it.time, size) } ?: 0f
-        val secondW = rows.mapNotNull { it.second }.maxOfOrNull { HudCard.width(it, secondSize) + 8f * s } ?: 0f
+        val timeW = rows.maxOfOrNull { HudCard.tabularWidth(it.time, size) } ?: 0f
+        val secondW = rows.mapNotNull { it.second }.maxOfOrNull { HudCard.tabularWidth(it, secondSize) + 8f * s } ?: 0f
         val w = maxOf(pad * 2 + nameW + gap + timeW + secondW, header?.let { pad * 2 + HudCard.width(it, size) } ?: 0f)
         val h = pad * 2 + headerH + lineH * rows.size - (lineH - size)
 
@@ -467,8 +467,8 @@ object DungeonSplits : Module(
             }
             for (r in rows) {
                 HudCard.text(r.name, pad + if (r.indent) 8f * s else 0f, y, size, r.color)
-                HudCard.text(r.time, w - pad - secondW - HudCard.width(r.time, size), y, size, r.timeColor)
-                r.second?.let { d -> HudCard.text(d, w - pad - HudCard.width(d, secondSize), y + 0.5f * s, secondSize, r.secondColor) }
+                HudCard.tabularText(r.time, w - pad - secondW - HudCard.tabularWidth(r.time, size), y, size, r.timeColor)
+                r.second?.let { d -> HudCard.tabularText(d, w - pad - HudCard.tabularWidth(d, secondSize), y + 0.5f * s, secondSize, r.secondColor) }
                 y += lineH
             }
         }

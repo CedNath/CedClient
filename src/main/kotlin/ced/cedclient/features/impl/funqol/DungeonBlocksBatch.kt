@@ -139,12 +139,42 @@ object IHateDoors : Module(
         .filter { (i, j) -> (i % 2 == 1) != (j % 2 == 1) }
         .map { (i, j) -> -185 + 16 * i to -185 + 16 * j }
 
+    private val spotSet = spots.toSet()
+
     /** Door spot (x, z) -> the door block it was before and the glass put there, so Door Highlight still finds the door. */
     private val replaced = java.util.concurrent.ConcurrentHashMap<Pair<Int, Int>, Pair<net.minecraft.world.level.block.Block, BlockState>>()
 
     /** The block a door at (x, z) was before this module turned it into [current] glass, or null if it isn't one of ours. */
     fun originalOf(x: Int, z: Int, current: BlockState): net.minecraft.world.level.block.Block? =
         replaced[x to z]?.takeIf { it.second == current }?.first
+
+    /** Nearest door tile center to a block coordinate (door centers sit on -185 + 16n). */
+    private fun center(v: Int) = Math.floorDiv(v + 185 + 8, 16) * 16 - 185
+
+    private fun active() = isEnabled && DungeonState.inDungeon && !DungeonState.inBoss
+
+    /** A block the server sends at [pos]: turned into this door's glass at once (called by DoorGlassMixin), else left alone. */
+    @JvmStatic
+    fun swap(pos: BlockPos, state: BlockState): BlockState {
+        if (pos.y !in 69..72 || !active()) return state
+        val cx = center(pos.x)
+        val cz = center(pos.z)
+        if (kotlin.math.abs(pos.x - cx) > 1 || kotlin.math.abs(pos.z - cz) > 1 || (cx to cz) !in spotSet) return state
+        val replacement = stateFor(state.block) ?: return state
+        replaced[cx to cz] = state.block to replacement
+        return replacement
+    }
+
+    /** Is [pos] one of this module's door glass blocks? Mining / hitting those is ignored on the client. */
+    @JvmStatic
+    fun isGlassDoor(pos: BlockPos): Boolean {
+        if (pos.y !in 69..72 || !active()) return false
+        val cx = center(pos.x)
+        val cz = center(pos.z)
+        val glassState = replaced[cx to cz]?.second ?: return false
+        return kotlin.math.abs(pos.x - cx) <= 1 && kotlin.math.abs(pos.z - cz) <= 1 &&
+            Minecraft.getInstance().level?.getBlockState(pos) == glassState
+    }
 
     private fun stateFor(source: net.minecraft.world.level.block.Block): BlockState? = when (source) {
         Blocks.INFESTED_CHISELED_STONE_BRICKS -> if (entrance.value) glass[colors.indexOf(entranceColor.value).coerceAtLeast(0)] else null

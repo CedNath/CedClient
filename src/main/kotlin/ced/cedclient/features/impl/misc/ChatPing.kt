@@ -365,7 +365,6 @@ object ChatPing : Module(
         val height = lines.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
-        panelX = ((g.guiWidth() - width) / 2f).toInt() // always centred on screen; only the height is movable
 
         HudCard.draw(g, panelX, panelY) {
             lines.forEachIndexed { i, line ->
@@ -384,7 +383,6 @@ object ChatPing : Module(
         val height = lines.size * lineH + pad * 2 - 1
         lastWidth = width
         lastHeight = height
-        panelX = ((g.guiWidth() - width * panelScale) / 2f).toInt()
 
         g.pose().pushMatrix()
         g.pose().translate(panelX.toFloat(), panelY.toFloat())

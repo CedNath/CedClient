@@ -7,6 +7,7 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.ui.clickgui.ClickGUI
 import ced.cedclient.ui.clickgui.SettingsPopup
 import ced.cedclient.utils.Debug
+import ced.cedclient.utils.getSkullTexture
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.fog.FogData
 import net.minecraft.client.renderer.fog.environment.AtmosphericFogEnvironment
@@ -56,13 +57,15 @@ object RenderOptimizer : Module(
     private val noBlockBreaking = BooleanSetting("No Block Breaking Particles", true, "Hide the particles from breaking and mining blocks, cosmetic blocks included.")
     private val cleanLoading = BooleanSetting("Clean Loading Screen", true, "No \"Loading terrain\" screen when joining or changing world: the world shows as it loads in.")
     private val noFallingBlocks = BooleanSetting("No Falling Blocks", true, "Hide falling blocks (sand, gravel, anvils, the blocks that fall in dungeon rooms).")
+    private val noHealerFairy = BooleanSetting("No Healer Fairy", true, "Dungeons: hide the healer fairy a healer's mob holds up.")
+    private val noSoulweaver = BooleanSetting("No Soulweaver Skulls", true, "Dungeons: hide the skulls the Soulweaver gloves / helmet put on mobs.")
     private val noExplosions = BooleanSetting("No Explosion Particles", true, "Hide explosion particles, like your Hyperion's Wither Impact.")
 
     private val fogSettings = listOf(
         noAtmosphericFog, noRenderDistanceFog, noWaterFog, noLavaFog, noSnowFog, noBlindnessFog, noDarknessFog,
     )
     private val overlaySettings = listOf(
-        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions, noFallingBlocks, noBlockBreaking, cleanLoading,
+        noWaterOverlay, noFireOverlay, noWallOverlay, noVignette, noPumpkin, noSnowOverlay, noPortal, noNausea, noWeather, noExplosions, noFallingBlocks, noHealerFairy, noSoulweaver, noBlockBreaking, cleanLoading,
     )
 
     private val settingsAction = ActionSetting("Open Settings", "All Render Optimizer toggles in one window.") {
@@ -131,6 +134,20 @@ object RenderOptimizer : Module(
     @JvmStatic fun hideBlockBreaking() = on(noBlockBreaking)
     /** EntityRenderDispatcherMixin (shouldRender): falling block entities are not drawn. */
     @JvmStatic fun hideFallingBlock(entity: net.minecraft.world.entity.Entity) = on(noFallingBlocks) && entity is net.minecraft.world.entity.item.FallingBlockEntity
+    // Skull texture values (base64 of the profile's textures property) of the two dungeon decorations; same ones Odin matches.
+    private const val HEALER_FAIRY = "ewogICJ0aW1lc3RhbXAiIDogMTcxOTQ2MzA5MTA0NywKICAicHJvZmlsZUlkIiA6ICIyNjRkYzBlYjVlZGI0ZmI3OTgxNWIyZGY1NGY0OTgyNCIsCiAgInByb2ZpbGVOYW1lIiA6ICJxdWludHVwbGV0IiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzJlZWRjZmZjNmExMWEzODM0YTI4ODQ5Y2MzMTZhZjdhMjc1MmEzNzZkNTM2Y2Y4NDAzOWNmNzkxMDhiMTY3YWUiCiAgICB9CiAgfQp9"
+    private const val SOULWEAVER = "eyJ0aW1lc3RhbXAiOjE1NTk1ODAzNjI1NTMsInByb2ZpbGVJZCI6ImU3NmYwZDlhZjc4MjQyYzM5NDY2ZDY3MjE3MzBmNDUzIiwicHJvZmlsZU5hbWUiOiJLbGxscmFoIiwic2lnbmF0dXJlUmVxdWlyZWQiOnRydWUsInRleHR1cmVzIjp7IlNLSU4iOnsidXJsIjoiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8yZjI0ZWQ2ODc1MzA0ZmE0YTFmMGM3ODViMmNiNmE2YTcyNTYzZTlmM2UyNGVhNTVlMTgxNzg0NTIxMTlhYTY2In19fQ=="
+
+    /** EntityRenderDispatcherMixin: a dungeon mob holding the healer fairy (main hand) or wearing the Soulweaver skull (head) is not drawn. */
+    @JvmStatic
+    fun hideDungeonDecoration(entity: net.minecraft.world.entity.Entity): Boolean {
+        if (!isEnabled || (!noHealerFairy.value && !noSoulweaver.value)) return false
+        if (entity !is net.minecraft.world.entity.LivingEntity || entity is net.minecraft.world.entity.player.Player) return false
+        if (!ced.cedclient.state.DungeonState.inDungeon) return false
+        if (noHealerFairy.value && entity.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND).getSkullTexture() == HEALER_FAIRY) return true
+        return noSoulweaver.value && entity.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).getSkullTexture() == SOULWEAVER
+    }
+
     @JvmStatic fun cleanLoadingScreen() = on(cleanLoading)
 
     /** ClientLoadingScreenMixin: debug line when the loading screen was skipped. */

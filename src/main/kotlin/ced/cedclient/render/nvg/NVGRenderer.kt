@@ -397,12 +397,35 @@ object NVGRenderer {
 
     private fun glyphCode(ch: Char) = if (ch.code in 32..126) ch.code else '?'.code
 
+    private fun isGlyphChar(ch: Char) = ch.code in 32..126
+
+    /** End of the run starting at [from] whose characters are all (not) in the pixel font's sheet. */
+    private fun runEnd(text: String, from: Int): Int {
+        val glyph = isGlyphChar(text[from])
+        var j = from + 1
+        while (j < text.length && isGlyphChar(text[j]) == glyph) j++
+        return j
+    }
+
+    /** Characters the pixel font sheet lacks (Hypixel's tab / scoreboard symbols like the ironman and bingo icons) come from the TTF + symbol fallback. */
+    private fun ttfWidth(run: String, size: Float): Float {
+        nvgFontSize(vg, fontSize(size))
+        nvgFontFaceId(vg, getFontID(defaultFont))
+        return nvgTextBounds(vg, 0f, 0f, run, fontBounds)
+    }
+
     private fun minecraftWidth(text: String, size: Float): Float {
         val sheet = glyphSheet ?: return 0f
-        var units = 0
-        for (ch in text) units += sheet.advance[glyphCode(ch)]
-        if (text.isNotEmpty()) units -= 1 // no spacing after the last glyph
-        return units * glyphPx(size)
+        var w = 0f
+        var i = 0
+        while (i < text.length) {
+            val j = runEnd(text, i)
+            if (isGlyphChar(text[i])) { var units = 0; for (k in i until j) units += sheet.advance[text[k].code]; w += units * glyphPx(size) }
+            else w += ttfWidth(text.substring(i, j), size)
+            i = j
+        }
+        if (text.isNotEmpty() && isGlyphChar(text.last())) w -= glyphPx(size) // no spacing after the last glyph
+        return w
     }
 
     private fun minecraftText(text: String, x: Float, y: Float, size: Float, color: Int) {
@@ -413,18 +436,34 @@ object NVGRenderer {
         val top = snapY
         var cx = snapX
         color(color)
-        for (ch in text) {
-            val code = glyphCode(ch)
-            val gw = sheet.width[code]
-            if (gw > 0) {
-                nvgImagePattern(vg, cx - (code and 15) * 8f * p, top - (code shr 4) * 8f * p, 128f * p, 128f * p, 0f, sheet.image, 1f, nvgPaint)
-                nvgPaint.innerColor(nvgColor) // the pattern is white; this tints it
-                nvgBeginPath(vg)
-                nvgRect(vg, cx, top, gw * p, 8f * p)
-                nvgFillPaint(vg, nvgPaint)
-                nvgFill(vg)
+        var i = 0
+        while (i < text.length) {
+            val j = runEnd(text, i)
+            if (!isGlyphChar(text[i])) {
+                val run = text.substring(i, j)
+                nvgFontSize(vg, fontSize(size))
+                nvgFontFaceId(vg, getFontID(defaultFont))
+                nvgFillColor(vg, nvgColor)
+                snap(cx, y + .5f)
+                nvgText(vg, snapX, snapY, run)
+                cx += ttfWidth(run, size)
+                i = j
+                continue
             }
-            cx += sheet.advance[code] * p
+            for (k in i until j) {
+                val code = text[k].code
+                val gw = sheet.width[code]
+                if (gw > 0) {
+                    nvgImagePattern(vg, cx - (code and 15) * 8f * p, top - (code shr 4) * 8f * p, 128f * p, 128f * p, 0f, sheet.image, 1f, nvgPaint)
+                    nvgPaint.innerColor(nvgColor) // the pattern is white; this tints it
+                    nvgBeginPath(vg)
+                    nvgRect(vg, cx, top, gw * p, 8f * p)
+                    nvgFillPaint(vg, nvgPaint)
+                    nvgFill(vg)
+                }
+                cx += sheet.advance[code] * p
+            }
+            i = j
         }
     }
 
@@ -440,15 +479,14 @@ object NVGRenderer {
 
     /**
      * The soft dark glow drawn under see-through HUD text (draw the text itself after this). [alpha] fades it with the text.
-     * TTF: the glyphs blurred by NanoVG. The Minecraft font is a texture nvgFontBlur can't touch, so it gets a faint copy
-     * at each of the 8 one-font-pixel offsets instead.
+     * TTF: the glyphs blurred by NanoVG. The Minecraft font is a texture nvgFontBlur can't touch, so it gets one crisp
+     * dark copy one font pixel down and right (the game's own shadow): 8 faint copies looked blurry and cost 8 draws.
      */
     fun textHalo(text: String, x: Float, y: Float, size: Float, alpha: Float, font: Font) {
         val a = alpha.coerceIn(0f, 1f)
         if (minecraftFontOn(font)) {
             val p = glyphPx(size)
-            val black = ((0.35f * a * 255).toInt() shl 24)
-            for (dx in -1..1) for (dy in -1..1) if (dx != 0 || dy != 0) minecraftText(text, x + dx * p, y + dy * p, size, black)
+            minecraftText(text, x + p, y + p, size, ((0.7f * a * 255).toInt() shl 24))
             return
         }
         nvgFontSize(vg, fontSize(size))

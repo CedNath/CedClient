@@ -59,7 +59,7 @@ object DoorESP : Module(
     private val style = DropdownSetting("Style", listOf("Outline", "Filled", "Filled Outline"), "Outline")
 //#if CHEAT
     private val throughWalls = BooleanSetting("See Through Walls", true, "Show the boxes through blocks (ESP). Off: they hide behind walls like normal.")
-    private val tracers = BooleanSetting("Tracers", false, "Draws a line to the next door to open on the way to blood.")
+    private val tracers = BooleanSetting("Tracers", false, "Draws a line to the next door to open on the way to blood, only while you are in a room of the blood rush.")
     private val xray get() = throughWalls.value
     private val tracing get() = tracers.value
 //#else
@@ -133,7 +133,9 @@ object DoorESP : Module(
             val fairy = neededFairyDoor()
             val pathNext = DungeonScanner.bloodPath.firstOrNull { it === fairy || it.locked }
             fun nearest(kind: Kind) = current.filter { it.kind == kind }.minByOrNull { it.box.center.distanceToSqr(cam) }
-            val tracerTo = if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
+            // The tracer is only for the blood rush: it hides while you stand in a room off that route.
+            val rushing = mc.player?.let { DungeonScanner.inRushRoom(it.x, it.z) } == true
+            val tracerTo = if (!rushing) null else if (pathNext != null) current.firstOrNull { it.x == pathNext.x && it.z == pathNext.z }
                 else nearest(Kind.WITHER) ?: nearest(Kind.BLOOD)
             val hideUndiscovered = (runStarted || HotbarDungeonMap.calibrated) && !highlightAll.value
             // Fairy exception: the door between the fairy room and the room after it shows early while you're

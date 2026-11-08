@@ -4,6 +4,7 @@ import ced.cedclient.config.CedPaths
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
 import ced.cedclient.features.settings.ActionSetting
+import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.KeybindSetting
 import ced.cedclient.utils.ChatPrefix
 import ced.cedclient.utils.Debug
@@ -56,13 +57,20 @@ object StorageOverlay : Module(
     private val skipNames = setOf("Close", "Go Back", "Next Page", "Previous Page")
     private val skipPrefixes = listOf("Ender Chest Page", "Backpack Slot", "Empty Backpack Slot")
 
+    private val openWithMenu = BooleanSetting("Open With Storage Menu", true, "Opening /storage shows this browser instead of the plain menu (once something is remembered).")
+
     private var keyWasDown = false
 
     init {
-        addSettings(openKey, openButton)
+        addSettings(openKey, openButton, openWithMenu)
 
         ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
             if (!isEnabled || screen !is AbstractContainerScreen<*>) return@register
+            // The /storage overview: swap it for the browser (a tick later, a screen can't be replaced inside its own init).
+            if (openWithMenu.value && screen.title.string == "Storage") {
+                Minecraft.getInstance().execute { if (Minecraft.getInstance().gui.screen() === screen) open() }
+                return@register
+            }
             val page = pageOf(screen.title.string) ?: return@register
             var ticks = 0
             ScreenEvents.afterTick(screen).register {
@@ -163,20 +171,28 @@ object StorageOverlay : Module(
         class Cell(val slot: Int, val stack: ItemStack, val text: String)
         class Page(val key: String, val title: String, val cells: List<Cell>)
 
+        /** Rows of a page: the container's top row only holds the page buttons, so items start at slot 9 = row 0; ender chest pages are always 5 rows. */
+        private fun rowOf(c: Cell) = (c.slot / COLS - 1).coerceAtLeast(0)
+        private fun rowsOf(p: Page) = maxOf(if (p.key.startsWith("ec:")) 5 else 1, (p.cells.maxOfOrNull { rowOf(it) } ?: 0) + 1)
+
         private var query = ""
         private var scroll = 0
         private var contentH = 0
-        private val titleHits = ArrayList<Triple<Int, Int, Page>>()
+        private class TitleHit(val x1: Int, val y1: Int, val x2: Int, val y2: Int, val page: Page)
+        private val titleHits = ArrayList<TitleHit>()
 
         private fun matches(c: Cell) = query.isBlank() || c.text.contains(query.lowercase())
 
         override fun extractRenderState(g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, deltaTicks: Float) {
             val font = Minecraft.getInstance().font
             g.fill(0, 0, width, height, 0xC0101018.toInt())
-            val panelW = COLS * CELL + 16
+            // As many pages side by side as fit (up to 3), each a 9 wide grid, like the real storage menu.
+            val pageW = COLS * CELL
+            val perRow = ((width - 40 + GAP) / (pageW + GAP)).coerceIn(1, 3)
+            val panelW = perRow * pageW + (perRow - 1) * GAP + 24
             val px = (width - panelW) / 2
             g.fill(px, 4, px + panelW, height - 4, 0xE0181820.toInt())
-            g.text(font, "Search: $query" + if (System.currentTimeMillis() / 500 % 2 == 0L) "_" else "", px + 8, 10, -1)
+            g.text(font, "Search: $query" + if (System.currentTimeMillis() / 500 % 2 == 0L) "_" else "", px + 12, 10, -1)
 
             val top = 26
             val bottom = height - 8
@@ -184,25 +200,29 @@ object StorageOverlay : Module(
             var hover: ItemStack? = null
             g.enableScissor(px, top, px + panelW, bottom)
             var y = top - scroll
-            for (page in pages) {
-                if (query.isNotBlank() && page.cells.none { matches(it) }) continue
-                g.text(font, page.title, px + 8, y + 1, 0xFFFFD700.toInt())
-                titleHits += Triple(y, y + 10, page)
-                y += 12
-                val rows = (page.cells.maxOfOrNull { it.slot } ?: -1) / COLS + 1
-                for (c in page.cells) {
-                    val cx = px + 8 + (c.slot % COLS) * CELL
-                    val cy = y + (c.slot / COLS) * CELL
-                    if (cy + CELL < top || cy > bottom) continue
-                    g.item(c.stack, cx + 1, cy + 1)
-                    g.itemDecorations(font, c.stack, cx + 1, cy + 1)
-                    if (query.isNotBlank()) {
-                        if (matches(c)) g.outline(cx, cy, CELL, CELL, 0xFFFFD700.toInt())
-                        else g.fill(cx, cy, cx + CELL, cy + CELL, 0xA0101018.toInt())
+            val visible = pages.filter { query.isBlank() || it.cells.any { c -> matches(c) } }
+            for (chunk in visible.chunked(perRow)) {
+                chunk.forEachIndexed { n, page ->
+                    val x0 = px + 12 + n * (pageW + GAP)
+                    g.text(font, page.title, x0, y + 1, 0xFFFFD700.toInt())
+                    titleHits += TitleHit(x0, y, x0 + pageW, y + 10, page)
+                    val gridY = y + 12
+                    val rows = rowsOf(page)
+                    for (r in 0 until rows) for (col in 0 until COLS) g.fill(x0 + col * CELL, gridY + r * CELL, x0 + col * CELL + CELL - 1, gridY + r * CELL + CELL - 1, 0xFF2A2A32.toInt())
+                    for (c in page.cells) {
+                        val cx = x0 + (c.slot % COLS) * CELL
+                        val cy = gridY + rowOf(c) * CELL
+                        if (cy + CELL < top || cy > bottom) continue
+                        g.item(c.stack, cx + 1, cy + 1)
+                        g.itemDecorations(font, c.stack, cx + 1, cy + 1)
+                        if (query.isNotBlank()) {
+                            if (matches(c)) g.outline(cx, cy, CELL - 1, CELL - 1, 0xFFFFD700.toInt())
+                            else g.fill(cx, cy, cx + CELL - 1, cy + CELL - 1, 0xA0101018.toInt())
+                        }
+                        if (mouseX in cx until cx + CELL && mouseY in cy until cy + CELL && mouseY in top until bottom) hover = c.stack
                     }
-                    if (mouseX in cx until cx + CELL && mouseY in cy until cy + CELL && mouseY in top until bottom) hover = c.stack
                 }
-                y += rows * CELL + 6
+                y += 12 + chunk.maxOf { rowsOf(it) } * CELL + 10
             }
             g.disableScissor()
             contentH = y + scroll - top
@@ -217,7 +237,7 @@ object StorageOverlay : Module(
 
         override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
             if (Keys.mouse(event) == 0) {
-                val hit = titleHits.firstOrNull { event.y() >= it.first && event.y() < it.second && event.y() >= 26 }?.third
+                val hit = titleHits.firstOrNull { event.x() >= it.x1 && event.x() < it.x2 && event.y() >= it.y1 && event.y() < it.y2 && event.y() >= 26 }?.page
                 val kind = hit?.key?.substringBefore(':')
                 val n = hit?.key?.substringAfter(':')
                 val command = when (kind) { "ec" -> "ec $n"; "bp" -> "bp $n"; else -> null }
@@ -242,11 +262,15 @@ object StorageOverlay : Module(
             return true
         }
 
+        // The search box always has the keyboard: letters must reach charTyped instead of the game's key bindings.
+        override fun isInputCaptured(): Boolean = true
+
         override fun isPauseScreen(): Boolean = false
 
         private companion object {
             const val COLS = 9
             const val CELL = 18
+            const val GAP = 14
         }
     }
 }

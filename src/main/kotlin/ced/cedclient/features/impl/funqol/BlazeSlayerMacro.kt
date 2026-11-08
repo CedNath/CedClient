@@ -170,7 +170,7 @@ object BlazeSlayerMacro : Module(
 
     object StatusHud : HudElement {
         override val label: String get() = "Blaze Slayer Macro"
-        override val hudActive: Boolean get() = BlazeSlayerMacro.isEnabled
+        override val hudActive: Boolean get() = true // always in the HUD editor, so it can be placed while the macro is off
         override var panelX = 4
         override var panelY = 150
         override var panelScale = 1f

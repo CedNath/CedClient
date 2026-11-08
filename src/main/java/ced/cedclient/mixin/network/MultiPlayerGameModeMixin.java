@@ -47,6 +47,13 @@ public class MultiPlayerGameModeMixin {
     }
 
 //#endif
+//#if CHEAT
+    // I Hate Doors: the glass is only a client-side look, so the client must not break it itself (hitting it still goes to the server: that is how a door opens).
+    @Inject(method = "destroyBlock", at = @At("HEAD"), cancellable = true)
+    private void cedclient$keepDoorGlassBreak(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        if (ced.cedclient.features.impl.funqol.IHateDoors.isGlassDoor(pos)) cir.setReturnValue(false);
+    }
+//#endif
     // ============================================================
     // ITEM RIGHT-CLICK HANDLER (posts ItemClickEvent)
     // ============================================================

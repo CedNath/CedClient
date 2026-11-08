@@ -36,7 +36,8 @@ object KeyAlerts : Module(
             val mine = who.equals(Minecraft.getInstance().user.name, ignoreCase = true)
             if (onlyMine.value && !mine) return@register
             ced.cedclient.utils.Debug.line(name, "$who obtained $kind Key (x${count ?: 1}), mine=$mine")
-            Alerts.title(name, "$kind Key", if (count != null) "$who (x$count)" else who, if (isBlood) 0xFF5555 else 0xAAAAAA, sound.value, 1.2f)
+            // Just the fact it was picked up, no name or count.
+            Alerts.title(name, "$kind Key Picked Up", "", if (isBlood) 0xFF5555 else 0xAAAAAA, sound.value, 1.2f)
         }
     }
 }

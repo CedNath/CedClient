@@ -152,7 +152,9 @@ object LeapCounter : Module(
             if (at < format.value.length) out += format.value.substring(at) to textColor.value.rgba
             out
         }
-        val textW = parts.sumOf { HudCard.width(it.first, size).toDouble() }.toFloat()
+        // The pieces are measured one by one, so the "/" and digits would touch: a little air after each piece.
+        val gap = size * 0.12f
+        val textW = parts.sumOf { HudCard.width(it.first, size).toDouble() + gap }.toFloat() - gap
         val width = HudCard.steady("Leap Counter", textW + pad * 2, s)
         val height = size + pad * 2
         lastWidth = (width / s).toInt()
@@ -160,7 +162,7 @@ object LeapCounter : Module(
         HudCard.draw(g, panelX, panelY) {
             if (background.value) HudCard.card(width, height, s)
             var x = pad
-            for ((str, c) in parts) { HudCard.text(str, x, pad, size, c); x += HudCard.width(str, size) }
+            for ((str, c) in parts) { HudCard.text(str, x, pad, size, c); x += HudCard.width(str, size) + gap }
         }
     }
 

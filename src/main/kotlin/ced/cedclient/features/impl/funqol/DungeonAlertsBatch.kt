@@ -161,19 +161,20 @@ object F7Titles : Module(
  * pitch, the list sorted by who is ready next, and a countdown that turns green under 5 seconds.
  */
 object MaskTimers : RowHud("Mask Timers", "Cooldowns of Bonzo's Mask, Spirit Mask and the Phoenix Pet.", "mask_timers", 3, 200) {
-    private class Mask(val label: String, val cooldownMs: Long, val color: Int, val pitch: Float) {
+    private class Mask(val label: String, val cooldownMs: Long, val color: Int, val pitch: Float, val invincibleMs: Long) {
         var readyAt = 0L
         var alerted = true
     }
 
-    private val bonzo = Mask("Bonzo", 180_000, 0xFF5555FF.toInt(), 1.0f)
-    private val spirit = Mask("Spirit", 30_000, 0xFFFFFFFF.toInt(), 1.3f)
-    private val phoenix = Mask("Phoenix", 60_000, 0xFFFFAA00.toInt(), 1.6f)
+    private val bonzo = Mask("Bonzo", 180_000, 0xFF5555FF.toInt(), 1.0f, 3_000)
+    private val spirit = Mask("Spirit", 30_000, 0xFFFFFFFF.toInt(), 1.3f, 3_000)
+    private val phoenix = Mask("Phoenix", 60_000, 0xFFFFAA00.toInt(), 1.6f, 4_000)
     private val masks = listOf(bonzo, spirit, phoenix)
 
     private val dungeonsOnly = BooleanSetting("Dungeons Only", false, "Only count (and show) procs inside a dungeon.")
     private val readyPing = BooleanSetting("Ready Ping", true, "A title and pling when a mask is ready again.")
     private val showReady = BooleanSetting("Show Ready Masks", false, "Keep masks that are ready in the list.")
+    val invincibilityPrefix = BooleanSetting("Invincibility Prefix", true, "Invincibility Timer HUD: show the mask in front (\"Spirit: 3.0s\"). Off: just the time.")
     private val chatMessage = BooleanSetting("Proc Message", false, "A message in chat when a mask saves you, with the cooldown.")
 
     private val BONZO = Regex("""Your (?:.+ )?Bonzo's Mask saved your life!""")
@@ -182,6 +183,13 @@ object MaskTimers : RowHud("Mask Timers", "Cooldowns of Bonzo's Mask, Spirit Mas
     private val PHOENIX = Regex("""Your Phoenix Pet saved you from certain death!""")
 
     private fun active() = isEnabled && (!dungeonsOnly.value || DungeonState.inDungeon)
+
+    /** Until when a proc keeps you invincible, and the mask that gave it (shown by [InvincibilityPanel]). */
+    @Volatile var invincibleUntil = 0L
+        private set
+    @Volatile var invincibleBy = ""
+        private set
+    val panelActive get() = active()
 
     private fun seconds(ms: Long) = "%.1fs".format(java.util.Locale.ROOT, ms / 1000.0)
 
@@ -221,13 +229,15 @@ object MaskTimers : RowHud("Mask Timers", "Cooldowns of Bonzo's Mask, Spirit Mas
         if (!active()) return
         mask.readyAt = System.currentTimeMillis() + cooldownOf(mask)
         mask.alerted = false
+        invincibleUntil = System.currentTimeMillis() + mask.invincibleMs // shortcut: fixed lengths (Bonzo / Spirit 3s, Phoenix 4s), upgrade if the game shows them
+        invincibleBy = mask.label
         if (chatMessage.value) mc.player?.sendSystemMessage(
             net.minecraft.network.chat.Component.literal("§b${mask.label} §7saved you, ready in ${cooldownOf(mask) / 1000}s")
         )
     }
 
     init {
-        addSettings(dungeonsOnly, readyPing, showReady, chatMessage)
+        addSettings(dungeonsOnly, readyPing, showReady, chatMessage, invincibilityPrefix)
         loadPosition()
         on<ChatMessageEvent> {
             val text = it.unformattedText.trim()
@@ -271,7 +281,7 @@ object BlessingDisplay : RowHud("Blessing Display", "The dungeon blessings you h
     private val wisdom = BooleanSetting("Wisdom", false, "Wisdom blessing.")
     private val life = BooleanSetting("Life", false, "Life blessing.")
     private val stone = BooleanSetting("Stone", false, "Stone blessing.")
-    private val dots = BooleanSetting("Level Dots", true, "A small dot bar next to the level (one dot per 3 levels).")
+    private val dots = BooleanSetting("Level Dots", false, "A small dot bar next to the level (one dot per 3 levels).")
     private val byLevel = BooleanSetting("Dim Low Levels", true, "Low levels are drawn dimmer than high ones.")
     private val shown = mapOf("Power" to power, "Time" to time, "Wisdom" to wisdom, "Life" to life, "Stone" to stone)
 
@@ -303,18 +313,69 @@ object BlessingDisplay : RowHud("Blessing Display", "The dungeon blessings you h
         read()
         val out = patterns.keys.filter { shown[it]?.value == true }.mapNotNull { n ->
             val level = levels[n] ?: return@mapNotNull null
-            val bar = if (dots.value) " " + "●".repeat(((level + 2) / 3).coerceAtMost(7)) else ""
-            Triple("$n +$level", bar.trim(), dim(colors.getValue(n), level))
+            val bar = if (dots.value) "●".repeat(((level + 2) / 3).coerceAtMost(7)) else ""
+            Triple("$n: $level", bar, dim(colors.getValue(n), level))
         }
         return out.ifEmpty { null }
     }
 
     override fun preview() = listOf(
-        Triple("Power +14", "●●●●●", colors.getValue("Power")), Triple("Time +5", "●●", colors.getValue("Time"))
+        Triple("Power: 14", "", colors.getValue("Power")), Triple("Time: 5", "", colors.getValue("Time"))
     )
 
     init {
         addSettings(power, time, wisdom, life, stone, dots, byLevel)
         loadPosition()
+    }
+}
+
+/** The invincibility a mask / Phoenix proc gives, counted down in its own HUD (Mask Timers must be on). */
+object InvincibilityPanel : ced.cedclient.features.impl.render.HudElement {
+    override val label = "Invincibility Timer"
+    override val hudActive get() = MaskTimers.isEnabled
+    override var panelX = 3
+    override var panelY = 236
+    override var panelScale = 1f
+    override var lastWidth = 0
+        private set
+    override var lastHeight = 0
+        private set
+
+    private data class HudPosition(val x: Int, val y: Int, val scale: Float)
+    private val gson = com.google.gson.Gson()
+    private val hudFile by lazy { ced.cedclient.config.CedPaths.hud("invincibility_timer") }
+
+    override fun save() { runCatching { hudFile.parentFile?.mkdirs(); hudFile.writeText(gson.toJson(HudPosition(panelX, panelY, panelScale))) } }
+    override fun resetPosition() { panelX = 3; panelY = 236; panelScale = 1f }
+    override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.4f, 3f) }
+
+    init {
+        runCatching { gson.fromJson(hudFile.readText(), HudPosition::class.java) }.getOrNull()?.let { panelX = it.x; panelY = it.y; panelScale = it.scale.coerceIn(0.4f, 3f) }
+    }
+
+    fun render(g: net.minecraft.client.gui.GuiGraphicsExtractor, @Suppress("UNUSED_PARAMETER") tickCounter: net.minecraft.client.DeltaTracker) {
+        val mc = Minecraft.getInstance()
+        if (!MaskTimers.isEnabled || !MaskTimers.panelActive || mc.gui.hud.isHidden) return
+        val left = MaskTimers.invincibleUntil - System.currentTimeMillis()
+        if (left > 0) draw(g, MaskTimers.invincibleBy, "%.1fs".format(java.util.Locale.ROOT, left / 1000.0))
+    }
+
+    override fun renderInternal(g: net.minecraft.client.gui.GuiGraphicsExtractor) = draw(g, "Spirit", "2.4s")
+
+    /** "Spirit: 3.0s" (the mask that procced), or just "3.0s" with Invincibility Prefix off. */
+    private fun draw(g: net.minecraft.client.gui.GuiGraphicsExtractor, name: String, value: String) {
+        val s = panelScale
+        val size = 10f * s
+        val pad = 6f * s
+        val color = 0xFFFFAA00.toInt()
+        val text = if (MaskTimers.invincibilityPrefix.value) "$name: $value" else value
+        val width = ced.cedclient.features.impl.render.HudCard.steady(label, ced.cedclient.features.impl.render.HudCard.tabularWidth(text, size) + pad * 2, s)
+        val height = size + pad * 2
+        lastWidth = (width / s).toInt()
+        lastHeight = (height / s).toInt()
+        ced.cedclient.features.impl.render.HudCard.draw(g, panelX, panelY) {
+            ced.cedclient.features.impl.render.HudCard.card(width, height, s)
+            ced.cedclient.features.impl.render.HudCard.tabularText(text, pad, pad, size, color)
+        }
     }
 }

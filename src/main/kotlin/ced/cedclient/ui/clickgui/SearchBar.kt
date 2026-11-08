@@ -5,6 +5,7 @@ import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.utils.Color.Companion.brighter
 import ced.cedclient.utils.Color.Companion.withAlpha
 import ced.cedclient.utils.Colors
+import ced.cedclient.utils.Keys
 import net.minecraft.client.Minecraft
 import ced.cedclient.utils.ui.TextInputHandler
 import net.minecraft.client.input.CharacterEvent
@@ -77,22 +78,20 @@ object SearchBar {
         textInputHandler.draw(mouseX, mouseY)
     }
 
-    fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+    /** The HUD button's click, tried before anything else in the Click GUI so no other handler can take it. */
+    fun hudButtonClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
         val bx = barX + 356f
-        if (click.button() == 0 && mouseX in bx..(bx + HUD_BTN_W) && mouseY in barY..(barY + 40f)) {
+        if (Keys.mouse(click) == 0 && mouseX in bx..(bx + HUD_BTN_W) && mouseY in barY..(barY + 40f)) {
             // Deferred out of the click event: switching screens inside it gets undone (same reason /cc hud waits a tick).
             ced.cedclient.utils.Debug.line("HUD Button", "clicked, opening the HUD editor next tick")
-            val mc = Minecraft.getInstance()
-            mc.execute {
-                try {
-                    mc.gui.setScreen(MasterHudEditScreen())
-                    ced.cedclient.utils.Debug.line("HUD Button", "setScreen done, screen is now ${mc.gui.screen()?.javaClass?.simpleName}")
-                } catch (t: Throwable) {
-                    ced.cedclient.utils.Debug.line("HUD Button", "failed: $t")
-                }
-            }
+            ced.cedclient.commands.CedClientCommand.pendingOpenHudEdit = true
             return true
         }
+        return false
+    }
+
+    fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+        if (hudButtonClicked(mouseX, mouseY, click)) return true
         return textInputHandler.mouseClicked(mouseX, mouseY, click)
     }
 

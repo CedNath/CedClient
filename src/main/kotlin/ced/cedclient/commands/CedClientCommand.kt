@@ -34,8 +34,9 @@ object CedClientCommand {
     @Volatile
     private var pendingOpenGui = false
 
+    /** Opens the HUD editor on the next client tick (set by /cc hud and the Click GUI's HUD button). */
     @Volatile
-    private var pendingOpenHudEdit = false
+    var pendingOpenHudEdit = false
 
     @Volatile
     private var pendingOpenDebug = false

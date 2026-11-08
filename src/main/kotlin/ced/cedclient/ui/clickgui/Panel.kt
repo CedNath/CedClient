@@ -35,8 +35,23 @@ class Panel(val panelSetting: PanelSetting) {
         all.sortedWith(compareBy<Pair<String?, Module>> { order.indexOf(it.first) }
             .thenByDescending { prettyModuleName(it.second.name).length }) // length, not pixels: the font isn't measurable this early
     }
-    val moduleButtons = arranged.map { ModuleButton(it.second, this@Panel) }
-    private val headings = arranged.map { it.first }
+    val moduleButtons: MutableList<ModuleButton> = arranged.map { ModuleButton(it.second, this@Panel) }.toMutableList()
+    private val headings: MutableList<String?> = arranged.map { it.first }.toMutableList()
+
+    /** The font the buttons are currently ordered for: widths are only measurable inside a frame, so [sortByWidth] runs from draw. */
+    private var sortedFor: String? = null
+
+    /** Like Odin: inside each heading group, the widest name (in pixels, in the current font) comes first. */
+    private fun sortByWidth() {
+        val key = ced.cedclient.features.impl.misc.Theme.uiFont.value
+        if (key == sortedFor) return
+        sortedFor = key
+        val order = headings.distinct()
+        val pairs = headings.zip(moduleButtons).sortedWith(compareBy<Pair<String?, ModuleButton>> { order.indexOf(it.first) }
+            .thenByDescending { NVGRenderer.textWidth(prettyModuleName(it.second.module.name), 21f, NVGRenderer.defaultFont) })
+        headings.clear(); moduleButtons.clear()
+        pairs.forEach { headings += it.first; moduleButtons += it.second }
+    }
 
     // Compact layout (CompactLayout): only big categories split (Skyblock, Cheats...), one entry per heading
     // (null = the unlisted rest); a small one (Cosmetic, HUD) stays a single entry.
@@ -88,6 +103,7 @@ class Panel(val panelSetting: PanelSetting) {
             previousHeight - HEIGHT + 10f
         )
 
+        sortByWidth()
         var startY = scrollOffset + HEIGHT
         val lastShown = moduleButtons.lastOrNull { visible(it) }
         if (panelSetting.extended) {

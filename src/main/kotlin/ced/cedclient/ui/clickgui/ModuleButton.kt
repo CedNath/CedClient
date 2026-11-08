@@ -50,6 +50,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
 
     /** What the menu shows: "FarmHelper" reads "Farm Helper". Display only; saved configs and search still use [Module.name]. */
     private val shownName = prettyModuleName(module.name)
+    /** The Click GUI row itself: it is where the mod's look is set up, so it stands out from the plain module rows. */
+    private val isLookRow = module.name == "Mod Settings"
     private val hoverHandler = HoverHandler(750)
     private val extendAnim = EaseInOutAnimation(250)
     private val switchAnim = EaseInOutAnimation(150)
@@ -65,13 +67,14 @@ class ModuleButton(val module: Module, val panel: Panel) {
 
         // No row fill: the panel card shows through. Hover is a faint white wash; enabled modules get the accent dot.
         val hoverAlpha = 0.04f * hover.percent() / 100f
+        if (isLookRow) NVGRenderer.rect(x, y, Panel.WIDTH, Panel.HEIGHT, ClickGUI.clickGUIColor.withAlpha(0.14f).rgba)
         if (hoverAlpha > 0f) NVGRenderer.rect(x, y, Panel.WIDTH, Panel.HEIGHT, Colors.WHITE.withAlpha(hoverAlpha).rgba)
         NVGRenderer.text(
             shownName,
             x + Panel.WIDTH / 2 - NVGRenderer.textWidth(shownName, 21f, NVGRenderer.defaultFont) / 2, // centered; measured now, the font can change
             y + Panel.HEIGHT / 2 - 10.5f,
             21f,
-            nameColor.rgba,
+            if (isLookRow) ClickGUI.clickGUIColor.rgba else nameColor.rgba,
             NVGRenderer.defaultFont
         )
         if (module.enabled && !module.alwaysEnabled)

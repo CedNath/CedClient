@@ -129,36 +129,51 @@ object CameraTweaks : Module(
 }
 
 /**
- * Stops block placement with the SkyBlock items you list (their ids, comma separated) and, if enabled, with every player
- * head. Unique: a one-line chat notice the first time per item so you know why nothing was placed.
+ * Stops the client placing SkyBlock items that are really abilities (their ids, comma separated, plus NoammAddons' list of
+ * known ones) and, if enabled, every player head. The click still goes to the server (see BlockItemPlaceMixin), so the
+ * ability or interaction works; only the ghost block is not placed. Unique: a one-line chat notice the first time per item.
  */
 object NoItemPlace : Module(
     "No Item Place",
     Category.Skyblock,
-    "Blocks placing the listed SkyBlock items (and optionally every skull) as blocks."
+    "Blocks placing ability items (and optionally every skull) as blocks, without cancelling the click."
 ) {
-    private val ids = TextSetting("Item IDs", "", "SkyBlock item ids that must not be placed, comma separated (e.g. BONZO_MASK).", 400)
-    private val skulls = BooleanSetting("Block All Skulls", true, "Also block placing any player head.")
+    private val ids = TextSetting("Item IDs", "", "Extra SkyBlock item ids that must not be placed, comma separated (e.g. BONZO_MASK).", 400)
+    private val known = BooleanSetting("Block Known Items", true, "Abiphones, tubas, power orbs, pocket black holes, fishing nets, bat wands, Infinite Spirit Leap and other ability items (list from NoammAddons).")
+    private val relics = BooleanSetting("Block Relics (F7 P5)", true, "No ghost relic block while carrying a Corrupted relic in phase 5; placing it in the cauldron still works.")
+    private val skulls = BooleanSetting("Block All Skulls", false, "Also block placing any player head (not relics, they have their own toggle).")
     private val notice = BooleanSetting("Notice Once", true, "A chat notice the first time an item is blocked.")
 
     private val told = HashSet<String>()
 
+    // Item ids that are used, never placed (NoammAddons' NoItemPlace).
+    private val PREFIXES = listOf("ABIPHONE")
+    private val SUFFIXES = listOf("_TUBA", "_POWER_ORB", "_POCKET_BLACK_HOLE", "_FISHING_NET")
+    private val EXACT = setOf(
+        "BOUQUET_OF_LIES", "FLOWER_OF_TRUTH", "BAT_WAND", "STARRED_BAT_WAND", "INFINITE_SPIRIT_LEAP", "ROYAL_PIGEON",
+        "ARROW_SWAPPER", "JINGLE_BELLS", "FIRE_FREEZE_STAFF", "UMBERELLA", "ETHERWARP_CONDUIT", "KUUDRA_SHOP_ITEM",
+    )
+    private val RELIC = Regex("^Corrupted (Red|Orange|Green|Blue|Purple) Relic$", RegexOption.IGNORE_CASE)
+
     init {
-        addSettings(ids, skulls, notice)
-        UseBlockCallback.EVENT.register(UseBlockCallback { player, level, hand, _ ->
-            if (!isEnabled || !level.isClientSide) return@UseBlockCallback InteractionResult.PASS
-            val stack = player.getItemInHand(hand)
-            val id = stack.skyblockId ?: return@UseBlockCallback InteractionResult.PASS
-            val listed = ids.value.split(',').map { it.trim() }.filter { it.isNotEmpty() }.any { it.equals(id, ignoreCase = true) }
-            val skull = skulls.value && stack.item == net.minecraft.world.item.Items.PLAYER_HEAD
-            if (!listed && !skull) return@UseBlockCallback InteractionResult.PASS
-            if (notice.value && told.add(id)) player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b[CC] §7No Item Place: $id will not be placed"))
-            // FAIL cancels the whole right-click, so the server never saw the "use item" and an ability item (Spirit Leap
-            // opening the Leap menu) did nothing. Send the use ourselves: nothing is placed, the ability still fires.
-            net.minecraft.client.Minecraft.getInstance().gameMode?.useItem(player, hand)
-            ced.cedclient.utils.Debug.line(name, "blocked placing $id, used it instead")
-            InteractionResult.FAIL
-        })
+        addSettings(ids, known, relics, skulls, notice)
+    }
+
+    /** Called by BlockItemPlaceMixin for every client-side block placement. */
+    @JvmStatic
+    fun shouldBlock(context: net.minecraft.world.item.context.BlockPlaceContext): Boolean {
+        if (!isEnabled) return false
+        val player = context.player ?: return false
+        val stack = player.mainHandItem
+        val id = stack.skyblockId ?: return false
+        val listed = ids.value.split(',').map { it.trim() }.filter { it.isNotEmpty() }.any { it.equals(id, ignoreCase = true) }
+        val builtIn = known.value && (PREFIXES.any { id.startsWith(it) } || SUFFIXES.any { id.endsWith(it) } || id in EXACT)
+        val relic = relics.value && ced.cedclient.state.DungeonState.f7Phase == 5 && RELIC.matches(stack.hoverName.string)
+        val skull = skulls.value && stack.item == net.minecraft.world.item.Items.PLAYER_HEAD
+        if (!listed && !builtIn && !relic && !skull) return false
+        if (notice.value && told.add(id)) player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b[CC] §7No Item Place: $id will not be placed"))
+        ced.cedclient.utils.Debug.line(name, "blocked placing $id (the click still goes to the server)")
+        return true
     }
 }
 //#endif

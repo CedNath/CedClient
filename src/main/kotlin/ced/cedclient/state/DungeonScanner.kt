@@ -50,6 +50,7 @@ object DungeonScanner {
         rooms.fill(null)
         spots.fill(null)
         bloodPath = emptyList()
+        rushTiles = emptySet()
         version++
         lastScanTick = Long.MIN_VALUE
     }
@@ -97,10 +98,11 @@ object DungeonScanner {
         val ri = Math.floorDiv(playerX.toInt() - START + 16, 32)
         val rj = Math.floorDiv(playerZ.toInt() - START + 16, 32)
         bloodPath = findPath(if (ri in 0..5 && rj in 0..5) ri * 6 + rj else rooms.indexOfFirst { it?.type == "ENTRANCE" })
+        rushTiles = computeRushTiles()
     }
 
-    /** Breadth-first from room tile [start] to a blood tile over doors and same-room joins. */
-    private fun findPath(start: Int): List<PathDoor> {
+    /** Breadth-first from room tile [start] to a blood tile: the room tiles on the way, [start] first. Empty if there is none. */
+    private fun route(start: Int): List<Int> {
         if (start < 0 || rooms.none { it?.type == "BLOOD" }) return emptyList()
         val parent = IntArray(36) { -1 }
         parent[start] = start
@@ -119,19 +121,52 @@ object DungeonScanner {
             }
         }
         if (end < 0) return emptyList()
-
-        val doors = ArrayList<PathDoor>()
+        val out = ArrayList<Int>()
         var r = end
-        while (r != start) {
-            val from = parent[r]
+        while (r != start) { out += r; r = parent[r] }
+        out += start
+        return out.asReversed()
+    }
+
+    /** Doors from room tile [start] to a blood tile over doors and same-room joins. */
+    private fun findPath(start: Int): List<PathDoor> {
+        val route = route(start)
+        val doors = ArrayList<PathDoor>()
+        for (k in 1 until route.size) {
+            val from = route[k - 1]
+            val r = route[k]
             val spot = spots[spotIndex(from, r)]!!
             if (spot != Spot.SEPARATOR) {
                 // The spot's grid index is the sum of the two room indices on each axis.
                 doors += PathDoor(START + 16 * (from / 6 + r / 6), START + 16 * (from % 6 + r % 6), spot, rooms[r]?.type == "FAIRY")
             }
-            r = from
         }
-        return doors.asReversed()
+        return doors
+    }
+
+    /** Room tiles of the blood rush (entrance to blood, whole rooms: every tile joined to one on the route). */
+    private var rushTiles: Set<Int> = emptySet()
+
+    /** Is the player's room one the blood rush goes through? False outside the grid or while the route is not loaded. */
+    fun inRushRoom(playerX: Double, playerZ: Double): Boolean {
+        val ri = Math.floorDiv(playerX.toInt() - START + 16, 32)
+        val rj = Math.floorDiv(playerZ.toInt() - START + 16, 32)
+        return ri in 0..5 && rj in 0..5 && ri * 6 + rj in rushTiles
+    }
+
+    private fun computeRushTiles(): Set<Int> {
+        val tiles = route(rooms.indexOfFirst { it?.type == "ENTRANCE" }).toMutableSet()
+        val todo = ArrayDeque(tiles)
+        while (todo.isNotEmpty()) {
+            val r = todo.removeFirst()
+            for ((di, dj) in NEIGHBOURS) {
+                val ni = r / 6 + di; val nj = r % 6 + dj
+                if (ni !in 0..5 || nj !in 0..5) continue
+                val n = ni * 6 + nj
+                if (n !in tiles && spots[spotIndex(r, n)] == Spot.SEPARATOR) { tiles += n; todo.addLast(n) }
+            }
+        }
+        return tiles
     }
 
     /** Grid index of the spot between neighbouring room tiles [a] and [b] (room index = ri * 6 + rj). */

@@ -255,6 +255,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         val scaledMouseX = cedMouseX / clickGuiScale
         val scaledMouseY = cedMouseY / clickGuiScale
 
+        if (activePopup == null && !compact && SearchBar.hudButtonClicked(scaledMouseX, scaledMouseY, mouseButtonEvent)) return true
+
         activePopup?.let { popup ->
             when {
                 popup.isCloseButtonHovered(scaledMouseX, scaledMouseY) -> closePopup()

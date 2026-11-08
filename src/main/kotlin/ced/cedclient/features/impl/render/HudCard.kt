@@ -183,16 +183,41 @@ object HudCard {
      * a HUD with its Background off gets a soft dark halo so it reads on bright scenes too. Pure black is left alone:
      * HUDs draw it on purpose as an outline or shadow.
      */
-    fun text(text: String, x: Float, y: Float, size: Float, color: Int, bold: Boolean = false, remap: Boolean = true) {
+    private val digitCells = HashMap<String, Float>()
+
+    /** Own advance of one character, letter spacing included (the pixel font drops it after a lone glyph, so measure a pair). */
+    private fun own(c: Char, size: Float, bold: Boolean) = width("$c$c", size, bold) - width(c.toString(), size, bold)
+
+    /** Width every digit takes in [tabularText]: the widest digit of the current font, so changing numbers never shift. */
+    private fun digitCell(size: Float, bold: Boolean): Float =
+        digitCells.getOrPut("$size/$bold/${NVGRenderer.defaultFont}/${Theme.uiFont.value}") { ('0'..'9').maxOf { own(it, size, bold) } }
+
+    private fun advance(c: Char, size: Float, bold: Boolean) = if (c.isDigit()) digitCell(size, bold) else own(c, size, bold)
+
+    /** Width of [text] with every digit the same width (timers: a proportional font makes "1" and "4" jitter). */
+    fun tabularWidth(text: String, size: Float, bold: Boolean = false): Float = text.sumOf { advance(it, size, bold).toDouble() }.toFloat()
+
+    /** [text] with every digit in an equal-width cell, so a ticking number keeps its place. */
+    fun tabularText(text: String, x: Float, y: Float, size: Float, color: Int, bold: Boolean = false, remap: Boolean = true) {
+        var cx = x
+        for (c in text) {
+            val cell = advance(c, size, bold)
+            if (c != ' ') text(c.toString(), cx + if (c.isDigit()) (cell - own(c, size, bold)) / 2f else 0f, y, size, color, bold, remap)
+            cx += cell
+        }
+    }
+
+    fun text(text: String, x: Float, y: Float, size: Float, color: Int, bold: Boolean = false, remap: Boolean = true, lift: Boolean = true) {
         val f = if (bold) NVGRenderer.boldFont else font
         val deliberateBlack = luminance(color and 0xFFFFFF) < 0.002
         val color = if (remap && !deliberateBlack) paletteOf(color) else color
-        if (!deliberateBlack && currentLabel != null && !cardDrawn) {
+        // Music draws its own panel (album colours behind the text), so a halo only smears it.
+        if (!deliberateBlack && currentLabel != null && currentLabel != "Music" && !cardDrawn) {
             val label = currentLabel ?: "?"
             if (haloLogged.add(label)) Debug.line("HUD Look", "halo text for $label")
             NVGRenderer.textHalo(text, x, y, size, (color ushr 24) / 255f, f)
         }
-        NVGRenderer.text(text, x, y, size, if (deliberateBlack) color else legible(color), f)
+        NVGRenderer.text(text, x, y, size, if (deliberateBlack || !lift) color else legible(color), f)
     }
 
     /** HUDs whose colours mean a category (class colours on the map), so [paletteOf] leaves them alone. */
@@ -319,7 +344,7 @@ object HudCard {
     fun componentText(component: Component, x: Float, y: Float, size: Float, alpha: Float = 1f, defaultRgb: Int = 0xFFFFFF): Float {
         var cx = x
         for (r in runs(component, defaultRgb)) {
-            text(r.text, cx, y, size, withAlpha(0xFF000000.toInt() or r.rgb, alpha), bold = r.bold, remap = false)
+            text(r.text, cx, y, size, withAlpha(0xFF000000.toInt() or r.rgb, alpha), bold = r.bold, remap = false, lift = false) // a name's own colours (custom tags, ranks) are shown as set, not lightened
             cx += width(r.text, size, r.bold)
         }
         return cx - x

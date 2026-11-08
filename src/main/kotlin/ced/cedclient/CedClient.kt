@@ -562,6 +562,11 @@ class CedClient : ClientModInitializer {
             ced.cedclient.features.impl.funqol.MaskTimers.render(graphics, tickCounter)
         }
         hudLast(
+            Identifier.fromNamespaceAndPath("cedclient", "invincibility_timer")
+        ) { graphics, tickCounter ->
+            ced.cedclient.features.impl.funqol.InvincibilityPanel.render(graphics, tickCounter)
+        }
+        hudLast(
             Identifier.fromNamespaceAndPath("cedclient", "blessing_display")
         ) { graphics, tickCounter ->
             ced.cedclient.features.impl.funqol.BlessingDisplay.render(graphics, tickCounter)

@@ -72,9 +72,9 @@ abstract class RowHud(name: String, description: String, private val key: String
         val size = 10f * s
         val lineH = 12f * s
         val pad = 6f * s
-        val gap = 10f * s
         val leftW = lines.maxOf { HudCard.width(it.first, size) }
         val rightW = lines.maxOf { HudCard.width(it.second, size) }
+        val gap = if (rightW > 0f) 10f * s else 0f
         val width = HudCard.steady(label, leftW + gap + rightW + pad * 2, s)
         val height = lines.size * lineH + pad * 2 - (lineH - size)
         lastWidth = (width / s).toInt()

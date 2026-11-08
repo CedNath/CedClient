@@ -53,11 +53,15 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         search.setResponder { listScroll = 0 }
     }
 
-    private fun snap(v: Int) = if (grid) (v / GRID.toFloat()).roundToInt() * GRID else v
+    /** Snaps to the grid, whose lines run out from the centre lines ([origin] = half the screen), so the big lines meet them. */
+    private fun snap(v: Int, origin: Int) = if (grid) origin + ((v - origin) / GRID.toFloat()).roundToInt() * GRID else v
 
     private fun drawGrid(context: GuiGraphicsExtractor) {
-        for (x in 0..this.width step GRID) context.fill(x, 0, x + 1, this.height, if (x % 50 == 0) 0x44FFFFFF else 0x18FFFFFF)
-        for (y in 0..this.height step GRID) context.fill(0, y, this.width, y + 1, if (y % 50 == 0) 0x44FFFFFF else 0x18FFFFFF)
+        val cx = this.width / 2
+        val cy = this.height / 2
+        // Counted from the centre lines in both directions; every 10th line (50 px) is the bold one.
+        for (k in -(cx / GRID)..(this.width - cx) / GRID) context.fill(cx + k * GRID, 0, cx + k * GRID + 1, this.height, if (k % 10 == 0) 0x44FFFFFF else 0x18FFFFFF)
+        for (k in -(cy / GRID)..(this.height - cy) / GRID) context.fill(0, cy + k * GRID, this.width, cy + k * GRID + 1, if (k % 10 == 0) 0x44FFFFFF else 0x18FFFFFF)
         context.fill(this.width / 2, 0, this.width / 2 + 1, this.height, 0x8855FFFF.toInt())
         context.fill(0, this.height / 2, this.width, this.height / 2 + 1, 0x8855FFFF.toInt())
     }
@@ -187,15 +191,18 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
 
     private fun inPopover(mx: Int, my: Int) = open && mx in popX..(popX + popW) && my in popY..(popY + popH)
 
-    /** Panels under the point, topmost first: the selected one (drawn last), then the rest from the end of the list. */
+    /** Panels under the point in a fixed order (the end of the list first), so right-click can walk through all of them. */
+    private fun stackAt(mx: Int, my: Int): List<HudElement> = shown.asReversed().filter { element ->
+        val scaledWidth = (element.lastWidth * element.panelScale).toInt()
+        val scaledHeight = (element.lastHeight * element.panelScale).toInt()
+        mx in element.panelX..(element.panelX + scaledWidth) &&
+                my in element.panelY..(element.panelY + scaledHeight)
+    }
+
+    /** Panels under the point, topmost first: the selected one (drawn last), then the rest in [stackAt] order. */
     private fun hitsAt(mx: Int, my: Int): List<HudElement> {
         val sel = selected
-        return shown.asReversed().filter { element ->
-            val scaledWidth = (element.lastWidth * element.panelScale).toInt()
-            val scaledHeight = (element.lastHeight * element.panelScale).toInt()
-            mx in element.panelX..(element.panelX + scaledWidth) &&
-                    my in element.panelY..(element.panelY + scaledHeight)
-        }.sortedBy { it !== sel }
+        return stackAt(mx, my).sortedBy { it !== sel }
     }
 
     private fun elementAt(mx: Int, my: Int): HudElement? = hitsAt(mx, my).firstOrNull()
@@ -218,8 +225,10 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         val hits = hitsAt(mx, my)
         // Right click on stacked panels selects the next one underneath (wraps around).
         val hit = if (Keys.mouse(event) == 1 && hits.size > 1) {
-            val cur = hits.indexOf(selected)
-            hits[(cur + 1) % hits.size].also { selected = it; return true }
+            // Walk the fixed stack order: the selected panel moves to the front of [hits], so indexing that list only ever flips between two.
+            val stack = stackAt(mx, my)
+            val cur = stack.indexOf(selected)
+            stack[(cur + 1) % stack.size].also { selected = it; return true }
         } else hits.firstOrNull()
         selected = hit
         if (hit != null) {
@@ -235,8 +244,8 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
         val target = dragging
         if (target != null) {
-            target.panelX = snap(event.x().toInt() - dragOffsetX)
-            target.panelY = snap(event.y().toInt() - dragOffsetY)
+            target.panelX = snap(event.x().toInt() - dragOffsetX, this.width / 2)
+            target.panelY = snap(event.y().toInt() - dragOffsetY, this.height / 2)
             return true
         }
         return super.mouseDragged(event, dragX, dragY)
@@ -285,7 +294,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
     override fun isPauseScreen(): Boolean = false
 
     companion object {
-        private const val GRID = 10
+        private const val GRID = 5
         private const val POP_W = 170
         private const val ROW_H = 12
         private const val MAX_ROWS = 14
