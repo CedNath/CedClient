@@ -385,22 +385,6 @@ object DailyReset : Module(
                 "passes, instead of waiting for the daily reset."
     )
 
-    // On by default now that it's been tested -- see the doc comment on
-    // renderNVG() below for exactly how it works. If NanoVG rendering ever
-    // throws for any reason, renderInternal() below still catches it and
-    // silently falls back to the plain (square-corner-safe) vanilla path
-    // for that frame, so a regression shows up as a wrong-looking panel
-    // rather than breaking anything else. Flagged .advanced so the toggle
-    // to fall back to the plain renderer is only visible with Advanced
-    // Mode on, out of the way for everyone else.
-    private val useNanoVGRendering = BooleanSetting(
-        "Use NanoVG Rendering",
-        true,
-        "True rounded corners + antialiasing via the same NanoVG pipeline ClickGUI uses, instead of the " +
-                "scanline-approximated corners GuiGraphicsExtractor.fill() draws. Falls back to the old " +
-                "rendering automatically if anything goes wrong."
-    ).also { it.advanced = true }
-
     private val tasks = mutableListOf<DailyTaskItem>()
     private val autoProgress = mutableMapOf<String, Int>() // definition id -> match count today
 
@@ -465,7 +449,7 @@ object DailyReset : Module(
     // so it never touches the server and works identically whether or not
     // you're actually able to chat right now (muted, cooldown, etc).
     // -------------------------
-    private val PREFIX_COLOR = TextColor.fromRgb(0x8A7FFF) // matches ACCENT_COLOR below
+    private val PREFIX_COLOR = TextColor.fromRgb(0x8A7FFF) // the chat prefix colour this module has always used
     private val BODY_COLOR = TextColor.fromRgb(0xDDDDDD)
 
     private fun announceCompletion(name: String) {
@@ -772,127 +756,13 @@ object DailyReset : Module(
         renderInternal(g)
     }
 
-    // Corner radius in local (unscaled) pixels, and the border thickness
-    // drawn around the rounded card.
-    private const val CORNER_RADIUS = 8
-    private const val BORDER_THICKNESS = 1
-
-    /**
-     * Fills a rounded rectangle using only GuiGraphicsExtractor.fill() --
-     * no NanoVG. See the class-level rationale above render(): a HUD panel
-     * running its own top-level NVG frame every frame previously broke
-     * badly in this codebase (TimeHud's doc comment has the details), so
-     * this rasterizes rounded corners the boring way instead. The middle
-     * is two overlapping plain rects forming a plus/cross shape covering
-     * everything except the four corner squares; each corner square then
-     * gets its quarter-circle carved out one horizontal scanline at a
-     * time, testing (localX - r)^2 + (localY - r)^2 <= r^2 against a
-     * circle centered on that square's inner corner.
-     */
-    private fun fillRounded(g: GuiGraphicsExtractor, x: Int, y: Int, width: Int, height: Int, radius: Int, color: Int) {
-        val r = radius.coerceIn(0, minOf(width, height) / 2)
-        if (r <= 0) {
-            g.fill(x, y, x + width, y + height, color)
-            return
-        }
-
-        g.fill(x + r, y, x + width - r, y + height, color)
-        g.fill(x, y + r, x + width, y + height - r, color)
-
-        for (row in 0 until r) {
-            val dy = r - row
-            val dx = kotlin.math.sqrt((r * r - dy * dy).toDouble()).toInt()
-            val inset = r - dx
-
-            g.fill(x + inset, y + row, x + r, y + row + 1, color) // top-left
-            g.fill(x + width - r, y + row, x + width - inset, y + row + 1, color) // top-right
-            g.fill(x + inset, y + height - 1 - row, x + r, y + height - row, color) // bottom-left
-            g.fill(x + width - r, y + height - 1 - row, x + width - inset, y + height - row, color) // bottom-right
-        }
-    }
-
-    /** Draws a rounded card border by layering a background-colored rounded rect inside a border-colored one. */
-    private fun drawCard(g: GuiGraphicsExtractor, width: Int, height: Int) {
-        fillRounded(g, 0, 0, width, height, CORNER_RADIUS, BORDER_COLOR)
-        fillRounded(
-            g,
-            BORDER_THICKNESS, BORDER_THICKNESS,
-            width - BORDER_THICKNESS * 2, height - BORDER_THICKNESS * 2,
-            (CORNER_RADIUS - BORDER_THICKNESS).coerceAtLeast(0),
-            BACKGROUND_COLOR
-        )
-    }
-
-    private val BORDER_COLOR get() = Theme.hudBorderRgba
-    private val BACKGROUND_COLOR = 0xE8161620.toInt()
-    private val ACCENT_COLOR get() = Theme.hudAccentRgba
-    private val PROGRESS_COLOR = 0xFFE8B85C.toInt() // warm amber, for multi-count "(x/y)" lines
-    private val DONE_BADGE_COLOR = 0xFF7BD88F.toInt() // soft green, edit-screen-preview "DONE" badge
-    private val BADGE_TEXT_COLOR = 0xFF1A1A24.toInt()
-    private val DIVIDER_HIGHLIGHT = 0x30FFFFFF
-
     /** Also used by MasterHudEditScreen to draw a live preview while dragging/scaling. */
-    /**
-     * Also used by MasterHudEditScreen to draw a live preview while
-     * dragging/scaling. Dispatches to whichever backend is selected;
-     * NanoVG gets a try/catch specifically because it's the
-     * unproven/experimental path (see useNanoVGRendering's doc comment) --
-     * if renderNVG() throws for any reason, this silently falls back to
-     * renderVanilla() for that frame instead of leaving the panel blank or
-     * propagating the exception. renderVanilla() itself is NOT wrapped:
-     * it's the long-proven path (same primitives TimeHud/EntityESPHud use),
-     * so a throw from there is a real bug worth seeing, not something to
-     * paper over.
-     */
     override fun renderInternal(g: GuiGraphicsExtractor) {
         ensureLoaded()
         rolloverIfNeeded()
-
-        if (useNanoVGRendering.value) {
-            try {
-                renderNVG(g)
-                return
-            } catch (e: Exception) {
-                println("[DailyReset] NanoVG render failed, falling back to vanilla rendering this frame: ${e.message}")
-            }
-        }
-        renderVanilla(g)
+        renderNVG(g)
     }
 
-    /**
-     * NanoVG rendering path -- EXPERIMENTAL, see useNanoVGRendering's doc
-     * comment above for the toggle, and TimeHud's doc comment for exactly
-     * how a previous attempt at this broke (resizing made the panel
-     * disappear, and disabling the module broke ALL NVG-drawn UI including
-     * ClickGUI). That second symptom traces to a real bug in
-     * NVGSpecialRenderer.renderToTexture(): NVGRenderer.beginFrame()/
-     * endFrame() form a matched pair around state.renderContent(), and
-     * beginFrame() throws if a previous endFrame() never ran -- but nothing
-     * guaranteed endFrame() ran if renderContent() itself threw. One
-     * exception anywhere in one panel's NVG drawing permanently wedged
-     * NVGRenderer's internal `drawing` flag true, so every OTHER
-     * beginFrame() call afterward -- including ClickGUI's own top-level one
-     * -- immediately threw too. NVGSpecialRenderer.kt now wraps that block
-     * in try/finally so that specific failure mode can't recur; this is
-     * still a new call site for the pipeline outside a Screen's
-     * extractRenderState though (a HUD element rendering every frame,
-     * independent of whether any Screen is open), which the first attempt
-     * never got a chance to root-cause. Layout mirrors renderVanilla()
-     * exactly; only the actual draw calls differ (NVGRenderer.rect/
-     * hollowRect/text instead of GuiGraphicsExtractor.fill/text, giving
-     * real rounded corners and antialiasing instead of the scanline
-     * approximation). Follows ClickGUI's own established call convention
-     * as closely as possible (the one other known-working reference this
-     * pipeline has): NVGSpecialRenderer.draw() gets the FULL canvas as its
-     * bounds (0,0 to guiWidth/guiHeight), exactly like ClickGUI passes, and
-     * this panel's actual position/scale is applied manually inside
-     * renderContent via NVGRenderer.translate/scale -- deliberately NOT a
-     * tight per-panel bounding box, since stale/mis-sized per-panel bounds
-     * (e.g. computed from last frame's width/height before this frame's
-     * resize is accounted for) is one plausible explanation for the
-     * "disappears on resize" symptom, and matching ClickGUI's own pattern
-     * exactly removes that as a variable.
-     */
     private fun renderNVG(g: GuiGraphicsExtractor) {
         val card = ced.cedclient.features.impl.render.HudCard
         val pal = ced.cedclient.ui.Palette
@@ -938,74 +808,10 @@ object DailyReset : Module(
         }
     }
 
-    private fun renderVanilla(g: GuiGraphicsExtractor) {
-        val font = Minecraft.getInstance().font
-        val header = "Daily Reset"
-        val actualRemaining = remaining()
-        val allDone = actualRemaining.isEmpty()
-        val lines = actualRemaining.ifEmpty { listOf("All done for today!") }
-        val badgeText = if (allDone) "DONE" else "${actualRemaining.size} LEFT"
-
-        val paddingX = 10
-        val paddingY = 8
-        val headerGap = 5 // extra space below the header row, above the divider
-        val lineHeight = font.lineHeight + 4
-        val bulletIndent = 10 // horizontal offset from bullet to line text
-        val badgeHPad = 5
-        val badgeVPad = 2
-
-        val badgeWidth = font.width(badgeText) + badgeHPad * 2
-        val badgeHeight = font.lineHeight + badgeVPad * 2
-        val headerRowHeight = maxOf(font.lineHeight, badgeHeight)
-        val headerRowWidth = font.width(header) + 8 + badgeWidth
-
-        val width = maxOf(headerRowWidth, lines.maxOf { font.width(it) + bulletIndent }) + paddingX * 2
-        val height = paddingY * 2 + headerRowHeight + headerGap + 2 + lineHeight * lines.size
-
-        lastWidth = width
-        lastHeight = height
-
-        // draw everything in local (0,0)-anchored space, then scale+translate
-        // the whole panel as one unit, same approach as TimeHud/EntityESPHud
-        g.pose().pushMatrix()
-        g.pose().translate(panelX.toFloat(), panelY.toFloat())
-        g.pose().scale(panelScale, panelScale)
-
-        drawCard(g, width, height)
-
-        val headerTextY = paddingY + (headerRowHeight - font.lineHeight) / 2
-        g.text(font, header, paddingX, headerTextY, Colors.WHITE.rgba)
-
-        // right-aligned status pill -- green "DONE" only ever visible via
-        // the edit-screen preview, since render() keeps the real HUD fully
-        // off-screen once actualRemaining is empty.
-        val badgeLeft = width - paddingX - badgeWidth
-        val badgeTop = paddingY
-        fillRounded(g, badgeLeft, badgeTop, badgeWidth, badgeHeight, badgeHeight / 2, if (allDone) DONE_BADGE_COLOR else ACCENT_COLOR)
-        g.text(font, badgeText, badgeLeft + badgeHPad, badgeTop + badgeVPad, BADGE_TEXT_COLOR)
-
-        // divider with a faint 1px highlight underneath for a bit of depth
-        val dividerY = paddingY + headerRowHeight + headerGap
-        g.fill(paddingX, dividerY, width - paddingX, dividerY + 1, ACCENT_COLOR)
-        g.fill(paddingX, dividerY + 1, width - paddingX, dividerY + 2, DIVIDER_HIGHLIGHT)
-
-        val listStartY = dividerY + 2 + (headerGap / 2)
-        for ((i, line) in lines.withIndex()) {
-            val y = listStartY + lineHeight * i
-            val isProgress = allDone.not() && line.contains('(') && line.contains(')')
-            val color = if (isProgress) PROGRESS_COLOR else 0xFFDDDDDD.toInt()
-            g.text(font, "\u2022", paddingX, y, if (allDone) DONE_BADGE_COLOR else ACCENT_COLOR)
-            g.text(font, line, paddingX + bulletIndent, y, color)
-        }
-
-        g.pose().popMatrix()
-    }
-
     init {
         addSettings(logChatForTriggers)
         addSettings(announceCompletionInChat)
         addSettings(forceDailyOnlyShortCooldowns)
-        addSettings(useNanoVGRendering)
         addSettings(*entryToggles.values.toTypedArray())
         // The per-daily toggles live in a popup instead of a long list in the panel.
         entryToggles.values.forEach { it.inPopup = true }

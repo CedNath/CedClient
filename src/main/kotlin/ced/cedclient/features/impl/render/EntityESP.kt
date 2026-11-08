@@ -116,18 +116,6 @@ abstract class EntityEspModule(
     // running in-world while hiding just the summary panel, or vice versa.
     private val showHudPanel = BooleanSetting("Show HUD Panel", true)
 
-    // Same NVGSpecialRenderer pipeline ClickGUI and DailyReset's HUD card use, instead of
-    // EntityESPHud's scanline-approximated rounded corners. EntityESPHud falls back to the
-    // plain rendering for a frame if anything throws. Flagged .advanced so the toggle is
-    // only visible with Advanced Mode on.
-    private val useNanoVGRendering = BooleanSetting(
-        "Use NanoVG Rendering",
-        true,
-        "True rounded corners + antialiasing via the same NanoVG pipeline ClickGUI/Daily Reset use, " +
-                "instead of the scanline-approximated corners GuiGraphicsExtractor.fill() draws. " +
-                "EntityESPHud falls back to the old rendering automatically if anything goes wrong."
-    ).also { it.advanced = true }
-
     protected val openCustomFilterMenu = ActionSetting("Select Custom") {
         (Minecraft.getInstance().gui.screen() as? ClickGUI)?.openPopup(ESPFilterPopup(this))
     }
@@ -147,7 +135,6 @@ abstract class EntityEspModule(
     val labelScale: Float get() = labelScaleSetting.value.toFloat()
     val labelHealthBar: Boolean get() = labelHealthBarSetting.value
     val hudPanelEnabled: Boolean get() = showHudPanel.value
-    val nvgHudRenderingEnabled: Boolean get() = useNanoVGRendering.value
 
     init {
         loadFilters()
@@ -156,7 +143,7 @@ abstract class EntityEspModule(
 
         addSettings(
             maxDistance,
-            showBoxes, showTracers, showLabels, labelScaleSetting, labelHealthBarSetting, showHudPanel, useNanoVGRendering,
+            showBoxes, showTracers, showLabels, labelScaleSetting, labelHealthBarSetting, showHudPanel,
             debugLog
         )
 
@@ -274,7 +261,6 @@ object EntityESP {
     private val hudModules: List<EntityEspModule> get() = modules.filter { it.isEnabled && it.hudPanelEnabled }
 
     val hudPanelEnabled: Boolean get() = hudModules.isNotEmpty()
-    val nvgHudRenderingEnabled: Boolean get() = hudModules.any { it.nvgHudRenderingEnabled }
     val scannedEntities: List<ScannedEntity> get() = hudModules.flatMap { it.scannedEntities }
     val maxDistanceBlocks: Double get() = hudModules.maxOfOrNull { it.maxDistanceBlocks } ?: 0.0
 

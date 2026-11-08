@@ -75,7 +75,7 @@ object Theme : Module(
         "How popups (filters, block picker, settings) appear."
     )
     val animationSpeed = NumberSetting("Animation Speed", 0.6, 0.25, 3.0, 0.05, "Higher is faster. Applies to both animations.")
-    val hudOutlines = BooleanSetting("HUD Outlines", false, "A thin outline in the HUD accent around Compact Tab and Compact Scoreboard.")
+    val hudOutlines = BooleanSetting("HUD Outlines", false, "A thin faint outline around Compact Tab and Compact Scoreboard.")
     val menuBlur = BooleanSetting("Menu Blur", true, "Blur the game behind the CedClient menu.")
     val blurStrength = NumberSetting("Blur Strength", 3.0, 1.0, 10.0, 1.0, "How strong the menu blur is.").withDependency { menuBlur.value }
 

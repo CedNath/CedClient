@@ -22,9 +22,6 @@ object HudCard {
     const val BACKGROUND = Palette.SURFACE
     private const val CORNER_RADIUS = 8f
 
-    /** Line step of see-through (compact) HUD text, as a multiple of the font size. */
-    const val LINE_HEIGHT = 1.18f
-
     /**
      * HUDs that keep the full card (trackers you glance at between fights). Every other HUD is compact: see-through
      * text with a halo unless its card is turned on in the HUD editor. Dungeon Map draws its own frame.
@@ -33,9 +30,6 @@ object HudCard {
         "Blaze Slayer Macro", "Slayer", "Run Profit", "Daily Tasks",
         "Critter Progress", "Critter Trades", "Critter Missing", "Music", "FarmHelper",
     )
-
-    /** Inner padding of [label]'s panel: room for the card when it's on, almost none for see-through text. */
-    fun pad(label: String, scale: Float): Float = if (cardOn(label)) 6f * scale else 1f * scale
 
     val font get() = NVGRenderer.defaultFont
 
@@ -223,7 +217,7 @@ object HudCard {
         return (argb and 0xFF000000.toInt()) or (mapped and 0xFFFFFF)
     }
 
-    /** A label / value row of a full card ([rows]) or a compact HUD ([compact]). */
+    /** A label / value row of a full card ([rows]). */
     data class Row(val label: String, val value: String, val color: Int = Palette.TEXT)
 
     /** Full card header: bold title, then a muted subtitle ("Inferno Demonlord IV · Spawning") when there is one. */
@@ -262,24 +256,6 @@ object HudCard {
 
     /** Height of [rows] drawn by [rows]. */
     fun rowsHeight(count: Int, size: Float): Float = if (count == 0) 0f else count * size * 1.5f - size * 0.5f
-
-    /** Compact (see-through) HUD lines: "label value", label muted, tight line step. An empty label draws the value alone. */
-    fun compactWidth(rows: List<Row>, size: Float): Float =
-        rows.maxOfOrNull { (if (it.label.isEmpty()) 0f else width(it.label, size) + width(" ", size)) + width(it.value, size) } ?: 0f
-
-    fun compact(rows: List<Row>, x: Float, y: Float, size: Float): Float {
-        val step = size * LINE_HEIGHT
-        rows.forEachIndexed { i, r ->
-            val ry = y + i * step
-            var vx = x
-            if (r.label.isNotEmpty()) {
-                text(r.label, x, ry, size, Palette.MUTED_SEE)
-                vx += width(r.label, size) + width(" ", size)
-            }
-            text(r.value, vx, ry, size, r.color)
-        }
-        return rows.size * step - (step - size)
-    }
 
     private fun luminance(rgb: Int) = Palette.luminance(rgb)
 
