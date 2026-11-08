@@ -128,16 +128,15 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
         val f = NVGRenderer.defaultFont
         val accent = ClickGUI.clickGUIColor.rgba
 
-        NVGRenderer.dropShadow(left.toFloat(), top.toFloat(), winW.toFloat(), winH.toFloat(), 10f, 2f, 5f)
-        NVGRenderer.rect(left.toFloat(), top.toFloat(), winW.toFloat(), winH.toFloat(), 0xEE1A1A1A.toInt(), 5f)
-        NVGRenderer.drawHalfRoundedRect(left.toFloat(), top.toFloat(), winW.toFloat(), headerH.toFloat(), ced.cedclient.ui.Palette.HEADER, 5f, true)
-        NVGRenderer.text("Command Keybinds", left + 8f, top + 5f, 8f, 0xFFFFFFFF.toInt(), f)
+        ced.cedclient.ui.Frame.window(left.toFloat(), top.toFloat(), winW.toFloat(), winH.toFloat(), 5f, 0.5f)
+        ced.cedclient.ui.Frame.divider(left.toFloat(), top + headerH.toFloat(), winW.toFloat(), 0.5f)
+        NVGRenderer.text("Command Keybinds", left + 8f, top + 5f, 8f, ced.cedclient.ui.Palette.TEXT, f)
 
         val closeHover = inBox(mx, my, left + winW - 16, top + 3, 12, 12)
-        NVGRenderer.text("x", left + winW - 13f, top + 5f, 8f, if (closeHover) 0xFFFF5555.toInt() else 0xFFFFFFFF.toInt(), f)
+        NVGRenderer.text("x", left + winW - 13f, top + 5f, 8f, if (closeHover) ced.cedclient.ui.Palette.BAD_SEE else ced.cedclient.ui.Palette.TEXT, f)
 
         // category column
-        NVGRenderer.rect(left + 4f, top + headerH + 4f, catW - 4f, winH - headerH - 34f, 0xFF222222.toInt(), 4f)
+        NVGRenderer.rect(left + 4f, top + headerH + 4f, catW - 4f, winH - headerH - 34f, ced.cedclient.ui.Palette.INSET, 4f)
         val cats = listOf<String?>(null) + CommandKeybinds.categories
         cats.forEachIndexed { i, cat ->
             val y = top + headerH + 8 + i * catRowH
@@ -145,32 +144,32 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
             val sel = cat == selectedCat
             val hover = inBox(mx, my, left + 6, y, catW - 8, catRowH - 2)
             if (sel) NVGRenderer.rect(left + 6f, y.toFloat(), catW - 8f, catRowH - 2f, 0x1FFFFFFF, 3f)
-            else if (hover) NVGRenderer.rect(left + 6f, y.toFloat(), catW - 8f, catRowH - 2f, 0xFF333333.toInt(), 3f)
+            else if (hover) NVGRenderer.rect(left + 6f, y.toFloat(), catW - 8f, catRowH - 2f, ced.cedclient.ui.Palette.CONTROL_HOVER, 3f)
             val count = if (cat == null) CommandKeybinds.binds.size else CommandKeybinds.binds.count { it.category == cat }
-            NVGRenderer.text(NVGRenderer.truncate(cat ?: allLabel, catW - 36f, 8f, f), left + 10f, y + 4f, 8f, 0xFFFFFFFF.toInt(), f)
-            NVGRenderer.text("$count", left + catW - 18f, y + 4f, 8f, 0xFFAAAAAA.toInt(), f)
+            NVGRenderer.text(NVGRenderer.truncate(cat ?: allLabel, catW - 36f, 8f, f), left + 10f, y + 4f, 8f, ced.cedclient.ui.Palette.TEXT, f)
+            NVGRenderer.text("$count", left + catW - 18f, y + 4f, 8f, ced.cedclient.ui.Palette.MUTED, f)
         }
         if (addingCategory) {
-            NVGRenderer.text("Name, then Enter", left + 6f, top + winH - 34f, 7f, 0xFFAAAAAA.toInt(), f)
+            NVGRenderer.text("Name, then Enter", left + 6f, top + winH - 34f, 7f, ced.cedclient.ui.Palette.MUTED, f)
         } else {
             button(left + 6, newBtnY(), catW - 12, 16, "+ Category", mx, my)
         }
 
         // column titles
-        NVGRenderer.text("Key", rx + 18f, top + headerH + 1f, 7f, 0xFF888888.toInt(), f)
-        NVGRenderer.text("Command", cmdX() + 2f, top + headerH + 1f, 7f, 0xFF888888.toInt(), f)
-        NVGRenderer.text("Where", whereX() + 2f, top + headerH + 1f, 7f, 0xFF888888.toInt(), f)
-        NVGRenderer.text("Category", catBtnX() + 2f, top + headerH + 1f, 7f, 0xFF888888.toInt(), f)
+        NVGRenderer.text("Key", rx + 18f, top + headerH + 1f, 7f, ced.cedclient.ui.Palette.FAINT, f)
+        NVGRenderer.text("Command", cmdX() + 2f, top + headerH + 1f, 7f, ced.cedclient.ui.Palette.FAINT, f)
+        NVGRenderer.text("Where", whereX() + 2f, top + headerH + 1f, 7f, ced.cedclient.ui.Palette.FAINT, f)
+        NVGRenderer.text("Category", catBtnX() + 2f, top + headerH + 1f, 7f, ced.cedclient.ui.Palette.FAINT, f)
 
         // rows
         NVGRenderer.pushScissor(rx.toFloat(), rowsTop.toFloat(), rw.toFloat(), (rowsVisible * rowH).toFloat())
         for (i in scroll until minOf(list.size, scroll + rowsVisible)) {
             val b = list[i]
             val y = rowY(i)
-            NVGRenderer.rect(rx.toFloat(), y.toFloat(), rw.toFloat(), rowH - 2f, 0xFF242424.toInt(), 3f)
+            NVGRenderer.rect(rx.toFloat(), y.toFloat(), rw.toFloat(), rowH - 2f, ced.cedclient.ui.Palette.INSET, 3f)
 
             // enabled box
-            NVGRenderer.rect(rx + 3f, y + 4f, 10f, 10f, if (b.enabled) accent else 0xFF3A3A3A.toInt(), 2f)
+            NVGRenderer.rect(rx + 3f, y + 4f, 10f, 10f, if (b.enabled) accent else ced.cedclient.ui.Palette.CONTROL_HOVER, 2f)
             if (b.enabled) NVGRenderer.text("x", rx + 5.5f, y + 4.5f, 8f, ClickGUI.onAccentRgba, f)
 
             // key
@@ -178,43 +177,43 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
             val isListening = listening === b
             val kHover = inBox(mx, my, kx, y + 1, keyW, rowH - 4)
             NVGRenderer.rect(kx.toFloat(), y + 1f, keyW.toFloat(), rowH - 4f,
-                if (isListening) accent else if (kHover) 0xFF3A3A3A.toInt() else 0xFF2E2E2E.toInt(), 3f)
+                if (isListening) accent else if (kHover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
             NVGRenderer.text(if (isListening) "press..." else NVGRenderer.truncate(CommandKeybinds.keyLabel(b.key), keyW - 8f, 8f, f),
-                kx + 4f, y + 5f, 8f, if (isListening) ClickGUI.onAccentRgba else 0xFFFFFFFF.toInt(), f)
+                kx + 4f, y + 5f, 8f, if (isListening) ClickGUI.onAccentRgba else ced.cedclient.ui.Palette.TEXT, f)
 
             // command
             if (editing !== b) {
                 val shown = b.command.ifEmpty { "click to type a command" }
                 NVGRenderer.text(NVGRenderer.truncate(shown, cmdW - 6f, 8f, f), cmdX() + 3f, y + 5f, 8f,
-                    if (b.command.isEmpty()) 0xFF666666.toInt() else 0xFFDDDDDD.toInt(), f)
+                    if (b.command.isEmpty()) ced.cedclient.ui.Palette.FAINT else ced.cedclient.ui.Palette.TEXT, f)
             }
 
             // where (islands / F7-M7 phases)
             val wHover = inBox(mx, my, whereX(), y + 1, whereW, rowH - 4)
             val restricted = b.islands.isNotEmpty() || b.phases.isNotEmpty()
-            NVGRenderer.rect(whereX().toFloat(), y + 1f, whereW.toFloat(), rowH - 4f, if (wHover) 0xFF3A3A3A.toInt() else 0xFF2E2E2E.toInt(), 3f)
+            NVGRenderer.rect(whereX().toFloat(), y + 1f, whereW.toFloat(), rowH - 4f, if (wHover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
             NVGRenderer.text(NVGRenderer.truncate(CommandKeybinds.whereLabel(b), whereW - 8f, 8f, f), whereX() + 4f, y + 5f, 8f,
-                if (restricted) accent else 0xFF888888.toInt(), f)
+                if (restricted) accent else ced.cedclient.ui.Palette.FAINT, f)
 
             // category
             val cHover = inBox(mx, my, catBtnX(), y + 1, catBtnW, rowH - 4)
-            NVGRenderer.rect(catBtnX().toFloat(), y + 1f, catBtnW.toFloat(), rowH - 4f, if (cHover) 0xFF3A3A3A.toInt() else 0xFF2E2E2E.toInt(), 3f)
-            NVGRenderer.text(NVGRenderer.truncate(b.category, catBtnW - 8f, 8f, f), catBtnX() + 4f, y + 5f, 8f, 0xFFBBBBBB.toInt(), f)
+            NVGRenderer.rect(catBtnX().toFloat(), y + 1f, catBtnW.toFloat(), rowH - 4f, if (cHover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
+            NVGRenderer.text(NVGRenderer.truncate(b.category, catBtnW - 8f, 8f, f), catBtnX() + 4f, y + 5f, 8f, ced.cedclient.ui.Palette.MUTED, f)
 
             // delete
             val dHover = inBox(mx, my, delX(), y + 3, 12, 12)
-            NVGRenderer.text("x", delX() + 3f, y + 5f, 8f, if (dHover) 0xFFFF5555.toInt() else 0xFF888888.toInt(), f)
+            NVGRenderer.text("x", delX() + 3f, y + 5f, 8f, if (dHover) ced.cedclient.ui.Palette.BAD_SEE else ced.cedclient.ui.Palette.FAINT, f)
         }
         NVGRenderer.popScissor()
 
         if (list.isEmpty()) {
-            NVGRenderer.text("No binds here yet. Press + New Bind.", rx + 8f, rowsTop + 6f, 8f, 0xFF888888.toInt(), f)
+            NVGRenderer.text("No binds here yet. Press + New Bind.", rx + 8f, rowsTop + 6f, 8f, ced.cedclient.ui.Palette.FAINT, f)
         } else if (maxScroll() > 0) {
-            NVGRenderer.text("scroll for more (${list.size} binds)", rx + rw - 110f, rowsBottom + 2f, 7f, 0xFF666666.toInt(), f)
+            NVGRenderer.text("scroll for more (${list.size} binds)", rx + rw - 110f, rowsBottom + 2f, 7f, ced.cedclient.ui.Palette.FAINT, f)
         }
 
         button(rx, newBtnY(), 90, 16, "+ New Bind", mx, my)
-        NVGRenderer.text("Commands start with /, anything else is sent as chat.", rx + 98f, newBtnY() + 4f, 7f, 0xFF666666.toInt(), f)
+        NVGRenderer.text("Commands start with /, anything else is sent as chat.", rx + 98f, newBtnY() + 4f, 7f, ced.cedclient.ui.Palette.FAINT, f)
 
         whereFor?.let { drawWherePopup(it, mx, my) }
     }
@@ -227,29 +226,28 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
         val py = popY()
 
         NVGRenderer.rect(left.toFloat(), top.toFloat(), winW.toFloat(), winH.toFloat(), 0xAA000000.toInt(), 5f)
-        NVGRenderer.dropShadow(px.toFloat(), py.toFloat(), popW.toFloat(), popH.toFloat(), 10f, 2f, 5f)
-        NVGRenderer.rect(px.toFloat(), py.toFloat(), popW.toFloat(), popH.toFloat(), 0xFF1E1E1E.toInt(), 5f)
-        NVGRenderer.drawHalfRoundedRect(px.toFloat(), py.toFloat(), popW.toFloat(), headerH.toFloat(), ced.cedclient.ui.Palette.HEADER, 5f, true)
-        NVGRenderer.text("Where can it trigger?  (nothing ticked = anywhere)", px + 8f, py + 5f, 8f, 0xFFFFFFFF.toInt(), f)
+        ced.cedclient.ui.Frame.window(px.toFloat(), py.toFloat(), popW.toFloat(), popH.toFloat(), 5f, 0.5f)
+        ced.cedclient.ui.Frame.divider(px.toFloat(), py + headerH.toFloat(), popW.toFloat(), 0.5f)
+        NVGRenderer.text("Where can it trigger?  (nothing ticked = anywhere)", px + 8f, py + 5f, 8f, ced.cedclient.ui.Palette.TEXT, f)
 
-        NVGRenderer.text("Islands", px + 6f, py + headerH + 3f, 7f, 0xFF888888.toInt(), f)
+        NVGRenderer.text("Islands", px + 6f, py + headerH + 3f, 7f, ced.cedclient.ui.Palette.FAINT, f)
         IslandState.Island.entries.forEachIndexed { i, island ->
             val x = px + 6 + (i % popCols) * popCellW
             val y = popGridY() + (i / popCols) * popCellH
             val on = island.name in b.islands
             val hover = inBox(mx, my, x, y, popCellW - 2, popCellH - 2)
-            NVGRenderer.rect(x.toFloat(), y.toFloat(), popCellW - 2f, popCellH - 2f, if (on) accent else if (hover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-            NVGRenderer.text(NVGRenderer.truncate(island.displayName, popCellW - 10f, 7f, f), x + 4f, y + 4f, 7f, if (on) ClickGUI.onAccentRgba else 0xFFFFFFFF.toInt(), f)
+            NVGRenderer.rect(x.toFloat(), y.toFloat(), popCellW - 2f, popCellH - 2f, if (on) accent else if (hover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
+            NVGRenderer.text(NVGRenderer.truncate(island.displayName, popCellW - 10f, 7f, f), x + 4f, y + 4f, 7f, if (on) ClickGUI.onAccentRgba else ced.cedclient.ui.Palette.TEXT, f)
         }
 
         val phaseY = popGridY() + ((IslandState.Island.entries.size + popCols - 1) / popCols) * popCellH + 14
-        NVGRenderer.text("F7 / M7 phase (only counts inside the boss fight)", px + 6f, phaseY - 11f, 7f, 0xFF888888.toInt(), f)
+        NVGRenderer.text("F7 / M7 phase (only counts inside the boss fight)", px + 6f, phaseY - 11f, 7f, ced.cedclient.ui.Palette.FAINT, f)
         phaseNames.forEachIndexed { i, p ->
             val x = px + 6 + i * 48
             val on = p in b.phases
             val hover = inBox(mx, my, x, phaseY, 44, popCellH - 2)
-            NVGRenderer.rect(x.toFloat(), phaseY.toFloat(), 44f, popCellH - 2f, if (on) accent else if (hover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-            NVGRenderer.text(p, x + 17f, phaseY + 4f, 7f, if (on) ClickGUI.onAccentRgba else 0xFFFFFFFF.toInt(), f)
+            NVGRenderer.rect(x.toFloat(), phaseY.toFloat(), 44f, popCellH - 2f, if (on) accent else if (hover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
+            NVGRenderer.text(p, x + 17f, phaseY + 4f, 7f, if (on) ClickGUI.onAccentRgba else ced.cedclient.ui.Palette.TEXT, f)
         }
 
         button(px + popW - 124, phaseY, 56, popCellH - 2, "Clear", mx, my)
@@ -258,8 +256,8 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
 
     private fun button(x: Int, y: Int, w: Int, h: Int, label: String, mx: Int, my: Int) {
         val hover = inBox(mx, my, x, y, w, h)
-        NVGRenderer.rect(x.toFloat(), y.toFloat(), w.toFloat(), h.toFloat(), if (hover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-        NVGRenderer.text(label, x + 6f, y + 4f, 8f, 0xFFFFFFFF.toInt(), NVGRenderer.defaultFont)
+        NVGRenderer.rect(x.toFloat(), y.toFloat(), w.toFloat(), h.toFloat(), if (hover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
+        NVGRenderer.text(label, x + 6f, y + 4f, 8f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.defaultFont)
     }
 
     // ───────────────────────── mouse ─────────────────────────

@@ -69,10 +69,10 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
             minecraft.execute {
                 if (error == null) {
                     progress = 2f
-                    status = "Downloaded. Close Minecraft and start it again to finish updating." to Colors.MINECRAFT_GREEN.rgba
+                    status = "Downloaded. Close Minecraft and start it again to finish updating." to ced.cedclient.ui.Palette.GOOD_SEE
                 } else {
                     progress = -2f
-                    status = error to Colors.MINECRAFT_RED.rgba
+                    status = error to ced.cedclient.ui.Palette.BAD_SEE
                 }
             }
         }
@@ -138,15 +138,13 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
             val mouseXs = mouseX / clickGuiScale
             val mouseYs = mouseY / clickGuiScale
 
-            NVGRenderer.dropShadow(px, py, pw, ph, 10f, 3f, 5f)
-            NVGRenderer.rect(px, py, pw, ph, Colors.gray26.rgba, 5f)
-            NVGRenderer.hollowRect(px, py, pw, ph, 1.5f, ClickGUI.clickGUIColor.rgba, 5f)
+            ced.cedclient.ui.Frame.window(px, py, pw, ph)
 
-            NVGRenderer.text("CedClient ${release.version} is available", px + PAD, py + 14f, 24f, Colors.WHITE.rgba, font)
-            NVGRenderer.text("You have ${UpdateChecker.currentVersion}", px + PAD, py + 44f, TEXT_SIZE, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text("CedClient ${release.version} is available", px + PAD, py + 14f, 24f, ced.cedclient.ui.Palette.TEXT, font)
+            NVGRenderer.text("You have ${UpdateChecker.currentVersion}", px + PAD, py + 44f, TEXT_SIZE, ced.cedclient.ui.Palette.MUTED, font)
             val bar = status ?: when {
-                progress in 0f..1f -> "Downloading... ${(progress * 100).toInt()}%" to Colors.WHITE.rgba
-                progress == -1f -> "Downloading..." to Colors.WHITE.rgba
+                progress in 0f..1f -> "Downloading... ${(progress * 100).toInt()}%" to ced.cedclient.ui.Palette.TEXT
+                progress == -1f -> "Downloading..." to ced.cedclient.ui.Palette.TEXT
                 else -> null
             }
             bar?.let { (text, color) ->
@@ -154,12 +152,12 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
                 NVGRenderer.text(text, px + pw - PAD - w, py + 44f, TEXT_SIZE, color, font)
             }
             if (progress in 0f..1f) {
-                NVGRenderer.rect(px + PAD, py + 68f, pw - 2 * PAD, 3f, Colors.gray38.rgba, 1.5f)
+                NVGRenderer.rect(px + PAD, py + 68f, pw - 2 * PAD, 3f, ced.cedclient.ui.Palette.CONTROL, 1.5f)
                 NVGRenderer.rect(px + PAD, py + 68f, (pw - 2 * PAD) * progress, 3f, ClickGUI.clickGUIColor.rgba, 1.5f)
             }
 
             // Notes: rounded inner box, clipped and scrollable.
-            NVGRenderer.rect(px + PAD, notesTop, pw - 2 * PAD, notesBottom - notesTop, Colors.gray38.rgba, 4f)
+            NVGRenderer.rect(px + PAD, notesTop, pw - 2 * PAD, notesBottom - notesTop, ced.cedclient.ui.Palette.INSET, 4f)
             val contentH = lines.sumOf { lineHeight(it).toDouble() }.toFloat() + 16f
             val viewH = notesBottom - notesTop
             scroll = scroll.coerceIn((viewH - contentH).coerceAtMost(0f), 0f)
@@ -181,10 +179,10 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
             for (b in buttons) {
                 val enabled = b.enabled()
                 val hovered = enabled && mouseXs in b.x..(b.x + b.w) && mouseYs in b.y..(b.y + BUTTON_H)
-                NVGRenderer.rect(b.x, b.y, b.w, BUTTON_H, (if (hovered) ClickGUI.hoverFill else Colors.gray38).rgba, 4f)
+                NVGRenderer.rect(b.x, b.y, b.w, BUTTON_H, if (hovered) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 4f)
                 val label = b.label()
                 val lw = NVGRenderer.textWidth(label, 16f, font)
-                val color = if (enabled) Colors.WHITE.rgba else Colors.MINECRAFT_GRAY.rgba
+                val color = if (enabled) ced.cedclient.ui.Palette.TEXT else ced.cedclient.ui.Palette.MUTED
                 NVGRenderer.text(label, b.x + b.w / 2f - lw / 2f, b.y + BUTTON_H / 2f - 8f, 16f, color, font)
             }
         })
@@ -228,6 +226,6 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
         private const val HEADING_SIZE = 21f
         private const val BUTTON_H = 32f
         private const val BUTTON_GAP = 8f
-        private val TEXT_COLOR = 0xFFD0D0D8.toInt()
+        private val TEXT_COLOR = ced.cedclient.ui.Palette.TEXT
     }
 }

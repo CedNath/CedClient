@@ -118,26 +118,22 @@ class SearchOverlayScreen(
         val accent = ClickGUI.clickGUIColor
         val h = panelHeight()
 
-        NVGRenderer.dropShadow(x, y, WIDTH, h, 18f, 4f, RADIUS)
-        NVGRenderer.rect(x, y, WIDTH, h, Colors.gray26.withAlpha(0.97f).rgba, RADIUS)
-        NVGRenderer.hollowRect(x, y, WIDTH, h, 1f, accent.withAlpha(0.55f).rgba, RADIUS)
-
-        // Header: accent strip with a soft fade into the panel.
-        NVGRenderer.drawHalfRoundedRect(x, y, WIDTH, HEADER_H, ced.cedclient.ui.Palette.HEADER, RADIUS, true)
-        NVGRenderer.gradientRect(x, y + HEADER_H, WIDTH, 10f, Colors.WHITE.withAlpha(0.03f).rgba, Colors.TRANSPARENT.rgba, Gradient.TopToBottom, 0f)
+        ced.cedclient.ui.Frame.window(x, y, WIDTH, h, RADIUS)
+        // Title row, then a hairline (the shared window look).
+        ced.cedclient.ui.Frame.divider(x, y + HEADER_H, WIDTH)
         val title = if (location == SearchOverlay.Location.BAZAAR) "Bazaar Search" else "Auction House Search"
-        NVGRenderer.text(title, x + PAD, y + 9f, 16f, Colors.WHITE.rgba, font)
+        NVGRenderer.text(title, x + PAD, y + 9f, 16f, ced.cedclient.ui.Palette.TEXT, font)
         val esc = "Esc to cancel"
-        NVGRenderer.text(esc, x + WIDTH - PAD - NVGRenderer.textWidth(esc, 11f, font), y + 12f, 11f, Colors.WHITE.withAlpha(0.7f).rgba, font)
+        NVGRenderer.text(esc, x + WIDTH - PAD - NVGRenderer.textWidth(esc, 11f, font), y + 12f, 11f, ced.cedclient.ui.Palette.MUTED, font)
 
         // Search field
         val fy = y + HEADER_H + PAD
-        NVGRenderer.rect(x + PAD, fy, WIDTH - PAD * 2, FIELD_H, 0xFF141414.toInt(), 6f)
-        NVGRenderer.hollowRect(x + PAD, fy, WIDTH - PAD * 2, FIELD_H, 1.5f, accent.rgba, 6f)
-        magnifier(x + PAD + 14f, fy + FIELD_H / 2f, Colors.MINECRAFT_GRAY.rgba)
+        NVGRenderer.rect(x + PAD, fy, WIDTH - PAD * 2, FIELD_H, ced.cedclient.ui.Palette.FIELD, 6f)
+        NVGRenderer.hollowRect(x + PAD, fy, WIDTH - PAD * 2, FIELD_H, 1f, accent.withAlpha(0.6f).rgba, 6f)
+        magnifier(x + PAD + 14f, fy + FIELD_H / 2f, ced.cedclient.ui.Palette.MUTED)
         val fieldX = x + PAD + 26f
         if (text.isEmpty()) {
-            NVGRenderer.text("Search items...", fieldX + 4f, fy + 8f, 14f, Colors.MINECRAFT_DARK_GRAY.rgba, font)
+            NVGRenderer.text("Search items...", fieldX + 4f, fy + 8f, 14f, ced.cedclient.ui.Palette.FAINT, font)
         }
         input.x = fieldX
         input.y = fy + 6f
@@ -150,7 +146,7 @@ class SearchOverlayScreen(
         NVGRenderer.text(if (text.isBlank()) "RECENT SEARCHES" else "SUGGESTIONS", x + PAD, ly, 10f, accent.rgba, font)
         if (rows.isNotEmpty()) {
             val count = "${rows.size}"
-            NVGRenderer.text(count, x + WIDTH - PAD - NVGRenderer.textWidth(count, 10f, font), ly, 10f, Colors.MINECRAFT_DARK_GRAY.rgba, font)
+            NVGRenderer.text(count, x + WIDTH - PAD - NVGRenderer.textWidth(count, 10f, font), ly, 10f, ced.cedclient.ui.Palette.FAINT, font)
         }
 
         listY = ly + 16f
@@ -160,7 +156,7 @@ class SearchOverlayScreen(
                 !SearchOverlay.hasItems(location) -> "No item repo found - install SkyHanni"
                 else -> "No matches - Enter searches \"${text.trim()}\" anyway"
             }
-            NVGRenderer.text(msg, x + WIDTH / 2f - NVGRenderer.textWidth(msg, 13f, font) / 2f, listY + 14f, 13f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text(msg, x + WIDTH / 2f - NVGRenderer.textWidth(msg, 13f, font) / 2f, listY + 14f, 13f, ced.cedclient.ui.Palette.MUTED, font)
         } else {
             drawRows(mx, my, accent)
         }
@@ -181,7 +177,7 @@ class SearchOverlayScreen(
         val q = text.trim().lowercase()
         rows.forEachIndexed { i, row ->
             val ry = listY + i * ROW_H
-            NVGRenderer.rect(x + PAD + 10f, ry + 3f, ICON_BOX, ICON_BOX, 0xFF1F1F1F.toInt(), 5f)
+            NVGRenderer.rect(x + PAD + 10f, ry + 3f, ICON_BOX, ICON_BOX, ced.cedclient.ui.Palette.INSET, 5f)
             if (row.entry == null) NVGRenderer.circle(x + PAD + 10f + ICON_BOX / 2f, ry + 3f + ICON_BOX / 2f, 3f, accent.rgba)
 
             val name = row.text
@@ -193,25 +189,25 @@ class SearchOverlayScreen(
                 val hw = NVGRenderer.textWidth(name.substring(idx, idx + q.length), 14f, font)
                 NVGRenderer.rect(hx - 1f, ty - 1f, hw + 2f, 16f, accent.withAlpha(0.35f).rgba, 3f)
             }
-            NVGRenderer.text(name, tx, ty, 14f, if (row.entry == null) Colors.WHITE.rgba else nameColor(row.display), font)
+            NVGRenderer.text(name, tx, ty, 14f, if (row.entry == null) ced.cedclient.ui.Palette.TEXT else nameColor(row.display), font)
 
             val tag = if (row.recent) "recent" else if (i == selected) "Enter" else ""
             if (tag.isNotEmpty()) {
                 val tw = NVGRenderer.textWidth(tag, 10f, font)
-                NVGRenderer.text(tag, x + WIDTH - PAD - 10f - tw, ry + (ROW_H - 2f) / 2f - 5f, 10f, Colors.MINECRAFT_DARK_GRAY.rgba, font)
+                NVGRenderer.text(tag, x + WIDTH - PAD - 10f - tw, ry + (ROW_H - 2f) / 2f - 5f, 10f, ced.cedclient.ui.Palette.FAINT, font)
             }
         }
     }
 
     private fun drawFooter(fy: Float) {
-        NVGRenderer.line(x + PAD, fy, x + WIDTH - PAD, fy, 1f, Colors.gray38.rgba)
+        NVGRenderer.line(x + PAD, fy, x + WIDTH - PAD, fy, 1f, ced.cedclient.ui.Palette.CONTROL)
         var kx = x + PAD
         for ((key, action) in listOf("Up/Down" to "select", "Tab" to "complete", "Enter" to "search")) {
             val kw = NVGRenderer.textWidth(key, 10f, font) + 10f
-            NVGRenderer.rect(kx, fy + 9f, kw, 15f, Colors.gray38.rgba, 4f)
-            NVGRenderer.text(key, kx + 5f, fy + 12f, 10f, Colors.WHITE.rgba, font)
+            NVGRenderer.rect(kx, fy + 9f, kw, 15f, ced.cedclient.ui.Palette.CONTROL, 4f)
+            NVGRenderer.text(key, kx + 5f, fy + 12f, 10f, ced.cedclient.ui.Palette.TEXT, font)
             kx += kw + 5f
-            NVGRenderer.text(action, kx, fy + 12f, 10f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text(action, kx, fy + 12f, 10f, ced.cedclient.ui.Palette.MUTED, font)
             kx += NVGRenderer.textWidth(action, 10f, font) + 14f
         }
     }
@@ -243,7 +239,7 @@ class SearchOverlayScreen(
 
     /** Rarity colour from the item's leading colour code (§6 -> gold), white if none. */
     private fun nameColor(display: String): Int {
-        val code = Regex("§([0-9a-f])").find(display)?.groupValues?.get(1)?.first() ?: return Colors.WHITE.rgba
+        val code = Regex("§([0-9a-f])").find(display)?.groupValues?.get(1)?.first() ?: return ced.cedclient.ui.Palette.TEXT
         return FORMAT_COLORS[code.digitToInt(16)] or 0xFF000000.toInt()
     }
 

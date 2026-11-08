@@ -39,9 +39,7 @@ abstract class Popup(val title: String, val width: Float, val height: Float) {
     protected val closeButtonY get() = y + 8f
 
     fun draw(mouseX: Float, mouseY: Float) {
-        NVGRenderer.dropShadow(x, y, width, height, 10f, 3f, 8f)
-        NVGRenderer.rect(x, y, width, height, ced.cedclient.ui.Palette.PANEL, 8f)
-        NVGRenderer.hollowRect(x, y, width, height, 1f, ced.cedclient.ui.Palette.EDGE, 8f)
+        ced.cedclient.ui.Frame.window(x, y, width, height)
 
         val titleWidth = NVGRenderer.textWidth(title, 18f, NVGRenderer.boldFont)
         NVGRenderer.text(title, x + width / 2f - titleWidth / 2f, y + 10f, 18f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.boldFont)
@@ -52,7 +50,7 @@ abstract class Popup(val title: String, val width: Float, val height: Float) {
             closeButtonY,
             closeButtonSize,
             closeButtonSize,
-            (if (closeHovered) Colors.MINECRAFT_RED else Colors.gray38).rgba,
+            if (closeHovered) ced.cedclient.ui.Palette.BAD else ced.cedclient.ui.Palette.CONTROL,
             4f
         )
         val closeWidth = NVGRenderer.textWidth("x", 14f, NVGRenderer.defaultFont)

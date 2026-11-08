@@ -87,8 +87,8 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
     private fun button(label: String, rightEdge: Float, y: Float, click: () -> Unit): Float {
         val w = NVGRenderer.textWidth(label, 11f, font) + 16f
         val x = rightEdge - w
-        NVGRenderer.rect(x, y, w, 20f, Colors.gray38.rgba, 4f)
-        NVGRenderer.text(label, x + 8f, y + 5f, 11f, Colors.WHITE.rgba, font)
+        NVGRenderer.rect(x, y, w, 20f, ced.cedclient.ui.Palette.CONTROL, 4f)
+        NVGRenderer.text(label, x + 8f, y + 5f, 11f, ced.cedclient.ui.Palette.TEXT, font)
         hits += Hit(x, y, w, 20f, click)
         return x - 6f
     }
@@ -99,10 +99,8 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
         val h = minOf(760f, ch - 20f)
         val x = (cw - w) / 2f
         val y = (ch - h) / 2f
-        NVGRenderer.dropShadow(x, y, w, h, 10f, 3f, 5f)
-        NVGRenderer.rect(x, y, w, h, Colors.gray26.rgba, 5f)
-        NVGRenderer.hollowRect(x, y, w, h, 1.5f, ClickGUI.clickGUIColor.rgba, 5f)
-        NVGRenderer.text("Debug Panel", x + 16f, y + 12f, 16f, Colors.WHITE.rgba, font)
+        ced.cedclient.ui.Frame.window(x, y, w, h)
+        NVGRenderer.text("Debug Panel", x + 16f, y + 12f, 16f, ced.cedclient.ui.Palette.TEXT, font)
 
         var bx = x + w - 14f
         bx = button("Clear", bx, y + 9f) { Debug.clear(); scroll = 0f; status = "Cleared." }
@@ -112,11 +110,11 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
         // Search: narrows the module chips and the lines (module name or message).
         val sx = x + 130f
         val sw = bx - sx - 6f
-        NVGRenderer.rect(sx, y + 10f, sw, 18f, Colors.INPUT_BG.rgba, 3f)
-        NVGRenderer.hollowRect(sx, y + 10f, sw, 18f, 1f, Colors.INPUT_BORDER.rgba, 3f)
+        NVGRenderer.rect(sx, y + 10f, sw, 18f, ced.cedclient.ui.Palette.FIELD, 3f)
+        NVGRenderer.hollowRect(sx, y + 10f, sw, 18f, 1f, ced.cedclient.ui.Palette.EDGE, 3f)
         input.x = sx; input.y = y + 10f; input.width = sw; input.height = 18f
         input.draw(mouseX / clickGuiScale, mouseY / clickGuiScale)
-        if (query.isEmpty() && !input.isActive) NVGRenderer.text("Search modules...", sx + 5f, y + 13f, 11f, 0xFF777777.toInt(), font)
+        if (query.isEmpty() && !input.isActive) NVGRenderer.text("Search modules...", sx + 5f, y + 13f, 11f, ced.cedclient.ui.Palette.FAINT, font)
 
         // Tag chips: "All" then one per module that has written a line.
         var cx = x + 16f
@@ -127,8 +125,8 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
             val cwid = NVGRenderer.textWidth(label, 10f, font) + 14f
             if (cx + cwid > right) { cx = x + 16f; cy += 22f }
             val on = tag == t
-            NVGRenderer.rect(cx, cy, cwid, 18f, if (on) ClickGUI.clickGUIColor.rgba else Colors.gray38.rgba, 9f)
-            NVGRenderer.text(label, cx + 7f, cy + 4f, 10f, if (on) ClickGUI.onAccentRgba else (t?.let { tagColor(it) } ?: Colors.WHITE.rgba), font)
+            NVGRenderer.rect(cx, cy, cwid, 18f, if (on) ClickGUI.clickGUIColor.rgba else ced.cedclient.ui.Palette.CONTROL, 9f)
+            NVGRenderer.text(label, cx + 7f, cy + 4f, 10f, if (on) ClickGUI.onAccentRgba else (t?.let { tagColor(it) } ?: ced.cedclient.ui.Palette.TEXT), font)
             val picked = t
             hits += Hit(cx, cy, cwid, 18f) { tag = picked; scroll = 0f }
             cx += cwid + 6f
@@ -142,7 +140,7 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
         scroll = scroll.coerceIn(-maxOf(0f, contentH - viewH), 0f)
         if (rows.isEmpty()) {
             val msg = "No debug lines yet - features write here as they detect and decide things."
-            NVGRenderer.text(msg, x + 16f, top + 8f, 11f, 0xFF999999.toInt(), font)
+            NVGRenderer.text(msg, x + 16f, top + 8f, 11f, ced.cedclient.ui.Palette.MUTED, font)
         }
         NVGRenderer.pushScissor(x, top, w, viewH)
         val first = (-scroll / rowH).toInt().coerceAtLeast(0)
@@ -150,15 +148,15 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
         for (i in first until last) {
             val line = rows[i]
             val ry = top + scroll + i * rowH
-            NVGRenderer.text(clock.format(Instant.ofEpochMilli(line.time)), x + 16f, ry, 12f, 0xFF9A9A9A.toInt(), font)
+            NVGRenderer.text(clock.format(Instant.ofEpochMilli(line.time)), x + 16f, ry, 12f, ced.cedclient.ui.Palette.MUTED, font)
             val tagText = "[${line.tag}]"
             NVGRenderer.text(tagText, x + 92f, ry, 12f, tagColor(line.tag), font)
             val mx = x + 92f + NVGRenderer.textWidth(tagText, 12f, font) + 8f
-            NVGRenderer.text(fit(line.msg, 12f, x + w - 16f - mx), mx, ry, 12f, 0xFFFFFFFF.toInt(), font)
+            NVGRenderer.text(fit(line.msg, 12f, x + w - 16f - mx), mx, ry, 12f, ced.cedclient.ui.Palette.TEXT, font)
         }
         NVGRenderer.popScissor()
         val footer = if (status.isNotEmpty()) status else "${rows.size} lines" + (tag?.let { " in $it" } ?: "") + " - newest first, scroll for more"
-        NVGRenderer.text(footer, x + 16f, y + h - 18f, 10f, 0xFF999999.toInt(), font)
+        NVGRenderer.text(footer, x + 16f, y + h - 18f, 10f, ced.cedclient.ui.Palette.MUTED, font)
     }
 
     private fun report(lines: List<Debug.Line>): String {

@@ -28,10 +28,16 @@ object Palette {
     const val GOLD = 0xFFE9B949.toInt()
     /** Hovered buttons and rows: a neutral lift, never the accent. */
     const val BUTTON_HOVER = 0xFF34353D.toInt()
-    /** Title strips of standalone screens (search, price input, keybinds ...). */
-    const val HEADER = 0xFF1A1B20.toInt()
     /** Text and knobs drawn on a light accent fill. */
     const val ON_ACCENT_DARK = 0xFF111216.toInt()
+    /** Grouped areas inside a panel (list rows, side columns, notes): white at 4 %. */
+    const val INSET = 0x0AFFFFFF
+    /** Buttons, chips and key boxes resting on a panel: white at 8 %. */
+    const val CONTROL = 0x14FFFFFF
+    /** The same, hovered: white at 14 %. */
+    const val CONTROL_HOVER = 0x24FFFFFF
+    /** Text fields: a well darker than the panel. */
+    const val FIELD = 0xFF08090C.toInt()
 
     /** The accent picker's swatches, in order. "None" is plain white. */
     val SWATCHES: List<Pair<String, Int>> = listOf(

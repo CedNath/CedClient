@@ -186,11 +186,11 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
             if (selected == null) {
                 NVGRenderer.text(
                     "Left-click a button to select and drag it",
-                    (guiLeft - 10).toFloat(), (guiTop - 200).toFloat(), 8f, 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont
+                    (guiLeft - 10).toFloat(), (guiTop - 200).toFloat(), 8f, ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont
                 )
                 NVGRenderer.text(
                     "Right-click empty space to add a new one",
-                    (guiLeft - 10).toFloat(), (guiTop - 210).toFloat(), 8f, 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont
+                    (guiLeft - 10).toFloat(), (guiTop - 210).toFloat(), 8f, ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont
                 )
             }
 
@@ -204,32 +204,28 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
     private fun renderSidePanelChrome(mouseX: Int, mouseY: Int) {
         val btn = selected
 
-        NVGRenderer.dropShadow(panelX.toFloat(), panelY.toFloat(), panelWidth.toFloat(), panelHeight.toFloat(), 10f, 2f, 5f)
-        // Same near-opaque near-black as before (0xEE1A1A1A), just through
-        // Colors.gray26 + rounded corners instead of a flat vanilla fill.
-        NVGRenderer.rect(panelX.toFloat(), panelY.toFloat(), panelWidth.toFloat(), panelHeight.toFloat(), Colors.gray26.withAlpha(0.933f).rgba, 5f)
-        // Header used a one-off blue (0xFF3A8FFF) before; swapped for the
-        // The neutral title strip the other CedClient screens use.
-        NVGRenderer.drawHalfRoundedRect(panelX.toFloat(), panelY.toFloat(), panelWidth.toFloat(), 16f, ced.cedclient.ui.Palette.HEADER, 5f, true)
+        // The shared CedClient window (Frame): panel fill, faint border, hairline under the title.
+        ced.cedclient.ui.Frame.window(panelX.toFloat(), panelY.toFloat(), panelWidth.toFloat(), panelHeight.toFloat(), 5f, 0.5f)
+        ced.cedclient.ui.Frame.divider(panelX.toFloat(), panelY + 16f, panelWidth.toFloat(), 0.5f)
 
         if (btn == null) {
-            NVGRenderer.text("No button selected", panelX + 8f, panelY + 5f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
-            NVGRenderer.text("Select or create a button", panelX + 8f, panelY + 30f, 8f, 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont)
-            NVGRenderer.text("to edit it here.", panelX + 8f, panelY + 42f, 8f, 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont)
+            NVGRenderer.text("No button selected", panelX + 8f, panelY + 5f, 8f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.defaultFont)
+            NVGRenderer.text("Select or create a button", panelX + 8f, panelY + 30f, 8f, ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont)
+            NVGRenderer.text("to edit it here.", panelX + 8f, panelY + 42f, 8f, ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont)
             return
         }
 
-        NVGRenderer.text("Edit Button", panelX + 8f, panelY + 5f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text("Edit Button", panelX + 8f, panelY + 5f, 8f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.defaultFont)
 
         // Close (deselect) button, top-right corner of the header
         val closeX = panelX + panelWidth - 14
         val closeY = panelY + 3
         val closeHover = mouseX in closeX..(closeX + 10) && mouseY in closeY..(closeY + 10)
-        NVGRenderer.text("x", closeX + 2f, closeY.toFloat(), 8f, if (closeHover) 0xFFFF5555.toInt() else Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text("x", closeX + 2f, closeY.toFloat(), 8f, if (closeHover) ced.cedclient.ui.Palette.BAD_SEE else ced.cedclient.ui.Palette.TEXT, NVGRenderer.defaultFont)
 
-        NVGRenderer.text("Name", panelX + 8f, panelY + 18f, 8f, 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont)
-        NVGRenderer.text("Command", panelX + 8f, panelY + 58f, 8f, 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont)
-        NVGRenderer.text("Icon", panelX + 8f, panelY + 98f, 8f, 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont)
+        NVGRenderer.text("Name", panelX + 8f, panelY + 18f, 8f, ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont)
+        NVGRenderer.text("Command", panelX + 8f, panelY + 58f, 8f, ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont)
+        NVGRenderer.text("Icon", panelX + 8f, panelY + 98f, 8f, ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont)
 
         // Icon grid cell backgrounds -- the item icons drawn into them are
         // vanilla-only (g.item) and are drawn on top afterward, in
@@ -252,8 +248,8 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
 
                 val bg = when {
                     isCurrentIcon -> ClickGUI.clickGUIColor.rgba
-                    hovered -> 0xFF3A3A3A.toInt()
-                    else -> 0xFF2A2A2A.toInt()
+                    hovered -> ced.cedclient.ui.Palette.CONTROL_HOVER
+                    else -> ced.cedclient.ui.Palette.CONTROL
                 }
                 NVGRenderer.rect(ix.toFloat(), iy.toFloat(), 18f, 18f, bg, 3f)
             }
@@ -263,7 +259,7 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
         if (maxScrollRow > 0) {
             NVGRenderer.text(
                 "scroll for more (${searchResults.size} items)",
-                gridX.toFloat(), (gridY + gridRowsVisible * iconSlot + 4).toFloat(), 7f, 0xFF666666.toInt(), NVGRenderer.defaultFont
+                gridX.toFloat(), (gridY + gridRowsVisible * iconSlot + 4).toFloat(), 7f, ced.cedclient.ui.Palette.FAINT, NVGRenderer.defaultFont
             )
         }
 
@@ -272,8 +268,8 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
         val delY = panelY + panelHeight - 22
         val delW = panelWidth - 16
         val delHover = mouseX in delX..(delX + delW) && mouseY in delY..(delY + 16)
-        NVGRenderer.rect(delX.toFloat(), delY.toFloat(), delW.toFloat(), 16f, if (delHover) 0xFF803030.toInt() else 0xFF602020.toInt(), 3f)
-        NVGRenderer.text("Delete Button", delX + 8f, delY + 4f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.rect(delX.toFloat(), delY.toFloat(), delW.toFloat(), 16f, if (delHover) ced.cedclient.ui.Palette.BAD else ced.cedclient.ui.Palette.CONTROL, 3f)
+        NVGRenderer.text("Delete Button", delX + 8f, delY + 4f, 8f, if (delHover) ced.cedclient.ui.Palette.TEXT else ced.cedclient.ui.Palette.BAD_SEE, NVGRenderer.defaultFont)
     }
 
     /** EditBox fields + icon-grid item icons: the vanilla widgets that draw on top of renderSidePanelChrome(). */
@@ -307,22 +303,22 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
         var y = this.height - 98
 
         val snapText = "Grid Snap (S): " + if (InventoryButtons.snapEnabled) "ON" else "OFF"
-        NVGRenderer.text(snapText, x0.toFloat(), y.toFloat(), 8f, if (InventoryButtons.snapEnabled) 0xFF55FF55.toInt() else 0xFFAAAAAA.toInt(), NVGRenderer.defaultFont)
+        NVGRenderer.text(snapText, x0.toFloat(), y.toFloat(), 8f, if (InventoryButtons.snapEnabled) 0xFF55FF55.toInt() else ced.cedclient.ui.Palette.MUTED, NVGRenderer.defaultFont)
         y += 16
 
         val copyHover = mouseX in x0..(x0 + 150) && mouseY in y..(y + 16)
-        NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (copyHover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-        NVGRenderer.text("Save preset to Clipboard", x0 + 6f, y + 4f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (copyHover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
+        NVGRenderer.text("Save preset to Clipboard", x0 + 6f, y + 4f, 8f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.defaultFont)
         y += 20
 
         val pasteHover = mouseX in x0..(x0 + 150) && mouseY in y..(y + 16)
-        NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (pasteHover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-        NVGRenderer.text("Load preset from Clipboard", x0 + 6f, y + 4f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (pasteHover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
+        NVGRenderer.text("Load preset from Clipboard", x0 + 6f, y + 4f, 8f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.defaultFont)
         y += 20
 
         val presetHover = mouseX in x0..(x0 + 150) && mouseY in y..(y + 16)
-        NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (presetHover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-        NVGRenderer.text("Preset: ${InventoryButtons.currentPreset()} (click: next)", x0 + 6f, y + 4f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.rect(x0.toFloat(), y.toFloat(), 150f, 16f, if (presetHover) ced.cedclient.ui.Palette.CONTROL_HOVER else ced.cedclient.ui.Palette.CONTROL, 3f)
+        NVGRenderer.text("Preset: ${InventoryButtons.currentPreset()} (click: next)", x0 + 6f, y + 4f, 8f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.defaultFont)
         y += 20
 
         if (System.currentTimeMillis() < statusUntil) {

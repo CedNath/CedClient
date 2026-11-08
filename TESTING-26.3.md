@@ -61,7 +61,9 @@ Checked in singleplayer: menu (both accents), accent picker, HUD editor previews
 - [ ] `[CC]` chat prefix follows the accent
 - Left on their own look on purpose: Dungeon Map, stat bars (Health / Mana ...), item cooldown numbers on hotbar slots, Fun Visuals, Screenshot Preview
 - Held Item Name stays vanilla-drawn (vanilla renders it; the panel only moves it). Music keeps its album-colour panel
-- Follow-ups: standalone screens (search overlay, price input, command keybinds, cosmetic presets, button editor, update screen, debug panel) only got readability fixes, not the full panel restyle
+- [ ] Standalone screens now share the popup window (ui/Frame.kt: panel fill, faint border, hairline under the title, palette greys). Checked in singleplayer: Command Keybinds, Debug Panel, Cosmetic Presets. Not seen: Search overlay + Price input (need an AH/BZ sign), Inventory Button editor, Update screen
+- [ ] HUD scale 0.5 and 3.0 checked on Time HUD (crisp, outline fits). Slayer Tracker and Daily Tasks cards still unseen (modules off in the dev config)
+- Removed: "Use NanoVG Rendering" toggles on Time HUD, Daily Tasks and Entity ESP (old vanilla fallback cards are gone)
 
 ## Build and release
 - [ ] `./gradlew build` makes `-cheat` and `-legit` jars; legit jar has no cheat code

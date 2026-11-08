@@ -124,13 +124,11 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
     }
 
     private fun draw(mx: Float, my: Float) {
-        NVGRenderer.dropShadow(x, y, WIDTH, height, 10f, 3f, 5f)
-        NVGRenderer.rect(x, y, WIDTH, height, Colors.gray26.rgba, 5f)
-        NVGRenderer.hollowRect(x, y, WIDTH, height, 1.5f, ClickGUI.clickGUIColor.rgba, 5f)
-        NVGRenderer.line(x + SIDE_W + 14f, listTop - 4f, x + SIDE_W + 14f, listBottom, 1f, Colors.gray38.rgba)
+        ced.cedclient.ui.Frame.window(x, y, WIDTH, height)
+        NVGRenderer.line(x + SIDE_W + 14f, listTop - 4f, x + SIDE_W + 14f, listBottom, 1f, ced.cedclient.ui.Palette.LINE)
 
         val title = if (mode == Mode.BROWSE) "Cosmetic Presets" else "Import Cosmetic Blocks"
-        NVGRenderer.text(title, x + WIDTH / 2f - NVGRenderer.textWidth(title, 18f, font) / 2f, y + 10f, 18f, Colors.WHITE.rgba, font)
+        NVGRenderer.text(title, x + WIDTH / 2f - NVGRenderer.textWidth(title, 18f, font) / 2f, y + 10f, 18f, ced.cedclient.ui.Palette.TEXT, font)
 
         if (mode == Mode.BROWSE) drawBrowse(mx, my) else drawImport(mx, my)
 
@@ -141,7 +139,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
                 else -> "Click a preset to make it active - you are on ${CosmeticStore.scopeLabel(CosmeticStore.islandKey)}"
             }
         }
-        NVGRenderer.text(NVGRenderer.truncate(hint, WIDTH - 24f, 13f, font), x + 12f, footerY + BUTTON_H + 8f, 13f, Colors.MINECRAFT_GRAY.rgba, font)
+        NVGRenderer.text(NVGRenderer.truncate(hint, WIDTH - 24f, 13f, font), x + 12f, footerY + BUTTON_H + 8f, 13f, ced.cedclient.ui.Palette.MUTED, font)
     }
 
     // ------------------------------------------------------------------
@@ -184,18 +182,18 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
                     val canDrop = transfer != null && item is Side.Scope
                     when {
                         isSel -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
-                        hov -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.gray38.rgba, 4f)
+                        hov -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, ced.cedclient.ui.Palette.CONTROL_HOVER, 4f)
                         canDrop -> NVGRenderer.hollowRect(sideX, ry, SIDE_W, SIDE_ROW - 2f, 1f, ClickGUI.clickGUIColor.rgba, 4f)
                     }
                     val (label, count, isHere) = when (item) {
                         is Side.Scope -> Triple(CosmeticStore.scopeLabel(item.key), CosmeticStore.scopeSize(item.key), item.key == here)
                         else -> Triple("Dungeon Rooms", CosmeticRooms.listRooms().sumOf { it.second }, CosmeticRooms.currentRoom != null)
                     }
-                    if (isHere) NVGRenderer.circle(sideX + 7f, ry + SIDE_ROW / 2f - 1f, 2.5f, Colors.MINECRAFT_GREEN.rgba)
+                    if (isHere) NVGRenderer.circle(sideX + 7f, ry + SIDE_ROW / 2f - 1f, 2.5f, ced.cedclient.ui.Palette.GOOD_SEE)
                     val countText = if (count > 0) compact(count) else ""
                     val cwid = NVGRenderer.textWidth(countText, 11f, font)
-                    NVGRenderer.text(NVGRenderer.truncate(label, SIDE_W - 26f - cwid, 13f, font), sideX + 14f, ry + 4f, 13f, Colors.WHITE.rgba, font)
-                    NVGRenderer.text(countText, sideX + SIDE_W - 6f - cwid, ry + 5f, 11f, Colors.MINECRAFT_GRAY.rgba, font)
+                    NVGRenderer.text(NVGRenderer.truncate(label, SIDE_W - 26f - cwid, 13f, font), sideX + 14f, ry + 4f, 13f, ced.cedclient.ui.Palette.TEXT, font)
+                    NVGRenderer.text(countText, sideX + SIDE_W - 6f - cwid, ry + 5f, 11f, ced.cedclient.ui.Palette.MUTED, font)
                     clipHit(sideX, ry, SIDE_W, SIDE_ROW - 2f, top, h, left = { clickSide(item) })
                 }
             }
@@ -224,7 +222,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
         val here = scope == CosmeticStore.islandKey
         val active = CosmeticStore.activePresetOf(scope)
         val heading = CosmeticStore.scopeLabel(scope) + if (here) "  (you are here)" else ""
-        NVGRenderer.text(NVGRenderer.truncate(heading, paneW, 15f, font), paneX, listTop, 15f, Colors.WHITE.rgba, font)
+        NVGRenderer.text(NVGRenderer.truncate(heading, paneW, 15f, font), paneX, listTop, 15f, ced.cedclient.ui.Palette.TEXT, font)
 
         val presets = (CosmeticStore.listPresets(scope) + active).distinct().sorted()
         val top = listTop + 22f
@@ -239,19 +237,19 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             val hov = my in top..(top + h) && hovered(paneX, ry, paneW, ROW_H - 2f, mx, my)
             when {
                 isActive -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
-                hov -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.gray38.rgba, 4f)
+                hov -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, ced.cedclient.ui.Palette.CONTROL_HOVER, 4f)
             }
             clipHit(paneX, ry, paneW, ROW_H - 2f, top, h, left = {
                 confirmDelete = null
                 if (CosmeticStore.setActive(scope, name)) status = "'$name' is now active on ${CosmeticStore.scopeLabel(scope)}"
             })
-            NVGRenderer.text(if (i < 9 && here) "${i + 1}" else "", paneX + 6f, ry + 4f, 14f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text(if (i < 9 && here) "${i + 1}" else "", paneX + 6f, ry + 4f, 14f, ced.cedclient.ui.Palette.MUTED, font)
             val count = "${CosmeticStore.presetSize(name, scope)} blocks" + if (isActive) " - active" else ""
             val actionsW = 4 * SMALL_W + 3 * 4f
             val countW = NVGRenderer.textWidth(count, 12f, font)
-            NVGRenderer.text(NVGRenderer.truncate(name, paneW - 30f - countW - actionsW - 16f, 14f, font), paneX + 22f, ry + 4f, 14f, Colors.WHITE.rgba, font)
+            NVGRenderer.text(NVGRenderer.truncate(name, paneW - 30f - countW - actionsW - 16f, 14f, font), paneX + 22f, ry + 4f, 14f, ced.cedclient.ui.Palette.TEXT, font)
             val ax = paneX + paneW - 4f - actionsW
-            NVGRenderer.text(count, ax - 8f - countW, ry + 5f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text(count, ax - 8f - countW, ry + 5f, 12f, ced.cedclient.ui.Palette.MUTED, font)
             if (hov || confirmDelete == "$scope/$name") {
                 val by = ry + 2f
                 val bh = ROW_H - 6f
@@ -271,8 +269,8 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
 
         // New preset in this location
         val fieldW = paneW - NEW_W - 6f
-        NVGRenderer.rect(paneX, inputY, fieldW, INPUT_H, Colors.gray38.rgba, 4f)
-        if (newName.isEmpty()) NVGRenderer.text("New preset name...", paneX + 6f, inputY + 5f, 14f, Colors.MINECRAFT_GRAY.rgba, font)
+        NVGRenderer.rect(paneX, inputY, fieldW, INPUT_H, ced.cedclient.ui.Palette.CONTROL, 4f)
+        if (newName.isEmpty()) NVGRenderer.text("New preset name...", paneX + 6f, inputY + 5f, 14f, ced.cedclient.ui.Palette.MUTED, font)
         newInput.x = paneX
         newInput.y = inputY + 1f
         newInput.width = fieldW
@@ -283,12 +281,12 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
 
     private fun drawRooms(mx: Float, my: Float) {
         val current = CosmeticRooms.currentRoom?.data?.name
-        NVGRenderer.text("Dungeon Rooms" + (current?.let { "  (in: $it)" } ?: ""), paneX, listTop, 15f, Colors.WHITE.rgba, font)
+        NVGRenderer.text("Dungeon Rooms" + (current?.let { "  (in: $it)" } ?: ""), paneX, listTop, 15f, ced.cedclient.ui.Palette.TEXT, font)
         val rooms = CosmeticRooms.listRooms().sortedBy { it.first }
         val top = listTop + 22f
         val h = listBottom - top
         if (rooms.isEmpty()) {
-            NVGRenderer.text("No room blocks yet - edit inside a scanned room, or import a cb rooms file.", paneX, top + 4f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text("No room blocks yet - edit inside a scanned room, or import a cb rooms file.", paneX, top + 4f, 12f, ced.cedclient.ui.Palette.MUTED, font)
             return
         }
         paneScroll = paneScroll.coerceIn((h - rooms.size * ROW_H).coerceAtMost(0f), 0f)
@@ -299,13 +297,13 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             val hov = my in top..(top + h) && hovered(paneX, ry, paneW, ROW_H - 2f, mx, my)
             when {
                 name == current -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
-                hov -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.gray38.rgba, 4f)
+                hov -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, ced.cedclient.ui.Palette.CONTROL_HOVER, 4f)
             }
             val countText = "$count blocks"
             val countW = NVGRenderer.textWidth(countText, 12f, font)
-            NVGRenderer.text(NVGRenderer.truncate(name, paneW - countW - SMALL_W - 30f, 14f, font), paneX + 8f, ry + 4f, 14f, Colors.WHITE.rgba, font)
+            NVGRenderer.text(NVGRenderer.truncate(name, paneW - countW - SMALL_W - 30f, 14f, font), paneX + 8f, ry + 4f, 14f, ced.cedclient.ui.Palette.TEXT, font)
             val ax = paneX + paneW - 4f - SMALL_W
-            NVGRenderer.text(countText, ax - 8f - countW, ry + 5f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text(countText, ax - 8f - countW, ry + 5f, 12f, ced.cedclient.ui.Palette.MUTED, font)
             val key = "rooms/$name"
             if (hov || confirmDelete == key) {
                 val del = confirmDelete == key
@@ -388,7 +386,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             val hov = my in top..(top + h) && hovered(sideX, ry, SIDE_W, SIDE_ROW - 2f, mx, my)
             when {
                 i == sourceIndex -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
-                hov -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.gray38.rgba, 4f)
+                hov -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, ced.cedclient.ui.Palette.CONTROL_HOVER, 4f)
             }
             val color = if (src.label.startsWith("cb:")) Colors.MINECRAFT_AQUA else Colors.WHITE
             NVGRenderer.text(NVGRenderer.truncate(src.label, SIDE_W - 12f, 13f, font), sideX + 6f, ry + 4f, 13f, color.rgba, font)
@@ -399,15 +397,15 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
         val d = data
         var cy = listTop
         if (d == null) {
-            NVGRenderer.text("Pick a source on the left.", paneX, cy, 14f, Colors.WHITE.rgba, font)
-            NVGRenderer.text("cb configs are read straight from config/cb (blue).", paneX, cy + 20f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
-            NVGRenderer.text("Exports from cosmetic_exports and the clipboard work too.", paneX, cy + 36f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
+            NVGRenderer.text("Pick a source on the left.", paneX, cy, 14f, ced.cedclient.ui.Palette.TEXT, font)
+            NVGRenderer.text("cb configs are read straight from config/cb (blue).", paneX, cy + 20f, 12f, ced.cedclient.ui.Palette.MUTED, font)
+            NVGRenderer.text("Exports from cosmetic_exports and the clipboard work too.", paneX, cy + 36f, 12f, ced.cedclient.ui.Palette.MUTED, font)
         } else {
             val info = when (d) {
                 is ImportData.Rooms -> "${d.roomCount} dungeon room(s), ${d.blocks} blocks"
                 else -> "${d.description}, ${d.blocks} blocks"
             }
-            NVGRenderer.text(NVGRenderer.truncate("${sources[sourceIndex].label}: $info", paneW, 14f, font), paneX, cy, 14f, Colors.WHITE.rgba, font)
+            NVGRenderer.text(NVGRenderer.truncate("${sources[sourceIndex].label}: $info", paneW, 14f, font), paneX, cy, 14f, ced.cedclient.ui.Palette.TEXT, font)
             cy += 24f
             cy = when (d) {
                 is ImportData.Bundle -> drawBundleOptions(cy, mx, my)
@@ -423,11 +421,11 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
 
     private fun drawBundleOptions(startY: Float, mx: Float, my: Float): Float {
         var cy = startY
-        NVGRenderer.text("A whole CedClient config: every preset on every location,", paneX, cy, 12f, Colors.MINECRAFT_GRAY.rgba, font)
-        NVGRenderer.text("dungeon rooms, remaps, favourites and settings.", paneX, cy + 15f, 12f, Colors.MINECRAFT_GRAY.rgba, font)
+        NVGRenderer.text("A whole CedClient config: every preset on every location,", paneX, cy, 12f, ced.cedclient.ui.Palette.MUTED, font)
+        NVGRenderer.text("dungeon rooms, remaps, favourites and settings.", paneX, cy + 15f, 12f, ced.cedclient.ui.Palette.MUTED, font)
         cy += 40f
         cy = modeToggle(cy, mx, my, "Merge into my config", "Replace my config")
-        NVGRenderer.text("Your current config is backed up to cosmetic_exports first.", paneX, cy, 12f, Colors.MINECRAFT_GRAY.rgba, font)
+        NVGRenderer.text("Your current config is backed up to cosmetic_exports first.", paneX, cy, 12f, ced.cedclient.ui.Palette.MUTED, font)
         return cy + 18f
     }
 
@@ -468,10 +466,10 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
         }
 
         // Preset name + options
-        NVGRenderer.text("Preset", paneX, cy + 5f, 13f, Colors.WHITE.rgba, font)
+        NVGRenderer.text("Preset", paneX, cy + 5f, 13f, ced.cedclient.ui.Palette.TEXT, font)
         val fx = paneX + 50f
         val fw = paneW * 0.45f
-        NVGRenderer.rect(fx, cy, fw, INPUT_H, Colors.gray38.rgba, 4f)
+        NVGRenderer.rect(fx, cy, fw, INPUT_H, ced.cedclient.ui.Palette.CONTROL, 4f)
         importInput.x = fx
         importInput.y = cy + 1f
         importInput.width = fw
@@ -549,7 +547,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             else -> Colors.gray26
         }
         NVGRenderer.rect(bx, by, SMALL_W, bh, color.rgba, 3f)
-        NVGRenderer.text(label, bx + SMALL_W / 2f - NVGRenderer.textWidth(label, 12f, font) / 2f, by + (bh - 12f) / 2f, 12f, Colors.WHITE.rgba, font)
+        NVGRenderer.text(label, bx + SMALL_W / 2f - NVGRenderer.textWidth(label, 12f, font) / 2f, by + (bh - 12f) / 2f, 12f, ced.cedclient.ui.Palette.TEXT, font)
         clipHit(bx, by, SMALL_W, bh, clipTop, clipH, left = action)
     }
 
@@ -567,7 +565,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
         }
         NVGRenderer.rect(cx, cy, w, CHIP_H, color.rgba, 3f)
         if (hov && !selected) NVGRenderer.hollowRect(cx, cy, w, CHIP_H, 1f, ClickGUI.clickGUIColor.rgba, 3f)
-        if (here) NVGRenderer.circle(cx + 5f, cy + CHIP_H / 2f, 2f, Colors.MINECRAFT_GREEN.rgba)
+        if (here) NVGRenderer.circle(cx + 5f, cy + CHIP_H / 2f, 2f, ced.cedclient.ui.Palette.GOOD_SEE)
         val text = NVGRenderer.truncate(label, w - (if (here) 14f else 6f), 12f, font)
         val textColor = if (enabled) Colors.WHITE else Colors.MINECRAFT_DARK_GRAY
         NVGRenderer.text(text, cx + w / 2f - NVGRenderer.textWidth(text, 12f, font) / 2f + (if (here) 3f else 0f), cy + (CHIP_H - 12f) / 2f, 12f, textColor.rgba, font)
