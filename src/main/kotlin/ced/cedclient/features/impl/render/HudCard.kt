@@ -288,22 +288,41 @@ object HudCard {
         return out
     }
 
-    /** Width of [component] drawn with [componentText]. */
-    fun width(component: Component, size: Float): Float {
-        var w = 0f
-        component.visit({ _, segment -> w += width(segment, size); Optional.empty<Unit>() }, net.minecraft.network.chat.Style.EMPTY)
-        return w
+    /** One same-style piece of a [Component], from [runs]. */
+    class Run(val text: String, val rgb: Int, val bold: Boolean)
+
+    /**
+     * [component] cut into same-colour pieces. Legacy "\u00A7x" codes inside its text are read the way vanilla's font
+     * reads them (Hypixel's scoreboard and tab lines use both), and bold is kept. [defaultRgb] where no colour is set.
+     */
+    fun runs(component: Component, defaultRgb: Int = 0xFFFFFF): List<Run> {
+        val out = ArrayList<Run>()
+        val sb = StringBuilder()
+        var rgb = defaultRgb
+        var bold = false
+        net.minecraft.util.StringDecomposer.iterateFormatted(component, net.minecraft.network.chat.Style.EMPTY) { _, style, cp ->
+            val r = style.color?.value ?: defaultRgb
+            if (sb.isNotEmpty() && (r != rgb || style.isBold != bold)) { out += Run(sb.toString(), rgb, bold); sb.setLength(0) }
+            rgb = r
+            bold = style.isBold
+            sb.appendCodePoint(cp)
+            true
+        }
+        if (sb.isNotEmpty()) out += Run(sb.toString(), rgb, bold)
+        return out
     }
 
-    /** [component] segment by segment in its own colours (white where it has none), faded by [alpha]. */
-    fun componentText(component: Component, x: Float, y: Float, size: Float, alpha: Float = 1f) {
+    /** Width of [component] drawn with [componentText]. */
+    fun width(component: Component, size: Float): Float = runs(component).sumOf { width(it.text, size, it.bold).toDouble() }.toFloat()
+
+    /** [component] piece by piece in its own colours ([defaultRgb] where it has none), faded by [alpha]. Returns its width. */
+    fun componentText(component: Component, x: Float, y: Float, size: Float, alpha: Float = 1f, defaultRgb: Int = 0xFFFFFF): Float {
         var cx = x
-        component.visit({ style, segment ->
-            val rgb = style.color?.value ?: 0xFFFFFF
-            text(segment, cx, y, size, withAlpha(0xFF000000.toInt() or rgb, alpha), remap = false)
-            cx += width(segment, size)
-            Optional.empty<Unit>()
-        }, net.minecraft.network.chat.Style.EMPTY)
+        for (r in runs(component, defaultRgb)) {
+            text(r.text, cx, y, size, withAlpha(0xFF000000.toInt() or r.rgb, alpha), bold = r.bold, remap = false)
+            cx += width(r.text, size, r.bold)
+        }
+        return cx - x
     }
 
     fun withAlpha(argb: Int, alpha: Float): Int {

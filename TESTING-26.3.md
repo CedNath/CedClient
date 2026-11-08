@@ -64,6 +64,10 @@ Checked in singleplayer: menu (both accents), accent picker, HUD editor previews
 - [ ] Standalone screens now share the popup window (ui/Frame.kt: panel fill, faint border, hairline under the title, palette greys). Checked in singleplayer: Command Keybinds, Debug Panel, Cosmetic Presets. Not seen: Search overlay + Price input (need an AH/BZ sign), Inventory Button editor, Update screen
 - [ ] HUD scale 0.5 and 3.0 checked on Time HUD (crisp, outline fits). Slayer Tracker and Daily Tasks cards still unseen (modules off in the dev config)
 - Removed: "Use NanoVG Rendering" toggles on Time HUD, Daily Tasks and Entity ESP (old vanilla fallback cards are gone)
+- [ ] Compact Scoreboard on Hypixel: shared card, Inter text in Hypixel colours, bold centred title, half-height gaps, "www.hypixel.net" line replaced by a CedClient footer in the accent, no red numbers
+- [ ] Compact Tab on Hypixel: all panels on the shared card (stat bar, effects), names in Inter with heads drawn on top, footer gold, low TPS red
+- [ ] Hypixel symbols in NanoVG text (location ⏣, ☽, ✎, ☠ ...): drawn through the system symbol font (Segoe UI Symbol on Windows); check none show as gaps
+- [ ] Old configs: Compact Scoreboard / Tab Panel Opacity reset once to 100 (look version 2); "HUD Outlines" setting removed
 
 ## Build and release
 - [ ] `./gradlew build` makes `-cheat` and `-legit` jars; legit jar has no cheat code

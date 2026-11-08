@@ -6,6 +6,8 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.DropdownSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.mixin.accessor.PlayerTabOverlayAccessor
+import ced.cedclient.render.nvg.NVGRenderer
+import ced.cedclient.ui.Palette
 import ced.cedclient.utils.PingTracker
 import ced.cedclient.utils.TabListCache
 import ced.cedclient.utils.TpsTracker
@@ -46,7 +48,7 @@ object CompactTab : Module(
     defaultEnabled = false
 ) {
 
-    private val opacity = registerSetting(NumberSetting("Panel Opacity", 65.0, 0.0, 100.0, 1.0))
+    private val opacity = registerSetting(NumberSetting("Panel Opacity", 100.0, 0.0, 100.0, 1.0, "How solid the cards are (percent)."))
     private val statBar = registerSetting(BooleanSetting("Stat Bar", true))
     private val statBarPos = registerSetting(DropdownSetting("Stat Bar Position", listOf("TOP", "BOTTOM", "LEFT", "RIGHT"), "TOP"))
     private val effectsPanel = registerSetting(
@@ -56,20 +58,7 @@ object CompactTab : Module(
         )
     )
 
-    private const val BG_RGB = 0x0B0D13
-    private fun bgPanel(): Int {
-        val a = (opacity.value.coerceIn(0.0, 100.0) * 2.55).roundToInt()
-        return (a shl 24) or BG_RGB
-    }
 
-    private const val BORDER = 0x66303440
-    private const val DIVIDER = 0x44454a58
-    private const val LABEL = 0xFF8A8F9C.toInt()
-    private const val VALUE = 0xFF55FF55.toInt()
-    private const val GOLD = 0xFFFFD700.toInt()
-    private const val NAME = 0xFFE8ECF2.toInt()
-    private const val BAR_ON = 0xFF55E05A.toInt()
-    private const val BAR_OFF = 0x55202530
 
     private val COL_KEY: Pattern = Pattern.compile("^!([A-Za-z])")
     private val SERVER_ID: Pattern = Pattern.compile("\\b((?:mini|mega|m)\\d+[A-Za-z]{1,3})\\b")
@@ -104,12 +93,18 @@ object CompactTab : Module(
     /** Best-effort TPS hook - wire this up to your server's TPS source (e.g. a party-chat parser) if you have one. */
     private fun currentTps(): Double = TpsTracker.currentTps()
 
+    /** Text size and line step of the tab list, in GUI units. */
+    private const val SIZE = 8.5f
+    private const val LH = 10f
+
+    /**
+     * The tab list on the shared HUD card (HudCard): one NanoVG pass draws every panel and all text in Inter, then the
+     * player heads (vanilla textures) go on top of it.
+     */
     @JvmStatic
     fun render(overlay: PlayerTabOverlay, ctx: GuiGraphicsExtractor, screenW: Int) {
         val mc = Minecraft.getInstance()
         if (mc.player == null || mc.connection == null) return
-        val tr = mc.font
-        val lh = 10
 
         val acc = overlay as PlayerTabOverlayAccessor
         val header = acc.`ced$getHeader`()?.string
@@ -117,153 +112,157 @@ object CompactTab : Module(
         val footer = footerComp?.string
 
         val mdl = model(mc, overlay, header, footer, footerComp) ?: return
-        val columns = mdl.columns
-        val colWidths = mdl.colWidths
-        val rows = mdl.rows
-
         val ping = realPing(mc)
-        val fps = mc.fps
         val tps = currentTps()
-        val server = mdl.server
-
         val labels = arrayOf("SERVER", "TPS", "FPS", "PING")
         val values = arrayOf(
-            server,
+            mdl.server,
             if (tps < 0) "-" else String.format("%.2f", tps),
-            fps.toString(),
+            mc.fps.toString(),
             if (ping < 0) "-" else "${ping}ms"
         )
-        fun valueColor(i: Int) = if (i == 1 && tps in 0.0..18.99) 0xFFFF5555.toInt() else VALUE
+        fun valueColor(i: Int) = if (i == 1 && tps in 0.0..18.99) Palette.BAD_SEE else Palette.TEXT
 
-        val pad = 8
-        val gap = 8
-        var contentW = 0
-        for (w in colWidths) contentW += w
-        contentW += gap * (columns.size - 1)
-        val bodyH = rows * lh + 6
-        val footH = 12
-        val topPad = 8
+        val pad = 8f
+        val gap = 8f
+        val topPad = 8f
+        val footH = 12f
+        val boxGap = 8f
+        val contentW = mdl.colWidths.sum() + gap * (mdl.columns.size - 1)
         val tabW = contentW + pad * 2
-        val tabH = topPad + bodyH + footH
-        val boxGap = 8
+        val tabH = topPad + mdl.rows * LH + 6f + footH
+        val alpha = (opacity.value / 100.0).toFloat().coerceIn(0f, 1f)
+        val heads = ArrayList<Head>()
 
-        if (!statBar.value) {
-            val w = min(screenW - 12, tabW)
-            val x0 = (screenW - w) / 2
-            val y0 = 4
-            CompactScoreboard.panel(ctx, x0, y0, x0 + w, y0 + tabH, bgPanel())
-            drawColumns(ctx, overlay, tr, columns, colWidths, x0 + pad, y0 + topPad, rows, gap, lh)
-            centeredText(ctx, tr, mdl.footer, x0 + w / 2, y0 + tabH - footH + 2, GOLD)
-            drawEffects(ctx, tr, mdl, x0, w, y0 + tabH + boxGap / 2)
-            return
+        HudCard.draw(ctx, 0, 0) {
+            fun panel(x: Float, y: Float, w: Float, h: Float) {
+                NVGRenderer.push()
+                NVGRenderer.translate(x, y)
+                HudCard.card(w, h, 1f, alpha, label = "Compact Tab")
+                NVGRenderer.pop()
+            }
+            fun tab(x0: Float, y0: Float, w: Float) {
+                panel(x0, y0, w, tabH)
+                drawColumns(overlay, mdl, x0 + pad, y0 + topPad, gap, heads)
+                centered(mdl.footer, x0 + w / 2f, y0 + tabH - footH + 2f, Palette.GOLD)
+            }
+
+            if (!statBar.value) {
+                val w = min(screenW - 12f, tabW)
+                val x0 = (screenW - w) / 2f
+                tab(x0, 4f, w)
+                drawEffects(mdl, x0, w, 4f + tabH + boxGap / 2f, ::panel)
+                return@draw
+            }
+
+            val pos = statBarPos.value.uppercase()
+            if (pos == "LEFT" || pos == "RIGHT") {
+                val statLineH = 14f
+                var statW = 0f
+                for (i in labels.indices) statW = max(statW, HudCard.width(labels[i] + " ", SIZE) + HudCard.width(values[i], SIZE))
+                statW += 16f
+                val totalW = tabW + boxGap + statW
+                val w = min(screenW - 12f, totalW)
+                val x0 = (screenW - w) / 2f
+                val y0 = 4f
+                val tabX0 = if (pos == "LEFT") x0 + statW + boxGap else x0
+                val statX0 = if (pos == "LEFT") x0 else x0 + tabW + boxGap
+
+                tab(tabX0, y0, tabW)
+                panel(statX0, y0, statW, tabH)
+                val cellH = tabH / labels.size
+                for (i in labels.indices) {
+                    val cellTop = y0 + i * cellH
+                    val sy = cellTop + (cellH - statLineH) / 2f + 3f
+                    if (i > 0) HudCard.divider(statX0 + 6f, cellTop, statW - 12f, 1f)
+                    HudCard.text(labels[i] + " ", statX0 + 8f, sy, SIZE, Palette.MUTED, remap = false)
+                    HudCard.text(values[i], statX0 + 8f + HudCard.width(labels[i] + " ", SIZE), sy, SIZE, valueColor(i), remap = false)
+                }
+                drawEffects(mdl, x0, w, y0 + tabH + boxGap / 2f, ::panel)
+            } else {
+                val statBarH = 32f
+                val gapTB = 4f
+                val w = min(screenW - 12f, tabW)
+                val x0 = (screenW - w) / 2f
+                val y0 = 4f
+                val bottom = pos == "BOTTOM"
+                val tabY0 = if (bottom) y0 else y0 + statBarH + gapTB
+                val statY0 = if (bottom) tabY0 + tabH + gapTB else y0
+
+                tab(x0, tabY0, w)
+                panel(x0, statY0, w, statBarH)
+                val cellW = w / labels.size
+                for (i in labels.indices) {
+                    val cxL = x0 + i * cellW
+                    if (i > 0) NVGRenderer.rect(cxL, statY0 + 6f, 1f, statBarH - 12f, Palette.LINE)
+                    val cxC = cxL + cellW / 2f
+                    centered(labels[i], cxC, statY0 + 7f, Palette.MUTED)
+                    centered(values[i], cxC, statY0 + 18f, valueColor(i))
+                }
+                val groupBottom = if (bottom) statY0 + statBarH else tabY0 + tabH
+                drawEffects(mdl, x0, w, groupBottom + gapTB, ::panel)
+            }
         }
 
-        val pos = statBarPos.value.uppercase()
-        if (pos == "LEFT" || pos == "RIGHT") {
-            val statLineH = 14
-            var statW = 0
-            for (i in labels.indices) statW = max(statW, tr.width("\u00A77" + labels[i] + " " + values[i]))
-            statW += 16
-            val statH = tabH
-
-            val totalW = tabW + boxGap + statW
-            val w = min(screenW - 12, totalW)
-            val x0 = (screenW - w) / 2
-            val y0 = 4
-            val tabX0 = if (pos == "LEFT") x0 + statW + boxGap else x0
-            val statX0 = if (pos == "LEFT") x0 else x0 + tabW + boxGap
-
-            CompactScoreboard.panel(ctx, tabX0, y0, tabX0 + tabW, y0 + tabH, bgPanel())
-            drawColumns(ctx, overlay, tr, columns, colWidths, tabX0 + pad, y0 + topPad, rows, gap, lh)
-            centeredText(ctx, tr, mdl.footer, tabX0 + tabW / 2, y0 + tabH - footH + 2, GOLD)
-
-            CompactScoreboard.panel(ctx, statX0, y0, statX0 + statW, y0 + statH, bgPanel())
-            val cellH = statH / labels.size
-            for (i in labels.indices) {
-                val cellTop = y0 + i * cellH
-                val sy = cellTop + (cellH - statLineH) / 2 + 3
-                if (i > 0) ctx.fill(statX0 + 6, cellTop, statX0 + statW - 6, cellTop + 1, DIVIDER)
-                ctx.text(tr, "\u00A77" + labels[i] + " ", statX0 + 8, sy, LABEL)
-                val lw = tr.width("\u00A77" + labels[i] + " ")
-                ctx.text(tr, values[i], statX0 + 8 + lw, sy, valueColor(i))
+        // Heads after the NanoVG pass, so they sit on top of the card.
+        for (h in heads) {
+            try {
+                PlayerFaceExtractor.extractRenderState(ctx, h.info.skin.body().texturePath(), h.x, h.y, 8, h.info.showHat(), false, -1)
+            } catch (ignored: Exception) {
             }
-            drawEffects(ctx, tr, mdl, x0, w, y0 + tabH + boxGap / 2)
-        } else {
-            val statBarH = 32
-            val gapTB = 4
-            val w = min(screenW - 12, tabW)
-            val x0 = (screenW - w) / 2
-            val y0 = 4
-            val bottom = pos == "BOTTOM"
-            val tabY0 = if (bottom) y0 else y0 + statBarH + gapTB
-            val statY0 = if (bottom) tabY0 + tabH + gapTB else y0
-
-            CompactScoreboard.panel(ctx, x0, tabY0, x0 + w, tabY0 + tabH, bgPanel())
-            drawColumns(ctx, overlay, tr, columns, colWidths, x0 + pad, tabY0 + topPad, rows, gap, lh)
-            centeredText(ctx, tr, mdl.footer, x0 + w / 2, tabY0 + tabH - footH + 2, GOLD)
-
-            CompactScoreboard.panel(ctx, x0, statY0, x0 + w, statY0 + statBarH, bgPanel())
-            val cellW = w / labels.size
-            for (i in labels.indices) {
-                val cxL = x0 + i * cellW
-                if (i > 0) ctx.fill(cxL, statY0 + 6, cxL + 1, statY0 + statBarH - 6, DIVIDER)
-                val cxC = cxL + cellW / 2
-                centeredText(ctx, tr, "\u00A77" + labels[i], cxC, statY0 + 7, LABEL)
-                centeredText(ctx, tr, values[i], cxC, statY0 + 18, valueColor(i))
-            }
-            val groupBottom = if (bottom) statY0 + statBarH else tabY0 + tabH
-            drawEffects(ctx, tr, mdl, x0, w, groupBottom + gapTB)
         }
     }
+
+    private class Head(val info: PlayerInfo, val x: Int, val y: Int)
+
+    private fun centered(text: String, cx: Float, y: Float, color: Int) =
+        HudCard.text(text, cx - HudCard.width(text, SIZE) / 2f, y, SIZE, color, remap = false)
 
     /**
      * Slim effects bar under the tab list: same width as the tab group, one cell per effect
      * ("God Potion: 2 days", "Cookie Buff: 2 hours", ...) spread evenly across it with dividers,
      * like the stat bar. If there are too many to fit on one line they wrap onto extra rows.
      */
-    private fun drawEffects(ctx: GuiGraphicsExtractor, tr: Font, mdl: Model, x0: Int, w: Int, topY: Int) {
+    private fun drawEffects(mdl: Model, x0: Float, w: Float, topY: Float, panel: (Float, Float, Float, Float) -> Unit) {
         if (!effectsPanel.value) return
         val entries = mdl.effects
         if (entries.isEmpty()) return
 
-        val pad = 8
-        val minGap = 16
-        val rowPitch = 12
+        val pad = 8f
+        val minGap = 16f
+        val rowPitch = 12f
         val innerW = w - pad * 2
 
         val rows = ArrayList<List<Component>>()
         var cur = ArrayList<Component>()
-        var curW = 0
+        var curW = 0f
         for (e in entries) {
-            val ew = tr.width(e)
+            val ew = HudCard.width(e, SIZE)
             if (cur.isNotEmpty() && curW + minGap + ew > innerW) {
                 rows.add(cur)
                 cur = ArrayList()
-                curW = 0
+                curW = 0f
             }
             curW += if (cur.isEmpty()) ew else minGap + ew
             cur.add(e)
         }
         if (cur.isNotEmpty()) rows.add(cur)
 
-        val panelH = rows.size * rowPitch + 6
-        CompactScoreboard.panel(ctx, x0, topY, x0 + w, topY + panelH, bgPanel())
-
+        panel(x0, topY, w, rows.size * rowPitch + 6f)
         for ((ri, row) in rows.withIndex()) {
             val cellW = w / row.size
-            val ty = topY + 4 + ri * rowPitch
+            val ty = topY + 4f + ri * rowPitch
             for ((ci, entry) in row.withIndex()) {
                 val cellX = x0 + ci * cellW
-                if (ci > 0) ctx.fill(cellX, ty - 1, cellX + 1, ty + 9, DIVIDER)
-                val ew = tr.width(entry)
-                ctx.text(tr, entry, cellX + (cellW - ew) / 2, ty, NAME)
+                if (ci > 0) NVGRenderer.rect(cellX, ty - 1f, 1f, 10f, Palette.LINE)
+                HudCard.componentText(entry, cellX + (cellW - HudCard.width(entry, SIZE)) / 2f, ty, SIZE, defaultRgb = Palette.TEXT and 0xFFFFFF)
             }
         }
     }
 
     private class Model(
         val columns: List<List<PlayerInfo>>,
-        val colWidths: List<Int>,
+        val colWidths: List<Float>,
         val rows: Int,
         val server: String,
         val footer: String,
@@ -288,7 +287,6 @@ object CompactTab : Module(
     }
 
     private fun buildModel(mc: Minecraft, overlay: PlayerTabOverlay, header: String?, footer: String?, footerComp: Component?): Model? {
-        val tr = mc.font
         val all = ArrayList(TabListCache.entries.map { it.info })
         all.sortWith(Comparator { a, b -> a.profile.name.compareTo(b.profile.name, ignoreCase = true) })
         val grouped = LinkedHashMap<String, MutableList<PlayerInfo>>()
@@ -299,7 +297,7 @@ object CompactTab : Module(
         if (grouped.isEmpty()) return null
 
         val columns = ArrayList<List<PlayerInfo>>()
-        val colWidths = ArrayList<Int>()
+        val colWidths = ArrayList<Float>()
         var rows = 0
         var first = true
         for (col in grouped.values) {
@@ -316,10 +314,10 @@ object CompactTab : Module(
             val trimmed = ArrayList(col.subList(0, last + 1))
             val playersCol = first
             first = false
-            var maxW = 0
-            for (e in trimmed) maxW = max(maxW, tr.width(overlay.getNameForDisplay(e)))
-            val extra = if (playersCol) 26 else 8
-            val w = max(if (playersCol) 116 else 60, min(maxW + extra, 230))
+            var maxW = 0f
+            for (e in trimmed) maxW = max(maxW, HudCard.width(overlay.getNameForDisplay(e), SIZE))
+            val extra = if (playersCol) 26f else 8f
+            val w = max(if (playersCol) 116f else 60f, min(maxW + extra, 230f))
             columns.add(trimmed)
             colWidths.add(w)
             rows = max(rows, trimmed.size)
@@ -330,32 +328,24 @@ object CompactTab : Module(
         return Model(columns, colWidths, rows, findServer(mc, footer, header), footerLine(footer), effectEntries(footerComp))
     }
 
-    private fun drawColumns(
-        ctx: GuiGraphicsExtractor, overlay: PlayerTabOverlay, tr: Font,
-        columns: List<List<PlayerInfo>>, colWidths: List<Int>,
-        startX: Int, cy: Int, rows: Int, gap: Int, lh: Int
-    ) {
+    private fun drawColumns(overlay: PlayerTabOverlay, mdl: Model, startX: Float, cy: Float, gap: Float, heads: MutableList<Head>) {
         var colX = startX
-        for (c in columns.indices) {
-            val w = colWidths[c]
-            if (c > 0) ctx.fill(colX - gap / 2, cy, colX - gap / 2 + 1, cy + rows * lh, DIVIDER)
+        for (c in mdl.columns.indices) {
+            val w = mdl.colWidths[c]
+            if (c > 0) NVGRenderer.rect(colX - gap / 2f, cy, 1f, mdl.rows * LH, Palette.LINE)
             val playersCol = c == 0
-            val entries = columns[c]
+            val entries = mdl.columns[c]
             var r = 0
-            while (r < entries.size && r < rows) {
+            while (r < entries.size && r < mdl.rows) {
                 val e = entries[r]
-                val dn = overlay.getNameForDisplay(e)
-                val ry = cy + r * lh
+                val ry = cy + r * LH
                 var tx = colX
                 if (playersCol && r > 0) {
-                    try {
-                        PlayerFaceExtractor.extractRenderState(ctx, e.skin.body().texturePath(), colX, ry - 1, 8, e.showHat(), false, -1)
-                    } catch (ignored: Exception) {
-                    }
-                    tx = colX + 10
+                    heads += Head(e, colX.toInt(), (ry - 1f).toInt())
+                    tx = colX + 10f
                 }
-                ctx.text(tr, dn, tx, ry, NAME)
-                if (playersCol && r > 0 && e.latency > 0) drawSignal(ctx, colX + w - 13, ry, e.latency)
+                HudCard.componentText(overlay.getNameForDisplay(e), tx, ry, SIZE, defaultRgb = Palette.TEXT and 0xFFFFFF)
+                if (playersCol && r > 0 && e.latency > 0) drawSignal(colX + w - 13f, ry, e.latency)
                 r++
             }
             colX += w + gap
@@ -371,24 +361,11 @@ object CompactTab : Module(
         return s.isEmpty()
     }
 
-    private fun centeredText(ctx: GuiGraphicsExtractor, tr: Font, text: String, cx: Int, y: Int, color: Int) {
-        ctx.text(tr, text, cx - tr.width(text) / 2, y, color)
-    }
-
-    private fun roundRect(ctx: GuiGraphicsExtractor, x1: Int, y1: Int, x2: Int, y2: Int, color: Int) {
-        ctx.fill(x1 + 2, y1, x2 - 2, y1 + 1, color)
-        ctx.fill(x1 + 1, y1 + 1, x2 - 1, y1 + 2, color)
-        ctx.fill(x1, y1 + 2, x2, y2 - 2, color)
-        ctx.fill(x1 + 1, y2 - 2, x2 - 1, y2 - 1, color)
-        ctx.fill(x1 + 2, y2 - 1, x2 - 2, y2, color)
-    }
-
-    private fun drawSignal(ctx: GuiGraphicsExtractor, x: Int, y: Int, latency: Int) {
+    private fun drawSignal(x: Float, y: Float, latency: Int) {
         val filled = if (latency <= 75) 4 else if (latency <= 150) 3 else if (latency <= 300) 2 else 1
         for (b in 0 until 4) {
-            val h = 2 + b * 2
-            val bx = x + b * 3
-            ctx.fill(bx, y + 8 - h, bx + 2, y + 8, if (b < filled) BAR_ON else BAR_OFF)
+            val h = 2f + b * 2f
+            NVGRenderer.rect(x + b * 3f, y + 8f - h, 2f, h, if (b < filled) Palette.GOOD_SEE else 0x33FFFFFF)
         }
     }
 

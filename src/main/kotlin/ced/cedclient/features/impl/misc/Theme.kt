@@ -75,7 +75,6 @@ object Theme : Module(
         "How popups (filters, block picker, settings) appear."
     )
     val animationSpeed = NumberSetting("Animation Speed", 0.6, 0.25, 3.0, 0.05, "Higher is faster. Applies to both animations.")
-    val hudOutlines = BooleanSetting("HUD Outlines", false, "A thin faint outline around Compact Tab and Compact Scoreboard.")
     val menuBlur = BooleanSetting("Menu Blur", true, "Blur the game behind the CedClient menu.")
     val blurStrength = NumberSetting("Blur Strength", 3.0, 1.0, 10.0, 1.0, "How strong the menu blur is.").withDependency { menuBlur.value }
 
@@ -110,7 +109,7 @@ object Theme : Module(
     }
 
     init {
-        addSettings(accent, pickAccent, accentChosen, lookVersion, fixedHudSize, uiFont, menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetPanels, resetModule, resetEverything)
+        addSettings(accent, pickAccent, accentChosen, lookVersion, fixedHudSize, uiFont, menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, resetColors, resetPanels, resetModule, resetEverything)
 //#if CHEAT
         addSettings(separateCheats)
         separateCheats.section = "Menu"
@@ -118,7 +117,6 @@ object Theme : Module(
         listOf(accent, pickAccent).forEach { it.section = "Colors" }
         listOf(menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed).forEach { it.section = "Menu" }
         uiFont.section = "Text"
-        hudOutlines.section = "HUD"
         listOf(resetColors, resetPanels, resetModule, resetEverything).forEach { it.section = "Reset" }
         // Animation tuning only shows with Advanced Mode on.
         listOf(openAnimation, popupAnimation, animationSpeed).forEach { it.advanced = true }

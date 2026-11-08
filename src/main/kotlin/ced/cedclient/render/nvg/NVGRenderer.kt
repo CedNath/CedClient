@@ -670,8 +670,29 @@ object NVGRenderer {
     private fun getFontID(font: Font): Int {
         return fontMap.getOrPut(font) {
             val buffer = font.buffer() ?: throw IllegalStateException("Font '${font.name}' has no data buffer")
-            NVGFont(nvgCreateFontMem(vg, font.name, buffer, false), buffer)
+            val id = nvgCreateFontMem(vg, font.name, buffer, false)
+            if (id >= 0 && symbolFontId >= 0) nvgAddFallbackFontId(vg, id, symbolFontId)
+            NVGFont(id, buffer)
         }.id
+    }
+
+    /**
+     * Hypixel's symbols (the location \u23E3, \u263D, \u270E, \u2620, \u2726 ...) aren't in Inter, so NanoVG falls back to the
+     * system's symbol font for them: Segoe UI Symbol on Windows, Apple Symbols on macOS, DejaVu Sans on Linux. Read
+     * from the system, not bundled (licences). -1 when none is found: those characters then stay blank as before.
+     */
+    private val symbolFontId: Int by lazy {
+        val windows = (System.getenv("WINDIR") ?: "C:/Windows").replace('\\', '/')
+        val path = listOf(
+            "$windows/Fonts/seguisym.ttf",
+            "/System/Library/Fonts/Apple Symbols.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        ).firstOrNull { java.io.File(it).isFile }
+        val id = if (path == null) -1 else nvgCreateFont(vg, "cedclient-symbols", path)
+        ced.cedclient.utils.Debug.line("Fonts", "symbol fallback: ${path ?: "none found"} (id $id)")
+        id
     }
 
     private class Scissor(val previous: Scissor?, val x: Float, val y: Float, val maxX: Float, val maxY: Float) {
