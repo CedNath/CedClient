@@ -132,6 +132,6 @@ object Theme : Module(
     /** HUD accent as ARGB. */
     val hudAccentRgba: Int get() = hudAccent.value.rgba
 
-    /** Darker shade of the HUD accent for panel outlines (the default gives the old 0x5A4FCF-ish border). */
-    val hudBorderRgba: Int get() = hudAccent.value.darker(0.75f).rgba
+    /** Panel outlines: the faint white border every card and panel shares (no longer a shade of the accent). */
+    val hudBorderRgba: Int get() = ced.cedclient.ui.Palette.EDGE
 }

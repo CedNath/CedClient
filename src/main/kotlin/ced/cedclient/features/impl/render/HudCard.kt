@@ -6,19 +6,27 @@ import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.NumberSetting
 import ced.cedclient.render.nvg.NVGRenderer
 import ced.cedclient.render.nvg.NVGSpecialRenderer
+import ced.cedclient.ui.Palette
+import ced.cedclient.utils.Debug
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import java.util.Optional
 
 /**
- * NanoVG drawing for HUD panels, in the same rounded-card style as Time HUD / Daily Reset (background, accent
- * border, CedClient font). [draw] sets up the canvas so (0, 0) is the panel's top-left in GUI units; sizes passed
- * to the other functions are already multiplied by the panel's scale.
+ * NanoVG drawing for HUD panels: one rounded dark card with a faint border, or see-through text with a soft halo
+ * (docs/superpowers/specs/2026-11-08-premium-look-design.md). [draw] sets up the canvas so (0, 0) is the panel's
+ * top-left in GUI units; sizes passed to the other functions are already multiplied by the panel's scale.
  */
 object HudCard {
-    const val BACKGROUND = 0xE8161620.toInt()
+    const val BACKGROUND = Palette.SURFACE
     private const val CORNER_RADIUS = 8f
+
+    /** Line step of see-through (compact) HUD text, as a multiple of the font size. */
+    const val LINE_HEIGHT = 1.18f
+
+    /** Inner padding of [label]'s panel: room for the card when it's on, almost none for see-through text. */
+    fun pad(label: String, scale: Float): Float = if (cardOn(label)) 6f * scale else 1f * scale
 
     val font get() = NVGRenderer.defaultFont
 
@@ -128,32 +136,13 @@ object HudCard {
         return s.w
     }
 
-    /** The card behind a HUD, in that HUD's [HudStyle] (Classic is the original rounded card with an accent border). */
+    /** The card behind a HUD: dark see-through fill, 1 px faint border, rounded corners. Nothing when its card is off. */
     fun card(width: Float, height: Float, scale: Float, alpha: Float = 1f, label: String? = currentLabel) {
         if (!cardOn(label)) return
         val alpha = alpha * opacityOf(label)
-        val round = if (Theme.roundedHud.value) 1f else 0f
-        val r = CORNER_RADIUS * scale * round
-        val accent = withAlpha(Theme.hudAccentRgba, alpha)
-        when (HudStyle.of(label)) {
-            "Glass" -> {
-                NVGRenderer.rect(0f, 0f, width, height, withAlpha(BACKGROUND, alpha * 0.62f), r)
-                NVGRenderer.rect(r, 0f, width - 2 * r, 2f * scale, accent, 0f)
-            }
-            "Accent Top" -> {
-                NVGRenderer.rect(0f, 0f, width, height, withAlpha(BACKGROUND, alpha), 3f * scale * round)
-                NVGRenderer.rect(0f, 0f, width, 2.5f * scale, accent, 3f * scale * round)
-            }
-            "Rail" -> {
-                NVGRenderer.rect(0f, 0f, width, height, withAlpha(BACKGROUND, alpha * 0.4f), 0f)
-                NVGRenderer.rect(0f, 0f, 2.5f * scale, height, accent, 0f)
-            }
-            "Flat" -> NVGRenderer.rect(0f, 0f, width, height, withAlpha(BACKGROUND, alpha), 4f * scale * round)
-            else -> {
-                NVGRenderer.rect(0f, 0f, width, height, withAlpha(BACKGROUND, alpha), r)
-                NVGRenderer.hollowRect(0f, 0f, width, height, scale, withAlpha(Theme.hudBorderRgba, alpha), r)
-            }
-        }
+        val r = CORNER_RADIUS * scale
+        NVGRenderer.rect(0f, 0f, width, height, withAlpha(Palette.SURFACE, alpha), r)
+        NVGRenderer.hollowRect(0f, 0f, width, height, scale, withAlpha(Palette.EDGE, alpha), r)
     }
 
     /**
@@ -176,31 +165,24 @@ object HudCard {
         } finally { NVGRenderer.pop() }
     }
 
+    private val haloLogged = HashSet<String>()
+
     /**
      * HUD text. Colours too dark to read on a game scene (Hypixel's dark red and dark purple) are lifted by [legible], and
-     * a HUD with its Background off gets a soft drop shadow so it also reads on bright scenes. Pure black is left alone:
+     * a HUD with its Background off gets a soft dark halo so it reads on bright scenes too. Pure black is left alone:
      * HUDs draw it on purpose as an outline or shadow.
      */
     fun text(text: String, x: Float, y: Float, size: Float, color: Int) {
         val deliberateBlack = luminance(color and 0xFFFFFF) < 0.002
-        if (!deliberateBlack && HudLook.outline(currentLabel)) {
-            val o = size * 0.07f
-            val black = withAlpha(0xFF000000.toInt(), (color ushr 24) / 255f)
-            for (dx in -1..1) for (dy in -1..1) if (dx != 0 || dy != 0) NVGRenderer.text(text, x + dx * o, y + dy * o, size, black, font)
-        }
         if (!deliberateBlack && !cardOn(currentLabel)) {
-            val shadow = withAlpha(0xFF000000.toInt(), 0.7f * ((color ushr 24) / 255f))
-            NVGRenderer.text(text, x + size * 0.08f, y + size * 0.08f, size, shadow, font)
+            val label = currentLabel ?: "?"
+            if (haloLogged.add(label)) Debug.line("HUD Look", "halo text for $label")
+            NVGRenderer.textHalo(text, x, y, size, (color ushr 24) / 255f, font)
         }
         NVGRenderer.text(text, x, y, size, if (deliberateBlack) color else legible(color), font)
     }
 
-    private fun linear(channel: Int): Double {
-        val v = channel / 255.0
-        return if (v <= 0.03928) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4)
-    }
-
-    private fun luminance(rgb: Int) = 0.2126 * linear((rgb shr 16) and 255) + 0.7152 * linear((rgb shr 8) and 255) + 0.0722 * linear(rgb and 255)
+    private fun luminance(rgb: Int) = Palette.luminance(rgb)
 
     /** Below this a colour is under 4.5:1 against black, so it vanishes on a dark scene. */
     private const val MIN_LUMINANCE = 0.2

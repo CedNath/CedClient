@@ -45,6 +45,12 @@ object NVGRenderer {
         Minecraft.getInstance().resourceManager.getResource(Identifier.parse("cedclient:font/inter.ttf")).get().open() // Inter (SIL OFL, font/inter_license.txt)
     )
 
+    /** Inter SemiBold (Inter 4.1, same SIL OFL licence) for titles and menu headers. Follows the Minecraft font option like [defaultFont]. */
+    val boldFont = Font(
+        "Bold",
+        Minecraft.getInstance().resourceManager.getResource(Identifier.parse("cedclient:font/inter-semibold.ttf")).get().open()
+    )
+
     private val fontMap = HashMap<Font, NVGFont>()
     private val fontBounds = FloatArray(4)
 
@@ -376,7 +382,7 @@ object NVGRenderer {
     }
 
     private fun minecraftFontOn(font: Font) =
-        font === defaultFont && ced.cedclient.features.impl.misc.Theme.uiFont.value == "Minecraft" && glyphSheet != null
+        (font === defaultFont || font === boldFont) && ced.cedclient.features.impl.misc.Theme.uiFont.value == "Minecraft" && glyphSheet != null
 
     /** Size of one font pixel in the current space, a whole number of device pixels (text [size] 9 = 1 font pixel per 1 unit). */
     private fun glyphPx(size: Float): Float {
@@ -427,6 +433,29 @@ object NVGRenderer {
         nvgFillColor(vg, nvgColor)
         snap(x, y + .5f)
         nvgText(vg, snapX, snapY, text)
+    }
+
+    /**
+     * The soft dark glow drawn under see-through HUD text (draw the text itself after this). [alpha] fades it with the text.
+     * TTF: the glyphs blurred by NanoVG. The Minecraft font is a texture nvgFontBlur can't touch, so it gets a faint copy
+     * at each of the 8 one-font-pixel offsets instead.
+     */
+    fun textHalo(text: String, x: Float, y: Float, size: Float, alpha: Float, font: Font) {
+        val a = alpha.coerceIn(0f, 1f)
+        if (minecraftFontOn(font)) {
+            val p = glyphPx(size)
+            val black = ((0.35f * a * 255).toInt() shl 24)
+            for (dx in -1..1) for (dy in -1..1) if (dx != 0 || dy != 0) minecraftText(text, x + dx * p, y + dy * p, size, black)
+            return
+        }
+        nvgFontSize(vg, fontSize(size))
+        nvgFontFaceId(vg, getFontID(font))
+        nvgFontBlur(vg, size * 0.16f)
+        color((0.95f * a * 255).toInt() shl 24)
+        nvgFillColor(vg, nvgColor)
+        snap(x, y + .5f)
+        nvgText(vg, snapX, snapY, text)
+        nvgFontBlur(vg, 0f)
     }
 
     fun textShadow(text: String, x: Float, y: Float, size: Float, color: Int, font: Font) {
