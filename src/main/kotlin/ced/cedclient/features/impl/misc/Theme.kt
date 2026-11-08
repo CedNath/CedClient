@@ -19,12 +19,13 @@ import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.darker
 
 /**
- * Client Settings (object still called Theme): how CedClient itself looks and behaves. Client-wide accent colours. Always on (it only holds settings): clicking it in the ClickGUI opens its settings
+ * Client Settings (object still called Theme): how CedClient itself looks and behaves. Always on (it only holds settings): clicking it in the ClickGUI opens its settings
  * instead of toggling it.
  *
- *  - GUI Accent: ClickGUI.clickGUIColor -- enabled modules, popups, the search bar, the preset / button editors.
- *  - HUD Accent: the badges, dividers and bullets on the HUD panels (Daily Reset, Entity ESP HUD), plus a darker
- *    shade of it for the panel outlines (Time HUD, Chat Channel HUD).
+ *  - Accent: the one colour the player picks (default none = white). ClickGUI.clickGUIColor and hudAccentRgba both
+ *    read it: the dot on enabled modules, sliders and toggles, HUD headline numbers, the [CC] chat prefix.
+ *    Everything else uses ced.cedclient.ui.Palette.
+ *  - Accent Chosen / Look Version: hidden markers for the first-open accent picker and the one-time look reset.
  *  - Open / Popup Animation + Animation Speed: how the ClickGUI panels and its popups appear (see ClickGUI).
  *  - Reset Everything: every module, setting, HUD panel and ClickGUI panel back to its default.
  */
@@ -36,12 +37,13 @@ object Theme : Module(
 ) {
     override val alwaysEnabled = true
 
-    val guiAccent = ColorSetting("GUI Accent", Color(0x69, 0x00, 0x00), "Enabled modules, popups and other ClickGUI highlights.").apply { oldDefault = 0x6E32C8 }
-    val hudAccent = ColorSetting("HUD Accent", Color(0xE0, 0x30, 0x30), "Badges, dividers and outlines on the HUD panels.").apply { oldDefault = 0xFF8080 }
+    val accent = ColorSetting("Accent", Color(0xF2, 0xF3, 0xF5), "Headline numbers, the dot on enabled modules, sliders and the chat prefix. White = no accent.")
+    /** Set once the first-open accent picker was answered (Done, Skip or Esc). */
+    val accentChosen = BooleanSetting("Accent Chosen", false, "").also { it.hide() }
+    /** Which one-time look reset (LookMigration) this config has had. */
+    val lookVersion = NumberSetting("Look Version", 0.0, 0.0, 10.0, 1.0, "").also { it.hide() }
 
-    val hudStyle = DropdownSetting("HUD Style", ced.cedclient.features.impl.render.HudStyle.names, "Rail", "Look of the HUD cards: Classic, Glass, Accent Top, Rail or Flat. Each HUD can override it from the HUD editor (/cc hud).")
     val fixedHudSize = BooleanSetting("Fixed HUD Size", true, "HUD cards keep the widest size they've had, so they don't jump around as numbers change. Starts over after 30 s without the HUD showing, or when you rescale it.")
-    val roundedHud = BooleanSetting("Rounded HUD Corners", true, "Round the corners of HUD cards. Off gives square corners.")
     val menuLayout = DropdownSetting(
         "Menu Layout",
         listOf("Compact", "Classic"),
@@ -51,8 +53,7 @@ object Theme : Module(
 //#if CHEAT
     val separateCheats = BooleanSetting("Separate Cheats Panel", true, "Moves the cheat modules (ESP, triggerbots, auto helpers ...) out of their panels into one Cheats panel. Takes effect the next time the menu opens.")
 //#endif
-    val menuStyle = DropdownSetting("Menu Style", listOf("Solid", "Glass", "Tinted Glass", "Neon", "Gradient", "Minimal"), "Solid", "Look of the Compact menu. Glass and Tinted Glass are frosted over a blurred game; Neon has a glowing accent outline; Gradient fades the accent in from the top; Minimal is a faint wash with a hairline.").withDependency { menuLayout.value == "Compact" }
-    val menuOpacity = NumberSetting("Menu Opacity", 100.0, 30.0, 100.0, 5.0, "How solid the Compact menu panels are, in percent. Lower is more see-through.").withDependency { menuLayout.value == "Compact" && menuStyle.value != "Glass" && menuStyle.value != "Tinted Glass" }
+    val menuOpacity = NumberSetting("Menu Opacity", 100.0, 30.0, 100.0, 5.0, "How solid the Compact menu panels are, in percent. Lower is more see-through.").withDependency { menuLayout.value == "Compact" }
     val uiFont = DropdownSetting("Font", listOf("Inter", "Minecraft"), "Inter", "Text font of the menus and the HUD cards. Minecraft is the game's own pixel font, taken from your install.")
     val menuSize = NumberSetting("Menu Size", 135.0, 70.0, 200.0, 5.0, "How big the Compact menu is, in percent.").withDependency { menuLayout.value == "Compact" }
     val openAnimation = DropdownSetting(
@@ -75,9 +76,8 @@ object Theme : Module(
     val menuBlur = BooleanSetting("Menu Blur", true, "Blur the game behind the CedClient menu.")
     val blurStrength = NumberSetting("Blur Strength", 3.0, 1.0, 10.0, 1.0, "How strong the menu blur is.").withDependency { menuBlur.value }
 
-    private val resetColors = ActionSetting("Reset Colors", "Back to the default purple.") {
-        guiAccent.value = guiAccent.default.copy()
-        hudAccent.value = hudAccent.default.copy()
+    private val resetColors = ActionSetting("Reset Colors", "Back to no accent.") {
+        accent.value = accent.default.copy()
         ConfigManager.saveModulesOnly()
     }
 
@@ -103,13 +103,13 @@ object Theme : Module(
     }
 
     init {
-        addSettings(guiAccent, hudAccent, hudStyle, fixedHudSize, roundedHud, uiFont, menuLayout, menuStyle, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetPanels, resetModule, resetEverything)
+        addSettings(accent, accentChosen, lookVersion, fixedHudSize, uiFont, menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetPanels, resetModule, resetEverything)
 //#if CHEAT
         addSettings(separateCheats)
         separateCheats.section = "Menu"
 //#endif
-        listOf(guiAccent, hudAccent).forEach { it.section = "Colors" }
-        listOf(menuLayout, menuStyle, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed).forEach { it.section = "Menu" }
+        accent.section = "Colors"
+        listOf(menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed).forEach { it.section = "Menu" }
         uiFont.section = "Text"
         hudOutlines.section = "HUD"
         listOf(resetColors, resetPanels, resetModule, resetEverything).forEach { it.section = "Reset" }
@@ -129,8 +129,8 @@ object Theme : Module(
         Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§fEverything reset to defaults"))
     }
 
-    /** HUD accent as ARGB. */
-    val hudAccentRgba: Int get() = hudAccent.value.rgba
+    /** The accent as ARGB (HUD headline numbers, badges, the [CC] chat prefix). */
+    val hudAccentRgba: Int get() = accent.value.rgba
 
     /** Panel outlines: the faint white border every card and panel shares (no longer a shade of the accent). */
     val hudBorderRgba: Int get() = ced.cedclient.ui.Palette.EDGE

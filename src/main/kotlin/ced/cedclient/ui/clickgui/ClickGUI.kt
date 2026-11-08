@@ -460,7 +460,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 
     /** Blur radius this frame: Blur Strength, eased in with the background dim when the menu opens. 0 = off. */
     fun blurRadius(): Int {
-        if (!Theme.menuBlur.value && !CompactLayout.glass) return 0
+        if (!Theme.menuBlur.value) return 0
         val elapsed = (System.nanoTime() - openedAt) / 1_000_000f * Theme.animationSpeed.value.toFloat()
         return Math.round(Theme.blurStrength.value.toFloat() * easeOutCubic(elapsed / DIM_FADE_MS))
     }
@@ -489,8 +489,8 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         /** Theme > Menu Layout: category list + module list + settings as three panels, instead of one panel per category. */
         val compact: Boolean get() = Theme.menuLayout.value == "Compact"
 
-        /** The GUI accent -- set in the Theme module. */
-        val clickGUIColor: Color get() = Theme.guiAccent.value
+        /** The accent (Mod Settings > Accent; white = no accent). Draw text or knobs on top of it with Palette.onAccent. */
+        val clickGUIColor: Color get() = Theme.accent.value
 
         // Open animation timings (ms) and sizes.
         private const val BACKGROUND_DIM = 0.35f

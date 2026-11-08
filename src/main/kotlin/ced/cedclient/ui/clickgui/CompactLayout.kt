@@ -134,42 +134,8 @@ class CompactLayout(
 
     private fun frame(x: Float, y: Float, w: Float, h: Float) {
         NVGRenderer.dropShadow(x, y, w, h, 12f, 2f, 12f)
-        val accent = ClickGUI.clickGUIColor
-        when (Theme.menuStyle.value) {
-            // Frosted glass: the blurred game shows through a sheen (white, or the accent for Tinted Glass), with a bright rim and a top highlight.
-            "Glass", "Tinted Glass" -> {
-                val tinted = Theme.menuStyle.value == "Tinted Glass"
-                NVGRenderer.rect(x, y, w, h, Colors.BLACK.withAlpha(0.22f).rgba, 14f)
-                NVGRenderer.gradientRect(
-                    x, y, w, h,
-                    (if (tinted) accent.withAlpha(0.5f) else Colors.WHITE.withAlpha(0.20f)).rgba,
-                    (if (tinted) accent.withAlpha(0.1f) else Colors.WHITE.withAlpha(0.05f)).rgba,
-                    Gradient.TopToBottom, 14f
-                )
-                NVGRenderer.hollowRect(x, y, w, h, 1.5f, Colors.WHITE.withAlpha(0.38f).rgba, 14f)
-                NVGRenderer.rect(x + 14f, y + 1f, w - 28f, 1.5f, Colors.WHITE.withAlpha(0.6f).rgba, 1f)
-            }
-            // Neon: a near-black panel ringed by a glowing accent outline.
-            "Neon" -> {
-                NVGRenderer.rect(x, y, w, h, tint(NEON_BG), 8f)
-                NVGRenderer.hollowRect(x - 1f, y - 1f, w + 2f, h + 2f, 6f, accent.withAlpha(0.22f).rgba, 9f)
-                NVGRenderer.hollowRect(x, y, w, h, 2f, accent.rgba, 8f)
-            }
-            // Gradient: the accent fades into the panel colour from the top.
-            "Gradient" -> {
-                NVGRenderer.gradientRect(x, y, w, h, accent.withAlpha(0.55f * Theme.menuOpacity.value.toFloat() / 100f).rgba, BG.withAlpha(Theme.menuOpacity.value.toFloat() / 100f).rgba, Gradient.TopToBottom, 8f)
-                NVGRenderer.hollowRect(x, y, w, h, 1.5f, EDGE.rgba, 8f)
-            }
-            // Minimal: a faint dark wash and a hairline, so the game stays visible.
-            "Minimal" -> {
-                NVGRenderer.rect(x, y, w, h, Colors.BLACK.withAlpha(0.40f * Theme.menuOpacity.value.toFloat() / 100f).rgba, 6f)
-                NVGRenderer.hollowRect(x, y, w, h, 1f, EDGE.withAlpha(0.8f).rgba, 6f)
-            }
-            else -> {
-                NVGRenderer.rect(x, y, w, h, tint(BG), 8f)
-                NVGRenderer.hollowRect(x, y, w, h, 1.5f, EDGE.rgba, 8f)
-            }
-        }
+        NVGRenderer.rect(x, y, w, h, tint(BG), 8f)
+        NVGRenderer.hollowRect(x, y, w, h, 1f, EDGE.rgba, 8f)
     }
 
     private fun centered(text: String, cx: Float, y: Float, size: Float, color: Int) {
@@ -308,23 +274,9 @@ class CompactLayout(
 
     companion object {
         /** Theme > Menu Opacity: the panel, card and settings backgrounds get this alpha; text, bars and outlines stay solid. */
-        fun tint(c: Color): Int {
-            val hover = c === CARD_HOVER
-            val card = hover || c === CARD
-            // Cards and the settings backdrop follow the style: see-through washes where the panel shows through, solid colours otherwise.
-            return when (if (ClickGUI.compact) Theme.menuStyle.value else "Solid") {
-                "Glass", "Tinted Glass" -> Colors.WHITE.withAlpha(if (hover) 0.14f else if (card) 0.07f else 0.05f).rgba
-                "Gradient" -> Colors.BLACK.withAlpha(if (hover) 0.42f else if (card) 0.30f else 0.28f).rgba
-                "Minimal" -> Colors.WHITE.withAlpha(if (hover) 0.10f else if (card) 0.05f else 0.03f).rgba
-                else -> c.withAlpha(Theme.menuOpacity.value.toFloat() / 100f).rgba
-            }
-        }
-
-        /** Theme > Menu Style "Glass" / "Tinted Glass": frosted panels (ignore Menu Opacity, always blur the game behind). */
-        val glass: Boolean get() = ClickGUI.compact && (Theme.menuStyle.value == "Glass" || Theme.menuStyle.value == "Tinted Glass")
+        fun tint(c: Color): Int = c.withAlpha(Theme.menuOpacity.value.toFloat() / 100f).rgba
 
         val BG = Color(18, 18, 26)
-        val NEON_BG = Color(8, 8, 14)
         val CARD = Color(30, 30, 42)
         val CARD_HOVER = Color(42, 42, 58)
         val EDGE = Color(52, 52, 72)

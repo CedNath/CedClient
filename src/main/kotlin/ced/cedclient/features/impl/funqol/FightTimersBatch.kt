@@ -86,7 +86,6 @@ object TickTimers : Module(
     val showSuffix = BooleanSetting("Show Suffix", true, "Text after the number (the unit by default).")
     val suffixText = TextSetting("Suffix", "", "The text after the number. Empty = the unit (t or s).").withDependency { showSuffix.value }
     val pingFix = BooleanSetting("Ping Compensation", false, "Subtract half your ping (in ticks) so the number matches the server a little better.")
-    val outline = BooleanSetting("Text Outline", false, "A black outline around the text so it reads on any background.")
     val background = BooleanSetting("Background", false, "The dark card behind each counter. Off: just the text.")
     val high = ColorSetting("High Color", Color(85, 255, 85), "More than two thirds left.")
     val mid = ColorSetting("Mid Color", Color(255, 170, 0), "Between a third and two thirds left.")
@@ -101,7 +100,7 @@ object TickTimers : Module(
     init {
         FightTicks.init()
         addSettings(showMaxor, showGoldor, showPy, showPad, format, showPrefix, maxorPrefix, goldorPrefix, pyPrefix, padPrefix,
-            showSuffix, suffixText, pingFix, outline, background, high, mid, low)
+            showSuffix, suffixText, pingFix, background, high, mid, low)
     }
 }
 
@@ -157,13 +156,8 @@ abstract class TickPanel(
         draw(g, row(if (v >= 0) v else sample))
     }
 
-    private fun text(t: String, x: Float, y: Float, size: Float, color: Int, s: Float) {
-        if (TickTimers.outline.value) {
-            val o = 0.9f * s
-            for ((dx, dy) in listOf(-o to 0f, o to 0f, 0f to -o, 0f to o, -o to -o, o to o, -o to o, o to -o)) HudCard.text(t, x + dx, y + dy, size, 0xFF000000.toInt())
-        }
-        HudCard.text(t, x, y, size, color)
-    }
+    @Suppress("UNUSED_PARAMETER")
+    private fun text(t: String, x: Float, y: Float, size: Float, color: Int, s: Float) = HudCard.text(t, x, y, size, color)
 
     private fun draw(g: GuiGraphicsExtractor, line: Triple<String, String, Int>) {
         val s = panelScale

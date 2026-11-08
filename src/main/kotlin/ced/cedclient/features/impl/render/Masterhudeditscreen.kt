@@ -135,15 +135,12 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         val sh = (e.lastHeight * e.panelScale).toInt()
         val y = if (e.panelY - 2 - BTN_H - 4 >= 22) e.panelY - 2 - BTN_H - 4 else e.panelY + sh + 6
         var x = e.panelX - 2
-        val style = HudStyle.of(e.label)
         context.text(this.font, e.label, x + 2, y + 3, 0xFFFFFFFF.toInt())
         x += this.font.width(e.label) + 10
         x += button(context, x, y, "-", mx, my) { e.adjustScale(-0.1f); e.save(); HudElement.layoutEdited() } + 2
         x += button(context, x, y, "+", mx, my) { e.adjustScale(0.1f); e.save(); HudElement.layoutEdited() } + 2
         x += button(context, x, y, "Reset", mx, my) { e.resetPosition(); e.save(); HudElement.layoutEdited() } + 2
-        x += button(context, x, y, "Style: " + if (HudStyle.hasOverride(e.label)) style else "Auto ($style)", mx, my, HudStyle.hasOverride(e.label)) { HudStyle.cycle(e.label) } + 2
-        HudCard.backgroundToggle(e)?.let { b -> x += button(context, x, y, "BG", mx, my, b.value) { b.value = !b.value } + 2 }
-        HudCard.outlineToggle(e).let { o -> button(context, x, y, "Outline", mx, my, o.value) { o.value = !o.value } }
+        HudCard.backgroundToggle(e)?.let { b -> button(context, x, y, "BG", mx, my, b.value) { b.value = !b.value } }
     }
 
     private fun drawPill(context: GuiGraphicsExtractor, mx: Int, my: Int) {

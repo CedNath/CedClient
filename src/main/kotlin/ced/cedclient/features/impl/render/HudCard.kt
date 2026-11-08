@@ -68,14 +68,14 @@ object HudCard {
 
     /**
      * Gives every HUD module a Background Opacity slider, unless it already has its own Background settings. The card
-     * itself and the Text Outline are chosen per HUD in the HUD editor (see [HudLook], [backgroundToggle], [outlineToggle]).
+     * itself is chosen per HUD in the HUD editor (see [HudLook], [backgroundToggle]).
      * Run once after the modules are registered and before the config loads, so the values are saved.
      */
     fun attachBackgroundSettings() {
         for (e in HudElement.all) {
             val m = e as? Module ?: continue
-            // Background / Text Outline are chosen in the HUD editor now, so the module's own toggles leave the menu (values still work and save).
-            m.settings.values.filter { it is BooleanSetting && (isBackgroundName(it.name) || it.name.contains("text outline", true)) }.forEach { it.hide() }
+            // Background is chosen in the HUD editor now, so the module's own toggle leaves the menu (its value still works and saves).
+            m.settings.values.filter { it is BooleanSetting && isBackgroundName(it.name) }.forEach { it.hide() }
             if (e.label == "Chat Alerts") continue // text only, no card
             val own = m.settings.values.filter { it.name.contains("background", true) }
             if (own.any { it is NumberSetting } || own.any { it.name.contains("opacity", true) || it.name.contains("color", true) }) continue
@@ -88,7 +88,7 @@ object HudCard {
     fun offByDefault(label: String) { cardOffByDefault += label }
 
     /** "Background", "Show Background", "Alert Background" ... but not a colour or an opacity. */
-    private fun isBackgroundName(name: String) =
+    internal fun isBackgroundName(name: String) =
         name.contains("background", true) && !name.contains("color", true) && !name.contains("opacity", true) && !name.contains("message", true)
 
     /** Is [label]'s card drawn: the editor's choice, else on unless it is a module that never had a card of its own. */
@@ -105,10 +105,6 @@ object HudCard {
         (e as? Module)?.settings?.values?.firstOrNull { it is BooleanSetting && match(it.name) } as? BooleanSetting
 
     private fun settingToggle(s: BooleanSetting) = Toggle({ s.value }, { s.value = it; ced.cedclient.config.ConfigManager.saveModulesOnly() })
-
-    /** Text Outline of [e] for the editor toolbar. */
-    fun outlineToggle(e: HudElement): Toggle =
-        ownSetting(e) { it.contains("text outline", true) }?.let(::settingToggle) ?: Toggle({ HudLook.outline(e.label) }, { HudLook.setOutline(e.label, it) })
 
     /** Background of [e] for the editor toolbar; null for a HUD that is text only. */
     fun backgroundToggle(e: HudElement): Toggle? {
