@@ -6,7 +6,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/CedNath/CedClient?style=for-the-badge&color=7c3aed&labelColor=1b1233)](https://github.com/CedNath/CedClient/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/CedNath/CedClient/total?style=for-the-badge&color=ffe14d&labelColor=1b1233)](https://github.com/CedNath/CedClient/releases)
-![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2%20%7C%2026.2-7c3aed?style=for-the-badge&labelColor=1b1233)
+![Minecraft](https://img.shields.io/badge/Minecraft-26.3-7c3aed?style=for-the-badge&labelColor=1b1233)
 ![Fabric](https://img.shields.io/badge/Fabric-client%20mod-7c3aed?style=for-the-badge&labelColor=1b1233)
 ![Language](https://img.shields.io/github/languages/top/CedNath/CedClient?style=for-the-badge&color=7c3aed&labelColor=1b1233)
 
@@ -40,13 +40,14 @@ CedClient is a client-side Fabric mod for **Hypixel SkyBlock**. It adds custom n
 
 ## Versions
 
-CedClient comes in two flavours, and each Minecraft version has its own branch and release files.
+CedClient comes in two flavours. Both are built from the same branch (`26.3`) and released together.
 
 | Version | Minecraft | What it is |
 | --- | --- | --- |
-| **Full** | 26.1.2 | Everything below, including the helpers and ESP features. Default branch. |
-| **Legit** | 26.1.2 | The same mod without automation and ESP features, for servers with strict rules. |
-| **Full** | 26.2 | A port of the full version to Minecraft 26.2. |
+| **Full** (`-cheat.jar`) | 26.3 | Everything below, including the helpers and ESP features. |
+| **Legit** (`-legit.jar`) | 26.3 | The same mod without automation and ESP features, for servers with strict rules. |
+
+Minecraft 26.1.2 and 26.2 stay on CedClient 4.6.9 (branches `archive/26.1.2` and `archive/26.2`).
 
 Always check the rules of the server you play on before using any client mod. You use the helpers at your own risk.
 
@@ -133,11 +134,11 @@ You need the JDK that your Minecraft version requires (see `build.gradle.kts`).
 ```bash
 git clone https://github.com/CedNath/CedClient.git
 cd CedClient
-git checkout 26.1.2        # or 26.2, or the Legit branch
+git checkout 26.3
 ./gradlew build
 ```
 
-The finished jar is in `build/libs/`. On Windows use `gradlew.bat build`.
+The finished jars (`-cheat` and `-legit`) are in `build/libs/`. On Windows use `gradlew.bat build`.
 
 ## Project layout
 
