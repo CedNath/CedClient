@@ -47,8 +47,9 @@ class DropdownSetting(
                 val bx = x + 8f; val by = rowY + 3f; val bw = width - 16f; val bh = optionHeight - 6f
                 if (rowHovered) NVGRenderer.rect(bx, by, bw, bh, Colors.gray38.rgba, 6f)
                 val selected = option == value
-                NVGRenderer.hollowRect(bx, by, bw, bh, 1f, (if (selected) Colors.MINECRAFT_BLUE else Colors.INPUT_BORDER).rgba, 6f)
-                val textColor = if (selected) Colors.MINECRAFT_BLUE.rgba else Colors.WHITE.rgba
+                val accent = ced.cedclient.ui.clickgui.ClickGUI.clickGUIColor.rgba
+                NVGRenderer.hollowRect(bx, by, bw, bh, 1f, if (selected) accent else Colors.INPUT_BORDER.rgba, 6f)
+                val textColor = if (selected) accent else ced.cedclient.ui.Palette.MUTED
                 NVGRenderer.text(option, bx + 8f, rowY + optionHeight / 2f - 9f, 18f, textColor, NVGRenderer.defaultFont)
             }
         }

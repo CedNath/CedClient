@@ -26,6 +26,10 @@ object Palette {
     const val BAD = 0xFFE5484D.toInt()
     const val BAD_SEE = 0xFFFF6B6F.toInt()
     const val GOLD = 0xFFE9B949.toInt()
+    /** Hovered buttons and rows: a neutral lift, never the accent. */
+    const val BUTTON_HOVER = 0xFF34353D.toInt()
+    /** Title strips of standalone screens (search, price input, keybinds ...). */
+    const val HEADER = 0xFF1A1B20.toInt()
     /** Text and knobs drawn on a light accent fill. */
     const val ON_ACCENT_DARK = 0xFF111216.toInt()
 

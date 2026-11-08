@@ -75,7 +75,7 @@ class SettingsPopup(
             actions.forEachIndexed { i, action ->
                 val bx = x + PAD + i * (bw + BUTTON_GAP)
                 val hovered = isAreaHovered(bx, actionsY, bw, BUTTON_HEIGHT, mouseX, mouseY)
-                NVGRenderer.rect(bx, actionsY, bw, BUTTON_HEIGHT, (if (hovered) ClickGUI.clickGUIColor else Colors.gray38).rgba, 4f)
+                NVGRenderer.rect(bx, actionsY, bw, BUTTON_HEIGHT, (if (hovered) ClickGUI.hoverFill else Colors.gray38).rgba, 4f)
                 val label = NVGRenderer.truncate(action.name, bw - 8f, 14f, font)
                 val tw = NVGRenderer.textWidth(label, 14f, font)
                 NVGRenderer.text(label, bx + bw / 2f - tw / 2f, actionsY + BUTTON_HEIGHT / 2f - 7f, 14f, Colors.WHITE.rgba, font)

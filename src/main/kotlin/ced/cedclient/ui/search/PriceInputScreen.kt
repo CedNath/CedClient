@@ -85,7 +85,7 @@ class PriceInputScreen(
         NVGRenderer.dropShadow(x, y, WIDTH, HEIGHT, 18f, 4f, RADIUS)
         NVGRenderer.rect(x, y, WIDTH, HEIGHT, Colors.gray26.withAlpha(0.97f).rgba, RADIUS)
         NVGRenderer.hollowRect(x, y, WIDTH, HEIGHT, 1f, accent.withAlpha(0.55f).rgba, RADIUS)
-        NVGRenderer.drawHalfRoundedRect(x, y, WIDTH, HEADER_H, accent.rgba, RADIUS, true)
+        NVGRenderer.drawHalfRoundedRect(x, y, WIDTH, HEADER_H, ced.cedclient.ui.Palette.HEADER, RADIUS, true)
         NVGRenderer.text(if (undercut) "Undercut lowest BIN by" else hint.ifEmpty { "Enter amount" }, x + PAD, y + 9f, 16f, Colors.WHITE.rgba, font)
         val esc = "Esc to cancel"
         NVGRenderer.text(esc, x + WIDTH - PAD - NVGRenderer.textWidth(esc, 11f, font), y + 12f, 11f, Colors.WHITE.withAlpha(0.7f).rgba, font)
@@ -115,7 +115,7 @@ class PriceInputScreen(
             toggleY = fy + FIELD_H + 27f
             val hovered = overToggle(mx, my)
             NVGRenderer.rect(toggleX, toggleY, toggleW, TOGGLE_H, (if (undercut) accent.withAlpha(if (hovered) 0.85f else 0.65f) else Colors.WHITE.withAlpha(if (hovered) 0.18f else 0.1f)).rgba, 5f)
-            NVGRenderer.text(label, toggleX + 8f, toggleY + 5f, 11f, Colors.WHITE.rgba, font)
+            NVGRenderer.text(label, toggleX + 8f, toggleY + 5f, 11f, if (undercut) ClickGUI.onAccentRgba else Colors.WHITE.rgba, font)
         }
     }
 

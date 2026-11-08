@@ -128,7 +128,7 @@ class DebugScreen : Screen(Component.literal("Debug Panel")) {
             if (cx + cwid > right) { cx = x + 16f; cy += 22f }
             val on = tag == t
             NVGRenderer.rect(cx, cy, cwid, 18f, if (on) ClickGUI.clickGUIColor.rgba else Colors.gray38.rgba, 9f)
-            NVGRenderer.text(label, cx + 7f, cy + 4f, 10f, if (on) Colors.WHITE.rgba else (t?.let { tagColor(it) } ?: Colors.WHITE.rgba), font)
+            NVGRenderer.text(label, cx + 7f, cy + 4f, 10f, if (on) ClickGUI.onAccentRgba else (t?.let { tagColor(it) } ?: Colors.WHITE.rgba), font)
             val picked = t
             hits += Hit(cx, cy, cwid, 18f) { tag = picked; scroll = 0f }
             cx += cwid + 6f

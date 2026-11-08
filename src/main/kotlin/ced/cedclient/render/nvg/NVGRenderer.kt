@@ -129,6 +129,9 @@ object NVGRenderer {
 
     fun globalAlpha(amount: Float) = nvgGlobalAlpha(vg, amount.coerceIn(0f, 1f))
 
+    /** Extra space between letters for the text drawn and measured after this (spaced uppercase headers); set back to 0 after. */
+    fun letterSpacing(px: Float) = nvgTextLetterSpacing(vg, px)
+
     fun pushScissor(x: Float, y: Float, w: Float, h: Float) {
         scissor = Scissor(scissor, x, y, w + x, h + y)
         scissor?.applyScissor()

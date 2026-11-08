@@ -69,7 +69,7 @@ class BlockPickerPopup(
             buttons.forEachIndexed { i, (text, _) ->
                 val bx = x + 12f + i * (bw + BUTTON_GAP)
                 val hovered = isAreaHovered(bx, buttonsY, bw, BUTTON_HEIGHT, mouseX, mouseY)
-                NVGRenderer.rect(bx, buttonsY, bw, BUTTON_HEIGHT, (if (hovered) ClickGUI.clickGUIColor else Colors.gray38).rgba, 4f)
+                NVGRenderer.rect(bx, buttonsY, bw, BUTTON_HEIGHT, (if (hovered) ClickGUI.hoverFill else Colors.gray38).rgba, 4f)
                 val label = NVGRenderer.truncate(text, bw - 8f, 14f, NVGRenderer.defaultFont)
                 val tw = NVGRenderer.textWidth(label, 14f, NVGRenderer.defaultFont)
                 NVGRenderer.text(label, bx + bw / 2f - tw / 2f, buttonsY + 5f, 14f, Colors.WHITE.rgba, NVGRenderer.defaultFont)

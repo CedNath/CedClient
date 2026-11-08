@@ -278,7 +278,7 @@ object ChatFeatures : Module(
                 items.forEachIndexed { i, item ->
                     val iy = y + PAD + i * ITEM_H
                     if (mouseX >= x && mouseX <= x + WIDTH && mouseY >= iy && mouseY < iy + ITEM_H) {
-                        NVGRenderer.rect(x + 2f, iy, WIDTH - 4f, ITEM_H, ClickGUI.clickGUIColor.rgba, 2f)
+                        NVGRenderer.rect(x + 2f, iy, WIDTH - 4f, ITEM_H, ClickGUI.hoverFill.rgba, 2f)
                     }
                     HudCard.text(item.label, x + 6f, iy + (ITEM_H - TEXT) / 2f, TEXT, Colors.WHITE.rgba)
                 }

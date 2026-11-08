@@ -41,7 +41,7 @@ class CustomDailyPopup : Popup("Custom Daily Tasks", WIDTH, HEIGHT) {
         input.draw(mouseX, mouseY)
         val addX = x + 12f + inputW + 8f
         val addHovered = isAreaHovered(addX, inputY, addW, 24f, mouseX, mouseY)
-        NVGRenderer.rect(addX, inputY, addW, 24f, (if (addHovered) ClickGUI.clickGUIColor else Colors.gray38).rgba, 4f)
+        NVGRenderer.rect(addX, inputY, addW, 24f, (if (addHovered) ClickGUI.hoverFill else Colors.gray38).rgba, 4f)
         NVGRenderer.text("Add", addX + addW / 2f - NVGRenderer.textWidth("Add", 15f, font) / 2f, inputY + 4f, 15f, Colors.WHITE.rgba, font)
 
         val tasks = DailyReset.manualTasks()

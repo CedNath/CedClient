@@ -32,11 +32,11 @@ class BooleanSetting(
         val trackX = x + width - trackW - 6f
         val trackY = y + height / 2f - trackH / 2f
         val t = toggleAnim.get(0f, 1f, !value)
-        NVGRenderer.rect(trackX, trackY, trackW, trackH, (if (value) Colors.MINECRAFT_DARK_GREEN else Colors.MINECRAFT_DARK_GRAY).rgba, trackH / 2f)
+        NVGRenderer.rect(trackX, trackY, trackW, trackH, if (value) ced.cedclient.ui.clickgui.ClickGUI.clickGUIColor.rgba else Colors.MINECRAFT_DARK_GRAY.rgba, trackH / 2f)
         if (isHovered) NVGRenderer.hollowRect(trackX, trackY, trackW, trackH, 1f, Colors.WHITE.rgba, trackH / 2f)
         val knob = trackH - 4f
         val knobX = trackX + 2f + (trackW - knob - 4f) * t
-        NVGRenderer.rect(knobX, trackY + 2f, knob, knob, (if (value) Colors.WHITE else Colors.MINECRAFT_GRAY).rgba, knob / 2f)
+        NVGRenderer.rect(knobX, trackY + 2f, knob, knob, if (value) ced.cedclient.ui.clickgui.ClickGUI.onAccentRgba else Colors.MINECRAFT_GRAY.rgba, knob / 2f)
 
         return height
     }

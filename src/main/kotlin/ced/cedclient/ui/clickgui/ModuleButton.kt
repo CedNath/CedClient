@@ -6,6 +6,7 @@ import ced.cedclient.features.settings.RenderableSetting
 import ced.cedclient.ui.animations.ColorAnimation
 import ced.cedclient.ui.animations.EaseInOutAnimation
 import ced.cedclient.render.nvg.NVGRenderer
+import ced.cedclient.ui.Palette
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.Color.Companion.brighter
 import ced.cedclient.utils.Color.Companion.darker
@@ -39,9 +40,9 @@ class ModuleButton(val module: Module, val panel: Panel) {
     val representableSettings = module.settings.values.filterIsInstance<RenderableSetting<*>>().filter { !it.inPopup }
     private val colorAnim = ColorAnimation(150)
 
-    private val color: Color
-        get() =
-            colorAnim.get(if (module.alwaysEnabled) ClickGUI.clickGUIColor.darker(0.6f) else ClickGUI.clickGUIColor, Colors.gray26, module.enabled || pressed()).brighter(1 + hover.percent() / 500f)
+    /** Name colour: white when on (or just pressed), faint grey when off. */
+    private val nameColor: Color
+        get() = colorAnim.get(ON_TEXT, OFF_TEXT, module.enabled || pressed())
 
     /** Action modules (one-shot buttons) light up briefly after a click instead of staying on. */
     private var pressedAt = 0L
@@ -62,20 +63,19 @@ class ModuleButton(val module: Module, val panel: Panel) {
         if (hoverHandler.percent() >= 100 && y >= panel.panelSetting.y + Panel.HEIGHT)
             ClickGUI.setDescription(module.description, x + Panel.WIDTH + 10f, y, hoverHandler)
 
-        if (!ClickGUI.roundedPanelBottom && lastModule) {
-            NVGRenderer.rect(x, y, Panel.WIDTH, Panel.HEIGHT - 10f, color.rgba)
-            NVGRenderer.drawHalfRoundedRect(x, y + Panel.HEIGHT - 10f, Panel.WIDTH, 10f, color.rgba, 5f, false)
-        } else {
-            NVGRenderer.rect(x, y, Panel.WIDTH, Panel.HEIGHT, color.rgba)
-        }
+        // No row fill: the panel card shows through. Hover is a faint white wash; enabled modules get the accent dot.
+        val hoverAlpha = 0.04f * hover.percent() / 100f
+        if (hoverAlpha > 0f) NVGRenderer.rect(x, y, Panel.WIDTH, Panel.HEIGHT, Colors.WHITE.withAlpha(hoverAlpha).rgba)
         NVGRenderer.text(
             shownName,
             x + Panel.WIDTH / 2 - NVGRenderer.textWidth(shownName, 21f, NVGRenderer.defaultFont) / 2, // centered; measured now, the font can change
             y + Panel.HEIGHT / 2 - 10.5f,
             21f,
-            Colors.WHITE.rgba,
+            nameColor.rgba,
             NVGRenderer.defaultFont
         )
+        if (module.enabled && !module.alwaysEnabled)
+            NVGRenderer.rect(x + Panel.WIDTH - 24f, y + Panel.HEIGHT / 2f - 4f, 8f, 8f, ClickGUI.clickGUIColor.rgba, 4f)
 
         if (representableSettings.isEmpty()) return Panel.HEIGHT
 
@@ -86,7 +86,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
 
         if (extendAnim.isAnimating() || extended) {
             // See-through backing (like Odin): the module rows stay solid, so where the settings end is clear.
-            NVGRenderer.rect(x, y + Panel.HEIGHT, Panel.WIDTH, totalHeight - Panel.HEIGHT, Colors.SETTING_BG.withAlpha(0.3f).rgba)
+            NVGRenderer.rect(x, y + Panel.HEIGHT, Panel.WIDTH, totalHeight - Panel.HEIGHT, Colors.WHITE.withAlpha(0.03f).rgba)
             for (setting in representableSettings) {
                 if (setting.isVisible) drawY += setting.render(x, y + drawY, mouseX / clickGuiScale, mouseY / clickGuiScale)
             }
@@ -153,10 +153,10 @@ class ModuleButton(val module: Module, val panel: Panel) {
         if (hoverHandler.percent() >= 100) ClickGUI.setDescription(module.description, x + w + 10f, y, hoverHandler)
 
         NVGRenderer.rect(x, y, w, h, CompactLayout.tint(if (hover.isHovered) CompactLayout.CARD_HOVER else CompactLayout.CARD), 8f)
-        // The module whose settings are open gets an accent bar on its left edge.
-        if (extended) NVGRenderer.rect(x, y + 10f, 4f, h - 20f, ClickGUI.clickGUIColor.rgba, 2f)
+        // The module whose settings are open gets a light outline (the pill already shows on / off).
+        if (extended) NVGRenderer.hollowRect(x, y, w, h, 1f, Colors.WHITE.withAlpha(0.22f).rgba, 8f)
         val on = module.enabled || pressed()
-        NVGRenderer.text(shownName, x + 20f, y + h / 2f - 10.5f, 21f, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, NVGRenderer.defaultFont)
+        NVGRenderer.text(shownName, x + 20f, y + h / 2f - 10.5f, 21f, if (on) Palette.TEXT else Palette.FAINT, NVGRenderer.defaultFont)
 
         val track = colorAnim.get(ClickGUI.clickGUIColor, CompactLayout.PILL_OFF, on).rgba
         if (module.isAction) {
@@ -166,7 +166,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
             val py = y + (h - ph) / 2f
             NVGRenderer.rect(px, py, pw, ph, track, 8f)
             val lw = NVGRenderer.textWidth("RUN", 15f, NVGRenderer.defaultFont)
-            NVGRenderer.text("RUN", px + pw / 2f - lw / 2f, py + ph / 2f - 7.5f, 15f, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, NVGRenderer.defaultFont)
+            NVGRenderer.text("RUN", px + pw / 2f - lw / 2f, py + ph / 2f - 7.5f, 15f, if (on) ClickGUI.onAccentRgba else CompactLayout.MUTED.rgba, NVGRenderer.defaultFont)
         } else {
             // A sliding switch: track in the accent when on, knob moving right.
             val tw = 44f
@@ -176,7 +176,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
             NVGRenderer.rect(tx, ty, tw, th, track, th / 2f)
             val knob = th - 6f
             val kx = tx + 3f + switchAnim.get(0f, tw - 6f - knob, !on)
-            NVGRenderer.rect(kx, ty + 3f, knob, knob, if (on) Colors.WHITE.rgba else CompactLayout.MUTED.rgba, knob / 2f)
+            NVGRenderer.rect(kx, ty + 3f, knob, knob, if (on) ClickGUI.onAccentRgba else CompactLayout.MUTED.rgba, knob / 2f)
         }
     }
 
@@ -189,7 +189,7 @@ class ModuleButton(val module: Module, val panel: Panel) {
             val section = setting.section
             if (section != null && section != lastSection) {
                 val tw = NVGRenderer.textWidth(section.uppercase(), 13f, NVGRenderer.defaultFont)
-                NVGRenderer.text(section.uppercase(), x + 14f, y + drawY + 8f, 13f, Colors.WHITE.withAlpha(0.55f).rgba, NVGRenderer.defaultFont)
+                NVGRenderer.text(section.uppercase(), x + 14f, y + drawY + 8f, 13f, Palette.MUTED, NVGRenderer.defaultFont)
                 NVGRenderer.rect(x + 14f + tw + 8f, y + drawY + 14f, CARD_WIDTH - 28f - tw - 8f, 1f, CompactLayout.EDGE.rgba)
                 drawY += SECTION_HEIGHT
             }
@@ -198,9 +198,9 @@ class ModuleButton(val module: Module, val panel: Panel) {
             // from the card's edges so labels and switches don't touch the border.
             val h = setting.getHeight()
             val cardH = h + 2 * CARD_PAD_Y
-            NVGRenderer.rect(x, y + drawY, CARD_WIDTH, cardH, Colors.WHITE.withAlpha(0.10f).rgba, 6f)
+            NVGRenderer.rect(x, y + drawY, CARD_WIDTH, cardH, Colors.WHITE.withAlpha(0.04f).rgba, 6f)
             setting.render(x + CARD_PAD_X, y + drawY + CARD_PAD_Y, mouseX / clickGuiScale, mouseY / clickGuiScale)
-            NVGRenderer.hollowRect(x, y + drawY, CARD_WIDTH, cardH, 1f, Colors.WHITE.withAlpha(0.28f).rgba, 6f)
+            NVGRenderer.hollowRect(x, y + drawY, CARD_WIDTH, cardH, 1f, Palette.EDGE, 6f)
             drawY += cardH + CARD_GAP
         }
         return drawY
@@ -229,6 +229,8 @@ class ModuleButton(val module: Module, val panel: Panel) {
         const val CARD_GAP = 6f
         const val CARD_WIDTH = Panel.WIDTH + 2 * CARD_PAD_X
         const val SECTION_HEIGHT = 28f
+        val ON_TEXT = Color(Palette.TEXT)
+        val OFF_TEXT = Color(Palette.FAINT)
     }
 
     fun getSettingHeight(): Float =

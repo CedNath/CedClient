@@ -91,7 +91,7 @@ class NumberSetting(
 
         val percent = if (max > min) ((value - min) / (max - min)).toFloat().coerceIn(0f, 1f) else 0f
         val fillWidth = (width - 12f) * percent
-        if (fillWidth > 0f) NVGRenderer.rect(x + 6f, barY, fillWidth, barHeight, Colors.MINECRAFT_BLUE.rgba, 1.5f)
+        if (fillWidth > 0f) NVGRenderer.rect(x + 6f, barY, fillWidth, barHeight, ced.cedclient.ui.clickgui.ClickGUI.clickGUIColor.rgba, 1.5f)
 
         return height
     }

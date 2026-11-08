@@ -123,8 +123,8 @@ class SearchOverlayScreen(
         NVGRenderer.hollowRect(x, y, WIDTH, h, 1f, accent.withAlpha(0.55f).rgba, RADIUS)
 
         // Header: accent strip with a soft fade into the panel.
-        NVGRenderer.drawHalfRoundedRect(x, y, WIDTH, HEADER_H, accent.rgba, RADIUS, true)
-        NVGRenderer.gradientRect(x, y + HEADER_H, WIDTH, 10f, accent.withAlpha(0.25f).rgba, Colors.TRANSPARENT.rgba, Gradient.TopToBottom, 0f)
+        NVGRenderer.drawHalfRoundedRect(x, y, WIDTH, HEADER_H, ced.cedclient.ui.Palette.HEADER, RADIUS, true)
+        NVGRenderer.gradientRect(x, y + HEADER_H, WIDTH, 10f, Colors.WHITE.withAlpha(0.03f).rgba, Colors.TRANSPARENT.rgba, Gradient.TopToBottom, 0f)
         val title = if (location == SearchOverlay.Location.BAZAAR) "Bazaar Search" else "Auction House Search"
         NVGRenderer.text(title, x + PAD, y + 9f, 16f, Colors.WHITE.rgba, font)
         val esc = "Esc to cancel"

@@ -87,7 +87,7 @@ class ChatAlertsPopup : Popup("Chat Alerts", WIDTH, HEIGHT) {
         input.draw(mouseX, mouseY)
 
         val addHovered = isAreaHovered(addButtonX, inputY, addButtonWidth, INPUT_HEIGHT, mouseX, mouseY)
-        NVGRenderer.rect(addButtonX, inputY, addButtonWidth, INPUT_HEIGHT, (if (addHovered) ClickGUI.clickGUIColor else Colors.gray38).rgba, 4f)
+        NVGRenderer.rect(addButtonX, inputY, addButtonWidth, INPUT_HEIGHT, (if (addHovered) ClickGUI.hoverFill else Colors.gray38).rgba, 4f)
         val addWidth = NVGRenderer.textWidth("Add", 16f, NVGRenderer.defaultFont)
         NVGRenderer.text("Add", addButtonX + addButtonWidth / 2f - addWidth / 2f, inputY + 5f, 16f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
 

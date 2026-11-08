@@ -101,7 +101,7 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         fun arrow(x: Float, hovered: Boolean, label: String) {
             val y = arrowY()
             NVGRenderer.rect(x, y, ARROW_W, ARROW_H, Colors.BLACK.withAlpha(if (hovered) 0.78f else 0.38f).rgba, 8f)
-            if (hovered) NVGRenderer.hollowRect(x, y, ARROW_W, ARROW_H, 1.5f, clickGUIColor.rgba, 8f)
+            if (hovered) NVGRenderer.hollowRect(x, y, ARROW_W, ARROW_H, 1f, ced.cedclient.ui.Palette.EDGE, 8f)
             val w = NVGRenderer.textWidth(label, 28f, NVGRenderer.defaultFont)
             NVGRenderer.text(label, x + (ARROW_W - w) / 2f, y + ARROW_H / 2f - 14f, 28f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
         }
@@ -492,6 +492,12 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         /** The accent (Mod Settings > Accent; white = no accent). Draw text or knobs on top of it with Palette.onAccent. */
         val clickGUIColor: Color get() = Theme.accent.value
 
+        /** Text or a knob drawn on an accent fill: dark on light accents (incl. none / white), white on deep ones. */
+        val onAccentRgba: Int get() = ced.cedclient.ui.Palette.onAccent(clickGUIColor.rgba)
+
+        /** Hovered buttons: a neutral lift instead of the accent. */
+        val hoverFill: Color = Color(ced.cedclient.ui.Palette.BUTTON_HOVER)
+
         // Open animation timings (ms) and sizes.
         private const val BACKGROUND_DIM = 0.35f
         private const val DIM_FADE_MS = 160f
@@ -529,9 +535,9 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
                 val screenH = NVGRenderer.canvasHeight / clickGuiScale
                 val x = if (x + w > screenW - 4f) x - w - Panel.WIDTH - 20f else x
                 val y = y.coerceAtMost(screenH - h - 4f)
-                NVGRenderer.rect(x, y, w, h, Colors.gray38.rgba, 5f)
+                NVGRenderer.rect(x, y, w, h, ced.cedclient.ui.Palette.PANEL, 8f)
 //#else
-//$                NVGRenderer.rect(x, y, area[2] - area[0] + 16f, area[3] - area[1] + 16f, Colors.gray38.rgba, 5f)
+//$                NVGRenderer.rect(x, y, area[2] - area[0] + 16f, area[3] - area[1] + 16f, ced.cedclient.ui.Palette.PANEL, 8f)
 //#endif
                 NVGRenderer.hollowRect(
                     x,
@@ -543,9 +549,9 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
 //$                    area[2] - area[0] + 16f,
 //$                    area[3] - area[1] + 16f,
 //#endif
-                    1.5f,
-                    clickGUIColor.rgba,
-                    5f
+                    1f,
+                    ced.cedclient.ui.Palette.EDGE,
+                    8f
                 )
                 NVGRenderer.drawWrappedString(
                     text,

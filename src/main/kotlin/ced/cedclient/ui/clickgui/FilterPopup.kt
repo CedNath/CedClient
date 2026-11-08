@@ -164,7 +164,7 @@ abstract class FilterPopup(
             inputY,
             addButtonWidth,
             INPUT_HEIGHT,
-            (if (addHovered) ClickGUI.clickGUIColor else Colors.gray38).rgba,
+            (if (addHovered) ClickGUI.hoverFill else Colors.gray38).rgba,
             4f
         )
         val addWidth = NVGRenderer.textWidth("Add", 16f, NVGRenderer.defaultFont)
@@ -265,7 +265,7 @@ abstract class FilterPopup(
             tabX + tabWidth / 2f - labelWidth / 2f,
             tabY + TAB_HEIGHT / 2f - 8f,
             15f,
-            Colors.WHITE.rgba,
+            if (selected) ClickGUI.onAccentRgba else Colors.WHITE.rgba,
             NVGRenderer.defaultFont
         )
     }
@@ -335,7 +335,7 @@ abstract class FilterPopup(
             val tw = NVGRenderer.textWidth(text, 12f, NVGRenderer.defaultFont)
             NVGRenderer.text(
                 text, cx + CHIP_WIDTH / 2f - tw / 2f, chipY + 2f, 12f,
-                (if (on) Colors.WHITE else Colors.MINECRAFT_GRAY).rgba, NVGRenderer.defaultFont
+                if (on) ClickGUI.onAccentRgba else Colors.MINECRAFT_GRAY.rgba, NVGRenderer.defaultFont
             )
         }
 //#endif

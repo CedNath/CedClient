@@ -181,7 +181,7 @@ class UpdateScreen(private val parent: Screen?, private val release: UpdateCheck
             for (b in buttons) {
                 val enabled = b.enabled()
                 val hovered = enabled && mouseXs in b.x..(b.x + b.w) && mouseYs in b.y..(b.y + BUTTON_H)
-                NVGRenderer.rect(b.x, b.y, b.w, BUTTON_H, (if (hovered) ClickGUI.clickGUIColor else Colors.gray38).rgba, 4f)
+                NVGRenderer.rect(b.x, b.y, b.w, BUTTON_H, (if (hovered) ClickGUI.hoverFill else Colors.gray38).rgba, 4f)
                 val label = b.label()
                 val lw = NVGRenderer.textWidth(label, 16f, font)
                 val color = if (enabled) Colors.WHITE.rgba else Colors.MINECRAFT_GRAY.rgba

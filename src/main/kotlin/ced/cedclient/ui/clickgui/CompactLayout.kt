@@ -177,7 +177,7 @@ class CompactLayout(
             lines.forEachIndexed { li, line ->
                 NVGRenderer.text(
                     line, t.x + TAB_PAD, t.y + (t.h - textH) / 2f + li * (TAB_TEXT + 2f), TAB_TEXT,
-                    if (selected) Colors.WHITE.rgba else TEXT.rgba, NVGRenderer.defaultFont
+                    if (selected) ClickGUI.onAccentRgba else TEXT.rgba, NVGRenderer.defaultFont
                 )
             }
         }
@@ -276,13 +276,14 @@ class CompactLayout(
         /** Theme > Menu Opacity: the panel, card and settings backgrounds get this alpha; text, bars and outlines stay solid. */
         fun tint(c: Color): Int = c.withAlpha(Theme.menuOpacity.value.toFloat() / 100f).rgba
 
-        val BG = Color(18, 18, 26)
-        val CARD = Color(30, 30, 42)
-        val CARD_HOVER = Color(42, 42, 58)
-        val EDGE = Color(52, 52, 72)
-        val MUTED = Color(150, 150, 172)
-        val TEXT = Color(214, 214, 228)
-        val PILL_OFF = Color(44, 44, 60)
+        // Opaque greys from the palette (tint() replaces the alpha with Menu Opacity, so these must stay solid).
+        val BG = Color(0x0D, 0x0E, 0x12)
+        val CARD = Color(0x1A, 0x1B, 0x20)
+        val CARD_HOVER = Color(0x22, 0x23, 0x29)
+        val EDGE = Color(ced.cedclient.ui.Palette.EDGE)
+        val MUTED = Color(ced.cedclient.ui.Palette.MUTED)
+        val TEXT = Color(ced.cedclient.ui.Palette.TEXT)
+        val PILL_OFF = Color(0x2A, 0x2B, 0x31)
 
         // The settings cards are a fixed width (ModuleButton), so the settings column is too.
         private const val MOD_W = 380f

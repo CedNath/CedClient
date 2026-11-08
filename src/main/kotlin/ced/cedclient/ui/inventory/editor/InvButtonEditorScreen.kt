@@ -209,8 +209,8 @@ class InvButtonEditorScreen : Screen(Component.literal("Inventory Button Editor"
         // Colors.gray26 + rounded corners instead of a flat vanilla fill.
         NVGRenderer.rect(panelX.toFloat(), panelY.toFloat(), panelWidth.toFloat(), panelHeight.toFloat(), Colors.gray26.withAlpha(0.933f).rgba, 5f)
         // Header used a one-off blue (0xFF3A8FFF) before; swapped for the
-        // ClickGUI accent purple so the editor reads as part of the same GUI.
-        NVGRenderer.drawHalfRoundedRect(panelX.toFloat(), panelY.toFloat(), panelWidth.toFloat(), 16f, ClickGUI.clickGUIColor.rgba, 5f, true)
+        // The neutral title strip the other CedClient screens use.
+        NVGRenderer.drawHalfRoundedRect(panelX.toFloat(), panelY.toFloat(), panelWidth.toFloat(), 16f, ced.cedclient.ui.Palette.HEADER, 5f, true)
 
         if (btn == null) {
             NVGRenderer.text("No button selected", panelX + 8f, panelY + 5f, 8f, Colors.WHITE.rgba, NVGRenderer.defaultFont)

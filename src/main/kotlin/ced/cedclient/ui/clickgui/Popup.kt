@@ -39,12 +39,12 @@ abstract class Popup(val title: String, val width: Float, val height: Float) {
     protected val closeButtonY get() = y + 8f
 
     fun draw(mouseX: Float, mouseY: Float) {
-        NVGRenderer.dropShadow(x, y, width, height, 10f, 3f, 5f)
-        NVGRenderer.rect(x, y, width, height, Colors.gray26.rgba, 5f)
-        NVGRenderer.hollowRect(x, y, width, height, 1.5f, ClickGUI.clickGUIColor.rgba, 5f)
+        NVGRenderer.dropShadow(x, y, width, height, 10f, 3f, 8f)
+        NVGRenderer.rect(x, y, width, height, ced.cedclient.ui.Palette.PANEL, 8f)
+        NVGRenderer.hollowRect(x, y, width, height, 1f, ced.cedclient.ui.Palette.EDGE, 8f)
 
-        val titleWidth = NVGRenderer.textWidth(title, 18f, NVGRenderer.defaultFont)
-        NVGRenderer.text(title, x + width / 2f - titleWidth / 2f, y + 10f, 18f, Colors.WHITE.rgba, NVGRenderer.defaultFont)
+        val titleWidth = NVGRenderer.textWidth(title, 18f, NVGRenderer.boldFont)
+        NVGRenderer.text(title, x + width / 2f - titleWidth / 2f, y + 10f, 18f, ced.cedclient.ui.Palette.TEXT, NVGRenderer.boldFont)
 
         val closeHovered = isAreaHovered(closeButtonX, closeButtonY, closeButtonSize, closeButtonSize, mouseX, mouseY)
         NVGRenderer.rect(

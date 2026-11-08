@@ -183,7 +183,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
                     val hov = my in top..(top + h) && hovered(sideX, ry, SIDE_W, SIDE_ROW - 2f, mx, my)
                     val canDrop = transfer != null && item is Side.Scope
                     when {
-                        isSel -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, ClickGUI.clickGUIColor.rgba, 4f)
+                        isSel -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
                         hov -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.gray38.rgba, 4f)
                         canDrop -> NVGRenderer.hollowRect(sideX, ry, SIDE_W, SIDE_ROW - 2f, 1f, ClickGUI.clickGUIColor.rgba, 4f)
                     }
@@ -238,7 +238,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             val isActive = name == active
             val hov = my in top..(top + h) && hovered(paneX, ry, paneW, ROW_H - 2f, mx, my)
             when {
-                isActive -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, ClickGUI.clickGUIColor.withAlpha(0.6f).rgba, 4f)
+                isActive -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
                 hov -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.gray38.rgba, 4f)
             }
             clipHit(paneX, ry, paneW, ROW_H - 2f, top, h, left = {
@@ -298,7 +298,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             if (ry + ROW_H < top || ry > top + h) return@forEachIndexed
             val hov = my in top..(top + h) && hovered(paneX, ry, paneW, ROW_H - 2f, mx, my)
             when {
-                name == current -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, ClickGUI.clickGUIColor.withAlpha(0.6f).rgba, 4f)
+                name == current -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
                 hov -> NVGRenderer.rect(paneX, ry, paneW, ROW_H - 2f, Colors.gray38.rgba, 4f)
             }
             val countText = "$count blocks"
@@ -387,7 +387,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
             if (ry + SIDE_ROW < top || ry > top + h) return@forEachIndexed
             val hov = my in top..(top + h) && hovered(sideX, ry, SIDE_W, SIDE_ROW - 2f, mx, my)
             when {
-                i == sourceIndex -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, ClickGUI.clickGUIColor.rgba, 4f)
+                i == sourceIndex -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.WHITE.withAlpha(0.12f).rgba, 4f)
                 hov -> NVGRenderer.rect(sideX, ry, SIDE_W, SIDE_ROW - 2f, Colors.gray38.rgba, 4f)
             }
             val color = if (src.label.startsWith("cb:")) Colors.MINECRAFT_AQUA else Colors.WHITE
@@ -528,7 +528,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
     ) {
         val color = when {
             !enabled -> Colors.gray38.withAlpha(0.5f)
-            hovered(bx, by, bw, bh, mx, my) -> ClickGUI.clickGUIColor
+            hovered(bx, by, bw, bh, mx, my) -> ClickGUI.hoverFill
             else -> Colors.gray38
         }
         NVGRenderer.rect(bx, by, bw, bh, color.rgba, 4f)
@@ -545,7 +545,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
         val hov = hovered(bx, by, SMALL_W, bh, mx, my)
         val color = when {
             hov && danger -> Colors.MINECRAFT_RED.withAlpha(0.8f)
-            hov -> ClickGUI.clickGUIColor
+            hov -> ClickGUI.hoverFill
             else -> Colors.gray26
         }
         NVGRenderer.rect(bx, by, SMALL_W, bh, color.rgba, 3f)
@@ -560,7 +560,7 @@ class CosmeticPresetScreen : Screen(Component.literal("Cosmetic Presets")) {
         val hov = enabled && hovered(cx, cy, w, CHIP_H, mx, my)
         val color = when {
             selected && danger -> Colors.MINECRAFT_RED.withAlpha(0.7f)
-            selected -> ClickGUI.clickGUIColor
+            selected -> Colors.WHITE.withAlpha(0.18f)
             hov -> Colors.gray38.withAlpha(1f)
             !enabled -> Colors.gray38.withAlpha(0.35f)
             else -> Colors.gray38

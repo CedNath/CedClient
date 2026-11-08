@@ -130,7 +130,7 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
 
         NVGRenderer.dropShadow(left.toFloat(), top.toFloat(), winW.toFloat(), winH.toFloat(), 10f, 2f, 5f)
         NVGRenderer.rect(left.toFloat(), top.toFloat(), winW.toFloat(), winH.toFloat(), 0xEE1A1A1A.toInt(), 5f)
-        NVGRenderer.drawHalfRoundedRect(left.toFloat(), top.toFloat(), winW.toFloat(), headerH.toFloat(), accent, 5f, true)
+        NVGRenderer.drawHalfRoundedRect(left.toFloat(), top.toFloat(), winW.toFloat(), headerH.toFloat(), ced.cedclient.ui.Palette.HEADER, 5f, true)
         NVGRenderer.text("Command Keybinds", left + 8f, top + 5f, 8f, 0xFFFFFFFF.toInt(), f)
 
         val closeHover = inBox(mx, my, left + winW - 16, top + 3, 12, 12)
@@ -144,7 +144,7 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
             if (y + catRowH > top + winH - 30) return@forEachIndexed
             val sel = cat == selectedCat
             val hover = inBox(mx, my, left + 6, y, catW - 8, catRowH - 2)
-            if (sel) NVGRenderer.rect(left + 6f, y.toFloat(), catW - 8f, catRowH - 2f, accent, 3f)
+            if (sel) NVGRenderer.rect(left + 6f, y.toFloat(), catW - 8f, catRowH - 2f, 0x1FFFFFFF, 3f)
             else if (hover) NVGRenderer.rect(left + 6f, y.toFloat(), catW - 8f, catRowH - 2f, 0xFF333333.toInt(), 3f)
             val count = if (cat == null) CommandKeybinds.binds.size else CommandKeybinds.binds.count { it.category == cat }
             NVGRenderer.text(NVGRenderer.truncate(cat ?: allLabel, catW - 36f, 8f, f), left + 10f, y + 4f, 8f, 0xFFFFFFFF.toInt(), f)
@@ -229,7 +229,7 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
         NVGRenderer.rect(left.toFloat(), top.toFloat(), winW.toFloat(), winH.toFloat(), 0xAA000000.toInt(), 5f)
         NVGRenderer.dropShadow(px.toFloat(), py.toFloat(), popW.toFloat(), popH.toFloat(), 10f, 2f, 5f)
         NVGRenderer.rect(px.toFloat(), py.toFloat(), popW.toFloat(), popH.toFloat(), 0xFF1E1E1E.toInt(), 5f)
-        NVGRenderer.drawHalfRoundedRect(px.toFloat(), py.toFloat(), popW.toFloat(), headerH.toFloat(), accent, 5f, true)
+        NVGRenderer.drawHalfRoundedRect(px.toFloat(), py.toFloat(), popW.toFloat(), headerH.toFloat(), ced.cedclient.ui.Palette.HEADER, 5f, true)
         NVGRenderer.text("Where can it trigger?  (nothing ticked = anywhere)", px + 8f, py + 5f, 8f, 0xFFFFFFFF.toInt(), f)
 
         NVGRenderer.text("Islands", px + 6f, py + headerH + 3f, 7f, 0xFF888888.toInt(), f)
@@ -239,7 +239,7 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
             val on = island.name in b.islands
             val hover = inBox(mx, my, x, y, popCellW - 2, popCellH - 2)
             NVGRenderer.rect(x.toFloat(), y.toFloat(), popCellW - 2f, popCellH - 2f, if (on) accent else if (hover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-            NVGRenderer.text(NVGRenderer.truncate(island.displayName, popCellW - 10f, 7f, f), x + 4f, y + 4f, 7f, 0xFFFFFFFF.toInt(), f)
+            NVGRenderer.text(NVGRenderer.truncate(island.displayName, popCellW - 10f, 7f, f), x + 4f, y + 4f, 7f, if (on) ClickGUI.onAccentRgba else 0xFFFFFFFF.toInt(), f)
         }
 
         val phaseY = popGridY() + ((IslandState.Island.entries.size + popCols - 1) / popCols) * popCellH + 14
@@ -249,7 +249,7 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
             val on = p in b.phases
             val hover = inBox(mx, my, x, phaseY, 44, popCellH - 2)
             NVGRenderer.rect(x.toFloat(), phaseY.toFloat(), 44f, popCellH - 2f, if (on) accent else if (hover) 0xFF3A3A3A.toInt() else 0xFF2A2A2A.toInt(), 3f)
-            NVGRenderer.text(p, x + 17f, phaseY + 4f, 7f, 0xFFFFFFFF.toInt(), f)
+            NVGRenderer.text(p, x + 17f, phaseY + 4f, 7f, if (on) ClickGUI.onAccentRgba else 0xFFFFFFFF.toInt(), f)
         }
 
         button(px + popW - 124, phaseY, 56, popCellH - 2, "Clear", mx, my)

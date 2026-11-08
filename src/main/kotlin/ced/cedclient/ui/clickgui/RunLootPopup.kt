@@ -73,7 +73,7 @@ class RunLootPopup : Popup("Run Loot", WIDTH * K, HEIGHT * K) {
     private fun button(bx: Float, by: Float, label: String, mouseX: Float, mouseY: Float) {
         val font = NVGRenderer.defaultFont
         val hovered = isAreaHovered(bx, by, buttonW, (24f * K), mouseX, mouseY)
-        NVGRenderer.rect(bx, by, buttonW, (24f * K), (if (hovered) ClickGUI.clickGUIColor else Colors.gray38).rgba, (4f * K))
+        NVGRenderer.rect(bx, by, buttonW, (24f * K), (if (hovered) ClickGUI.hoverFill else Colors.gray38).rgba, (4f * K))
         NVGRenderer.text(label, bx + buttonW / 2f - NVGRenderer.textWidth(label, (13f * K), font) / 2f, by + (5f * K), (13f * K), Colors.WHITE.rgba, font)
     }
 

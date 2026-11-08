@@ -70,7 +70,7 @@ class ChatFilterPopup : Popup("Chat Filters", WIDTH, HEIGHT) {
             inputY,
             addButtonWidth,
             INPUT_HEIGHT,
-            (if (addHovered) ClickGUI.clickGUIColor else Colors.gray38).rgba,
+            (if (addHovered) ClickGUI.hoverFill else Colors.gray38).rgba,
             4f
         )
         val addWidth = NVGRenderer.textWidth("Add", 16f, NVGRenderer.defaultFont)
