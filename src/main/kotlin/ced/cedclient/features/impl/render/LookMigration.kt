@@ -23,6 +23,9 @@ object LookMigration {
             val m = e as? Module ?: continue
             m.settings.values.filter { it is BooleanSetting && HudCard.isBackgroundName(it.name) }.forEach { it.reset(); toggles++ }
         }
+        // Dungeon Splits: tighter lines and plain split names are the new defaults.
+        ced.cedclient.features.impl.funqol.DungeonSplits.settings.values
+            .filter { it.name == "Line Spacing" || it.name == "Colored Split Names" }.forEach { it.reset() }
         Theme.lookVersion.value = CURRENT.toDouble()
         ConfigManager.saveModulesOnly()
         Debug.line("Look Migration", "reset $looks HUD editor choices and $toggles Background toggles")

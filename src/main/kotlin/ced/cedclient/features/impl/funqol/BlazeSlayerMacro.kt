@@ -179,23 +179,32 @@ object BlazeSlayerMacro : Module(
         override var lastHeight = 0
             private set
 
+        /** Full card: title + status, the boss count as the headline, slain mobs as a row. */
         fun draw(g: GuiGraphicsExtractor) {
             val s = panelScale
-            val titleSize = 12f * s
-            val size = 10f * s
-            val pad = 7f * s
-            val lineH = 12.5f * s
-            val title = "Slayer Macro"
-            val lines = listOf(BlazeSlayerMacro.status, "${BlazeSlayerMacro.slain} slain, ${BlazeSlayerMacro.bosses} bosses")
-            val w = HudCard.steady(label, maxOf(HudCard.width(title, titleSize), lines.maxOf { HudCard.width(it, size) }) + pad * 2, s)
-            val top = pad + titleSize + 4f * s
-            val h = top + lines.size * lineH + pad - (lineH - size)
+            val size = 9f * s
+            val padX = 12f * s
+            val padY = 10f * s
+            val title = "Blaze Slayer"
+            val status = BlazeSlayerMacro.status
+            val bosses = BlazeSlayerMacro.bosses.toString()
+            val rows = listOf(HudCard.Row("Mobs slain", BlazeSlayerMacro.slain.toString()))
+            val inner = maxOf(
+                HudCard.width(title, size * 1.15f), HudCard.width(status, size * 0.9f),
+                HudCard.width(bosses, size * 2.1f) + HudCard.width("bosses", size) + size, HudCard.rowsWidth(rows, size),
+            )
+            val w = HudCard.steady(label, inner + padX * 2, s)
+            val headH = HudCard.headerHeight(size, true)
+            val lineY = padY + headH + HudCard.headlineHeight(size) + 4f * s
+            val h = lineY + 6f * s + HudCard.rowsHeight(rows.size, size) + padY
             lastWidth = (w / s).toInt()
             lastHeight = (h / s).toInt()
             HudCard.draw(g, panelX, panelY) {
                 HudCard.card(w, h, s)
-                HudCard.text(title, pad, pad, titleSize, 0xFFFFFFFF.toInt())
-                lines.forEachIndexed { i, t -> HudCard.text(t, pad, top + i * lineH, size, 0xFFAAAAAA.toInt()) }
+                HudCard.header(title, status, padX, padY, size)
+                HudCard.headline(bosses, "bosses", null, padX, padY + headH, w - padX * 2, size)
+                HudCard.divider(padX, lineY, w - padX * 2, s)
+                HudCard.rows(rows, padX, lineY + 6f * s, w - padX * 2, size)
             }
         }
 

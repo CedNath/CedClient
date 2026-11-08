@@ -6,6 +6,7 @@ import ced.cedclient.events.ChatMessageEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
+import ced.cedclient.features.impl.render.HudCard
 import ced.cedclient.features.impl.render.HudElement
 import ced.cedclient.features.settings.ActionSetting
 import ced.cedclient.features.settings.BooleanSetting
@@ -20,7 +21,6 @@ import ced.cedclient.ui.clickgui.SettingsPopup
 import ced.cedclient.utils.Color
 import ced.cedclient.utils.TpsTracker
 import ced.cedclient.render.nvg.NVGRenderer
-import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.state.DungeonState
 import com.google.gson.GsonBuilder
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -82,14 +82,11 @@ object DungeonSplits : Module(
     private val showLagLost = BooleanSetting("Lag Lost", true, "Real time minus tick time: how much of the run was lost to server lag.")
 
     private val showBackground = BooleanSetting("Background", false)
-    private val cornerRadius = NumberSetting("Corner Radius", 5.0, 0.0, 12.0, 1.0)
     private val padding = NumberSetting("Padding", 6.0, 0.0, 16.0, 1.0)
-    private val lineSpacing = NumberSetting("Line Spacing", 4.0, 0.0, 12.0, 1.0)
+    private val lineSpacing = NumberSetting("Line Spacing", 2.0, 0.0, 12.0, 1.0)
     private val decimals = NumberSetting("Decimals", 2.0, 0.0, 3.0, 1.0, "Decimal places on split times.")
-    private val textShadow = BooleanSetting("Text Shadow", false)
-    private val coloredNames = BooleanSetting("Colored Split Names", true, "Give each split its own colour (off: all names use Text Color).")
+    private val coloredNames = BooleanSetting("Colored Split Names", false, "Give each split its own colour (off: all names use Text Color).")
 
-    private val bgColor = ColorSetting("Background Color", Color(16, 16, 20, 0.7f))
     private val textColor = ColorSetting("Text Color", Color(255, 255, 255))
     private val runningColor = ColorSetting("Running Color", Color(255, 224, 102), "The split currently running.")
     private val aheadColor = ColorSetting("Ahead Color", Color(90, 220, 90), "Faster than your PB.")
@@ -106,10 +103,10 @@ object DungeonSplits : Module(
                         showHeader, onlyStarted, terminalSplits, showBossEntry, showRunTime, showEstimate, showPbRow, showLagLost,
                     ))),
                     listOf(SettingsPopup.Section("Look", listOf(
-                        showBackground, cornerRadius, padding, lineSpacing, decimals, textShadow, coloredNames,
+                        showBackground, padding, lineSpacing, decimals, coloredNames,
                     ))),
                     listOf(SettingsPopup.Section("Colors", listOf(
-                        bgColor, textColor, runningColor, aheadColor, behindColor, upcomingColor, tickColor,
+                        textColor, runningColor, aheadColor, behindColor, upcomingColor, tickColor,
                     ))),
                 ),
             )
@@ -119,8 +116,8 @@ object DungeonSplits : Module(
     /** Settings that only live in the Customize HUD window (not the module's dropdown). */
     private val popupOnly: List<RenderableSetting<*>> = listOf(
         showHeader, onlyStarted, terminalSplits, showBossEntry, showRunTime, showEstimate, showPbRow, showLagLost,
-        showBackground, cornerRadius, padding, lineSpacing, decimals, textShadow, coloredNames,
-        bgColor, textColor, runningColor, aheadColor, behindColor, upcomingColor, tickColor,
+        showBackground, padding, lineSpacing, decimals, coloredNames,
+        textColor, runningColor, aheadColor, behindColor, upcomingColor, tickColor,
     )
 
     // ------------------------------------------------------------------
@@ -443,7 +440,6 @@ object DungeonSplits : Module(
         val rows = buildRows(list, t, tk, pb, preview)
 
         val s = panelScale
-        val font = NVGRenderer.defaultFont
         val size = 10f * s
         val secondSize = size * 0.9f
         val pad = padding.value.toFloat() * s
@@ -452,42 +448,30 @@ object DungeonSplits : Module(
         val header = if (showHeader.value) "$f Splits" else null
         val headerH = if (header != null) lineH + 3f * s else 0f
 
-        val nameW = rows.maxOfOrNull { NVGRenderer.textWidth(it.name, size, font) + if (it.indent) 8f * s else 0f } ?: 0f
-        val timeW = rows.maxOfOrNull { NVGRenderer.textWidth(it.time, size, font) } ?: 0f
-        val secondW = rows.mapNotNull { it.second }.maxOfOrNull { NVGRenderer.textWidth(it, secondSize, font) + 8f * s } ?: 0f
-        val w = maxOf(pad * 2 + nameW + gap + timeW + secondW, header?.let { pad * 2 + NVGRenderer.textWidth(it, size, font) } ?: 0f)
+        val nameW = rows.maxOfOrNull { HudCard.width(it.name, size) + if (it.indent) 8f * s else 0f } ?: 0f
+        val timeW = rows.maxOfOrNull { HudCard.width(it.time, size) } ?: 0f
+        val secondW = rows.mapNotNull { it.second }.maxOfOrNull { HudCard.width(it, secondSize) + 8f * s } ?: 0f
+        val w = maxOf(pad * 2 + nameW + gap + timeW + secondW, header?.let { pad * 2 + HudCard.width(it, size) } ?: 0f)
         val h = pad * 2 + headerH + lineH * rows.size - (lineH - size)
 
         lastWidth = (w / s).toInt()
         lastHeight = (h / s).toInt()
 
-        val shadow = textShadow.value
-        fun text(str: String, x: Float, y: Float, sz: Float, color: Int) =
-            if (shadow) NVGRenderer.textShadow(str, x, y, sz, color, font) else NVGRenderer.text(str, x, y, sz, color, font)
-
-        val full = {
-            val ratio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
-            NVGRenderer.scale(ratio, ratio)
-            NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
-            if (showBackground.value) NVGRenderer.rect(0f, 0f, w, h, BG, cornerRadius.value.toFloat() * s)
-
+        // Through HudCard: the shared card when Background is on, see-through text with the halo when it is off.
+        HudCard.draw(g, panelX, panelY, behindLeap = true) {
+            if (showBackground.value) HudCard.card(w, h, s)
             var y = pad
             header?.let {
-                text(it, pad, y, size, WHITE)
+                HudCard.text(it, pad, y, size, WHITE, bold = true)
                 y += headerH
             }
             for (r in rows) {
-                text(r.name, pad + if (r.indent) 8f * s else 0f, y, size, r.color)
-                val tx = w - pad - secondW - NVGRenderer.textWidth(r.time, size, font)
-                text(r.time, tx, y, size, r.timeColor)
-                r.second?.let { d ->
-                    text(d, w - pad - NVGRenderer.textWidth(d, secondSize, font), y + 0.5f * s, secondSize, r.secondColor)
-                }
+                HudCard.text(r.name, pad + if (r.indent) 8f * s else 0f, y, size, r.color)
+                HudCard.text(r.time, w - pad - secondW - HudCard.width(r.time, size), y, size, r.timeColor)
+                r.second?.let { d -> HudCard.text(d, w - pad - HudCard.width(d, secondSize), y + 0.5f * s, secondSize, r.secondColor) }
                 y += lineH
             }
         }
-        if (LeapMenu.defer(full)) return
-        NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = full)
     }
 
     /** The separate "Current Split Timer" panel: the running split's name and time. Shows a sample in the HUD editor. */
@@ -724,7 +708,6 @@ object DungeonSplits : Module(
     private const val MAX_SCALE = 3.0f
 
     // Colours come from the Customize HUD settings.
-    private val BG get() = bgColor.value.rgba
     private val WHITE get() = textColor.value.rgba
     private val GREY get() = upcomingColor.value.rgba
     private val YELLOW get() = runningColor.value.rgba

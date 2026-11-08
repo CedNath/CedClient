@@ -50,6 +50,17 @@ Run offline: `./gradlew runClient -Pdevauth=0` (add `-PmixinAudit=1` to load eve
 ## Hypixel only (cannot test in singleplayer, build only)
 - [ ] Everything SkyBlock: slayers, dungeons, Kuudra, terminals, party, chat features, Spotify
 
+## New look (2026-11-08, docs/superpowers/specs/2026-11-08-premium-look-design.md)
+Checked in singleplayer: menu (both accents), accent picker, HUD editor previews, one-time look reset.
+- [ ] Blaze Slayer status card during a real boss: title, status line, boss count headline, mobs slain row
+- [ ] Dungeon Splits during a real run: see-through, tight lines, halo readable over bright floors and lava
+- [ ] Secret HUD, Room Times, Leap Counter, Tick Timers, Deployable / Ragnarock timers in a run: see-through with halo, no card
+- [ ] Run Profit, Daily Tasks, Vampire Slayer, Music, Critter Safari: shared dark card, palette colours (their header / headline layout is a follow-up)
+- [ ] Item rarity / Hypixel-coloured text inside HUDs keeps its game colours (only HUD-picked greys / greens / reds / golds are remapped)
+- [ ] `[CC]` chat prefix follows the accent
+- Left on their own look on purpose: Dungeon Map, stat bars (Health / Mana ...), item cooldown numbers on hotbar slots, Fun Visuals, Screenshot Preview
+- Follow-ups: standalone screens (search overlay, price input, command keybinds, cosmetic presets, button editor, update screen, debug panel) only got readability fixes, not the full panel restyle
+
 ## Build and release
 - [ ] `./gradlew build` makes `-cheat` and `-legit` jars; legit jar has no cheat code
 - [ ] `//#if CHEAT` blocks still balanced after the port (the legit build caught two)

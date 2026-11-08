@@ -181,14 +181,96 @@ object HudCard {
      * a HUD with its Background off gets a soft dark halo so it reads on bright scenes too. Pure black is left alone:
      * HUDs draw it on purpose as an outline or shadow.
      */
-    fun text(text: String, x: Float, y: Float, size: Float, color: Int) {
+    fun text(text: String, x: Float, y: Float, size: Float, color: Int, bold: Boolean = false, remap: Boolean = true) {
+        val f = if (bold) NVGRenderer.boldFont else font
         val deliberateBlack = luminance(color and 0xFFFFFF) < 0.002
+        val color = if (remap && !deliberateBlack) paletteOf(color) else color
         if (!deliberateBlack && !cardOn(currentLabel)) {
             val label = currentLabel ?: "?"
             if (haloLogged.add(label)) Debug.line("HUD Look", "halo text for $label")
-            NVGRenderer.textHalo(text, x, y, size, (color ushr 24) / 255f, font)
+            NVGRenderer.textHalo(text, x, y, size, (color ushr 24) / 255f, f)
         }
-        NVGRenderer.text(text, x, y, size, if (deliberateBlack) color else legible(color), font)
+        NVGRenderer.text(text, x, y, size, if (deliberateBlack) color else legible(color), f)
+    }
+
+    /** HUDs whose colours mean a category (class colours on the map), so [paletteOf] leaves them alone. */
+    private val KEEP_COLORS = setOf("Dungeon Map")
+
+    /**
+     * The palette version of a colour a HUD picked itself (Minecraft's legacy greys, greens, reds and golds), so every
+     * HUD speaks the same colours. Other colours (aqua, purple, blue ... often a category) pass through. Game text drawn
+     * with [componentText] is never remapped.
+     */
+    fun paletteOf(argb: Int): Int {
+        if (currentLabel == null || currentLabel in KEEP_COLORS) return argb
+        val mapped = when (argb and 0xFFFFFF) {
+            0x55FF55, 0x00AA00 -> Palette.GOOD_SEE
+            0xFF5555, 0xAA0000 -> Palette.BAD_SEE
+            0xFFAA00, 0xFFD700 -> Palette.GOLD
+            0xFFFFFF, 0xE8E8E8, 0xDDDDDD -> Palette.TEXT
+            0xBBBBBB, 0xAAAAAA -> Palette.MUTED_SEE
+            0x888888, 0x777777, 0x555555 -> Palette.FAINT
+            else -> return argb
+        }
+        return (argb and 0xFF000000.toInt()) or (mapped and 0xFFFFFF)
+    }
+
+    /** A label / value row of a full card ([rows]) or a compact HUD ([compact]). */
+    data class Row(val label: String, val value: String, val color: Int = Palette.TEXT)
+
+    /** Full card header: bold title, then a muted subtitle ("Inferno Demonlord IV · Spawning") when there is one. */
+    fun headerHeight(size: Float, subtitle: Boolean): Float = size * 1.25f + if (subtitle) size * 1.15f else 0f
+
+    fun header(title: String, subtitle: String?, x: Float, y: Float, size: Float) {
+        text(title, x, y, size * 1.15f, Palette.TEXT, bold = true)
+        if (subtitle != null) text(subtitle, x, y + size * 1.3f, size * 0.9f, Palette.MUTED)
+    }
+
+    /** Full card headline: one big number in the accent, a muted label after it, an optional faint note at the right edge. */
+    fun headlineHeight(size: Float): Float = size * 2.3f
+
+    fun headline(value: String, label: String, note: String?, x: Float, y: Float, w: Float, size: Float) {
+        val big = size * 2.1f
+        text(value, x, y, big, Theme.hudAccentRgba, bold = true, remap = false)
+        text(label, x + width(value, big) + size * 0.6f, y + big - size * 1.15f, size, Palette.MUTED)
+        if (note != null) text(note, x + w - width(note, size * 0.9f), y + big - size * 1.1f, size * 0.9f, Palette.FAINT)
+    }
+
+    fun divider(x: Float, y: Float, w: Float, scale: Float) = NVGRenderer.rect(x, y, w, scale, Palette.LINE, 0f)
+
+    /** Widest "label  value" of [rows] at [size], for sizing a card. */
+    fun rowsWidth(rows: List<Row>, size: Float): Float = rows.maxOfOrNull { width(it.label, size) + size * 2f + width(it.value, size) } ?: 0f
+
+    /** Full card rows: label in muted on the left, value on the right edge. Returns their height. */
+    fun rows(rows: List<Row>, x: Float, y: Float, w: Float, size: Float): Float {
+        val step = size * 1.5f
+        rows.forEachIndexed { i, r ->
+            val ry = y + i * step
+            text(r.label, x, ry, size, Palette.MUTED)
+            text(r.value, x + w - width(r.value, size), ry, size, r.color)
+        }
+        return rows.size * step - (step - size)
+    }
+
+    /** Height of [rows] drawn by [rows]. */
+    fun rowsHeight(count: Int, size: Float): Float = if (count == 0) 0f else count * size * 1.5f - size * 0.5f
+
+    /** Compact (see-through) HUD lines: "label value", label muted, tight line step. An empty label draws the value alone. */
+    fun compactWidth(rows: List<Row>, size: Float): Float =
+        rows.maxOfOrNull { (if (it.label.isEmpty()) 0f else width(it.label, size) + width(" ", size)) + width(it.value, size) } ?: 0f
+
+    fun compact(rows: List<Row>, x: Float, y: Float, size: Float): Float {
+        val step = size * LINE_HEIGHT
+        rows.forEachIndexed { i, r ->
+            val ry = y + i * step
+            var vx = x
+            if (r.label.isNotEmpty()) {
+                text(r.label, x, ry, size, Palette.MUTED_SEE)
+                vx += width(r.label, size) + width(" ", size)
+            }
+            text(r.value, vx, ry, size, r.color)
+        }
+        return rows.size * step - (step - size)
     }
 
     private fun luminance(rgb: Int) = Palette.luminance(rgb)
@@ -234,7 +316,7 @@ object HudCard {
         var cx = x
         component.visit({ style, segment ->
             val rgb = style.color?.value ?: 0xFFFFFF
-            text(segment, cx, y, size, withAlpha(0xFF000000.toInt() or rgb, alpha))
+            text(segment, cx, y, size, withAlpha(0xFF000000.toInt() or rgb, alpha), remap = false)
             cx += width(segment, size)
             Optional.empty<Unit>()
         }, net.minecraft.network.chat.Style.EMPTY)
