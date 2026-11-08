@@ -1,6 +1,8 @@
 package ced.cedclient.features.impl.funqol
 
 import ced.cedclient.events.ChatMessageEvent
+import ced.cedclient.events.SubtitleEvent
+import ced.cedclient.events.TitleEvent
 import ced.cedclient.events.core.on
 import ced.cedclient.features.Category
 import ced.cedclient.features.Module
@@ -87,6 +89,7 @@ object F7Titles : Module(
     private val onlyMine = BooleanSetting("Only My Own", false, "Only show titles for what you did yourself.")
     private val bossTitles = BooleanSetting("Boss Titles", true, "Maxor Stunned, Storm Crushed, Storm / Goldor / Necron Dead.")
     private val gateTitles = BooleanSetting("Gate Titles", true, "The Goldor gate: opening in 5 seconds, and destroyed.")
+    private val hideGameTitles = BooleanSetting("Hide Game Titles", false, "Hide the titles Hypixel sends itself during the F7 boss fight.")
     private val sound = BooleanSetting("Sound", true, "A pling, higher for levers and boss events.")
     private val doneColor = ColorSetting("Section Done Color", Color(85, 255, 85), "Colour of the section done title.").withDependency { sectionDone.value }
 
@@ -109,7 +112,10 @@ object F7Titles : Module(
     private const val GATE_GONE = "The gate has been destroyed!"
 
     init {
-        addSettings(terminals, devices, levers, sectionDone, onlyMine, bossTitles, gateTitles, sound, doneColor)
+        addSettings(terminals, devices, levers, sectionDone, onlyMine, bossTitles, gateTitles, hideGameTitles, sound, doneColor)
+        // Our own titles go through ClientTitles, not the packet, so only the server's are dropped.
+        on<TitleEvent> { if (isEnabled && hideGameTitles.value && DungeonState.f7Phase != null) it.cancel() }
+        on<SubtitleEvent> { if (isEnabled && hideGameTitles.value && DungeonState.f7Phase != null) it.cancel() }
         on<ChatMessageEvent> {
             if (!isEnabled || !DungeonState.inDungeon) return@on
             val text = it.unformattedText.trim()

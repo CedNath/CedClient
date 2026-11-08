@@ -33,7 +33,7 @@ object HudCard {
             NVGRenderer.translate(x.toFloat(), y.toFloat())
             content()
         }
-        if (behindLeap && ced.cedclient.features.impl.funqol.LeapMenu.defer(full)) return
+        if (behindLeap && ced.cedclient.features.impl.funqol.LeapMenu.defer(full, keep = label == "Dungeon Map")) return
         NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = full)
     }
 

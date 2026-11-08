@@ -157,7 +157,7 @@ object IHateDoors : Module(
         addSettings(entrance, wither, blood, entranceColor, witherColor, bloodColor)
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             val level = mc.level ?: return@register
-            if (!isEnabled || !DungeonState.inDungeon || DungeonState.inBoss || mc.player?.tickCount?.rem(10) != 0) return@register
+            if (!isEnabled || !DungeonState.inDungeon || DungeonState.inBoss) return@register // every tick: a server resend (mining / clicking a door) must not show coal for even a frame
             val pos = BlockPos.MutableBlockPos()
             for ((x, z) in spots) {
                 val source = level.getBlockState(pos.set(x, 69, z)).block

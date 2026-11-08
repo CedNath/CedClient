@@ -377,6 +377,7 @@ class CedClient : ClientModInitializer {
             ModuleManager.register(ced.cedclient.features.impl.funqol.BlazeSolver)
             ModuleManager.register(ced.cedclient.features.impl.funqol.PuzzleSolvers)
             ModuleManager.register(ced.cedclient.features.impl.funqol.BeachBallHelper)
+            ModuleManager.register(ced.cedclient.features.impl.funqol.FireSaleBuyer)
         }
         ModuleManager.register(FishingHelper)
         ModuleManager.register(TinyDancerHelper)

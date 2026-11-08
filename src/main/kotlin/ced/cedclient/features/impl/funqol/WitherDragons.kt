@@ -1,7 +1,9 @@
 //#if CHEAT
 package ced.cedclient.features.impl.funqol
 
+import ced.cedclient.events.EntityMetadataEvent
 import ced.cedclient.events.ParticleEvent
+import ced.cedclient.render.EntityGlow
 import ced.cedclient.render.bufferSource
 import ced.cedclient.render.draw
 import ced.cedclient.render.polyline
@@ -23,6 +25,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.core.particles.ParticleTypes
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket
 import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon
 import net.minecraft.world.phys.AABB
@@ -48,9 +51,14 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
         var entityId: Int? = null
         var spawnedAt = 0L
         var arrows = 0
+        /** Raw value from the entity-data packet: the entity's own health is clamped to its 200 max, Hypixel sends billions. */
         var health = 1_000_000_000f
+        var maxHealth = 1_000_000_000f
         var missingTicks = 0
     }
+
+    /** Where to stack arrows for the three dragons that have a fixed spot (x, z); the rest aim at their spawn flame. */
+    private val stackSpots = mapOf("Apex" to (27.0 to 90.0), "Power" to (28.0 to 58.0), "Ice" to (84.0 to 97.0))
 
     private val dragons = listOf(
         Dragon("Power", "§c", Vec3(27.0, 14.0, 59.0), AABB(14.5, 13.0, 45.5, 39.5, 28.0, 70.5), Color(255, 85, 85), 24.0..30.0, 56.0..62.0, 50),
@@ -65,8 +73,14 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
     private val timers = BooleanSetting("Dragon Timer", true, "A countdown over each spawning dragon.")
     private val stack = BooleanSetting("Arrow Stack Indicator", true, "A marker where to aim to stack arrows on a spawning dragon.")
     private val stackColor = ColorSetting("Indicator Color", Color(0, 255, 255), "The marker colour.").withDependency { stack.value }
+    private val stackStyle = DropdownSetting("Indicator Style", listOf("Ring", "Box"), "Ring", "A ring always facing you, or a box.").withDependency { stack.value }
+    private val stackSize = NumberSetting("Indicator Size", 1.0, 0.2, 4.0, 0.1, "How big the marker is.").withDependency { stack.value }
+    private val urgency = BooleanSetting("Timer Urgency Colors", true, "Timers turn yellow under 2s and red under 1s.")
     private val boxes = BooleanSetting("Dragon Skip Box", true, "A box around the arena of a spawning or live dragon.")
     private val health = BooleanSetting("Dragon Health", true, "Health above a live dragon.")
+    private val healthPct = BooleanSetting("Health Percent", true, "Also show the percent left.").withDependency { health.value }
+    private val healthSize = NumberSetting("Health Size", 5.0, 1.0, 12.0, 0.5, "How big the dragon health text is (1 = normal name tag).").withDependency { health.value }
+    private val glow = BooleanSetting("Highlight Dragons", false, "Outline live dragons in their colour (through walls).")
     private val prio = BooleanSetting("Dragon Priority", false, "Pick which dragon to take first.")
     private val soloPrio = DropdownSetting("Solo Priority", listOf("Healer", "Tank"), "Healer", "Which class takes the slower dragon.").withDependency { prio.value }
     private val firstOnly = BooleanSetting("First Dragon Only", true, "Only the first two spawns use the class rule.").withDependency { prio.value }
@@ -87,7 +101,8 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
         else -> "$ticks${if (symbol.value) "t" else ""}"
     }
 
-    private fun healthText(h: Float): String {
+    private fun healthText(d: Dragon): String {
+        val h = d.health
         val color = when { h >= 750e6f -> "§a"; h >= 500e6f -> "§e"; h >= 250e6f -> "§6"; else -> "§c" }
         val s = when {
             h >= 1e9f -> "%.1fb".format(java.util.Locale.ROOT, h / 1e9f)
@@ -95,14 +110,18 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
             h >= 1e3f -> "${(h / 1e3f).toInt()}k"
             else -> "${h.toInt()}"
         }
-        return color + s
+        val pct = if (healthPct.value) " §7(${(h / d.maxHealth * 100f).toInt().coerceIn(0, 100)}%)" else ""
+        return color + s + pct
     }
 
-    private fun reset() { dragons.forEach { it.state = State.DEAD; it.ticksToSpawn = 100; it.order = 0; it.entityId = null; it.arrows = 0; it.health = 1e9f; it.missingTicks = 0 }; priority = null; spawnCount = 0 }
+    private fun urgencyCode(ticks: Int) = if (!urgency.value) "" else if (ticks <= 20) "§c" else if (ticks <= 40) "§e" else ""
+
+    private fun reset() { dragons.forEach { it.state = State.DEAD; it.ticksToSpawn = 100; it.order = 0; it.entityId = null; it.arrows = 0; it.health = 1e9f; it.maxHealth = 1e9f; it.missingTicks = 0 }; priority = null; spawnCount = 0 }
 
     private fun die(d: Dragon) {
         if (d.state == State.DEAD) return
         val lived = tick - d.spawnedAt
+        ced.cedclient.utils.Debug.line("Wither Dragons", "${d.name} died after ${lived}t, last health ${d.health}")
         d.state = State.DEAD; d.entityId = null; d.ticksToSpawn = 100
         val parts = ArrayList<String>()
         if (sendTime.value) parts += "§7Time: §6${"%.2f".format(java.util.Locale.ROOT, lived / 20.0)}s §8(${lived}t)"
@@ -114,7 +133,8 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
     override fun rows(): List<Triple<String, String, Int>>? {
         if (!active() || !timers.value) return null
         val p = priority?.takeIf { it.state == State.SPAWNING && it.ticksToSpawn > 0 } ?: return null
-        return listOf(Triple(p.name, timerText(p.ticksToSpawn), p.color.rgba))
+        val color = when (urgencyCode(p.ticksToSpawn)) { "§c" -> 0xFFFF5555.toInt(); "§e" -> 0xFFFFFF55.toInt(); else -> p.color.rgba }
+        return listOf(Triple(p.name, timerText(p.ticksToSpawn), color))
     }
 
     override fun preview() = listOf(Triple("Soul", "5000ms", 0xFFAA00AA.toInt()))
@@ -130,8 +150,21 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
     }
 
     init {
-        addSettings(timerStyle, symbol, timers, stack, stackColor, boxes, health, prio, soloPrio, firstOnly, sendTime, sendArrows, tracer)
+        addSettings(timerStyle, symbol, urgency, timers, stack, stackStyle, stackSize, stackColor, boxes, health, healthPct, healthSize, glow, prio, soloPrio, firstOnly, sendTime, sendArrows, tracer)
         loadPosition()
+
+        // Raw health: LivingEntity clamps its own value to the dragon's 200 max, so only the packet carries the real number.
+        on<EntityMetadataEvent> {
+            if (!active()) return@on
+            val p = it.packet as? ClientboundSetEntityDataPacket ?: return@on
+            val d = dragons.firstOrNull { d -> d.state == State.ALIVE && d.entityId == p.id() } ?: return@on
+            val h = p.packedItems().firstOrNull { v -> v.id() == 9 }?.value() as? Float ?: return@on
+            d.health = h
+            if (h > d.maxHealth) d.maxHealth = h
+            if (h <= 0f) die(d)
+        }
+
+        EntityGlow.register { e -> if (!isEnabled || !glow.value || !active()) null else dragons.firstOrNull { d -> d.state == State.ALIVE && d.entityId == e.id }?.color?.rgba }
 
         on<ParticleEvent> {
             if (!active()) return@on
@@ -173,13 +206,13 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
                     State.SPAWNING -> {
                         d.ticksToSpawn--
                         val e = live.firstOrNull { e -> e.x in d.arena.minX..d.arena.maxX && e.z in d.arena.minZ..d.arena.maxZ }
-                        if (e != null) { d.state = State.ALIVE; d.entityId = e.id; d.spawnedAt = tick; d.arrows = 0; d.missingTicks = 0 }
+                        if (e != null) { d.state = State.ALIVE; d.entityId = e.id; d.spawnedAt = tick; d.arrows = 0; d.missingTicks = 0; ced.cedclient.utils.Debug.line("Wither Dragons", "${d.name} alive (entity ${e.id}) after ${100 - d.ticksToSpawn} ticks") }
                         else if (d.ticksToSpawn <= -20) { d.state = State.DEAD; d.ticksToSpawn = 100 }
                     }
                     State.ALIVE -> {
                         val e = d.entityId?.let { level.getEntity(it) } as? EnderDragon
                         if (e == null || e.isRemoved) { if (++d.missingTicks > 40) die(d) }
-                        else { d.missingTicks = 0; d.health = e.health; if (e.health <= 0f || e.isDeadOrDying) die(d) }
+                        else { d.missingTicks = 0; if (e.isDeadOrDying) die(d) }
                     }
                     State.DEAD -> {}
                 }
@@ -197,11 +230,11 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
                 if (boxes.value && d.state != State.DEAD) shown += d.arena to d.color
                 if (health.value && d.state == State.ALIVE) {
                     val e = d.entityId?.let { level.getEntity(it) }
-                    if (e != null) WorldText.draw(context, e.position().add(0.0, -1.0, 0.0), Component.literal(healthText(d.health)))
+                    if (e != null) WorldText.draw(context, e.position().add(0.0, -1.0, 0.0), Component.literal(healthText(d)), healthSize.value.toFloat())
                 }
                 if (timers.value && d.state == State.SPAWNING && d.ticksToSpawn > 0) {
-                    val tag = if (d.order > 0) " #${d.order}" else ""
-                    WorldText.draw(context, d.spawn.add(0.0, 2.0, 0.0), Component.literal("${d.code}${d.name}$tag: ${timerText(d.ticksToSpawn)}"))
+                    val tag = if (d.order > 0) " §7#${d.order}" else ""
+                    WorldText.draw(context, d.spawn.add(0.0, 2.0, 0.0), Component.literal("${d.code}§l${d.name}§r$tag ${urgencyCode(d.ticksToSpawn).ifEmpty { "§f" }}${timerText(d.ticksToSpawn)}"))
                 }
             }
             Box3D.draw(context, shown)
@@ -209,11 +242,25 @@ object WitherDragons : RowHud("Wither Dragons", "M7 dragons: spawn timers, prior
             val buf = bufferSource.getBuffer(CustomRenderType.LINES_ESP)
             if (stack.value) for (d in dragons) {
                 if (d.state != State.SPAWNING) continue
-                val target = d.spawn.add(0.5, 3.5, 0.5)
+                val spot = stackSpots[d.name]
+                val target = (if (spot != null) Vec3(spot.first, d.spawn.y, spot.second) else d.spawn).add(0.5, 3.5, 0.5)
                 val lead = lead(target, mc.player?.eyePosition ?: continue) ?: continue
-                val size = 0.5 * sqrt((target.distanceTo(mc.player!!.eyePosition) / 50.0).coerceAtLeast(0.25))
+                val size = 0.5 * stackSize.value * sqrt((target.distanceTo(mc.player!!.eyePosition) / 50.0).coerceAtLeast(0.25))
                 val c = stackColor.value
-                LineBox.draw(context.poseStack(), buf, AABB(lead.x - size, lead.y - size, lead.z - size, lead.x + size, lead.y + size, lead.z + size).move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                if (stackStyle.value == "Box") {
+                    LineBox.draw(context.poseStack(), buf, AABB(lead.x - size, lead.y - size, lead.z - size, lead.x + size, lead.y + size, lead.z + size).move(-cam.x, -cam.y, -cam.z), c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                } else {
+                    // A ring in the plane facing the camera, plus a small cross at its centre.
+                    val look = Vec3.directionFromRotation(camera.xRot(), camera.yRot())
+                    val right = look.cross(Vec3(0.0, 1.0, 0.0)).normalize()
+                    val up = right.cross(look).normalize()
+                    val centre = lead.subtract(cam)
+                    val ring = (0..24).map { i -> val a = i * Math.PI * 2 / 24; centre.add(right.scale(Math.cos(a) * size)).add(up.scale(Math.sin(a) * size)) }
+                    LineBox.polyline(context.poseStack(), buf, ring, c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                    val k = size * 0.25
+                    LineBox.polyline(context.poseStack(), buf, listOf(centre.subtract(right.scale(k)), centre.add(right.scale(k))), c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                    LineBox.polyline(context.poseStack(), buf, listOf(centre.subtract(up.scale(k)), centre.add(up.scale(k))), c.redFloat, c.greenFloat, c.blueFloat, 1f)
+                }
             }
             val pd = priority
             if (tracer.value && pd != null && pd.state == State.SPAWNING) {

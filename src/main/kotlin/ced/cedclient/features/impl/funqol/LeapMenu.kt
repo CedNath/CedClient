@@ -69,6 +69,7 @@ object LeapMenu : Module(
     private val hideTime = NumberSetting("Hide Time", 3.5, 0.5, 5.0, 0.1, "Seconds players stay hidden after a leap.")
     private val highlightOpener = BooleanSetting("Highlight Door Opener", true, "Gold box on whoever opened the last wither door (cleared once blood opens).")
     private val menuScale = NumberSetting("Menu Size", 1.0, 0.5, 2.0, 0.05, "Size of the leap boxes (the click areas stay the screen quarters).")
+    private val menuOpacity = NumberSetting("Menu Opacity", 45.0, 10.0, 100.0, 5.0, "How solid the backdrop and boxes are (percent); lower = more see-through.")
     private val announce = BooleanSetting("Leap Announce", false, "Says the Announce Message in party chat when you leap.")
     private val announceText = TextSetting("Announce Message", "Leaping to {name}", "Party chat line; {name} = who you leap to, {class} = their class.", 64)
     private val sortBy = DropdownSetting("Sort By", listOf("Class Order", "A-Z Class", "A-Z Name", "Custom", "No Sorting"), "A-Z Class",
@@ -132,7 +133,7 @@ object LeapMenu : Module(
             InteractionResult.PASS
         })
 //#if CHEAT
-        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead, showHeads), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, queueClicks, announce, announceText, hidePlayers, hideTime, quickLeap, quickSpeed))
+        addPopupSettings("Menu" to listOf(menuScale, menuOpacity, sortBy, classOrder, customOrder, highlightOpener, tintDead, showHeads), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, queueClicks, announce, announceText, hidePlayers, hideTime, quickLeap, quickSpeed))
         on<ItemClickEvent> { event ->
             if (event.clickType != ClickType.LEFT_CLICK || !isEnabled || !quickLeap.value || !DungeonState.inDungeon) return@on
             if (event.itemInHand?.skyblockId !in LEAP_ITEMS) return@on
@@ -145,7 +146,7 @@ object LeapMenu : Module(
             mc.gameMode?.useItem(player, InteractionHand.MAIN_HAND)
         }
 //#else
-//$        addPopupSettings("Menu" to listOf(menuScale, sortBy, classOrder, customOrder, highlightOpener, tintDead, showHeads), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, queueClicks, announce, announceText, hidePlayers, hideTime))
+//$        addPopupSettings("Menu" to listOf(menuScale, menuOpacity, sortBy, classOrder, customOrder, highlightOpener, tintDead, showHeads), "Leaping" to listOf(numberKeys, keyMode, leftClickOnly, queueClicks, announce, announceText, hidePlayers, hideTime))
 //#endif
         ClientReceiveMessageEvents.GAME.register { message, _ ->
             val plain = message.string.replace(CODES, "").trim()
@@ -194,10 +195,11 @@ object LeapMenu : Module(
     private val behind = ArrayList<() -> Unit>()
 
     /** While the menu is open: queues [draw] (a full-canvas NVG draw) to render behind the menu; false when it isn't open. */
-    fun defer(draw: () -> Unit): Boolean {
+    fun defer(draw: () -> Unit, keep: Boolean = false): Boolean {
         val screen = mc.gui.screen() as? AbstractContainerScreen<*> ?: return false
         if (!handles(screen)) return false
-        behind += draw
+        // Only the dungeon map stays up (to see where you leap); every other panel is hidden while the menu is open.
+        if (keep) behind += draw
         return true
     }
 
@@ -281,9 +283,12 @@ object LeapMenu : Module(
         HudCard.draw(g, 0, 0) {
             // The queued panels expect a fresh full canvas (they scale by the GUI ratio themselves).
             val ratio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
+            val op = (menuOpacity.value / 100.0).toFloat()
+            fun alpha(argb: Int) = ((argb ushr 24) * op).toInt().coerceIn(0, 255) shl 24 or (argb and 0xFFFFFF)
+            NVGRenderer.rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat(), alpha(0x88000000.toInt()))
+            // The map goes on top of the dim backdrop so it stays clear.
             for (panel in behind) { NVGRenderer.push(); NVGRenderer.scale(1 / ratio, 1 / ratio); panel(); NVGRenderer.pop() }
             behind.clear()
-            NVGRenderer.rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat(), 0x88000000.toInt())
             // Menu Size: scale the boxes around the screen centre.
             val sc = menuScale.value.toFloat()
             NVGRenderer.translate(screen.width / 2f, screen.height / 2f)
@@ -301,7 +306,7 @@ object LeapMenu : Module(
                 val usable = !(mate.dead && tintDead.value) && (!loaded || mate.slot >= 0)
                 val accent = DungeonTeam.classColor(mate.cls)
                 val isOpener = mate.name.equals(opener, ignoreCase = true)
-                NVGRenderer.rect(x, y, BOX_W, BOX_H, if (i == hovered && usable) 0xF0303040.toInt() else HudCard.BACKGROUND, 8f)
+                NVGRenderer.rect(x, y, BOX_W, BOX_H, alpha(if (i == hovered && usable) 0xF0303040.toInt() else HudCard.BACKGROUND), 8f)
                 val border = if (!usable) 0xFF555555.toInt() else if (isOpener) OPENER_COLOR else accent
                 NVGRenderer.hollowRect(x, y, BOX_W, BOX_H, if (pending == mate.name || isOpener) 2f else 1f, border, 8f)
                 NVGRenderer.rect(x + 8f, y + 10f, 4f, BOX_H - 20f, if (usable) accent else 0xFF555555.toInt(), 2f)

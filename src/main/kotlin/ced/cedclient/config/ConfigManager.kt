@@ -115,7 +115,8 @@ object ConfigManager {
             try {
                 val moduleData = element.asJsonObject
 
-                if (name !in mergedIn) {
+                // Only skip it while migrating an old save; once "Chat Features" is saved, Chat Ping has its own on / off again.
+                if (name !in mergedIn || modulesJson.has("Chat Features")) {
                     module.expanded = moduleData.get("expanded")?.asBoolean ?: false
                     module.setEnabled(moduleData.get("enabled")?.asBoolean ?: false)
                 }
