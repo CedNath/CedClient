@@ -76,6 +76,10 @@ object Theme : Module(
     val menuBlur = BooleanSetting("Menu Blur", true, "Blur the game behind the CedClient menu.")
     val blurStrength = NumberSetting("Blur Strength", 3.0, 1.0, 10.0, 1.0, "How strong the menu blur is.").withDependency { menuBlur.value }
 
+    private val pickAccent = ActionSetting("Pick Accent", "Opens the accent picker again.") {
+        (Minecraft.getInstance().gui.screen() as? ced.cedclient.ui.clickgui.ClickGUI)?.openPopup(ced.cedclient.ui.clickgui.AccentPickerPopup())
+    }
+
     private val resetColors = ActionSetting("Reset Colors", "Back to no accent.") {
         accent.value = accent.default.copy()
         ConfigManager.saveModulesOnly()
@@ -103,12 +107,12 @@ object Theme : Module(
     }
 
     init {
-        addSettings(accent, accentChosen, lookVersion, fixedHudSize, uiFont, menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetPanels, resetModule, resetEverything)
+        addSettings(accent, pickAccent, accentChosen, lookVersion, fixedHudSize, uiFont, menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed, hudOutlines, resetColors, resetPanels, resetModule, resetEverything)
 //#if CHEAT
         addSettings(separateCheats)
         separateCheats.section = "Menu"
 //#endif
-        accent.section = "Colors"
+        listOf(accent, pickAccent).forEach { it.section = "Colors" }
         listOf(menuLayout, menuOpacity, menuSize, menuBlur, blurStrength, openAnimation, popupAnimation, animationSpeed).forEach { it.section = "Menu" }
         uiFont.section = "Text"
         hudOutlines.section = "HUD"

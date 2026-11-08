@@ -324,9 +324,16 @@ class ClickGUI : Screen(Component.literal("Click GUI")) {
         return super.keyPressed(keyEvent)
     }
 
+    /** The first-open accent picker is offered once per menu opening (init() also runs on every window resize). */
+    private var accentOffered = false
+
     // openedAt is set at construction, not in init(): init() also runs on every window resize.
     override fun init() {
         super.init()
+        if (!accentOffered && !Theme.accentChosen.value && activePopup == null) {
+            accentOffered = true
+            openPopup(AccentPickerPopup())
+        }
     }
 
     /** Draws [draw] with the Theme > Open Animation at [t] ms in (negative = not started yet) around the box x, y, w, h. */
