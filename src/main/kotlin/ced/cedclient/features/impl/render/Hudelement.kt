@@ -57,15 +57,28 @@ interface HudElement {
         private var curW = -1
         private var curH = -1
 
+        /**
+         * Every frame, before the panels draw: puts each panel where the saved layout says, pinned to its nearest edge
+         * (left / right / top / bottom keep their gap, a middle panel keeps its centre). Worked out from the layout each
+         * time, never from last frame, so a panel that grows (another font, a longer number, a different GUI size) grows
+         * away from its edge and goes back to the same spot when it shrinks. keepOnScreen only clamps what is drawn.
+         * While the HUD editor is open the panels' live positions are what is being edited, so nothing is moved.
+         */
         fun followScreenSize(screenW: Int, screenH: Int) {
-            if (screenW == curW && screenH == curH) return
             curW = screenW
             curH = screenH
             if (homeW < 0) loadHome()
+            val screen = net.minecraft.client.Minecraft.getInstance().gui.screen()
+            if (screen is MasterHudEditScreen || screen is HudEditScreen) return
             all.forEach { e ->
                 val p = home[e.label] ?: return@forEach
-                e.panelX = reanchor(p[0], (e.lastWidth * e.panelScale).toInt(), homeW, screenW)
-                e.panelY = reanchor(p[1], (e.lastHeight * e.panelScale).toInt(), homeH, screenH)
+                val w = (e.lastWidth * e.panelScale).toInt()
+                val h = (e.lastHeight * e.panelScale).toInt()
+                // Layouts saved before sizes were kept: the first size seen stands in for it.
+                if (p[2] <= 0 && w > 0) p[2] = w
+                if (p[3] <= 0 && h > 0) p[3] = h
+                e.panelX = reanchor(p[0], p[2], w, homeW, screenW)
+                e.panelY = reanchor(p[1], p[3], h, homeH, screenH)
             }
         }
 
@@ -75,12 +88,12 @@ interface HudElement {
             homeW = curW
             homeH = curH
             home.clear()
-            all.forEach { home[it.label] = intArrayOf(it.panelX, it.panelY) }
+            all.forEach { home[it.label] = intArrayOf(it.panelX, it.panelY, (it.lastWidth * it.panelScale).toInt(), (it.lastHeight * it.panelScale).toInt()) }
             val json = com.google.gson.JsonObject().apply {
                 addProperty("w", homeW)
                 addProperty("h", homeH)
                 add("panels", com.google.gson.JsonObject().also { panels ->
-                    home.forEach { (label, p) -> panels.add(label, com.google.gson.JsonArray().apply { add(p[0]); add(p[1]) }) }
+                    home.forEach { (label, p) -> panels.add(label, com.google.gson.JsonArray().apply { p.forEach { add(it) } }) }
                 })
             }
             runCatching { layoutFile.writeText(json.toString()) }
@@ -96,25 +109,38 @@ interface HudElement {
             homeW = json["w"].asInt
             homeH = json["h"].asInt
             json["panels"].asJsonObject.entrySet().forEach { (label, p) ->
-                home[label] = intArrayOf(p.asJsonArray[0].asInt, p.asJsonArray[1].asInt)
+                val a = p.asJsonArray
+                // [x, y] in older layout files, [x, y, width, height] now.
+                home[label] = intArrayOf(a[0].asInt, a[1].asInt, if (a.size() > 2) a[2].asInt else 0, if (a.size() > 3) a[3].asInt else 0)
             }
         }
 
-        /** New position along one axis: keep the gap to the nearest edge, or the offset from the centre. */
-        fun reanchor(pos: Int, size: Int, oldScreen: Int, newScreen: Int): Int {
-            val center = pos + size / 2f
+        /**
+         * Position along one axis of a panel saved at [pos] with size [savedSize] on an [oldScreen]-wide GUI, now [size]
+         * big on a [newScreen]-wide GUI: the near edge keeps its gap (far edge for a right / bottom panel), a middle panel
+         * keeps its centre offset. [savedSize] 0 = unknown, treated as [size].
+         */
+        fun reanchor(pos: Int, savedSize: Int, size: Int, oldScreen: Int, newScreen: Int): Int {
+            val s = if (savedSize > 0) savedSize else size
+            val center = pos + s / 2f
             return when {
                 center < oldScreen / 3f -> pos
-                center > oldScreen * 2 / 3f -> newScreen - (oldScreen - pos)
-                else -> pos + (newScreen - oldScreen) / 2
+                center > oldScreen * 2 / 3f -> newScreen - (oldScreen - pos - s) - size
+                else -> Math.round(center + (newScreen - oldScreen) / 2f - size / 2f)
             }
         }
 
         init {
             // left stays, right keeps its right gap, centre stays centred
-            check(reanchor(10, 50, 480, 640) == 10)
-            check(reanchor(400, 50, 480, 640) == 560)
-            check(reanchor(215, 50, 480, 640) == 295)
+            check(reanchor(10, 50, 50, 480, 640) == 10)
+            check(reanchor(400, 50, 50, 480, 640) == 560)
+            check(reanchor(215, 50, 50, 480, 640) == 295)
+            // same screen, panel grew 50 -> 80 (wider font): left edge, right edge and centre each stay put
+            check(reanchor(10, 50, 80, 480, 480) == 10)
+            check(reanchor(400, 50, 80, 480, 480) == 370)
+            check(reanchor(215, 50, 80, 480, 480) == 200)
+            // and shrinking back returns to the saved spot
+            check(reanchor(400, 50, 50, 480, 480) == 400)
         }
 
         /** Every HUD panel, for MasterHudEditScreen and "Reset Everything". */
