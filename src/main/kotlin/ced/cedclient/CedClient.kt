@@ -700,6 +700,7 @@ class CedClient : ClientModInitializer {
         try {
             ced.cedclient.features.impl.render.HudCard.attachBackgroundSettings()
             ConfigManager.loadModulesOnly()
+            ced.cedclient.features.impl.render.LookMigration.run()
             // Settings changed outside the ClickGUI (commands, HUD editors...) are otherwise only written the next
             // time a module is toggled or the GUI closes. Only after a good load, so a broken config file never
             // gets overwritten with defaults on the way out.

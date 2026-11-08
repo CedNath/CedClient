@@ -25,6 +25,15 @@ object HudCard {
     /** Line step of see-through (compact) HUD text, as a multiple of the font size. */
     const val LINE_HEIGHT = 1.18f
 
+    /**
+     * HUDs that keep the full card (trackers you glance at between fights). Every other HUD is compact: see-through
+     * text with a halo unless its card is turned on in the HUD editor. Dungeon Map draws its own frame.
+     */
+    val FULL_CARD: Set<String> = setOf(
+        "Blaze Slayer Macro", "Slayer", "Run Profit", "Daily Tasks",
+        "Critter Progress", "Critter Trades", "Critter Missing", "Music", "FarmHelper",
+    )
+
     /** Inner padding of [label]'s panel: room for the card when it's on, almost none for see-through text. */
     fun pad(label: String, scale: Float): Float = if (cardOn(label)) 6f * scale else 1f * scale
 
@@ -73,13 +82,17 @@ object HudCard {
      */
     fun attachBackgroundSettings() {
         for (e in HudElement.all) {
+            // Compact (in-run) HUDs are see-through unless the player turns their card on. HUDs with their own Background
+            // toggle already default to off and are switched through it, so they stay out of the set.
+            val ownToggle = (e as? Module)?.settings?.values?.any { it is BooleanSetting && isBackgroundName(it.name) } == true
+            if (e.label !in FULL_CARD && e.label != "Dungeon Map" && !ownToggle) cardOffByDefault += e.label
             val m = e as? Module ?: continue
             // Background is chosen in the HUD editor now, so the module's own toggle leaves the menu (its value still works and saves).
             m.settings.values.filter { it is BooleanSetting && isBackgroundName(it.name) }.forEach { it.hide() }
             if (e.label == "Chat Alerts") continue // text only, no card
             val own = m.settings.values.filter { it.name.contains("background", true) }
             if (own.any { it is NumberSetting } || own.any { it.name.contains("opacity", true) || it.name.contains("color", true) }) continue
-            if (own.isEmpty()) cardOffByDefault += e.label
+            if (own.isEmpty() && e.label !in FULL_CARD) cardOffByDefault += e.label
             bgSettings[e.label] = Bg(NumberSetting("Background Opacity", 100.0, 0.0, 100.0, 5.0, "How solid the card is (percent).").also { m.registerSetting(it) })
         }
     }
