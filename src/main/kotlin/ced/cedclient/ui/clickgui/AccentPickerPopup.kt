@@ -15,16 +15,18 @@ import net.minecraft.client.input.MouseButtonEvent
 
 /**
  * "Pick your accent": shown over the menu the first time it opens (Theme.accentChosen false) and from Mod Settings >
- * Pick Accent. Swatches only change the preview; Done saves the pick, Skip / Esc keep no accent. Both count as answered.
+ * Pick Accent. Swatches only change the preview; Done saves the pick, Skip / Esc keep the accent as it is (none on a
+ * first open). Both count as answered.
  * Closing it any other way (X, click outside, closing the menu) saves nothing, so it shows again next time.
  */
 class AccentPickerPopup : Popup("Pick your accent", WIDTH, 470f) {
-    private var picked = Palette.SWATCHES.indexOfFirst { it.second == Theme.accent.value.rgba }.coerceAtLeast(0)
+    /** Swatch being previewed; -1 = the player's own custom accent (no swatch matches it), kept by Done. */
+    private var picked = Palette.SWATCHES.indexOfFirst { it.second == Theme.accent.value.rgba }
 
     init { Debug.line("Accent Picker", "shown (accent chosen = ${Theme.accentChosen.value})") }
 
     private val font get() = NVGRenderer.defaultFont
-    private val swatchColor get() = Palette.SWATCHES[picked].second
+    private val swatchColor get() = if (picked >= 0) Palette.SWATCHES[picked].second else Theme.accent.value.rgba
 
     private fun swatchCenter(i: Int): Pair<Float, Float> {
         val total = Palette.SWATCHES.size * SWATCH + (Palette.SWATCHES.size - 1) * SWATCH_GAP
@@ -105,10 +107,10 @@ class AccentPickerPopup : Popup("Pick your accent", WIDTH, 470f) {
     }
 
     private fun finish(skip: Boolean) {
-        Theme.accent.value = if (skip) Theme.accent.default.copy() else Color(Palette.SWATCHES[picked].second)
+        if (!skip && picked >= 0) Theme.accent.value = Color(Palette.SWATCHES[picked].second)
         Theme.accentChosen.value = true
         ConfigManager.saveModulesOnly()
-        Debug.line("Accent Picker", if (skip) "skipped" else "picked ${Palette.SWATCHES[picked].first}")
+        Debug.line("Accent Picker", if (skip) "skipped" else "picked ${Palette.SWATCHES.getOrNull(picked)?.first ?: "custom (kept)"}")
         (Minecraft.getInstance().gui.screen() as? ClickGUI)?.closePopup()
     }
 

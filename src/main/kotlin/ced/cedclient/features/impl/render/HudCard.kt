@@ -45,16 +45,22 @@ object HudCard {
         val label = labelAt(x, y)
         val full = {
             currentLabel = label
+            cardDrawn = false
             val ratio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
             NVGRenderer.scale(ratio, ratio)
             NVGRenderer.translate(x.toFloat(), y.toFloat())
             content()
+            // Text drawn outside a HUD panel (chest overlays, menus) must not inherit this HUD's halo or colours.
+            currentLabel = null
         }
         if (behindLeap && ced.cedclient.features.impl.funqol.LeapMenu.defer(full, keep = label == "Dungeon Map")) return
         NVGSpecialRenderer.draw(g, 0, 0, g.guiWidth(), g.guiHeight(), renderContent = full)
     }
 
     private var currentLabel: String? = null
+
+    /** The HUD being drawn put its card down ([card]); its text then needs no halo. Own Background toggles skip card() too. */
+    private var cardDrawn = false
 
     /**
      * Which HUD sits at (x, y). HudElement.all builds a new list of every panel on each call and every card asks once per frame,
@@ -149,6 +155,7 @@ object HudCard {
     fun card(width: Float, height: Float, scale: Float, alpha: Float = 1f, label: String? = currentLabel) {
         if (!cardOn(label)) return
         val alpha = alpha * opacityOf(label)
+        cardDrawn = true
         val r = CORNER_RADIUS * scale
         NVGRenderer.rect(0f, 0f, width, height, withAlpha(Palette.SURFACE, alpha), r)
         NVGRenderer.hollowRect(0f, 0f, width, height, scale, withAlpha(Palette.EDGE, alpha), r)
@@ -158,7 +165,8 @@ object HudCard {
      * Measured in the space [draw] draws in (canvas scaled to GUI units). Callers measure before [draw] runs, where the
      * pixel-snapped glyph size differs, so the columns came out too narrow and the text overlapped.
      */
-    fun width(text: String, size: Float): Float {
+    fun width(text: String, size: Float, bold: Boolean = false): Float {
+        val font = if (bold) NVGRenderer.boldFont else font
         // Inside a frame the current transform is the caller's own (HUD content, ClickGUI, editors): measure in it as before.
         if (NVGRenderer.drawing) return NVGRenderer.textWidth(text, size, font)
         // Not canvasWidth: outside a frame that is whatever the last NanoVG pass (a screen, a tooltip) left behind.
@@ -185,7 +193,7 @@ object HudCard {
         val f = if (bold) NVGRenderer.boldFont else font
         val deliberateBlack = luminance(color and 0xFFFFFF) < 0.002
         val color = if (remap && !deliberateBlack) paletteOf(color) else color
-        if (!deliberateBlack && !cardOn(currentLabel)) {
+        if (!deliberateBlack && currentLabel != null && !cardDrawn) {
             val label = currentLabel ?: "?"
             if (haloLogged.add(label)) Debug.line("HUD Look", "halo text for $label")
             NVGRenderer.textHalo(text, x, y, size, (color ushr 24) / 255f, f)
@@ -232,7 +240,7 @@ object HudCard {
     fun headline(value: String, label: String, note: String?, x: Float, y: Float, w: Float, size: Float) {
         val big = size * 2.1f
         text(value, x, y, big, Theme.hudAccentRgba, bold = true, remap = false)
-        text(label, x + width(value, big) + size * 0.6f, y + big - size * 1.15f, size, Palette.MUTED)
+        text(label, x + width(value, big, bold = true) + size * 0.6f, y + big - size * 1.15f, size, Palette.MUTED)
         if (note != null) text(note, x + w - width(note, size * 0.9f), y + big - size * 1.1f, size * 0.9f, Palette.FAINT)
     }
 

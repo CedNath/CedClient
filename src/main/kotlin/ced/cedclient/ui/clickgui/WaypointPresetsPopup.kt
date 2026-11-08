@@ -39,7 +39,7 @@ class WaypointPresetsPopup : Popup("Waypoint Presets", 420f, 440f) {
     private fun deleteX() = x + width - 12f - 22f
 
     private fun button(bx: Float, by: Float, bw: Float, bh: Float, label: String, hovered: Boolean, color: Int) {
-        NVGRenderer.rect(bx, by, bw, bh, if (hovered) ClickGUI.hoverFill.rgba else Colors.gray38.rgba, 4f)
+        NVGRenderer.rect(bx, by, bw, bh, if (hovered) (if (color == ClickGUI.clickGUIColor.rgba) ClickGUI.hoverFill.rgba else color) else Colors.gray38.rgba, 4f)
         NVGRenderer.hollowRect(bx, by, bw, bh, 1f, ced.cedclient.ui.Palette.EDGE, 4f)
         val font = NVGRenderer.defaultFont
         NVGRenderer.text(label, bx + bw / 2f - NVGRenderer.textWidth(label, 13f, font) / 2f, by + bh / 2f - 7f, 13f, Colors.WHITE.rgba, font)

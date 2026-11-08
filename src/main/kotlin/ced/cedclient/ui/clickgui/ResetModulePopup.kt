@@ -69,7 +69,7 @@ class ResetModulePopup : Popup("Reset a Module", WIDTH, HEIGHT) {
             return true
         }
         armed = null
-        m.settings.values.forEach { it.reset() }
+        m.settings.values.filter { it !in ced.cedclient.features.impl.misc.Theme.markers }.forEach { it.reset() }
         ConfigManager.saveModulesOnly()
         return true
     }

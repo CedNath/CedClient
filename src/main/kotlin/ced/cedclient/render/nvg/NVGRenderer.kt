@@ -453,7 +453,10 @@ object NVGRenderer {
         }
         nvgFontSize(vg, fontSize(size))
         nvgFontFaceId(vg, getFontID(font))
-        nvgFontBlur(vg, size * 0.16f)
+        // NanoVG rounds the blur down to whole device pixels: keep at least 2 so small / scaled-down HUDs still get a halo.
+        nvgCurrentTransform(vg, xform)
+        val device = sqrt(xform[0] * xform[0] + xform[1] * xform[1]) * devicePixelRatio()
+        nvgFontBlur(vg, if (device > 0f) maxOf(size * 0.16f, 2f / device) else size * 0.16f)
         color((0.95f * a * 255).toInt() shl 24)
         nvgFillColor(vg, nvgColor)
         snap(x, y + .5f)

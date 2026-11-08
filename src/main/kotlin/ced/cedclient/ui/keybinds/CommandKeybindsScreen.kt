@@ -171,7 +171,7 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
 
             // enabled box
             NVGRenderer.rect(rx + 3f, y + 4f, 10f, 10f, if (b.enabled) accent else 0xFF3A3A3A.toInt(), 2f)
-            if (b.enabled) NVGRenderer.text("x", rx + 5.5f, y + 4.5f, 8f, 0xFFFFFFFF.toInt(), f)
+            if (b.enabled) NVGRenderer.text("x", rx + 5.5f, y + 4.5f, 8f, ClickGUI.onAccentRgba, f)
 
             // key
             val kx = rx + 16
@@ -180,7 +180,7 @@ class CommandKeybindsScreen : Screen(Component.literal("Command Keybinds")) {
             NVGRenderer.rect(kx.toFloat(), y + 1f, keyW.toFloat(), rowH - 4f,
                 if (isListening) accent else if (kHover) 0xFF3A3A3A.toInt() else 0xFF2E2E2E.toInt(), 3f)
             NVGRenderer.text(if (isListening) "press..." else NVGRenderer.truncate(CommandKeybinds.keyLabel(b.key), keyW - 8f, 8f, f),
-                kx + 4f, y + 5f, 8f, 0xFFFFFFFF.toInt(), f)
+                kx + 4f, y + 5f, 8f, if (isListening) ClickGUI.onAccentRgba else 0xFFFFFFFF.toInt(), f)
 
             // command
             if (editing !== b) {

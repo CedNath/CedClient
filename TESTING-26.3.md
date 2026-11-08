@@ -59,6 +59,7 @@ Checked in singleplayer: menu (both accents), accent picker, HUD editor previews
 - [ ] Item rarity / Hypixel-coloured text inside HUDs keeps its game colours (only HUD-picked greys / greens / reds / golds are remapped)
 - [ ] `[CC]` chat prefix follows the accent
 - Left on their own look on purpose: Dungeon Map, stat bars (Health / Mana ...), item cooldown numbers on hotbar slots, Fun Visuals, Screenshot Preview
+- Still drawing text directly (no halo / palette yet, follow-up): Time HUD, Chat Channel HUD, Entity ESP HUD, Action Bar HUDs
 - Follow-ups: standalone screens (search overlay, price input, command keybinds, cosmetic presets, button editor, update screen, debug panel) only got readability fixes, not the full panel restyle
 
 ## Build and release

@@ -43,6 +43,9 @@ object Theme : Module(
     /** Which one-time look reset (LookMigration) this config has had. */
     val lookVersion = NumberSetting("Look Version", 0.0, 0.0, 10.0, 1.0, "").also { it.hide() }
 
+    /** Markers that record what already happened once; Reset a Module / Reset Everything leave them alone. */
+    val markers: Set<Any> get() = setOf(accentChosen, lookVersion)
+
     val fixedHudSize = BooleanSetting("Fixed HUD Size", true, "HUD cards keep the widest size they've had, so they don't jump around as numbers change. Starts over after 30 s without the HUD showing, or when you rescale it.")
     val menuLayout = DropdownSetting(
         "Menu Layout",
@@ -123,7 +126,7 @@ object Theme : Module(
 
     private fun resetAll() {
         for (module in ModuleManager.modules) {
-            module.settings.values.forEach { it.reset() }
+            module.settings.values.filter { it !in markers }.forEach { it.reset() }
             if (!module.isAction) module.setEnabled(module.defaultEnabled)
         }
         HudElement.all.forEach { it.resetPosition(); it.save() }

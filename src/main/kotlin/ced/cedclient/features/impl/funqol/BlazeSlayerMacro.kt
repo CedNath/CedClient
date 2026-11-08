@@ -190,8 +190,8 @@ object BlazeSlayerMacro : Module(
             val bosses = BlazeSlayerMacro.bosses.toString()
             val rows = listOf(HudCard.Row("Mobs slain", BlazeSlayerMacro.slain.toString()))
             val inner = maxOf(
-                HudCard.width(title, size * 1.15f), HudCard.width(status, size * 0.9f),
-                HudCard.width(bosses, size * 2.1f) + HudCard.width("bosses", size) + size, HudCard.rowsWidth(rows, size),
+                HudCard.width(title, size * 1.15f, bold = true), HudCard.width(status, size * 0.9f),
+                HudCard.width(bosses, size * 2.1f, bold = true) + HudCard.width("bosses", size) + size, HudCard.rowsWidth(rows, size),
             )
             val w = HudCard.steady(label, inner + padX * 2, s)
             val headH = HudCard.headerHeight(size, true)

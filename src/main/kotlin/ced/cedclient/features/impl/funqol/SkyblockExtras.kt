@@ -64,7 +64,8 @@ abstract class RowHud(name: String, description: String, private val key: String
     override fun renderInternal(g: GuiGraphicsExtractor) = draw(g, rows() ?: preview())
 
     @Suppress("UNUSED_PARAMETER")
-    private fun text(t: String, x: Float, y: Float, size: Float, color: Int, s: Float) = HudCard.text(t, x, y, size, color)
+    // Pet Display's colour is the pet's rarity from the game, so it is not mapped to the palette.
+    private fun text(t: String, x: Float, y: Float, size: Float, color: Int, s: Float) = HudCard.text(t, x, y, size, color, remap = label != "Pet Display")
 
     private fun draw(g: GuiGraphicsExtractor, lines: List<Triple<String, String, Int>>) {
         val s = panelScale

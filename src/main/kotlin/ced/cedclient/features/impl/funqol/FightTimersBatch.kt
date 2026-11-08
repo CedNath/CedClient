@@ -86,7 +86,8 @@ object TickTimers : Module(
     val showSuffix = BooleanSetting("Show Suffix", true, "Text after the number (the unit by default).")
     val suffixText = TextSetting("Suffix", "", "The text after the number. Empty = the unit (t or s).").withDependency { showSuffix.value }
     val pingFix = BooleanSetting("Ping Compensation", false, "Subtract half your ping (in ticks) so the number matches the server a little better.")
-    val background = BooleanSetting("Background", false, "The dark card behind each counter. Off: just the text.")
+    // The card is the HUD editor's BG choice now (these panels have no module of their own); kept so old configs still load.
+    val background = BooleanSetting("Background", false, "The dark card behind each counter. Off: just the text.").also { it.hide() }
     val high = ColorSetting("High Color", Color(85, 255, 85), "More than two thirds left.")
     val mid = ColorSetting("Mid Color", Color(255, 170, 0), "Between a third and two thirds left.")
     val low = ColorSetting("Low Color", Color(255, 85, 85), "Less than a third left.")
@@ -169,7 +170,7 @@ abstract class TickPanel(
         lastWidth = (width / s).toInt()
         lastHeight = (height / s).toInt()
         HudCard.draw(g, panelX, panelY) {
-            if (TickTimers.background.value) HudCard.card(width, height, s)
+            HudCard.card(width, height, s)
             text(line.first, pad, pad, size, line.third, s)
             text(line.second, width - pad - HudCard.width(line.second, size), pad, size, line.third, s)
         }
