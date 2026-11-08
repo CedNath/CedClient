@@ -4,7 +4,7 @@ package ced.cedclient.features.impl.render
 import ced.cedclient.config.CedPaths
 import ced.cedclient.features.impl.misc.Theme
 import ced.cedclient.render.nvg.NVGRenderer
-import ced.cedclient.render.nvg.NVGSpecialRenderer
+import ced.cedclient.ui.Palette
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
 import net.minecraft.client.DeltaTracker
@@ -332,27 +332,26 @@ object EntityESPHud : HudElement {
         val cornerRadius = CORNER_RADIUS * panelScale
         val borderThickness = BORDER_THICKNESS * panelScale
 
-        val badgeWidth = NVGRenderer.textWidth(badgeText, fontSize, font) + badgeHPad * 2
-        val badgeHeight = fontSize + badgeVPad * 2
-        val headerRowHeight = maxOf(fontSize, badgeHeight)
-        val headerRowWidth = NVGRenderer.textWidth(header, fontSize, font) + 8f * panelScale + badgeWidth
+        // Measured with HudCard.width: outside the NanoVG frame NVGRenderer.textWidth uses a stale transform.
+        fun w(s: String, bold: Boolean = false) = HudCard.width(s, fontSize, bold)
+        val badgeWidth = w(badgeText)
+        val headerRowHeight = fontSize
+        val headerRowWidth = w(header, bold = true) + 8f * panelScale + badgeWidth
 
         var contentWidth = maxOf(
             headerRowWidth,
-            NVGRenderer.textWidth("Hostile $hostileCount", fontSize, font) + dotIndent,
-            NVGRenderer.textWidth("Passive $passiveCount", fontSize, font) + dotIndent,
-            NVGRenderer.textWidth("Player $playerCount", fontSize, font) + dotIndent,
-            NVGRenderer.textWidth(scanLineText, fontSize, font)
+            w("Hostile $hostileCount") + dotIndent,
+            w("Passive $passiveCount") + dotIndent,
+            w("Player $playerCount") + dotIndent,
+            w(scanLineText)
         )
         for (e in entities.take(MAX_LIST_ROWS)) {
             val tag = "[${categoryTag(e.category)}]"
             val distanceText = "%.1fm".format(e.distance)
-            val rowWidth = NVGRenderer.textWidth(tag, fontSize, font) + 4f * panelScale +
-                    NVGRenderer.textWidth(e.name, fontSize, font) + 8f * panelScale +
-                    NVGRenderer.textWidth(distanceText, fontSize, font)
+            val rowWidth = w(tag) + 4f * panelScale + w(e.name) + 8f * panelScale + w(distanceText)
             if (rowWidth > contentWidth) contentWidth = rowWidth
         }
-        if (truncated) contentWidth = maxOf(contentWidth, NVGRenderer.textWidth(truncatedText, fontSize, font))
+        if (truncated) contentWidth = maxOf(contentWidth, w(truncatedText))
 
         val width = contentWidth + paddingX * 2
         val listRows = entities.size.coerceAtMost(MAX_LIST_ROWS)
@@ -364,67 +363,42 @@ object EntityESPHud : HudElement {
         lastWidth = (width / panelScale).toInt()
         lastHeight = (height / panelScale).toInt()
 
-        NVGSpecialRenderer.draw(
-            g,
-            0, 0, g.guiWidth(), g.guiHeight(),
-            renderContent = {
-                // See DailyReset.renderNVG()'s doc comment -- panelX/panelY
-                // are GUI-pose values (shared with MasterHudEditScreen's
-                // vanilla outline overlay), so they need converting into
-                // NVG-canvas space before being used as a translate offset.
-                val spaceRatio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
-                NVGRenderer.scale(spaceRatio, spaceRatio)
-                NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
+        // HudCard.draw: shared canvas setup, the card only when the HUD editor turns it on, halo text otherwise.
+        HudCard.draw(g, panelX, panelY) {
+            HudCard.card(width, height, panelScale, label = label)
 
-                HudCard.card(width, height, panelScale, label = label)
+            HudCard.text(header, paddingX, paddingY, fontSize, Palette.TEXT, bold = true)
+            // Count in the accent, "none" muted, at the header's right edge (was a filled pill).
+            HudCard.text(badgeText, width - paddingX - badgeWidth, paddingY, fontSize, if (entities.isEmpty()) Palette.MUTED_SEE else ACCENT_COLOR, remap = false)
 
-                val headerTextY = paddingY + (headerRowHeight - fontSize) / 2f
-                NVGRenderer.text(header, paddingX, headerTextY, fontSize, Colors.WHITE.rgba, font)
+            val dividerY = paddingY + headerRowHeight + headerGap
+            HudCard.divider(paddingX, dividerY, width - paddingX * 2, panelScale)
 
-                val badgeLeft = width - paddingX - badgeWidth
-                val badgeTop = paddingY
-                NVGRenderer.rect(
-                    badgeLeft, badgeTop, badgeWidth, badgeHeight,
-                    if (entities.isEmpty()) IDLE_BADGE_COLOR else ACCENT_COLOR, badgeHeight / 2f
-                )
-                NVGRenderer.text(badgeText, badgeLeft + badgeHPad, badgeTop + badgeVPad, fontSize, BADGE_TEXT_COLOR, font)
+            var y = dividerY + 2f * panelScale + headerGap / 2f
 
-                val dividerY = paddingY + headerRowHeight + headerGap
-                NVGRenderer.rect(paddingX, dividerY, width - paddingX * 2, 1f * panelScale, ACCENT_COLOR)
-                NVGRenderer.rect(paddingX, dividerY + 1f * panelScale, width - paddingX * 2, 1f * panelScale, DIVIDER_HIGHLIGHT)
+            drawCountLineNVG(paddingX, y, dotIndent, fontSize, hostileColor, "Hostile $hostileCount")
+            y += lineHeight
+            drawCountLineNVG(paddingX, y, dotIndent, fontSize, passiveColor, "Passive $passiveCount")
+            y += lineHeight
+            drawCountLineNVG(paddingX, y, dotIndent, fontSize, playerColor, "Player $playerCount")
+            y += lineHeight
 
-                var y = dividerY + 2f * panelScale + headerGap / 2f
+            HudCard.text(scanLineText, paddingX, y, fontSize, Palette.FAINT)
+            y += lineHeight
 
-                drawCountLineNVG(paddingX, y, dotIndent, fontSize, font, hostileColor, "Hostile $hostileCount")
+            if (listRows > 0 || truncated) y += 2f * panelScale
+
+            for (e in entities.take(MAX_LIST_ROWS)) {
+                val tag = "[${categoryTag(e.category)}]"
+                val distanceText = "%.1fm".format(e.distance)
+                HudCard.text(tag, paddingX, y, fontSize, categoryColor(e.category), remap = false)
+                HudCard.text(e.name, paddingX + w(tag) + 4f * panelScale, y, fontSize, Palette.TEXT)
+                HudCard.text(distanceText, width - paddingX - w(distanceText), y, fontSize, Palette.MUTED_SEE)
                 y += lineHeight
-                drawCountLineNVG(paddingX, y, dotIndent, fontSize, font, passiveColor, "Passive $passiveCount")
-                y += lineHeight
-                drawCountLineNVG(paddingX, y, dotIndent, fontSize, font, playerColor, "Player $playerCount")
-                y += lineHeight
-
-                NVGRenderer.text(scanLineText, paddingX, y, fontSize, MUTED_TEXT_COLOR, font)
-                y += lineHeight
-
-                if (listRows > 0 || truncated) y += 2f * panelScale
-
-                for (e in entities.take(MAX_LIST_ROWS)) {
-                    val tag = "[${categoryTag(e.category)}]"
-                    val color = categoryColor(e.category)
-                    val distanceText = "%.1fm".format(e.distance)
-                    val tagWidth = NVGRenderer.textWidth(tag, fontSize, font)
-                    val distanceWidth = NVGRenderer.textWidth(distanceText, fontSize, font)
-
-                    NVGRenderer.text(tag, paddingX, y, fontSize, color, font)
-                    NVGRenderer.text(e.name, paddingX + tagWidth + 4f * panelScale, y, fontSize, NAME_TEXT_COLOR, font)
-                    NVGRenderer.text(distanceText, width - paddingX - distanceWidth, y, fontSize, DISTANCE_TEXT_COLOR, font)
-                    y += lineHeight
-                }
-
-                if (truncated) {
-                    NVGRenderer.text(truncatedText, paddingX, y, fontSize, MUTED_TEXT_COLOR, font)
-                }
             }
-        )
+
+            if (truncated) HudCard.text(truncatedText, paddingX, y, fontSize, Palette.FAINT)
+        }
     }
 
     private fun drawCountLine(
@@ -445,12 +419,12 @@ object EntityESPHud : HudElement {
         y: Float,
         dotIndent: Float,
         fontSize: Float,
-        font: ced.cedclient.render.font.Font,
         color: Int,
         label: String
     ) {
-        NVGRenderer.rect(x, y + 1f * panelScale, 6f * panelScale, 6f * panelScale, color, 1.5f * panelScale)
-        NVGRenderer.text(label, x + dotIndent, y, fontSize, NAME_TEXT_COLOR, font)
+        val d = 6f * panelScale
+        NVGRenderer.rect(x, y + (fontSize - d) / 2f, d, d, color, d / 2f)
+        HudCard.text(label, x + dotIndent, y, fontSize, Palette.TEXT)
     }
 }
 //#endif

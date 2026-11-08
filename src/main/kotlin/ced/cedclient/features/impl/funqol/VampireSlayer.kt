@@ -606,23 +606,40 @@ object VampireSlayer : Module(
         Triple("Steak at", "600", 0xFFAAAAAA.toInt()), Triple("Kills", "12  (31.4/h)", -1)))
 
     private fun draw(g: GuiGraphicsExtractor, all: List<Triple<String, String, Int>>) {
-        val rows = all.filterIndexed { i, r -> i == 0 || shown(r.first) }
+        // Full card, Blaze layout: slayer name + boss / quest timer as the header, kills as the headline, the rest as rows.
+        val shownRows = all.filterIndexed { i, r -> i == 0 || shown(r.first) }
+        val head = shownRows.first()
+        val timer = shownRows.firstOrNull { it.first == "Boss" } ?: shownRows.firstOrNull { it.first == "Quest" }
+        val subtitle = timer?.let { "${it.first} ${it.second}" } ?: head.second.ifEmpty { null }
+        // "12  (31.4/h)" -> headline "12", note "31.4/h".
+        val kills = shownRows.firstOrNull { it.first == "Kills" }?.second
+        val killCount = kills?.substringBefore("  ")
+        val killRate = kills?.substringAfter("(", "")?.removeSuffix(")")?.ifEmpty { null }
+        val rows = shownRows.drop(1).filter { it !== timer && it.first != "Kills" }.map { HudCard.Row(it.first, it.second, it.third) }
+
         val s = panelScale
-        val size = 11f * s
-        val lineH = 13f * s
-        val pad = 7f * s
-        val gap = 10f * s
-        val leftW = rows.filter { it.second.isNotEmpty() }.maxOfOrNull { HudCard.width(it.first, size) } ?: 0f
-        val width = HudCard.steady("Slayer", rows.maxOf { if (it.second.isEmpty()) HudCard.width(it.first, size) else leftW + gap + HudCard.width(it.second, size) } + pad * 2, s)
-        val height = rows.size * lineH + pad * 2 - (lineH - size)
-        lastWidth = (width / s).toInt()
-        lastHeight = (height / s).toInt()
+        val size = 9f * s
+        val padX = 12f * s
+        val padY = 10f * s
+        val inner = maxOf(
+            HudCard.width(head.first, size * 1.15f, bold = true), subtitle?.let { HudCard.width(it, size * 0.9f) } ?: 0f,
+            killCount?.let { HudCard.width(it, size * 2.1f, bold = true) + HudCard.width("kills", size) + HudCard.width(killRate ?: "", size * 0.9f) + size * 2 } ?: 0f,
+            HudCard.rowsWidth(rows, size),
+        )
+        val w = HudCard.steady(label, inner + padX * 2, s)
+        val headH = HudCard.headerHeight(size, subtitle != null)
+        val headlineH = if (killCount != null) HudCard.headlineHeight(size) else 0f
+        val lineY = padY + headH + headlineH + 4f * s
+        val h = if (rows.isEmpty()) lineY - 4f * s + padY else lineY + 6f * s + HudCard.rowsHeight(rows.size, size) + padY
+        lastWidth = (w / s).toInt()
+        lastHeight = (h / s).toInt()
         HudCard.draw(g, panelX, panelY) {
-            HudCard.card(width, height, s)
-            rows.forEachIndexed { i, (left, right, color) ->
-                val y = pad + i * lineH
-                HudCard.text(left, pad, y, size, if (right.isEmpty()) color else 0xFFBBBBBB.toInt())
-                if (right.isNotEmpty()) HudCard.text(right, pad + leftW + gap, y, size, color)
+            HudCard.card(w, h, s)
+            HudCard.header(head.first, subtitle, padX, padY, size)
+            if (killCount != null) HudCard.headline(killCount, "kills", killRate, padX, padY + headH, w - padX * 2, size)
+            if (rows.isNotEmpty()) {
+                HudCard.divider(padX, lineY, w - padX * 2, s)
+                HudCard.rows(rows, padX, lineY + 6f * s, w - padX * 2, size)
             }
         }
     }

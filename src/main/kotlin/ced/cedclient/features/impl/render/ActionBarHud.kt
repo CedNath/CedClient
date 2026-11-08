@@ -8,8 +8,10 @@ import com.google.gson.Gson
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import ced.cedclient.render.nvg.NVGRenderer
 import net.minecraft.network.chat.Component
-import net.minecraft.util.ARGB
+import net.minecraft.network.chat.Style
+import net.minecraft.util.StringDecomposer
 import java.io.File
 
 /**
@@ -67,8 +69,8 @@ object ActionBarHud : Module(
         override fun adjustScale(delta: Float) { panelScale = (panelScale + delta).coerceIn(0.5f, 3f) }
         override fun save() = savePositions()
 
-        /** Draws [text] centred in the panel: on Compact Scoreboard's rounded dark panel when [compact], else chat-style backdrop. */
-        protected fun drawText(g: GuiGraphicsExtractor, source: Component, color: Int, compact: Boolean = false) {
+        /** Draws [text] centred in the panel with vanilla's chat-style backdrop (the held item name, which vanilla draws itself). */
+        protected fun drawText(g: GuiGraphicsExtractor, source: Component, color: Int) {
             val font = Minecraft.getInstance().font
             val text = HudCard.legibleComponent(source) // dark reds and purples would vanish on a dark scene
             val w = font.width(text)
@@ -76,17 +78,53 @@ object ActionBarHud : Module(
             g.pose().pushMatrix()
             g.pose().translate(panelX.toFloat(), panelY.toFloat())
             g.pose().scale(panelScale, panelScale)
-            if (compact) {
-                // Panel opacity follows Compact Scoreboard's setting, faded along with the text.
-                val bg = CompactScoreboard.bgPanel()
-                val alpha = (bg ushr 24) * (color ushr 24) / 255
-                CompactScoreboard.roundRect(g, x - 5, -1, x + w + 5, 12, (alpha shl 24) or (bg and 0xFFFFFF))
-                g.text(font, text, x, 1, color)
-            } else {
-                g.textWithBackdrop(font, text, x, 1, w, color)
-            }
+            g.textWithBackdrop(font, text, x, 1, w, color)
             g.pose().popMatrix()
         }
+
+        /**
+         * Draws [source] centred in the panel like every other compact HUD: see-through halo text in the palette, or the
+         * shared card when the HUD editor turns it on. "§a..." codes in the text are read too. [alpha] fades it out.
+         */
+        protected fun drawNotice(g: GuiGraphicsExtractor, source: Component, alpha: Float) {
+            val size = 9f * panelScale
+            val parts = runs(source)
+            val w = parts.sumOf { HudCard.width(it.text, size, it.bold).toDouble() }.toFloat()
+            val h = lastHeight * panelScale
+            val pad = 5f * panelScale
+            val x0 = (WIDTH * panelScale - w) / 2f
+            HudCard.draw(g, panelX, panelY) {
+                NVGRenderer.push()
+                NVGRenderer.translate(x0 - pad, 0f)
+                HudCard.card(w + pad * 2, h, panelScale, alpha)
+                NVGRenderer.pop()
+                var x = x0
+                for (p in parts) {
+                    HudCard.text(p.text, x, (h - size) / 2f, size, HudCard.withAlpha(0xFF000000.toInt() or p.rgb, alpha), bold = p.bold)
+                    x += HudCard.width(p.text, size, p.bold)
+                }
+            }
+        }
+    }
+
+    private class Run(val text: String, val rgb: Int, val bold: Boolean)
+
+    /** [c] split into same-colour runs, with legacy "§x" codes applied the way vanilla's font reads them. */
+    private fun runs(c: Component): List<Run> {
+        val out = ArrayList<Run>()
+        val sb = StringBuilder()
+        var rgb = 0xFFFFFF
+        var bold = false
+        StringDecomposer.iterateFormatted(c, Style.EMPTY) { _, style, cp ->
+            val r = style.color?.value ?: 0xFFFFFF
+            if (sb.isNotEmpty() && (r != rgb || style.isBold != bold)) { out += Run(sb.toString(), rgb, bold); sb.setLength(0) }
+            rgb = r
+            bold = style.isBold
+            sb.appendCodePoint(cp)
+            true
+        }
+        if (sb.isNotEmpty()) out += Run(sb.toString(), rgb, bold)
+        return out
     }
 
     /** Vanilla's action bar sits ~68 up from the bottom; this sits a line above it, a bit smaller. */
@@ -98,11 +136,11 @@ object ActionBarHud : Module(
             val line = text ?: return
             val left = until - System.currentTimeMillis()
             if (left <= 0) { text = null; return }
-            drawText(g, line, ARGB.white(((left / 300f).coerceIn(0.05f, 1f) * 255).toInt()), compact = true)
+            drawNotice(g, line, (left / 300f).coerceIn(0.05f, 1f))
         }
 
         override fun renderInternal(g: GuiGraphicsExtractor) =
-            drawText(g, text ?: Component.literal("§aClient notice"), -1, compact = true)
+            drawNotice(g, text ?: Component.literal("§aClient notice"), 1f)
     }
 
     /** Defaults to vanilla's spot (59 up from the bottom, scale 1), so it only moves once you drag it. */

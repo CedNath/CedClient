@@ -894,97 +894,48 @@ object DailyReset : Module(
      * exactly removes that as a variable.
      */
     private fun renderNVG(g: GuiGraphicsExtractor) {
-        val font = NVGRenderer.defaultFont
-        val fontSize = 12f * panelScale
+        val card = ced.cedclient.features.impl.render.HudCard
+        val pal = ced.cedclient.ui.Palette
+        // Full card, Blaze layout: bold title + "3 left" / "all done", a divider, one dotted line per task.
+        val s = panelScale
+        val size = 9f * s
+        val padX = 12f * s
+        val padY = 10f * s
+        val lineH = size * 1.5f
+        val dot = 4f * s
+        val indent = dot + 7f * s
 
-        val header = "Daily Reset"
+        val title = "Daily Tasks"
         val actualRemaining = remaining()
         val allDone = actualRemaining.isEmpty()
-        val lines = actualRemaining.ifEmpty { listOf("All done for today!") }
-        val badgeText = if (allDone) "DONE" else "${actualRemaining.size} LEFT"
+        val subtitle = if (allDone) "all done" else "${actualRemaining.size} left"
+        val lines = actualRemaining
 
-        val paddingX = 10f * panelScale
-        val paddingY = 8f * panelScale
-        val headerGap = 5f * panelScale
-        val lineHeight = fontSize + 7f * panelScale
-        val bulletIndent = 12f * panelScale
-        val badgeHPad = 6f * panelScale
-        val badgeVPad = 3f * panelScale
-        val cornerRadius = CORNER_RADIUS * panelScale
-        val borderThickness = BORDER_THICKNESS * panelScale
-
-        val headerWidth = NVGRenderer.textWidth(header, fontSize, font)
-        val badgeWidth = NVGRenderer.textWidth(badgeText, fontSize, font) + badgeHPad * 2
-        val badgeHeight = fontSize + badgeVPad * 2
-        val headerRowHeight = maxOf(fontSize, badgeHeight)
-        val headerRowWidth = headerWidth + 8f * panelScale + badgeWidth
-
-        val contentWidth = maxOf(
-            headerRowWidth,
-            lines.maxOf { NVGRenderer.textWidth(it, fontSize, font) + bulletIndent }
+        val inner = maxOf(
+            card.width(title, size * 1.15f, bold = true), card.width(subtitle, size * 0.9f),
+            lines.maxOfOrNull { card.width(it, size) + indent } ?: 0f,
         )
-        val width = contentWidth + paddingX * 2
-        val height = paddingY * 2 + headerRowHeight + headerGap + 2f * panelScale + lineHeight * lines.size
+        val width = card.steady(label, inner + padX * 2, s)
+        val headH = card.headerHeight(size, true)
+        val lineY = padY + headH + 3f * s
+        val height = if (lines.isEmpty()) padY + headH + padY else lineY + 7f * s + lines.size * lineH - (lineH - size) + padY
 
-        lastWidth = (width / panelScale).toInt()
-        lastHeight = (height / panelScale).toInt()
+        lastWidth = (width / s).toInt()
+        lastHeight = (height / s).toInt()
 
-        NVGSpecialRenderer.draw(
-            g,
-            0, 0, g.guiWidth(), g.guiHeight(),
-            renderContent = {
-                // NVGRenderer's own canvas space is NOT the same coordinate
-                // system as GuiGraphicsExtractor's (panelX/panelY, and the
-                // editor's own outline box, are both in GUI-pose/GUI-Scale
-                // units) -- see NVGRenderer.canvasWidth's doc comment: canvas
-                // space is raw framebuffer pixels / device pixel ratio, while
-                // guiWidth() is raw pixels / Minecraft's GUI Scale setting.
-                // Those only coincide when GUI Scale and device pixel ratio
-                // happen to be equal. ClickGUI never has to bridge this
-                // because it's the only thing positioning its own content --
-                // it just made up a canvas-space-native `clickGuiScale` and
-                // never touches a GuiGraphicsExtractor coordinate at all.
-                // DailyReset's panelX/panelY, though, are dragged via plain
-                // mouse coordinates and shared with the editor's vanilla
-                // outline-box overlay (MasterHudEditScreen's
-                // context.outline() call), so they're GUI-pose values by
-                // definition. Scaling by canvasWidth/guiWidth() first
-                // converts a GUI-pose offset into the equivalent NVG-canvas
-                // offset before translating by it, so this panel's NVG
-                // content actually lands under that same outline box instead
-                // of drifting off to a different apparent position/size
-                // whenever GUI Scale != device pixel ratio.
-                val spaceRatio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
-                NVGRenderer.scale(spaceRatio, spaceRatio)
-                NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
-
-                ced.cedclient.features.impl.render.HudCard.card(width, height, panelScale, label = label)
-
-                val headerTextY = paddingY + (headerRowHeight - fontSize) / 2f
-                NVGRenderer.text(header, paddingX, headerTextY, fontSize, Colors.WHITE.rgba, font)
-
-                val badgeLeft = width - paddingX - badgeWidth
-                val badgeTop = paddingY
-                NVGRenderer.rect(
-                    badgeLeft, badgeTop, badgeWidth, badgeHeight,
-                    if (allDone) DONE_BADGE_COLOR else ACCENT_COLOR, badgeHeight / 2f
-                )
-                NVGRenderer.text(badgeText, badgeLeft + badgeHPad, badgeTop + badgeVPad, fontSize, BADGE_TEXT_COLOR, font)
-
-                val dividerY = paddingY + headerRowHeight + headerGap
-                NVGRenderer.rect(paddingX, dividerY, width - paddingX * 2, 1f * panelScale, ACCENT_COLOR)
-                NVGRenderer.rect(paddingX, dividerY + 1f * panelScale, width - paddingX * 2, 1f * panelScale, DIVIDER_HIGHLIGHT)
-
-                val listStartY = dividerY + 2f * panelScale + headerGap / 2f
-                for ((i, line) in lines.withIndex()) {
-                    val y = listStartY + lineHeight * i
-                    val isProgress = !allDone && line.contains('(') && line.contains(')')
-                    val color = if (isProgress) PROGRESS_COLOR else 0xFFDDDDDD.toInt()
-                    NVGRenderer.text("\u2022", paddingX, y, fontSize, if (allDone) DONE_BADGE_COLOR else ACCENT_COLOR, font)
-                    NVGRenderer.text(line, paddingX + bulletIndent, y, fontSize, color, font)
-                }
+        card.draw(g, panelX, panelY) {
+            card.card(width, height, s, label = label)
+            card.header(title, subtitle, padX, padY, size)
+            if (lines.isEmpty()) return@draw
+            card.divider(padX, lineY, width - padX * 2, s)
+            for ((i, line) in lines.withIndex()) {
+                val y = lineY + 7f * s + lineH * i
+                // Multi-count tasks ("Fetchur (1/3)") in the muted colour so the plain ones lead.
+                val isProgress = line.contains('(') && line.contains(')')
+                NVGRenderer.rect(padX, y + (size - dot) / 2f, dot, dot, Theme.hudAccentRgba, dot / 2f)
+                card.text(line, padX + indent, y, size, if (isProgress) pal.MUTED_SEE else pal.TEXT)
             }
-        )
+        }
     }
 
     private fun renderVanilla(g: GuiGraphicsExtractor) {

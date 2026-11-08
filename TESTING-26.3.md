@@ -55,11 +55,12 @@ Checked in singleplayer: menu (both accents), accent picker, HUD editor previews
 - [ ] Blaze Slayer status card during a real boss: title, status line, boss count headline, mobs slain row
 - [ ] Dungeon Splits during a real run: see-through, tight lines, halo readable over bright floors and lava
 - [ ] Secret HUD, Room Times, Leap Counter, Tick Timers, Deployable / Ragnarock timers in a run: see-through with halo, no card
-- [ ] Run Profit, Daily Tasks, Vampire Slayer, Music, Critter Safari: shared dark card, palette colours (their header / headline layout is a follow-up)
+- [ ] Run Profit (profit headline, Runs / Per run rows), Slayer (name + boss timer, kills headline with /h), Daily Tasks (title + "n left", dotted list), Critter Safari (bold title + subtitle, divider, half-height gaps): Blaze card layout. Checked in the HUD editor: Run Profit, Critter cards; Slayer and Daily Tasks not seen (panels overlap in the dev layout)
+- [ ] Time HUD, Chat Channel HUD, Client Notices, Entity ESP HUD: see-through halo text in the palette (card only with their Background on). Chat Channel lost its "Custom Font" toggle (Mod Settings > Font covers it). Client Notices no longer borrow Compact Scoreboard's panel
 - [ ] Item rarity / Hypixel-coloured text inside HUDs keeps its game colours (only HUD-picked greys / greens / reds / golds are remapped)
 - [ ] `[CC]` chat prefix follows the accent
 - Left on their own look on purpose: Dungeon Map, stat bars (Health / Mana ...), item cooldown numbers on hotbar slots, Fun Visuals, Screenshot Preview
-- Still drawing text directly (no halo / palette yet, follow-up): Time HUD, Chat Channel HUD, Entity ESP HUD, Action Bar HUDs
+- Held Item Name stays vanilla-drawn (vanilla renders it; the panel only moves it). Music keeps its album-colour panel
 - Follow-ups: standalone screens (search overlay, price input, command keybinds, cosmetic presets, button editor, update screen, debug panel) only got readability fixes, not the full panel restyle
 
 ## Build and release

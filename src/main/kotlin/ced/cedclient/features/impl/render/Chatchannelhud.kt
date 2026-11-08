@@ -143,9 +143,6 @@ object ChatChannelHud : Module(
     private const val MIN_SCALE = 0.5f
     private const val MAX_SCALE = 3.0f
 
-    private val fontId: Identifier = Identifier.fromNamespaceAndPath("cedclient", "font")
-    private val fontStyle: Style = Style.EMPTY.withFont(FontDescription.Resource(fontId))
-
     override var panelX: Int = 0
     override var panelY: Int = 689
     override var panelScale: Float = 1.0f
@@ -157,7 +154,6 @@ object ChatChannelHud : Module(
         private set
 
     private val showBackground = BooleanSetting("Show Background", false)
-    private val customFont = BooleanSetting("Custom Font", false)
 
     private val gson = Gson()
     private val saveFile by lazy {
@@ -227,7 +223,6 @@ object ChatChannelHud : Module(
     private fun buildText(): Component {
         val channel = currentChannel
         val root = Component.empty()
-        if (customFont.value) root.withStyle(fontStyle)
         root.append(Component.literal("Chat: ").withStyle(ChatFormatting.GREEN))
         when (channel) {
             Channel.PRIVATE -> {
@@ -262,37 +257,33 @@ object ChatChannelHud : Module(
     override fun renderInternal(g: GuiGraphicsExtractor) {
         ensureLoaded()
 
-        val font = Minecraft.getInstance().font
-        val styledText: Component = buildText()
-        val textWidth = font.width(styledText)
+        val text = buildText()
+        val size = 10f * panelScale
+        val textWidth = HudCard.width(text, size)
 
-        val paddingX = 8
-        val paddingY = 6
-        val width = textWidth + paddingX * 2
-        val height = font.lineHeight + paddingY * 2
+        // See-through by default: tight padding, halo text. With Show Background: the shared card.
+        val padX = (if (showBackground.value) 8f else 1f) * panelScale
+        val padY = (if (showBackground.value) 6f else 1f) * panelScale
+        val width = textWidth + padX * 2
+        val height = size + padY * 2
 
-        lastWidth = width
-        lastHeight = height
+        lastWidth = (width / panelScale).toInt()
+        lastHeight = (height / panelScale).toInt()
 
-        g.pose().pushMatrix()
-        g.pose().translate(panelX.toFloat(), panelY.toFloat())
-        g.pose().scale(panelScale, panelScale)
-
-        if (showBackground.value) {
-            val a = HudCard.opacityOf(label)
-            g.fill(0, 0, width, height, HudCard.withAlpha(0xCC10101A.toInt(), a))
-            g.outline(0, 0, width, height, HudCard.withAlpha(Theme.hudBorderRgba, a))
+        HudCard.draw(g, panelX, panelY) {
+            if (showBackground.value) HudCard.card(width, height, panelScale, label = label)
+            // Our own colours (not game text), so each segment goes through the palette.
+            var x = padX
+            text.visit({ style, segment ->
+                HudCard.text(segment, x, padY, size, 0xFF000000.toInt() or (style.color?.value ?: 0xFFFFFF))
+                x += HudCard.width(segment, size)
+                java.util.Optional.empty<Unit>()
+            }, Style.EMPTY)
         }
-
-        val textX = (width - textWidth) / 2
-        val textY = (height - font.lineHeight) / 2
-        g.text(font, styledText, textX, textY, 0xFFFFFFFF.toInt())
-
-        g.pose().popMatrix()
     }
 
     init {
         load()
-        addSettings(showBackground, customFont)
+        addSettings(showBackground)
     }
 }

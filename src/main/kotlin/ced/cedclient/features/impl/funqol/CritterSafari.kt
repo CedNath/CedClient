@@ -519,7 +519,9 @@ object CritterSafari : Module(
     private class Panel {
         class Row(val left: String, val leftColor: Int, val right: String = "", val rightColor: Int = LABEL, val bar: Float = -1f, val barColor: Int = 0)
         val rows = mutableListOf<Row>()
-        fun title(text: String, color: Int) { rows += Row(text, color) }
+        /** Muted line under the bold title ("1:23", "3 left"). */
+        var subtitle: String? = null
+        fun title(text: String, color: Int, sub: String? = null) { rows += Row(text, color); subtitle = sub }
         fun pair(left: String, right: String, leftColor: Int, rightColor: Int) { rows += Row(left, leftColor, right, rightColor) }
         fun bar(label: String, have: Int, total: Int, labelColor: Int, valueColor: Int) {
             rows += Row(label, labelColor, "$have/$total", valueColor, if (total == 0) 0f else have.toFloat() / total, valueColor)
@@ -532,11 +534,11 @@ object CritterSafari : Module(
         val shown = run ?: Run(selfName(), System.currentTimeMillis())
         val total = CRITTERS.size
         val p = Panel()
-        p.title(when {
-            run == null -> "Critter Safari (ready)"
-            current != null -> "Critter Safari  " + duration(System.currentTimeMillis() - shown.started)
-            else -> "Critter Safari (last run)"
-        }, HEADER)
+        p.title("Critter Safari", HEADER, when {
+            run == null -> "ready"
+            current != null -> duration(System.currentTimeMillis() - shown.started)
+            else -> "last run"
+        })
         p.bar("Party", shown.partyUnique(), total, LABEL, if (shown.partyUnique() == total) DONE else -1)
         p.bar("You", shown.ownUnique(), total, LABEL, YOU)
         if (showHotspot.value) hotspot?.let { p.pair("Hotspot", it.display, LABEL, it.color) }
@@ -573,7 +575,7 @@ object CritterSafari : Module(
             p.pair("all ${inBiome(b).size} caught", "", DONE, DIM)
             return p
         }
-        p.title("${b.display} Biome — ${missing.size} left", b.color)
+        p.title("${b.display} Biome", b.color, "${missing.size} left")
         for (c in missing) {
             val caught = run?.partyCatches(c) ?: 0
             val need = run?.required(c) ?: 1
@@ -601,34 +603,52 @@ object CritterSafari : Module(
     /** One NanoVG card (same style as the other HUD panels): "left ... right" rows, progress bars on the right. */
     private fun draw(g: GuiGraphicsExtractor, panel: Panel, hud: PanelHud) {
         val s = hud.panelScale
-        val size = 11f * s
-        val lineH = 13f * s
-        val pad = 7f * s
+        // Full card, Blaze layout: the first row is the bold title (+ muted subtitle), a divider, then the rows.
+        val size = 10f * s
+        val lineH = 13.5f * s
+        val padX = 12f * s
+        val padY = 10f * s
         val gap = 10f * s
         val barW = 36f * s
-        val leftW = panel.rows.filter { it.right.isNotEmpty() }.maxOfOrNull { HudCard.width(it.left, size) } ?: 0f
-        val width = HudCard.steady(hud.label, panel.rows.maxOf { r ->
-            if (r.right.isEmpty()) HudCard.width(r.left, size)
-            else leftW + gap + HudCard.width(r.right, size) + if (r.bar >= 0) gap + barW else 0f
-        } + pad * 2, s)
-        val height = panel.rows.size * lineH + pad * 2 - (lineH - size)
+        val title = panel.rows.first()
+        val body = panel.rows.drop(1)
+        val leftW = body.filter { it.right.isNotEmpty() }.maxOfOrNull { HudCard.width(it.left, size) } ?: 0f
+        val inner = maxOf(
+            HudCard.width(title.left, size * 1.15f, bold = true), panel.subtitle?.let { HudCard.width(it, size * 0.9f) } ?: 0f,
+            body.maxOfOrNull { r ->
+                if (r.right.isEmpty()) HudCard.width(r.left, size)
+                else leftW + gap + HudCard.width(r.right, size) + if (r.bar >= 0) gap + barW else 0f
+            } ?: 0f,
+        )
+        val width = HudCard.steady(hud.label, inner + padX * 2, s)
+        val headH = HudCard.headerHeight(size, panel.subtitle != null)
+        val lineY = padY + headH + 3f * s
+        // Blank rows are half a line: a gap between groups, not an empty line.
+        fun step(r: Panel.Row) = if (r.left.isEmpty()) lineH / 2f else lineH
+        val bodyH = body.sumOf { step(it).toDouble() }.toFloat() - (lineH - size)
+        val height = if (body.isEmpty()) padY + headH + padY else lineY + 7f * s + bodyH + padY
         hud.lastWidth = (width / s).toInt()
         hud.lastHeight = (height / s).toInt()
 
         HudCard.draw(g, hud.panelX, hud.panelY) {
             HudCard.card(width, height, s)
-            panel.rows.forEachIndexed { i, r ->
-                val y = pad + i * lineH
-                HudCard.text(r.left, pad, y, size, r.leftColor)
-                if (r.right.isEmpty()) return@forEachIndexed
-                HudCard.text(r.right, pad + leftW + gap, y, size, r.rightColor)
-                if (r.bar >= 0) {
-                    val bx = width - pad - barW
-                    val by = y + size / 2f - 1.5f * s
-                    NVGRenderer.rect(bx, by, barW, 3f * s, 0xFF33333A.toInt(), 1.5f * s)
-                    val fill = barW * r.bar.coerceIn(0f, 1f)
-                    if (fill > 0f) NVGRenderer.rect(bx, by, fill, 3f * s, r.barColor or 0xFF000000.toInt(), 1.5f * s)
+            HudCard.header(title.left, panel.subtitle, padX, padY, size)
+            if (body.isEmpty()) return@draw
+            HudCard.divider(padX, lineY, width - padX * 2, s)
+            var y = lineY + 7f * s
+            for (r in body) {
+                if (r.left.isNotEmpty()) {
+                    HudCard.text(r.left, padX, y, size, r.leftColor)
+                    if (r.right.isNotEmpty()) HudCard.text(r.right, padX + leftW + gap, y, size, r.rightColor)
+                    if (r.bar >= 0) {
+                        val bx = width - padX - barW
+                        val by = y + size / 2f - 1.5f * s
+                        NVGRenderer.rect(bx, by, barW, 3f * s, 0x1FFFFFFF, 1.5f * s)
+                        val fill = barW * r.bar.coerceIn(0f, 1f)
+                        if (fill > 0f) NVGRenderer.rect(bx, by, fill, 3f * s, HudCard.paletteOf(r.barColor or 0xFF000000.toInt()), 1.5f * s)
+                    }
                 }
+                y += step(r)
             }
         }
     }

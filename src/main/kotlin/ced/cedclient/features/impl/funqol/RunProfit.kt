@@ -616,26 +616,35 @@ object RunProfit : Module(
     override fun renderInternal(g: GuiGraphicsExtractor) {
         val runs = session()
         val profit = runs.sumOf(::profitOf)
-        val rows = listOf("Floor" to (ctxFloor ?: "-"), "Runs" to runs.size.toString(), "Profit" to signed(profit))
+        // Full card, Blaze layout: title + floor, session profit as the headline, then the per-run rows.
         val s = panelScale
-        val size = 10f * s
-        val lineH = 12f * s
-        val pad = 6f * s
-        val gap = 10f * s
-        val leftW = rows.maxOf { HudCard.width(it.first, size) }
-        val rightW = rows.maxOf { HudCard.width(it.second, size) }
-        val width = HudCard.steady("Run Profit", leftW + gap + rightW + pad * 2, s)
-        val height = rows.size * lineH + pad * 2 - (lineH - size)
-        lastWidth = (width / s).toInt()
-        lastHeight = (height / s).toInt()
+        val size = 9f * s
+        val padX = 12f * s
+        val padY = 10f * s
+        val title = "Run Profit"
+        val floor = ctxFloor
+        val value = signed(profit)
+        val perRun = if (runs.isEmpty()) "-" else signed(profit / runs.size)
+        val rows = listOf(
+            HudCard.Row("Runs", runs.size.toString()),
+            HudCard.Row("Per run", perRun, if (runs.isEmpty()) ced.cedclient.ui.Palette.MUTED else if (profit >= 0) GREEN else RED),
+        )
+        val inner = maxOf(
+            HudCard.width(title, size * 1.15f, bold = true), floor?.let { HudCard.width(it, size * 0.9f) } ?: 0f,
+            HudCard.width(value, size * 2.1f, bold = true) + HudCard.width("profit", size) + size, HudCard.rowsWidth(rows, size),
+        )
+        val w = HudCard.steady(label, inner + padX * 2, s)
+        val headH = HudCard.headerHeight(size, floor != null)
+        val lineY = padY + headH + HudCard.headlineHeight(size) + 4f * s
+        val h = lineY + 6f * s + HudCard.rowsHeight(rows.size, size) + padY
+        lastWidth = (w / s).toInt()
+        lastHeight = (h / s).toInt()
         HudCard.draw(g, panelX, panelY) {
-            HudCard.card(width, height, s)
-            rows.forEachIndexed { i, (left, right) ->
-                val y = pad + i * lineH
-                HudCard.text(left, pad, y, size, GRAY)
-                val color = if (i == 2) (if (profit >= 0) GREEN else RED) else -1
-                HudCard.text(right, width - pad - HudCard.width(right, size), y, size, color)
-            }
+            HudCard.card(w, h, s)
+            HudCard.header(title, floor, padX, padY, size)
+            HudCard.headline(value, "profit", null, padX, padY + headH, w - padX * 2, size)
+            HudCard.divider(padX, lineY, w - padX * 2, s)
+            HudCard.rows(rows, padX, lineY + 6f * s, w - padX * 2, size)
         }
     }
 

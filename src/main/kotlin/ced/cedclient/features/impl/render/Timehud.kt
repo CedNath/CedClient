@@ -7,7 +7,6 @@ import ced.cedclient.features.Module
 import ced.cedclient.features.settings.BooleanSetting
 import ced.cedclient.features.settings.ColorSetting
 import ced.cedclient.render.nvg.NVGRenderer
-import ced.cedclient.render.nvg.NVGSpecialRenderer
 import ced.cedclient.utils.Colors
 import com.google.gson.Gson
 import net.minecraft.client.DeltaTracker
@@ -275,38 +274,25 @@ object TimeHud : Module(
      * device pixel ratio).
      */
     private fun renderNVG(g: GuiGraphicsExtractor) {
-        val font = NVGRenderer.defaultFont
         val fontSize = 12f * panelScale
 
         val text = currentTimeText()
-        val textWidth = NVGRenderer.textWidth(text, fontSize, font)
+        val textWidth = HudCard.width(text, fontSize)
 
-        val paddingX = 8f * panelScale
-        val paddingY = 6f * panelScale
+        // See-through: almost no padding, the halo keeps it readable. With the card on: room around the text.
+        val paddingX = (if (showBackground.value) 8f else 1f) * panelScale
+        val paddingY = (if (showBackground.value) 6f else 1f) * panelScale
         val width = textWidth + paddingX * 2
         val height = fontSize + paddingY * 2
-        val cornerRadius = CORNER_RADIUS * panelScale
 
         lastWidth = (width / panelScale).toInt()
         lastHeight = (height / panelScale).toInt()
 
-        NVGSpecialRenderer.draw(
-            g,
-            0, 0, g.guiWidth(), g.guiHeight(),
-            renderContent = {
-                val spaceRatio = NVGRenderer.canvasWidth / g.guiWidth().toFloat()
-                NVGRenderer.scale(spaceRatio, spaceRatio)
-                NVGRenderer.translate(panelX.toFloat(), panelY.toFloat())
-
-                if (showBackground.value) {
-                    HudCard.card(width, height, panelScale, label = label)
-                }
-
-                val textX = (width - textWidth) / 2f
-                val textY = (height - fontSize) / 2f
-                NVGRenderer.text(text, textX, textY, fontSize, textColor.value.rgba, font)
-            }
-        )
+        // HudCard.draw: shared canvas setup, halo on see-through text, palette colours.
+        HudCard.draw(g, panelX, panelY) {
+            if (showBackground.value) HudCard.card(width, height, panelScale, label = label)
+            HudCard.text(text, (width - textWidth) / 2f, (height - fontSize) / 2f, fontSize, textColor.value.rgba)
+        }
     }
 
     init {
