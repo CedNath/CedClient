@@ -69,7 +69,7 @@ interface HudElement {
             curH = screenH
             if (homeW < 0) loadHome()
             val screen = net.minecraft.client.Minecraft.getInstance().gui.screen()
-            if (screen is MasterHudEditScreen || screen is HudEditScreen) return
+            if (screen is MasterHudEditScreen || screen?.javaClass?.simpleName == "HudEditScreen") return // HudEditScreen is cheat-only
             all.forEach { e ->
                 val p = home[e.label] ?: return@forEach
                 val w = (e.lastWidth * e.panelScale).toInt()
