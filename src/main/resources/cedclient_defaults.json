@@ -1,0 +1,1799 @@
+{
+ "modules": {
+  "StarredMobHighlight": {
+   "Only In Dungeons": true,
+   "Box Color": "#FFFFFFFF",
+   "Highlight Shadow Assassins": true,
+   "Shadow Assassin Color": "#AA55FFFF",
+   "Line Width": 2,
+   "Through Walls": true,
+   "Show Tracers": false,
+   "Hide Non-Starred Nametags": true
+  },
+  "FloorDrops": {
+   "Highlight Color": "#55FF55FF",
+   "See Through Walls": true,
+   "Line Width": 2,
+   "Only On Foraging Islands": true
+  },
+  "Pest Highlighter": {
+   "Box Color": "#FF5555FF",
+   "Style": "Outline",
+   "See Through Walls": false,
+   "Only In Garden": true
+  },
+  "Fullbright": {
+   "Brightness %": 100,
+   "Minimum Light Level": 15,
+   "Fade Time (s)": 1
+  },
+  "Saturation": {
+   "Saturation %": 140
+  },
+  "Clean View": {
+   "Radius": 2.5,
+   "Particles": true,
+   "Projectiles": true,
+   "Players": false,
+   "Armor Stands": false,
+   "Dropped Items": false,
+   "Other Entities": false
+  },
+  "Render Optimizer": {
+   "No World Fog": true,
+   "No Render Distance Fog": true,
+   "No Water Fog": true,
+   "No Lava Fog": true,
+   "No Powder Snow Fog": true,
+   "No Blindness Fog": true,
+   "No Darkness Fog": true,
+   "No Underwater Overlay": true,
+   "No Fire Overlay": true,
+   "No In-Wall Overlay": false,
+   "No Vignette": false,
+   "No Pumpkin Overlay": true,
+   "No Freezing Overlay": true,
+   "No Portal Overlay": false,
+   "No Nausea Overlay": false,
+   "No Weather": true,
+   "No Explosion Particles": true,
+   "No Falling Blocks": true,
+   "No Healer Fairy": true,
+   "No Soulweaver Skulls": true,
+   "No Block Breaking Particles": true,
+   "Clean Loading Screen": true
+  },
+  "Vanilla Textures": {
+   "Old Item Textures": true,
+   "Keep Custom Textures": "",
+   "Vanilla Tooltips": true,
+   "Vanilla Colors": true,
+   "Block Hypixel Pack": false,
+   "Keep Hypixel Pack Loaded": true
+  },
+  "Custom Tooltips": {
+   "Background": "#0E0E14EF",
+   "Gradient": true,
+   "Gradient Bottom": "#22025BEF",
+   "Corner Radius": 3,
+   "Header Bar": false,
+   "Header Opacity": 0.30000000000000004,
+   "Border Colour": "Accent",
+   "Custom Border": "#5A5A6EFF",
+   "Border Width": 1,
+   "Shadow": true,
+   "Shadow Size": 6,
+   "Shadow Opacity": 0.5,
+   "Glow": false,
+   "Glow Size": 5,
+   "Glow Opacity": 0.45,
+   "Slide In": true,
+   "Hide Lines": "",
+   "Collapse Blank Lines": false
+  },
+  "Scrollable Tooltips": {
+   "Scroll Speed": 12,
+   "Fit To Screen": false
+  },
+  "Zoom": {
+   "Max Zoom": 25,
+   "Default Zoom": 4,
+   "Scroll Step": 1,
+   "Zoom Speed": 1,
+   "Dynamic Sensitivity": true
+  },
+  "Crosshair": {
+   "Shape": "Cross",
+   "Crosshair Color": "#F40000FF",
+   "Size": 2,
+   "Thickness": 1,
+   "Gap": 1,
+   "Outline": false,
+   "Third Person": true
+  },
+  "Hiders": {
+   "Hide Chat": false,
+   "Nearby Particles": true,
+   "Particle Radius": 4,
+   "Nearby Players": "Off",
+   "Player Radius": 4,
+   "Scale X": 0.30000000000000004,
+   "Scale Y": 0.30000000000000004,
+   "Scale Z": 0.30000000000000004
+  },
+  "Hub Map": {
+   "Image": "Default",
+   "Image Fit Mode": "Crop",
+   "Image URL": ""
+  },
+  "Custom Sky": {
+   "Mode": "Real Time",
+   "Time": "Noon",
+   "Custom Ticks": 6000
+  },
+  "Tooltip Dates": {
+   "Format": "Full Date"
+  },
+  "Old Stars": {
+   "Normal Star Color": "Gold",
+   "Master Star Color": "Red",
+   "Stars as Stack Size": false,
+   "Stack Size Color": "Gold",
+   "Stack Size Override": false
+  },
+  "Compact Scoreboard": {
+   "Panel Opacity": 100,
+   "Scale": 1,
+   "Position": "RIGHT",
+   "Vertical Offset": 1,
+   "Show Title": true,
+   "Show Scores": false
+  },
+  "Scoreboard Toggle": {
+   "Mode": "Toggle"
+  },
+  "Cursor Tweaks": {
+   "No Cursor Reset": true,
+   "Unhook Timeout (ms)": 150,
+   "Force Cursor Reset": true
+  },
+  "Dungeon Waypoints": {
+   "Edit Mode": false,
+   "Next Type": "Normal",
+   "None Color": "#FF0000FF",
+   "Normal Color": "#FFFFFFFF",
+   "Secret Color": "#5AFF55FF",
+   "Etherwarp Color": "#FFAA00FF",
+   "Box Mode": "Filled",
+   "Through Walls": true,
+   "Type Labels": false,
+   "Hide Done": true,
+   "Import Mode": "Merge"
+  },
+  "Perspective": {
+   "Mode": "Hold"
+  },
+  "Title Background": {
+   "Style": "Starfield"
+  },
+  "Sword Blocking": {
+   "Offset X": 0,
+   "Offset Y": 0,
+   "Offset Z": 0
+  },
+  "Stat Bars": {
+   "Show Health": true,
+   "Show Mana": true,
+   "Show Vitality": true,
+   "Show Overflow Mana": true,
+   "Show Defence": true,
+   "Bar Width": 90,
+   "Hide Health From Action Bar": false,
+   "Hide Mana From Action Bar": false,
+   "Hide Vitality From Action Bar": false,
+   "Hide Overflow Mana From Action Bar": false,
+   "Hide Defence From Action Bar": false
+  },
+  "Skill Display": {
+   "Show Icon": true,
+   "Show Percent": true,
+   "Fade Time (s)": 1,
+   "Hide From Action Bar": true,
+   "Background Opacity": 100
+  },
+  "Smooth Chat": {
+   "Fade-In Time (ms)": 125
+  },
+  "Storage Overlay": {
+   "Open With Storage Menu": true
+  },
+  "China Hat": {
+   "Style": "Rainbow",
+   "Radius": 0.6000000000000001,
+   "Height": 0.30000000000000004,
+   "Rainbow Speed": 0.30000000000000004
+  },
+  "ADHD": {
+   "Text": "CedClient",
+   "Speed": 60,
+   "Size": 1.5
+  },
+  "Screenshot Preview": {
+   "Show For (s)": 6,
+   "Preview Width": 160,
+   "Hide Chat Line": true
+  },
+  "Freeze Capture": {
+   "Threshold (ms)": 200
+  },
+  "Compact Tab": {
+   "Panel Opacity": 100,
+   "Stat Bar": true,
+   "Stat Bar Position": "TOP",
+   "Effects Panel": true
+  },
+  "Chat Channel HUD": {
+   "Show Background": false,
+   "Background Opacity": 100
+  },
+  "Action Bar HUD": {
+   "Always Show Item Name": false
+  },
+  "Time HUD": {
+   "24-Hour Format": false,
+   "Show Seconds": false,
+   "Show Background": false,
+   "Text Color": "#FFFFFFFF",
+   "Background Opacity": 100
+  },
+  "Event Countdown": {
+   "Max Rows": 3,
+   "Local Time": true,
+   "Hide Far Away": false,
+   "Spooky Festival": true,
+   "Season of Jerry": true,
+   "New Year": true,
+   "Traveling Zoo": true,
+   "Dark Auction": true,
+   "Background Opacity": 100
+  },
+  "Armor HUD": {
+   "Layout": "Horizontal",
+   "Order": "Helmet First",
+   "Durability": "Percent",
+   "Show Held Item": false,
+   "Show Offhand": false,
+   "Hide Empty Slots": true,
+   "Background": false,
+   "Spacing": 0,
+   "Background Opacity": 60
+  },
+  "Item Cooldowns": {
+   "Show On Hotbar": true,
+   "Show In Inventory": true,
+   "Show Ready Indicator": true,
+   "Ready Color": "#55FF55FF",
+   "Cooldown Color": "#FF5555FF",
+   "Log Unmatched Cooldown Messages": false,
+   "Log All Sounds": false
+  },
+  "Daily Tasks": {
+   "Log Chat (find triggers)": false,
+   "Announce Completion In Chat": true,
+   "Daily-Only Short Cooldowns": true,
+   "Fetchur's Item Quest (24h)": true,
+   "Ubiks Cube (2h)": true,
+   "Heavy Pearls (24h)": true,
+   "Puzzler (24h)": true,
+   "Hunting Traps (unclear)": true,
+   "Island Cakes (48h)": true,
+   "Experimentation Table (24h)": true,
+   "Isle Minibosses (24h)": true,
+   "Mage Reputation Quests (24h)": true,
+   "Barbarian Reputation Quests (24h)": true,
+   "Daily Powder (Mithril/Gemstone/Glacite) (24h)": true,
+   "Forest/Desert Whispers (24h)": true,
+   "Torrhus Honey Hives (1h)": true,
+   "Background Opacity": 100
+  },
+  "Cosmetic Blocks": {
+   "Place Mode": false,
+   "Fill Mode": false,
+   "Fill Limit": 2000,
+   "Max Region Size": 250000,
+   "Brush Shape": "None",
+   "WE Fill on Click": false,
+   "Keep Block Size": true,
+   "Lava as Water": false,
+   "Custom Water Color": false,
+   "Water Color": "#3F76E4FF",
+   "Only in Dungeons": false,
+   "Room Scanning": true,
+   "Block Remaps": true,
+   "Remap Keep Shape": false,
+   "Show Replaced Blocks": false,
+   "Overlay Range": 32,
+   "Overlay Color": "#55FFFFFF"
+  },
+  "Custom Nametag": {
+   "Tag Text": "",
+   "Level Prefix Color": false,
+   "Level Color": "#FFAA00FF",
+   "Level Gradient": false,
+   "Level Color 2": "#FF5555FF",
+   "Log Nametag Debug": false
+  },
+  "Cosmetics": {
+   "Chat Emotes": true,
+   "Halo Particles": true,
+   "China Hats": true,
+   "Emote Volume": 0.1
+  },
+  "Player Scale": {
+   "Scale X": 1,
+   "Scale Y": 1,
+   "Scale Z": 1
+  },
+  "Hide Armor": {
+   "Players": "All Players",
+   "Hide Helmet": true,
+   "Hide Chestplate": true,
+   "Hide Leggings": true,
+   "Hide Boots": true,
+   "Player Heads": true
+  },
+  "Falling Petals": {
+   "Kind": "Petals",
+   "Amount": 23,
+   "Radius": 1,
+   "Height": 4
+  },
+  "Dungeon Map": {
+   "Room Labels": "Name + Secrets",
+   "Label Size": 1,
+   "Checkmarks": true,
+   "Run Info": true,
+   "Force Paul Perk": true,
+   "Clear Summary": true,
+   "Show Undiscovered": true,
+   "Mimic Room": true,
+   "Mimic ESP": false,
+   "Player Marker": true,
+   "Teammates": true,
+   "Player Names": "While Holding Leap",
+   "Marker Style": "Arrow",
+   "Blood Route": false,
+   "Background": false,
+   "Background Color": "#161620FF",
+   "Background Opacity": 90,
+   "Border": true,
+   "Normal Room": "#6B3A11FF",
+   "Puzzle Room": "#75009DFF",
+   "Trap Room": "#D87F33FF",
+   "Miniboss Room": "#FEDF00FF",
+   "Blood Room": "#E00000FF",
+   "Entrance Room": "#148500FF",
+   "Fairy Room": "#E000FFFF",
+   "Unopened Room": "#404040FF",
+   "Wither Door": "#0A0A0AFF",
+   "Your Marker": "#FFFFFFFF",
+   "Archer": "#FFAA00FF",
+   "Berserk": "#FF5555FF",
+   "Healer": "#FF55FFFF",
+   "Mage": "#55FFFFFF",
+   "Tank": "#55FF55FF"
+  },
+  "Leap Menu": {
+   "Menu Size": 1.5,
+   "Menu Opacity": 45,
+   "Sort By": "A-Z Class",
+   "Class Order": "ABHMT",
+   "Custom Order": "",
+   "Highlight Door Opener": true,
+   "Tint Dead Players": true,
+   "Player Heads": true,
+   "Number Keys": false,
+   "Key Mode": "Corners",
+   "Left Click Only": false,
+   "Queue Clicks While Laggy": false,
+   "Leap Announce": true,
+   "Announce Message": "Leaping to {name}",
+   "Hide Players": false,
+   "Hide Time": 3.5,
+   "Quick Leap": true,
+   "Quick Leap Speed": "Normal"
+  },
+  "Terminal Solver": {
+   "First Click Delay": 350,
+   "Click Delay": 100,
+   "Wait For Server Answer": false,
+   "Resync Timeout": 800,
+   "Allow Drop Key": true,
+   "Click Sound": false,
+   "Click In Order": true,
+   "Correct All The Panes": true,
+   "Change All To Same Color": true,
+   "What Starts With": true,
+   "Select All The Color Items": true,
+   "Click The Button On Time": true,
+   "Rubix Left Click Only": true,
+   "Melody Prevent Wrong Clicks": true,
+   "Melody Number Keys": false,
+   "Scale": 1,
+   "Roundness": 4,
+   "Border Width": 1,
+   "Padding": 5,
+   "Slot Gap": 2,
+   "Melody Gap": 2,
+   "Screen Dim": 60,
+   "Offset X": 0,
+   "Offset Y": 0,
+   "Background": "#2B2B2BAF",
+   "Border": "#CB0101DC",
+   "Slot Fill": true,
+   "Slot Roundness": 3,
+   "Show Items": false,
+   "Numbers Show Text": true,
+   "Hide Header": true,
+   "Hide Title": true,
+   "Title Color": "#F0F0F5E6",
+   "Header Color": "#0A0A0CC8",
+   "Solution": "#2ECC71DC",
+   "Numbers 1st": "#2ECC71DC",
+   "Numbers 2nd": "#F1C40FDC",
+   "Numbers 3rd": "#E74C3CDC",
+   "Rubix Positive": "#3498DBDC",
+   "Rubix Negative": "#E74C3CDC",
+   "Melody Fill": "#9B59B6DC",
+   "Melody Correct": "#2ECC71DC",
+   "Melody Wrong": "#E74C3CDC",
+   "Melody Other": "#18181CC8",
+   "Drag Click": true,
+   "Drag Click Delay": 160
+  },
+  "Dungeon Splits": {
+   "Compare to PB": true,
+   "Second Column": "Tick Time",
+   "Estimate From": "Recent Runs",
+   "Current Split Timer": true,
+   "Timer Format": "Seconds",
+   "Show Split Name": false,
+   "Show Suffix": true,
+   "Suffix": "",
+   "Chat Summary": true,
+   "Show After Run": 10,
+   "Header": false,
+   "Only Show Started Splits": false,
+   "Terminal Splits": true,
+   "Boss Entry": true,
+   "Run Time": true,
+   "Est. Total": true,
+   "PB Row": true,
+   "Lag Lost": true,
+   "Background": false,
+   "Padding": 6,
+   "Line Spacing": 2,
+   "Decimals": 2,
+   "Colored Split Names": false,
+   "Text Color": "#FFFFFFFF",
+   "Running Color": "#FFE066FF",
+   "Ahead Color": "#5ADC5AFF",
+   "Behind Color": "#F05050FF",
+   "Upcoming Color": "#8C8C96FF",
+   "Tick Color": "#B4B4C8FF",
+   "Background Opacity": 100
+  },
+  "Positional Messages": {
+   "Send Mode": "Every Time I Enter",
+   "Cooldown": 5,
+   "Skip If Teammate Said It": true,
+   "Only In Dungeons": true,
+   "Test Mode": false,
+   "At SS": true,
+   "At EE2": true,
+   "At High EE2": true,
+   "At EE3": true,
+   "At Core": true,
+   "Inside Goldor Tunnel": true,
+   "At 2 Safespot": false,
+   "At High 2 Safespot": false,
+   "At 3 Safespot": false,
+   "At Split EE2": false,
+   "Show Boxes": true,
+   "See Through Walls": false,
+   "Show Message": true,
+   "Message Size": 10,
+   "Message Background": true,
+   "Box Color": "#55FFFFFF",
+   "Message Color": "#FFFFFFFF",
+   "Background Color": "#0000008C"
+  },
+  "F7SoundCap": {
+   "Max Repeats Per Tick": 2,
+   "Volume Cap %": 25
+  },
+  "CustomHypeSound": {
+   "Sound": "Iron Xylophone",
+   "Custom Sound ID": "minecraft:entity.player.levelup",
+   "Volume": 1,
+   "Pitch": 1
+  },
+  "Critter Safari": {
+   "Show HUD": "Safari + Entrance",
+   "Missing Species HUD": true,
+   "Hunter Trades HUD": true,
+   "Hide Loot Share Messages": false,
+   "Per Player": true,
+   "Show Hotspot": true,
+   "Unique Only": false,
+   "Nearby Counts": true,
+   "Shard Value": true,
+   "Price": "Instant Sell",
+   "Show Both Prices": false,
+   "Subtract Bazaar Tax": true,
+   "Alert Sound": true,
+   "Gemzie": "Alert",
+   "Wumpa": "Alert",
+   "Doomspiral": "Alert",
+   "Macaw": "Alert",
+   "Other Birdfeeder Birds": "Off",
+   "Sparkling Critters": "Alert",
+   "Hotspot": "Alert",
+   "Hunter Trades": "Alert",
+   "Biome Done": "Off",
+   "All But Macaw": "Off",
+   "Everything Done": "Off",
+   "Hard-To-Find Critters": true,
+   "Hard-To-Find Color": "#FF5555FF",
+   "Recatch Spot": true,
+   "Recatch Color": "#FFFF55FF",
+   "Floor Drops": true,
+   "Floor Drop Color": "#55FFAAFF",
+   "Rockmite Mounds": false,
+   "Mound Color": "#CC7744FF",
+   "Hunter Trade Spots": true,
+   "Trade Color": "#55FFFFFF",
+   "Remove Darkness": false,
+   "Snooper Walls": true,
+   "Troodon Walls": true,
+   "Wall Color": "#FFAA00FF",
+   "Bee Spots": true,
+   "Bee Spot Color": "#55FF55FF",
+   "Bee Nest Color": "#FFCC22FF",
+   "Hideonwall Perches": true,
+   "Perch Color": "#AA55FFFF",
+   "Perch Found Color": "#55FF55FF",
+   "Show Title": true
+  },
+  "Run Profit": {
+   "HUD": false,
+   "Track Kuudra": true,
+   "Bazaar Price": "Instant Sell",
+   "Essence In Profit": true,
+   "Count Chest Keys": true,
+   "Croesus Profit": true,
+   "Highlight Best Chest": true,
+   "Hide Opened Chests": true,
+   "Fancy Menu": false,
+   "Background Opacity": 100
+  },
+  "Deployable Timers": {
+   "Power Orbs": true,
+   "Flares": true,
+   "Umberella": true,
+   "Totem Of Corruption": true,
+   "Only In Range": true,
+   "Sort By": "Time Left",
+   "Max Rows": 1,
+   "Show Distance": false,
+   "Time Format": "1:30",
+   "Background": false,
+   "In Range Color": "#55FF55FF",
+   "Out Of Range Color": "#BBBBBBFF",
+   "Low Time Color": "#FF5555FF",
+   "Low Time": 10,
+   "Background Opacity": 100
+  },
+  "Ragnarock Timer": {
+   "HUD": false,
+   "Show When Ready": false,
+   "Decimals": true,
+   "Item Slot Timer": true,
+   "Cast Title": true,
+   "Fail Title": true,
+   "Ready Title": true,
+   "Sound": true,
+   "Cast Color": "#FFFFFFFF",
+   "Active Color": "#02FF28FF",
+   "Cooldown Color": "#FF5555FF",
+   "Ready Color": "#55FF55FF",
+   "Show Title": true,
+   "Background Opacity": 100
+  },
+  "Ping / FPS": {
+   "Ping": true,
+   "FPS": true,
+   "TPS": true,
+   "Time": true,
+   "24-Hour Format": true,
+   "Show Seconds": false,
+   "Good Color": "#55FF55FF",
+   "Mid Color": "#FFFF55FF",
+   "Bad Color": "#FF5555FF",
+   "Background Opacity": 100
+  },
+  "Class Colors": {
+   "Archer": "#FFAA00FF",
+   "Berserk": "#FF5555FF",
+   "Healer": "#FF55FFFF",
+   "Mage": "#55FFFFFF",
+   "Tank": "#55FF55FF",
+   "Class Symbols": true
+  },
+  "F7 Titles": {
+   "Terminal Titles": true,
+   "Device Titles": true,
+   "Lever Titles": true,
+   "Section Done Title": true,
+   "Only My Own": false,
+   "Boss Titles": true,
+   "Gate Titles": true,
+   "Hide Game Titles": false,
+   "Sound": false,
+   "Section Done Color": "#55FF55FF",
+   "Show Title": true
+  },
+  "Mask Timers": {
+   "Dungeons Only": false,
+   "Ready Ping": false,
+   "Show Ready Masks": false,
+   "Proc Message": false,
+   "Invincibility Prefix": true,
+   "Show Title": true,
+   "Background Opacity": 100
+  },
+  "Blessing Display": {
+   "Power": true,
+   "Time": true,
+   "Wisdom": false,
+   "Life": false,
+   "Stone": false,
+   "Level Dots": false,
+   "Dim Low Levels": false,
+   "Background Opacity": 100
+  },
+  "Score Calculator": {
+   "Show In Boss": false,
+   "Force Paul Perk": true,
+   "Background": false,
+   "270 Message": true,
+   "270 Text": "270",
+   "300 Message": true,
+   "300 Text": "300",
+   "Mimic Message": true,
+   "Prince Message": true,
+   "Bat Message": true,
+   "Background Opacity": 100
+  },
+  "Tick Timers": {
+   "Maxor Start": true,
+   "Goldor Death Ticks": true,
+   "Storm PY": true,
+   "Storm Pad": true,
+   "Format": "Ticks",
+   "Show Prefix": true,
+   "Maxor Prefix": "",
+   "Goldor Prefix": "",
+   "PY Prefix": "PY",
+   "Pad Prefix": "Pad",
+   "Show Suffix": true,
+   "Suffix": "",
+   "Ping Compensation": false,
+   "Background": false,
+   "High Color": "#55FF55FF",
+   "Mid Color": "#FFAA00FF",
+   "Low Color": "#FF5555FF"
+  },
+  "Warp Cooldown": {
+   "Cooldown (s)": 30,
+   "Ready Ping": false,
+   "Hide While In Dungeon": false,
+   "Show Title": true,
+   "Background Opacity": 100
+  },
+  "Room Alerts": {
+   "Cleared": true,
+   "Secrets Done": true,
+   "Show Time In Room": false,
+   "Sound": true,
+   "Gap (s)": 3,
+   "Min Time In Room (s)": 2,
+   "Show Title": true
+  },
+  "Lava To Water": {
+   "Color Tint": false,
+   "Tint Color": "#3F76E4FF",
+   "Hide Fog": true
+  },
+  "Enchant Colors": {
+   "Maxed": "#FFAA00FF",
+   "Ultimate": "#FF55FFFF",
+   "Color Others By Level": true,
+   "Normal": "#5555FFFF",
+   "Bad Level Color": "#AAAAAAFF",
+   "Normal Level Color": "#00AAAAFF",
+   "High Level Color": "#FFAA00FF",
+   "Bold Max Level": true,
+   "Rainbow Max Level": false,
+   "Rainbow Speed": 1,
+   "Rainbow Saturation": 1,
+   "Numbers Instead Of Roman": false,
+   "One Per Line": false
+  },
+  "Protect Item": {
+   "Protect Notification": true,
+   "Show Protected Items": false,
+   "Protect UUID": true,
+   "Protect Skyblock ID": true,
+   "Protect Starred": true,
+   "Protect Recombobulated": true
+  },
+  "Slot Binding": {
+   "Show Bound Slots": true,
+   "Hover Only": false,
+   "Draw Border": true,
+   "Draw Line": true,
+   "Border Color": "#C00000AA",
+   "Line Color": "#FFFFFFFF"
+  },
+  "Loadout Keybinds": {
+   "Block Barrier Click": true,
+   "Use Hotbar Binds": false,
+   "Close After Use": true
+  },
+  "Wardrobe Keybinds": {
+   "Use Hotbar Binds": false,
+   "Prevent Unequip": true,
+   "Close After Use": false
+  },
+  "SB Kick Timer": {
+   "Cooldown (s)": 60,
+   "Color": "#FFAA00FF",
+   "Ready Color": "#55FF55FF",
+   "Sound": true,
+   "Show Title": true,
+   "Background Opacity": 100
+  },
+  "Item Info Tooltip": {
+   "Item ID": false,
+   "UUID": false,
+   "Dungeon Quality": true,
+   "Reforge": false,
+   "Hot Potato Books": false,
+   "Recombobulated": false,
+   "Dungeon Stars": false,
+   "Only With Shift": false
+  },
+  "Terminal Simulator": {
+   "Simulated Ping (ms)": 0
+  },
+  "Waypoints": {
+   "Default Color": "#FFAA00FF",
+   "Outline": true,
+   "Fill": true,
+   "Beam": false,
+   "Name": true,
+   "Tracer": false,
+   "Show Distance": true,
+   "Through Walls": true,
+   "Fill Opacity": 30,
+   "Box Size": 1,
+   "Beam Width": 0.2,
+   "Hide Within": 0,
+   "Max Distance": 0,
+   "Only On Its Island": true,
+   "Remove When Reached": false,
+   "Chat Waypoints": true,
+   "Chat Lifetime (s)": 60,
+   "Chat Color": "#55FFFFFF"
+  },
+  "Item Rarity": {
+   "Draw On Hotbar": true,
+   "Rarity Opacity": 30,
+   "Rarity Style": "Filled Outline",
+   "Color Style": "Default",
+   "Show Common": true
+  },
+  "Pet Display": {
+   "Show Level": true,
+   "Rarity Color": true,
+   "Color": "#FFAA00FF",
+   "Hide When No Pet": true,
+   "Background Opacity": 100
+  },
+  "Slayer Tracker": {
+   "Slayer HUD": true,
+   "Box Your Boss": true,
+   "Boss Color": "#55FF55FF",
+   "Boss Soon Alert": true,
+   "Boss Spawned Alert": true,
+   "Mini-Boss Alert": true,
+   "Box Mini-Bosses": true,
+   "Mini-Boss Color": "#FFAAFFFF",
+   "Quest Timer": true,
+   "Boss Timer": true,
+   "Boss HP": true,
+   "Steak At": true,
+   "Mania Circles": true,
+   "Twinclaws": true,
+   "Attunement": true,
+   "Hits Left": true,
+   "Fire Pillar": true,
+   "Laser Phase": true,
+   "Beacons": true,
+   "Last Kill": true,
+   "Kills / Hour": true,
+   "Avg / Best": true,
+   "RNG Meter": true,
+   "Effigies Line": true,
+   "Show Title": true,
+   "Background Opacity": 100
+  },
+  "Tarantula Broodfather": {
+   "Hatchlings Alert": true
+  },
+  "Voidgloom Seraph": {
+   "Beacons": true,
+   "Beacon Color": "#FF0000FF",
+   "Beacon Style": "Filled + Outline",
+   "Laser Timer": true,
+   "Nukekubi Skulls": true,
+   "Skull Color": "#FFAA00FF",
+   "Skull Style": "Outline"
+  },
+  "Inferno Demonlord": {
+   "Attunement": true,
+   "Fire Pits": true,
+   "Fire Pillar": true
+  },
+  "Riftstalker Bloodfiend": {
+   "Steak Alert": true,
+   "Steak Color": "#FF5555FF",
+   "Twinclaws Alert": true,
+   "Blood Ichor Boxes": true,
+   "Ichor Color": "#FF2828FF",
+   "Ichor Stand Spots": true,
+   "Stand Spot Color": "#55FFFFFF",
+   "Killer Spring Boxes": true,
+   "Spring Color": "#C855FFFF",
+   "Blood Effigies": true,
+   "Effigy Color": "#FFAA00FF",
+   "Effigies Through Walls": false
+  },
+  "Sun Gecko": {
+   "HUD": true,
+   "Box Sun Gecko": true,
+   "Box Color": "#FFC828FF",
+   "Hazard Zone Alert": true,
+   "Hazard Zone In HUD": false,
+   "Spirit Beam Alert": true,
+   "PB In Chat": true,
+   "Run Timer": true,
+   "Hazard Zone": true,
+   "Gecko HP": true,
+   "Last Ability": true,
+   "Time Lost": true,
+   "Orbs": true,
+   "Last Run": true,
+   "Modifiers": false,
+   "PB": true,
+   "Show Title": true,
+   "Background Opacity": 100
+  },
+  "Room Times": {
+   "HUD": false,
+   "Start Timer": "Room Enter",
+   "Times In Chat": false,
+   "Only On PB": false,
+   "Debug": false,
+   "Background Opacity": 85
+  },
+  "Key Alerts": {
+   "Blood Key": true,
+   "Wither Key": true,
+   "Only My Keys": false,
+   "Sound": false,
+   "Show Title": true
+  },
+  "Leap Counter": {
+   "Count Whole Section": true,
+   "ADG Leap Spots": false,
+   "Relic Box Size": 5,
+   "Alert Complete": true,
+   "Complete Text": "&aEveryone Leaped!",
+   "Alert Sound": true,
+   "Text": "{count}/{max} Players Leaped",
+   "Count Color": "#AA0000FF",
+   "Almost Color": "#5555FFFF",
+   "Done Color": "#55FF55FF",
+   "Text Color": "#5555FFFF",
+   "Background": false,
+   "Hide When Done": true,
+   "Background Opacity": 100
+  },
+  "Secret Clicked": {
+   "Box Color": "#50FF78FF",
+   "Style": "Filled Outline",
+   "Through Walls": true,
+   "Duration": 1.5,
+   "Clicked Blocks": true,
+   "Picked Up Items": true,
+   "Bats": true,
+   "Only In Dungeons": true,
+   "Sound": false,
+   "Sound Type": "XP Orb",
+   "Locked Chest Title": true,
+   "Locked Chest Text": "Locked Chest!",
+   "Locked Chest Color": "#FF5555FF",
+   "Locked Chest Duration": 2,
+   "Show Title": true
+  },
+  "Left Click Secrets": {
+   "Water Board": false,
+   "Close On Any Click": true
+  },
+  "Secret HUD": {
+   "Format": "3/7",
+   "Show Room Name": false,
+   "Hide When Done": true,
+   "Text Size": 10,
+   "Text Color": "#FFFF55FF",
+   "Done Color": "#55FF55FF",
+   "Background": 0
+  },
+  "Simon Says Solver": {
+   "First Color": "#50FF78FF",
+   "Second Color": "#FFE066FF",
+   "Other Color": "#F05050FF",
+   "Box Mode": "Both",
+   "Step Numbers": true,
+   "Show Lines": false,
+   "Only Next Line": false,
+   "SS Skip Compatibility": true,
+   "Block Wrong Clicks": true,
+   "Run Summary": true
+  },
+  "Dungeonbreaker Sound": {
+   "Sound": "XP Orb",
+   "Custom Sound ID": "minecraft:entity.player.levelup",
+   "Volume": 1
+  },
+  "SearchOverlay": {
+   "History Size": 5
+  },
+  "Auction Price Input": {
+   "Undercut By Default": false,
+   "Remember Last Amount": true,
+   "Enter Creates Auction": true,
+   "Last Amount": ""
+  },
+  "Item Value": {
+   "Lowest BIN": true,
+   "Bazaar Prices": true,
+   "Craft Cost": true,
+   "Item Worth": true,
+   "Lowest BIN Text": "&oLowest BIN: &f&l#price",
+   "BZ Buy Text": "&oBZ Buy: &f&l#price",
+   "BZ Sell Text": "&oBZ Sell: &f&l#price",
+   "Craft Cost Text": "&oCraft Cost:&r &f&l#price",
+   "Item Worth Text": "&5&oItem Worth: &6&l#price",
+   "Numbers": "Short"
+  },
+  "AutoSprint": {
+   "Disable In Water": true
+  },
+  "InventoryButtons": {
+   "Preset": "Dungeons",
+   "Preset Name": ""
+  },
+  "HideRecipeBook": {
+   "Also Crafting Table": true,
+   "Hide 2x2 Crafting": true
+  },
+  "ChatFilter": {
+   "Collapse Blank Lines": true
+  },
+  "Chat Features": {
+   "Max Chat Lines": 10000,
+   "Keep Chat On Disconnect": true,
+   "Save Between Launches": true,
+   "Lines To Save": 10000,
+   "Server Divider": true,
+   "Compact Repeats": true,
+   "Compact Range": 5,
+   "Show Timestamps": false,
+   "Time Format": "HH:mm:ss",
+   "Timestamp Color": "#AAAAAAFF",
+   "Right-Click Menu": true,
+   "Ctrl + Click Copy": true
+  },
+  "Chat Ping": {
+   "Ping On Your Name": true,
+   "Extra Words": "",
+   "Ignore Own Messages": true,
+   "Highlight": true,
+   "Highlight Color": "#FFC400FF",
+   "Sound": true,
+   "Volume": 1,
+   "Name HUD Message": "",
+   "HUD Minecraft Font": true,
+   "HUD Text Shadow": false
+  },
+  "Party Commands": {
+   "!help": "Everyone",
+   "!ping": "Everyone",
+   "!tps": "Everyone",
+   "!coords": "Everyone",
+   "!time": "Everyone",
+   "!song": "Everyone",
+   "!coinflip": "Everyone",
+   "!8ball": "Everyone",
+   "!dice": "Everyone",
+   "!dt": "Everyone",
+   "!invite": "Friends",
+   "!allinvite": "Friends",
+   "!warp": "Friends",
+   "!transfer": "Friends",
+   "!ptme": "Friends",
+   "!promote": "Friends",
+   "!demote": "Friends",
+   "!kick": "Only Me",
+   "!queue": "Friends"
+  },
+  "Auto Requeue": {
+   "Delay (s)": 3,
+   "Stop On Leave": true
+  },
+  "ScreenshotTweaks": {
+   "Hide Message": true,
+   "Copy To Clipboard": true,
+   "Show Confirmation": true
+  },
+  "Music": {
+   "Player": "Auto",
+   "Song Change Message": true,
+   "Pretty Song Messages": true,
+   "Listen Button": true,
+   "Chat Artist Color": "#55FFFFFF",
+   "Chat Song Color": "#FFD75AFF",
+   "Media Keybinds": true,
+   "Show HUD": true,
+   "Visible": "Always",
+   "Click In Inventory": true,
+   "Style": "Player",
+   "Icon": true,
+   "Artist Line": true,
+   "Progress Bar": true,
+   "Text Width": 150,
+   "Scroll Long Titles": true,
+   "Scroll Speed": 40,
+   "Text Size": 10,
+   "Buttons": true,
+   "Shuffle / Repeat": true,
+   "Share Button": true,
+   "Button Size": 18,
+   "Cover Art": true,
+   "Cover Size": 32,
+   "Cover Side": "Left",
+   "Rounded Cover": true,
+   "Song Color": "#FFFFFFFF",
+   "Artist Color": "#B4B4BEFF",
+   "Accent Color": "#1ED760FF",
+   "Wave Color": "#FF7828FF",
+   "Hover Color": "#FFFFFFFF",
+   "Dim When Paused": true,
+   "Background": 0
+  },
+  "Mute Sounds": {
+   "Muted Sounds": "entity.elder_guardian.ambient",
+   "Log Played Sounds": false
+  },
+  "Config Share": {
+   "Include HUD Positions": true
+  },
+  "Mod Settings": {
+   "Fixed HUD Size": true,
+   "Font": "Minecraft",
+   "Menu Layout": "Classic",
+   "Menu Opacity": 100,
+   "Menu Size": 135,
+   "Menu Blur": true,
+   "Blur Strength": 3,
+   "Open Animation": "Swing",
+   "Popup Animation": "Pop",
+   "Animation Speed": 0.6000000000000001,
+   "Separate Cheats Panel": true
+  },
+  "Door Highlight": {
+   "Wither Doors": true,
+   "Wither Door Color": "#FF2828FF",
+   "Blood Door": true,
+   "Blood Door Color": "#FF2828FF",
+   "Fairy Door": true,
+   "Fairy Door Color": "#FF2828FF",
+   "Has Key Color": "#3CFF3CFF",
+   "Only With Key": false,
+   "Highlight All Doors": true,
+   "Style": "Outline",
+   "See Through Walls": true,
+   "Tracers": true,
+   "Only In Dungeons": true
+  }
+ },
+ "huds": {
+  "ping_fps": {
+   "x": 0,
+   "y": 45,
+   "scale": 0.9
+  },
+  "stat_bars": {
+   "x": 267,
+   "y": 93,
+   "scale": 1
+  },
+  "critter": {
+   "progress": [
+    0,
+    90,
+    0.9
+   ],
+   "missing": [
+    1157,
+    0,
+    1
+   ],
+   "trades": [
+    159,
+    0,
+    0.7
+   ]
+  },
+  "time": {
+   "x": 1203,
+   "y": 652,
+   "scale": 1
+  },
+  "event_countdown": {
+   "x": 0,
+   "y": 176,
+   "scale": 1
+  },
+  "armor": {
+   "x": 515,
+   "y": 704,
+   "scale": 1
+  },
+  "chat_channel": {
+   "x": 0,
+   "y": 680,
+   "scale": 1
+  },
+  "chat_alerts": {
+   "x": 545,
+   "y": 85,
+   "scale": 3.5999987
+  },
+  "action_bar": {
+   "notices": {
+    "dx": 0,
+    "dy": 93,
+    "scale": 1.1
+   },
+   "itemName": {
+    "dx": 0,
+    "dy": 112,
+    "scale": 1
+   }
+  },
+  "run_profit": {
+   "x": 0,
+   "y": 446,
+   "scale": 1
+  },
+  "deployable_timers": {
+   "x": 245,
+   "y": 110,
+   "scale": 1
+  },
+  "ragnarock_timer": {
+   "x": 272,
+   "y": 420,
+   "scale": 1
+  },
+  "slayer": {
+   "x": 960,
+   "y": 80,
+   "scale": 0.79999995
+  },
+  "sun_gecko": {
+   "x": 579,
+   "y": 35,
+   "scale": 1
+  },
+  "dungeon_map": {
+   "x": 0,
+   "y": 110,
+   "scale": 1.8999999
+  },
+  "room_times": {
+   "x": 1149,
+   "y": 674,
+   "scale": 1
+  },
+  "secret": {
+   "x": 620,
+   "y": 420,
+   "scale": 1.3
+  },
+  "spotify": {
+   "x": 0,
+   "y": 0,
+   "scale": 0.79999995
+  },
+  "leap_counter": {
+   "x": 540,
+   "y": 235,
+   "scale": 1.8
+  },
+  "sb_kick_timer": {
+   "x": 605,
+   "y": 35,
+   "scale": 1
+  },
+  "pet_display": {
+   "x": 730,
+   "y": 698,
+   "scale": 1
+  },
+  "skill_display": {
+   "x": 593,
+   "y": 51,
+   "scale": 1
+  },
+  "client_titles": {
+   "x": 616,
+   "y": 125,
+   "scale": 0.5
+  },
+  "mask_timers": {
+   "x": 0,
+   "y": 390,
+   "scale": 1.2
+  },
+  "blessing_display": {
+   "x": 120,
+   "y": 65,
+   "scale": 1
+  },
+  "warp_cooldown": {
+   "x": 590,
+   "y": 60,
+   "scale": 1
+  },
+  "tick_timers": {
+   "x": 253,
+   "y": 153,
+   "scale": 1.3000001
+  },
+  "tick_pad": {
+   "x": 770,
+   "y": 320,
+   "scale": 1.5000001
+  },
+  "tick_py": {
+   "x": 770,
+   "y": 355,
+   "scale": 1.5000001
+  },
+  "tick_goldor": {
+   "x": 785,
+   "y": 320,
+   "scale": 1.5000001
+  },
+  "tick_maxor": {
+   "x": 785,
+   "y": 320,
+   "scale": 1.5000001
+  },
+  "stat_health": {
+   "x": 10,
+   "y": 60,
+   "scale": 1
+  },
+  "stat_mana": {
+   "x": 10,
+   "y": 76,
+   "scale": 1
+  },
+  "stat_vitality": {
+   "x": 10,
+   "y": 92,
+   "scale": 1
+  },
+  "stat_overflow": {
+   "x": 10,
+   "y": 108,
+   "scale": 1
+  },
+  "stat_defence": {
+   "x": 10,
+   "y": 122,
+   "scale": 1
+  },
+  "title_roomalerts": {
+   "x": 545,
+   "y": 195,
+   "scale": 2.4999998
+  },
+  "title_warpcooldown": {
+   "x": 598,
+   "y": 0,
+   "scale": 1
+  },
+  "title_masktimers": {
+   "x": 130,
+   "y": 430,
+   "scale": 1.1
+  },
+  "title_secrethighlight": {
+   "x": 541,
+   "y": 370,
+   "scale": 2.3
+  },
+  "title_leapcounter": {
+   "x": 719,
+   "y": 136,
+   "scale": 1
+  },
+  "title_ragnarocktimer": {
+   "x": 561,
+   "y": 145,
+   "scale": 2.1000006
+  },
+  "title_f7titles": {
+   "x": 575,
+   "y": 200,
+   "scale": 1.8000002
+  },
+  "title_scorecalculator": {
+   "x": 774,
+   "y": 233,
+   "scale": 1.5000001
+  },
+  "title_sbkicktimer": {
+   "x": 999,
+   "y": 687,
+   "scale": 1
+  },
+  "title_vampireslayer": {
+   "x": 245,
+   "y": 75,
+   "scale": 1
+  },
+  "score_calculator": {
+   "x": 860,
+   "y": 695,
+   "scale": 0.99999976
+  },
+  "title_keyalerts": {
+   "x": 587,
+   "y": 360,
+   "scale": 1.4000001
+  },
+  "invincibility_timer": {
+   "x": 590,
+   "y": 340,
+   "scale": 1.3000001
+  },
+  "layout": {
+   "w": 1280,
+   "h": 720,
+   "panels": {
+    "Maxor Start Timer": [
+     785,
+     320,
+     55,
+     33,
+     1.5
+    ],
+    "Client Notices": [
+     530,
+     627,
+     220,
+     13,
+     1.1
+    ],
+    "Sun Gecko Alert": [
+     330,
+     346,
+     90,
+     22
+    ],
+    "Critter Progress": [
+     0,
+     90,
+     132,
+     124,
+     0.9
+    ],
+    "Other Alerts": [
+     330,
+     20,
+     90,
+     22
+    ],
+    "Storm PY Timer": [
+     770,
+     355,
+     72,
+     33,
+     1.5
+    ],
+    "Room Times": [
+     1149,
+     674,
+     131,
+     46,
+     1
+    ],
+    "Critter Trades": [
+     159,
+     0,
+     216,
+     36,
+     0.7
+    ],
+    "Critter Safari Alert": [
+     330,
+     40,
+     90,
+     22
+    ],
+    "Storm Pad Timer": [
+     770,
+     320,
+     72,
+     33,
+     1.5
+    ],
+    "Current Split": [
+     564,
+     560,
+     49,
+     17,
+     1.9
+    ],
+    "Critter Missing": [
+     1157,
+     0,
+     123,
+     172,
+     1
+    ],
+    "Mask Timers": [
+     0,
+     390,
+     127,
+     55,
+     1.2
+    ],
+    "Blessing Display": [
+     120,
+     65,
+     59,
+     34,
+     1
+    ],
+    "Slayer Tracker Alert": [
+     245,
+     75,
+     68,
+     33,
+     1
+    ],
+    "Deployable Timers": [
+     245,
+     110,
+     89,
+     46,
+     1
+    ],
+    "Dungeon Map": [
+     0,
+     110,
+     243,
+     269,
+     1.9
+    ],
+    "Warp Cooldown Alert": [
+     598,
+     0,
+     115,
+     33,
+     1
+    ],
+    "Health Bar": [
+     10,
+     60,
+     80,
+     12,
+     1
+    ],
+    "Slayer": [
+     960,
+     80,
+     143,
+     75,
+     0.8
+    ],
+    "Chat Alerts": [
+     545,
+     85,
+     219,
+     61,
+     3.6
+    ],
+    "Mana Bar": [
+     10,
+     76,
+     80,
+     12,
+     1
+    ],
+    "Warp Cooldown": [
+     590,
+     60,
+     116,
+     22,
+     1
+    ],
+    "Dungeon Splits": [
+     1120,
+     0,
+     160,
+     171,
+     0.8
+    ],
+    "Secret HUD": [
+     620,
+     420,
+     37,
+     28,
+     1.3
+    ],
+    "Ragnarock Timer": [
+     272,
+     420,
+     90,
+     34,
+     1
+    ],
+    "Key Alerts Alert": [
+     587,
+     360,
+     169,
+     30,
+     1.4
+    ],
+    "Secret Clicked Alert": [
+     541,
+     370,
+     204,
+     50,
+     2.3
+    ],
+    "Invincibility Timer": [
+     590,
+     340,
+     100,
+     28,
+     1.3
+    ],
+    "Ragnarock Timer Alert": [
+     561,
+     145,
+     241,
+     46,
+     2.1
+    ],
+    "Armor HUD": [
+     515,
+     704,
+     64,
+     16,
+     1
+    ],
+    "Held Item Name": [
+     540,
+     608,
+     200,
+     12,
+     1
+    ],
+    "F7 Titles Alert": [
+     575,
+     200,
+     172,
+     39,
+     1.8
+    ],
+    "Time HUD": [
+     1203,
+     652,
+     60,
+     16,
+     1
+    ],
+    "Event Countdown": [
+     0,
+     176,
+     0,
+     0,
+     1
+    ],
+    "Skill Display": [
+     593,
+     51,
+     80,
+     12,
+     1
+    ],
+    "Daily Tasks": [
+     1033,
+     163,
+     72,
+     9
+    ],
+    "Score Calculator": [
+     860,
+     695,
+     61,
+     21,
+     1
+    ],
+    "Vitality Bar": [
+     10,
+     92,
+     80,
+     12,
+     1
+    ],
+    "SB Kick Timer Alert": [
+     999,
+     687,
+     71,
+     33,
+     1
+    ],
+    "Ping / FPS": [
+     0,
+     45,
+     67,
+     41,
+     0.9
+    ],
+    "Room Alerts Alert": [
+     545,
+     195,
+     232,
+     82,
+     2.5
+    ],
+    "Chat Channel HUD": [
+     0,
+     680,
+     135,
+     12,
+     1
+    ],
+    "Run Profit": [
+     0,
+     446,
+     86,
+     84,
+     1
+    ],
+    "Overflow Mana": [
+     10,
+     108,
+     80,
+     12,
+     1
+    ],
+    "Sun Gecko": [
+     579,
+     35,
+     0,
+     0,
+     1
+    ],
+    "Mask Timers Alert": [
+     130,
+     430,
+     111,
+     24,
+     1.1
+    ],
+    "SB Kick Timer": [
+     605,
+     35,
+     84,
+     22,
+     1
+    ],
+    "Leap Counter": [
+     540,
+     235,
+     217,
+     39,
+     1.8
+    ],
+    "Music": [
+     0,
+     0,
+     177,
+     41,
+     0.8
+    ],
+    "Pet Display": [
+     730,
+     698,
+     127,
+     22,
+     1
+    ],
+    "Goldor Death Ticks": [
+     785,
+     320,
+     55,
+     33,
+     1.5
+    ],
+    "Defence": [
+     10,
+     122,
+     80,
+     12,
+     1
+    ]
+   }
+  },
+  "styles": {
+   "Maxor Start Timer": "Accent Top",
+   "Room Alerts Alert": "Accent Top",
+   "Storm PY Timer": "Accent Top",
+   "Mask Timers Alert": "Accent Top",
+   "Storm Pad Timer": "Accent Top",
+   "F7 Titles Alert": "Accent Top",
+   "Blessing Display": "Glass",
+   "Secret Clicked Alert": "Rail",
+   "Goldor Death Ticks": "Accent Top",
+   "Ragnarock Timer Alert": "Flat",
+   "Score Calculator Alert": "Accent Top"
+  },
+  "looks": {
+   "SB Kick Timer Alert": {
+    "background": false
+   },
+   "Music": {
+    "background": false
+   },
+   "Secret Clicked Alert": {
+    "background": false
+   },
+   "Slayer": {
+    "background": true
+   }
+  }
+ }
+}

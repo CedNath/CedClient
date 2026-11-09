@@ -49,6 +49,15 @@ abstract class Setting<T>(
         value = default
     }
 
+    /** The shipped starting value, when the bundled defaults have one (see BundledDefaults). */
+    var bundled: com.google.gson.JsonElement? = null
+
+    /** What "reset" means to the player: the shipped value if there is one, else [default]. */
+    fun resetToDefault() {
+        val raw = bundled
+        if (raw != null && this is Saving) read(raw, com.google.gson.Gson()) else reset()
+    }
+
     open val isVisible: Boolean
         get() = (visibilityDependency?.invoke() ?: true) && !hidden
 

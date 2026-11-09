@@ -142,8 +142,32 @@ object ConfigManager {
     /** False until the saved config has been replayed; saving before that would write the defaults over it. */
     private var loadedOnce = false
 
+    /** The bundled starting settings (never on / off, never keybinds); anything saved is applied over them afterwards. */
+    private fun applyBundledDefaults() {
+        for ((name, element) in BundledDefaults.modules.entrySet()) {
+            val module = ModuleManager.getModule(name) ?: continue
+            val values = element.asJsonObject
+            for (setting in module.settings.values) {
+                if (setting !is Saving || setting is ced.cedclient.features.settings.KeybindSetting) continue
+                val raw = values.get(setting.name) ?: continue
+                setting.bundled = raw
+                try {
+                    setting.read(raw, gson)
+                } catch (t: Throwable) {
+                    t.printStackTrace()
+                }
+            }
+        }
+    }
+
     fun loadModulesOnly() {
         try {
+            suppressAutoSave = true
+            try {
+                applyBundledDefaults()
+            } finally {
+                suppressAutoSave = false
+            }
             val modulesJson = readRoot()?.get("modules")?.asJsonObject ?: return
 
             suppressAutoSave = true

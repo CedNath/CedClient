@@ -1,0 +1,538 @@
+{
+ "modules": {
+  "Block ESP": {
+   "Max Distance": 128,
+   "Show Boxes": true,
+   "Box Color": "#FFD233FF",
+   "Show Tracers": false,
+   "Tracer Color": "#FFD233FF",
+   "Show Labels": true,
+   "Debug Log": false
+  },
+  "Pathfinder": {
+   "Flight Height": 45,
+   "Read Ranges From Item": true,
+   "Etherwarp": true,
+   "Etherwarp Range": 61,
+   "Etherwarp Cost": 30,
+   "Instant Transmission": true,
+   "Instant Range": 12,
+   "Instant Cost": 25,
+   "Sprint": true,
+   "Turn Speed": 35,
+   "Walk Turn Cap (deg)": 22,
+   "Turn Ease (%)": 25,
+   "Heading Follow (%)": 65,
+   "Turn Response (%)": 65,
+   "Straighten Route": true,
+   "Corner Cutting (blocks)": 3.5,
+   "Pitch Return (%)": 8,
+   "Pitch Return Cap": 3,
+   "Render Path": true,
+   "Smooth Path Line": true,
+   "Max Nodes": 60000,
+   "Max Drop": 3,
+   "Chat Messages": true,
+   "Log Every Move": true,
+   "Debug Log": true
+  },
+  "Freecam": {
+   "Fly Speed": 1,
+   "Sprint Multiplier": 2,
+   "Mouse Sensitivity": 0.2
+  },
+  "Secret Hitboxes": {
+   "Lever": true,
+   "Lever Hitbox Size": 1,
+   "Button": true,
+   "Button Hitbox Size": 1,
+   "Skulls": false,
+   "Mushroom": false,
+   "Hide Unused Device Levers": true,
+   "Only In Dungeons": true
+  },
+  "LassoHelper": {
+   "Randomize Timing": true,
+   "Randomize Range ms": 100,
+   "Reel Delay ms": 150,
+   "Cooldown ms": 600,
+   "Leash Search Radius (blocks)": 16,
+   "Reel Proximity (blocks)": 3,
+   "Debug Log": false
+  },
+  "Wither ESP": {
+   "Colour By Health": false,
+   "Color": "#AA55FFFF",
+   "Boss Room Only": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "Terminal ESP": {
+   "Open Color": "#55FF55FF",
+   "Done Color": "#828282FF",
+   "Show Finished": true,
+   "Highlight Nearest": false,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "Teammate ESP": {
+   "Show Dead": false,
+   "Hide Under Crosshair": true,
+   "Box Mode": "Outline",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "F4 Features": {
+   "Style": "Glow",
+   "ESP Thorn": true,
+   "ESP Spirit Bear": true,
+   "ESP Spirit Bow": true,
+   "Spirit Bear HUD": true,
+   "Thorn Color": "#FFAA00FF",
+   "Bear Color": "#55FFFFFF",
+   "Bow Color": "#00FFFFFF",
+   "Announce Bear": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true,
+   "Background Opacity": 100
+  },
+  "Etherwarp": {
+   "Range (blocks)": 61,
+   "Show Fail": true,
+   "Always Show": false,
+   "See Through Walls": true,
+   "Style": "Filled Outline",
+   "Fill Opacity %": 30,
+   "OK Color": "#55FF55FF",
+   "Use Far Color": false,
+   "Far Color": "#FFFF55FF",
+   "Fail Color": "#FF5555FF"
+  },
+  "Architect Draft": {
+   "Announce Fail": true,
+   "Auto Draft": false,
+   "Draft Delay (ms)": 400,
+   "Announce Draft Use": true
+  },
+  "Necron Drop": {
+   "Style": "Marker",
+   "Safe Color": "#55FF55FF",
+   "Lava Color": "#FF3C3CFF",
+   "Unknown Color": "#FFFF55FF",
+   "Path Line": true,
+   "Landing Title": true,
+   "Accuracy Message": true,
+   "Show Title": true
+  },
+  "Gate Highlight": {
+   "Color": "#3CAAFFFF",
+   "Warning Color": "#FF5555FF",
+   "Dim Aimed Gate": false,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 10,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "Trevor Helper": {
+   "Ready Alert": true,
+   "Auto Call": false,
+   "Call Delay (s)": 2,
+   "Show Title": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "Gyro Helper": {
+   "Draw Box": true,
+   "Draw Sucking Range": true,
+   "Box Color": "#55FFFFFF",
+   "Ring Color": "#AA55FFFF",
+   "Pull Color": "#55FF55FF",
+   "Mobs For Pull Color": 3,
+   "Range (blocks)": 25
+  },
+  "Camera": {
+   "Disable Front Camera": true,
+   "Disable Blindness": true,
+   "Disable Nausea": true,
+   "Effects: Dungeons Only": false,
+   "Custom Camera Distance": true,
+   "Camera Distance": 6,
+   "Camera Clip": false
+  },
+  "No Item Place": {
+   "Item IDs": "",
+   "Block Known Items": true,
+   "Block Relics (F7 P5)": true,
+   "Block All Skulls": false,
+   "Notice Once": false
+  },
+  "Arrow Align": {
+   "Color Style": "Dynamic",
+   "Text Color": "#FFFFFFFF",
+   "Block Wrong Clicks": true,
+   "Invert Sneak": false,
+   "Show Total": true
+  },
+  "I4 Helper": {
+   "Target Color": "#55FF55FF",
+   "Done Color": "#FF5555FF",
+   "Aim Color": "#FFFF55FF",
+   "Finish Title": true,
+   "Show Title": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "M7 Relics": {
+   "Box Relics": true,
+   "Place Timer": true,
+   "Show Total": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "Livid Solver": {
+   "Show HP": true,
+   "Tracer": true,
+   "Invulnerability Timer": true,
+   "Ice Spray Title": true,
+   "Highlight Color": "#00AAFFFF",
+   "Show Title": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "Blood Camp": {
+   "Blood Camp Helper": true,
+   "Decimal Places": 1,
+   "Timer Color": "#FFFFFFFF",
+   "Box Color": "#FF00FFFF",
+   "Last Second Color": "#FFAA00FF",
+   "Line Color": "#00FFFFFF",
+   "Kill Title": false,
+   "Show Title": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "I Hate Diorite": {
+   "Lime Pillar": true,
+   "Yellow Pillar": true,
+   "Purple Pillar": true,
+   "Red Pillar": true
+  },
+  "Door Fix": {
+   "Only In Section 3": true
+  },
+  "I Hate Doors": {
+   "Glass Entrance Door": true,
+   "Glass Wither Door": true,
+   "Glass Blood Door": true,
+   "Entrance Glass": "White",
+   "Wither Glass": "Black",
+   "Blood Glass": "Red"
+  },
+  "Spring Boots": {
+   "Draw Mode": "Percentage",
+   "Draw Box": true,
+   "See Through Walls": true,
+   "Box Mode": "Outline",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true,
+   "Background Opacity": 100
+  },
+  "Snappy Tappy": {
+   "Left / Right": true,
+   "Forward / Back": true
+  },
+  "Wither Dragons": {
+   "Timer Style": "Milliseconds",
+   "Timer Symbol": true,
+   "Timer Urgency Colors": true,
+   "Dragon Timer": true,
+   "Arrow Stack Indicator": true,
+   "Indicator Style": "Ring",
+   "Indicator Size": 1,
+   "Indicator Color": "#00FFFFFF",
+   "Dragon Skip Box": true,
+   "Dragon Health": true,
+   "Health Percent": true,
+   "Health Size": 5,
+   "Highlight Dragons": false,
+   "Dragon Priority": true,
+   "Solo Priority": "Healer",
+   "First Dragon Only": true,
+   "Send Dragon Time Alive": true,
+   "Send Arrows Hit": true,
+   "Dragon Tracer": true,
+   "Box Mode": "Outline",
+   "Box Fill Opacity %": 10,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true,
+   "Background Opacity": 100
+  },
+  "Blaze Solver": {
+   "Blazes To Highlight": 3,
+   "First Blaze": "#00FF00FF",
+   "Second Blaze": "#FFFF00FF",
+   "Other Blazes": "#F70000FF",
+   "Line Color": "#FFFFFFFF",
+   "Blaze Done Message": true,
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "Puzzle Solvers": {
+   "Boulder Solver": true,
+   "Show All Moves": true,
+   "Boulder Box Color": "#0000FFFF",
+   "Boulder Click Color": "#FF0000FF",
+   "Creeper Beam Solver": true,
+   "Render Lines": true,
+   "Phase Through Walls": true,
+   "Quiz Solver": true,
+   "Answer Color": "#00FFFFFF",
+   "Block Wrong Clicks": true,
+   "Teleport Maze Solver": true,
+   "Correct Pad Color": "#00FF00FF",
+   "Wrong Pad Color": "#FF0000FF",
+   "Three Weirdos Solver": true,
+   "Hide Wrong Chests": true,
+   "Correct Chest Color": "#00FF00FF",
+   "Wrong Chest Color": "#FF0000FF",
+   "Tic Tac Toe Solver": true,
+   "Prevent Miss Click": true,
+   "Highlight Color": "#00FF00FF",
+   "Prediction": true,
+   "Prediction Color": "#FFA500FF",
+   "Water Board Solver": true,
+   "Water Click Color": "#00FF00FF",
+   "Next Click Color": "#FFFF00FF",
+   "Ice Fill Solver": true,
+   "Ice Fill Path Color": "#00FF00FF",
+   "Ice Path Solver": true,
+   "Next Segment Color": "#00FF00FF",
+   "Segments Color": "#FF0000FF",
+   "Box Mode": "Both",
+   "Box Fill Opacity %": 35,
+   "Boxes Through Walls": true,
+   "Box Pulse": false,
+   "Box Distance Fade": true
+  },
+  "FishingHelper": {
+   "Server Reel": true,
+   "Auto Recast": true,
+   "Randomize Timing": true,
+   "Randomize Range ms": 100,
+   "Reel Delay ms": 150,
+   "Recast Delay ms": 250,
+   "Cooldown ms": 600,
+   "Detect Radius (blocks)": 2
+  },
+  "TinyDancerHelper": {
+   "Beat Messages": true,
+   "Look Smoothness ms": 150,
+   "Jump Delay ms": 500,
+   "Punch Delay ms": 800,
+   "Debug Log": false,
+   "Test Beat Ticks": 10
+  },
+  "Auto Experiments": {
+   "Auto Click": true,
+   "Show Solver": true,
+   "Click Delay ms": 400,
+   "Smooth Mouse": true,
+   "Auto Close": true,
+   "Serum Count": 0,
+   "Get Max XP": false,
+   "Superpairs Solver": true
+  },
+  "Beacon Solver": {
+   "Auto Click": true,
+   "Click Delay ms": 300,
+   "Smooth Cursor": true,
+   "Debug": false
+  },
+  "Auto Fusion": {
+   "Click Delay ms": 300,
+   "Smooth Mouse": true
+  },
+  "Auto Terminals": {
+   "Random Delay": true,
+   "Click Delay": 150,
+   "Min Random Delay": 120,
+   "Max Random Delay": 150,
+   "Click Order": "Human",
+   "Numbers": true,
+   "Colors": true,
+   "Rubix": true,
+   "Red-Green": true,
+   "Start-With": true,
+   "Melody": true,
+   "First Click Delay": true,
+   "Melody Skip": false,
+   "Skip Mode": "Edges",
+   "Skip First Row": false
+  },
+  "Anvil Helper": {
+   "Max Level": 5,
+   "Click Delay ms": 400,
+   "Smooth Mouse": true
+  },
+  "Auto Clicker": {
+   "Left Click": true,
+   "Left Min CPS": 8,
+   "Left Max CPS": 12,
+   "Right Click": true,
+   "Right Min CPS": 8,
+   "Right Max CPS": 12,
+   "Only While Held": false,
+   "Only When Looking At": "Anything",
+   "Held Item Contains": ""
+  },
+  "Arrow Align Triggerbot": {
+   "Click Delay (ms)": 100
+  },
+  "Lights Device Triggerbot": {
+   "Click Delay (ms)": 150
+  }
+ },
+ "huds": {
+  "spring_boots": {
+   "x": 600,
+   "y": 585,
+   "scale": 0.79999995
+  },
+  "blood_camp": {
+   "x": 592,
+   "y": 51,
+   "scale": 1.7000002
+  },
+  "wither_dragons": {
+   "x": 845,
+   "y": 310,
+   "scale": 2.0000002
+  },
+  "title_i4helper": {
+   "x": 809,
+   "y": 85,
+   "scale": 1.7000002
+  },
+  "title_necrondrop": {
+   "x": 809,
+   "y": 160,
+   "scale": 1.2
+  },
+  "title_lividsolver": {
+   "x": 570,
+   "y": 200,
+   "scale": 1.8000002
+  },
+  "title_bloodcamp": {
+   "x": 538,
+   "y": 370,
+   "scale": 2.3
+  },
+  "spirit_bear": {
+   "x": 245,
+   "y": 75,
+   "scale": 1
+  },
+  "layout": {
+   "w": 1280,
+   "h": 720,
+   "panels": {
+    "I4 Helper Alert": [
+     809,
+     85,
+     197,
+     56,
+     1.7
+    ],
+    "Livid Solver Alert": [
+     570,
+     200,
+     181,
+     39,
+     1.8
+    ],
+    "Trevor Helper Alert": [
+     500,
+     176,
+     90,
+     22
+    ],
+    "Spring Boots": [
+     600,
+     585,
+     77,
+     17,
+     0.8
+    ],
+    "Blood Camp Alert": [
+     538,
+     370,
+     133,
+     50,
+     2.3
+    ],
+    "Wither Dragons": [
+     845,
+     310,
+     152,
+     44,
+     2
+    ],
+    "Spirit Bear": [
+     245,
+     75,
+     75,
+     34,
+     1
+    ],
+    "Necron Drop Alert": [
+     809,
+     160,
+     127,
+     26,
+     1.2
+    ]
+   }
+  },
+  "styles": {
+   "Blood Camp Alert": "Accent Top",
+   "I4 Helper Alert": "Accent Top",
+   "Necron Drop Alert": "Accent Top",
+   "Livid Solver Alert": "Accent Top"
+  },
+  "looks": {}
+ }
+}

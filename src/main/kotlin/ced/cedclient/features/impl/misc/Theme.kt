@@ -124,11 +124,10 @@ object Theme : Module(
 
     private fun resetAll() {
         for (module in ModuleManager.modules) {
-            module.settings.values.filter { it !in markers }.forEach { it.reset() }
+            module.settings.values.filter { it !in markers }.forEach { it.resetToDefault() }
             if (!module.isAction) module.setEnabled(module.defaultEnabled)
         }
-        HudElement.all.forEach { it.resetPosition(); it.save() }
-        HudElement.layoutEdited()
+        HudElement.resetAllToDefault()
         (Minecraft.getInstance().gui.screen() as? ClickGUI)?.resetPanelPositions()
         ConfigManager.saveModulesOnly()
         Minecraft.getInstance().player?.sendSystemMessage(ChatPrefix.msg("§fEverything reset to defaults"))

@@ -143,7 +143,7 @@ class MasterHudEditScreen : Screen(Component.literal("Edit HUD")) {
         x += this.font.width(e.label) + 10
         x += button(context, x, y, "-", mx, my) { e.adjustScale(-0.1f); e.save(); HudElement.layoutEdited() } + 2
         x += button(context, x, y, "+", mx, my) { e.adjustScale(0.1f); e.save(); HudElement.layoutEdited() } + 2
-        x += button(context, x, y, "Reset", mx, my) { e.resetPosition(); e.save(); HudElement.layoutEdited() } + 2
+        x += button(context, x, y, "Reset", mx, my) { HudElement.resetToDefault(e); e.save(); HudElement.layoutEdited() } + 2
         HudCard.backgroundToggle(e)?.let { b -> button(context, x, y, "BG", mx, my, b.value) { b.value = !b.value } }
     }
 

@@ -34,7 +34,7 @@ object HudStore {
     }
 
     @Synchronized
-    fun get(key: String): String? = huds.get(key)?.let { if (it is JsonPrimitive && it.isString) it.asString else it.toString() }
+    fun get(key: String): String? = (huds.get(key) ?: BundledDefaults.huds.get(key))?.let { if (it is JsonPrimitive && it.isString) it.asString else it.toString() }
 
     /** A copy of every saved HUD, for the share code. */
     @Synchronized

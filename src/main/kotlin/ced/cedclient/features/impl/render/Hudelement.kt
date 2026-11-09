@@ -93,6 +93,51 @@ interface HudElement {
             homeH = curH
             home.clear()
             all.forEach { home[it.label] = intArrayOf(it.panelX, it.panelY, (it.lastWidth * it.panelScale).toInt(), (it.lastHeight * it.panelScale).toInt()) }
+            saveLayout()
+        }
+
+        private val bundledLayout: com.google.gson.JsonObject? get() = ced.cedclient.config.BundledDefaults.huds.getAsJsonObject("layout")
+
+        /** [x, y, width, height, scale?] this panel ships with, laid out for the bundled layout's GUI size. */
+        private fun bundledPanel(label: String): com.google.gson.JsonArray? =
+            bundledLayout?.getAsJsonObject("panels")?.get(label)?.takeIf { it.isJsonArray }?.asJsonArray
+
+        /** One panel back to the spot and size CedClient ships with (the HUD editor's Reset), worked out for this GUI size. */
+        fun resetToDefault(e: HudElement) {
+            e.resetPosition()
+            val a = bundledPanel(e.label) ?: return
+            val layout = bundledLayout ?: return
+            val w = a[2].asInt
+            val h = a[3].asInt
+            e.panelX = if (curW > 0) reanchor(a[0].asInt, w, w, layout["w"].asInt, curW) else a[0].asInt
+            e.panelY = if (curH > 0) reanchor(a[1].asInt, h, h, layout["h"].asInt, curH) else a[1].asInt
+            if (a.size() > 4) e.panelScale = a[4].asFloat
+        }
+
+        /** Every panel back to the shipped layout ("Reset Everything"); the layout is kept at the GUI size it was made for. */
+        fun resetAllToDefault() {
+            val layout = bundledLayout
+            all.forEach { e ->
+                e.resetPosition()
+                bundledPanel(e.label)?.let { a ->
+                    e.panelX = a[0].asInt
+                    e.panelY = a[1].asInt
+                    if (a.size() > 4) e.panelScale = a[4].asFloat
+                }
+                e.save()
+            }
+            if (layout == null) { layoutEdited(); return }
+            homeW = layout["w"].asInt
+            homeH = layout["h"].asInt
+            home.clear()
+            all.forEach { e ->
+                val a = bundledPanel(e.label)
+                home[e.label] = intArrayOf(e.panelX, e.panelY, a?.get(2)?.asInt ?: (e.lastWidth * e.panelScale).toInt(), a?.get(3)?.asInt ?: (e.lastHeight * e.panelScale).toInt())
+            }
+            saveLayout()
+        }
+
+        private fun saveLayout() {
             val json = com.google.gson.JsonObject().apply {
                 addProperty("w", homeW)
                 addProperty("h", homeH)

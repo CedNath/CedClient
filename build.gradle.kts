@@ -59,7 +59,7 @@ dependencies {
 // cedclient.cheat.mixins.json, which the legit fabric.mod.json doesn't list.
 val legitJavaDir = layout.buildDirectory.dir("preprocessed/legit/java")
 val legitKotlinDir = layout.buildDirectory.dir("preprocessed/legit/kotlin")
-val legitOnlyExcludes = listOf("cedclient.cheat.mixins.json", "sea_creatures.json")
+val legitOnlyExcludes = listOf("cedclient.cheat.mixins.json", "sea_creatures.json", "cedclient_defaults_cheat.json")
 
 fun preprocessLegit(source: List<String>, file: File): List<String> {
     data class Frame(val outer: Boolean, val branch: Boolean)
